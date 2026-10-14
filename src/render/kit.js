@@ -1,6 +1,36 @@
 // Byggsats: hjälpare för att bygga allt i kod (inga bildfiler).
 import * as THREE from 'three';
 
+// Palett: alla färger som modeller, värld och ljus använder. Ändra här, inte i modellerna.
+export const PALETTE = {
+  // ljus och luft
+  haze: '#b9aa8c', hemiSky: '#d6dbe0', hemiGround: '#5b4a35', sun: '#ffdcae', dust: '#efe2c4',
+  // mark
+  dirt: '#8c7b5c', dirtSpeck: ['#5e5039', '#a3936f', '#6d6a4b', '#3f362a'],
+  asphalt: '#45413a', asphaltSpeck: ['#2d2a25', '#5a554b', '#3a3630', '#6b6456'],
+  gravel: ['#6f6352', '#8a7d65', '#4f473b'],
+  // värn och vapen
+  sandbag: ['#8f8160', '#7f7254', '#9a8c6a', '#867a5b'],
+  gunMetal: '#2a2b28', gunDark: '#1d1e1c', shield: '#8a8b64', ammo: '#4d4f3a', crate: '#55603f', crateDark: '#3d4530', stencil: '#c9bd98',
+  // soldat
+  soldierSkin: '#a58467', soldierShirt: '#55593f', soldierPants: '#4a4d38', helmet: '#4f5438', vest: '#43472f',
+  // hinder
+  wireSteel: '#3c3a36', post: '#4a3a2a', concrete: '#a59f90', concreteDark: '#6f695d', grime: '#7d7768', crack: '#3a3630',
+  // zombier
+  zSkin: ['#7e8a69', '#8b8f73', '#6f7962', '#9b9477', '#7a7f6c'],
+  zShirt: ['#4a4f5a', '#5e4a3a', '#6b6455', '#3d4a3f', '#7a3b2e', '#8a8577', '#2f3b52'],
+  zPants: ['#2f3340', '#3a352c', '#4a4538', '#24272b'],
+  zRunnerShirt: ['#4b4740', '#5c4c3e', '#6a6152', '#3f454b'],
+  zBruteSkin: ['#7f8770', '#8a8b74', '#767e68'],
+  zBruteShirt: ['#5a4c3b', '#4d4a42', '#6a5a44'],
+  blood: '#4f120d', bloodDark: '#3a0e0a',
+  // rekvisita
+  carGlass: '#1d1c1a', tire: '#151413', barrel: '#4d5a3d', bark: '#2c2620', pole: '#3b2f24', wire: '#1e1a16',
+  wall: '#9a8d78', rubble: '#5d5245',
+  // markeringar och gränssnitt
+  paper: '#e9dfc9', rust: '#b5532a', ink: '#16120e',
+};
+
 export const rnd = (a, b) => a + Math.random() * (b - a);
 export const pick = a => a[(Math.random() * a.length) | 0];
 
@@ -54,5 +84,5 @@ export function humanoid({ skin, shirt, pants, helmet }) {
     const h = mesh(new THREE.SphereGeometry(0.3, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet), 0, 2.1, 0.03);
     h.scale.set(1.05, 0.8, 1.1); body.add(h);
   }
-  return { root, body, hipL, hipR, shL, shR, head };
+  return { root, body, hipL, hipR, shL, shR, head, torso };
 }

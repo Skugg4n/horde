@@ -1,5 +1,6 @@
 // Renderer, kamera och ljus. Samma sol, dis och tonmappning som prov 1.
 import * as THREE from 'three';
+import { PALETTE as P } from './kit.js';
 
 export function createScene(container, map) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -11,7 +12,7 @@ export function createScene(container, map) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
 
-  const HAZE = new THREE.Color('#b9aa8c');
+  const HAZE = new THREE.Color(P.haze);
   const scene = new THREE.Scene();
   scene.background = HAZE;
   scene.fog = new THREE.Fog(HAZE, 70, 120);
@@ -32,8 +33,8 @@ export function createScene(container, map) {
   addEventListener('resize', resize); resize();
 
   // Låg eftermiddagssol: långa skuggor över vägen
-  scene.add(new THREE.HemisphereLight('#d6dbe0', '#5b4a35', 0.75));
-  const sun = new THREE.DirectionalLight('#ffdcae', 2.6);
+  scene.add(new THREE.HemisphereLight(P.hemiSky, P.hemiGround, 0.75));
+  const sun = new THREE.DirectionalLight(P.sun, 2.6);
   sun.position.set(-34, 30, 26);
   sun.target.position.set(0, 0, 0);
   sun.castShadow = true;
