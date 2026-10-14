@@ -406,12 +406,19 @@ export function slotMarker(state = 'free') {
   return g;
 }
 
+// state: 'free' | 'locked' | 'hover' | 'selected'. En låst position behåller hänglåset även när
+// den är markerad eller pekas på.
 export function setSlotMarkerState(group, state) {
   const u = group.userData;
+  if (state === 'locked') u.locked = true;
+  else if (state === 'free') u.locked = false;
   u.state = state;
-  u.lock.visible = state === 'locked';
-  u.plus.visible = state !== 'locked';
-  u.m.color.set(state === 'selected' ? P.rust : P.paper);
-  u.m.opacity = state === 'selected' ? 0.85 : state === 'locked' ? 0.16 : 0.35;
-  u.ring.scale.setScalar(state === 'selected' ? 1.04 : 1);
+  u.lock.visible = !!u.locked;
+  u.plus.visible = !u.locked;
+  const sel = state === 'selected', hov = state === 'hover';
+  u.m.color.set(sel ? P.rust : P.paper);
+  u.lockM.color.set(sel ? P.rust : P.paper);
+  u.m.opacity = sel ? 0.85 : hov ? (u.locked ? 0.32 : 0.6) : u.locked ? 0.16 : 0.35;
+  u.lockM.opacity = sel ? 0.85 : hov ? 0.7 : 0.5;
+  u.ring.scale.setScalar(sel ? 1.04 : hov ? 1.02 : 1);
 }

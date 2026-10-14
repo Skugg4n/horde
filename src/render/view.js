@@ -1,7 +1,7 @@
 // Vyn: läser simuleringens tillstånd och händelser och visar dem i scenen.
 // consume(events) anropas efter varje steg, sync(dt) en gång per bildruta.
 import * as THREE from 'three';
-import { rnd } from './kit.js';
+import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, setSlotMarkerState, disposeModel } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
@@ -9,6 +9,9 @@ import { CELL_LEN } from '../sim/sim.js';
 
 const FALL_TIME = 0.3;
 const STEP_PHASE = 2.6;          // gångfas per meter
+// Osynlig träffskiva under varje position (delad, städas aldrig).
+const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
+const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
 // Punkt längs vägen med sidoförskjutning, utan att skapa nya objekt.
 function placeOnPath(out, path, d, off) {
@@ -99,33 +102,135 @@ export function createView(scene, initialSim) {
   }
 
   // ---------- positioner och vapen ----------
+  // Varje positionsgrupp får userData.pick och en osynlig träffskiva, så att den går att klicka
+  // på även när en liten pjäs står där. Byggs om när vapen eller nivå ändras.
   function slotKey(s) { return s.weapon ? s.weapon.type + ':' + s.weapon.level : s.locked ? 'locked' : 'free'; }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
     let e;
     if (s.weapon) {
       const model = weaponModel(s.weapon.type, s.weapon.level);
-      e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? 0 };
+      e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle, state: null };
       model.pivot.rotation.y = -e.angle;
     } else {
       const group = slotMarker(s.locked ? 'locked' : 'free');
-      e = { key: slotKey(s), group, model: null, angle: old?.angle ?? 0 };
+      e = { key: slotKey(s), group, model: null, angle: old?.angle ?? 0, state: s.locked ? 'locked' : 'free' };
     }
+    const hit = new THREE.Mesh(HIT_GEO, HIT_MAT);
+    hit.rotation.x = -Math.PI / 2; hit.position.y = 0.1;
+    e.group.add(hit);
+    e.group.userData.pick = { kind: 'slot', id: s.id };
     e.group.position.set(s.x, 0, s.z);
     scene.add(e.group);
+    e.group.updateMatrixWorld(true);
     slots.set(s.id, e); slotObjects.set(s.id, e.group);
     return e;
   }
+  function removeSlot(id) {
+    const e = slots.get(id); if (!e) return;
+    disposeModel(e.group);
+    slots.delete(id); slotObjects.delete(id);
+  }
   function syncSlots(dt) {
     const k = 1 - Math.exp(-dt * 12);
+    const alive = new Set();
     for (const s of sim.slots) {
+      alive.add(s.id);
       let e = slots.get(s.id);
       if (!e || e.key !== slotKey(s)) e = buildSlot(s, e);
-      if (!e.model) continue;
+      if (!e.model) {
+        const want = isSel('slot', s.id) ? 'selected' : isHov('slot', s.id) ? 'hover' : s.locked ? 'locked' : 'free';
+        if (e.state !== want) { e.state = want; setSlotMarkerState(e.group, want); }
+        continue;
+      }
       const w = s.weapon;
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
       e.model.pivot.rotation.y = -e.angle;
     }
+    for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);
+  }
+
+  // ---------- rutor på vägen (streckade rektanglar, syns i byggläget) ----------
+  const cellMarks = [];
+  function buildCellMarks() {
+    for (const c of cellMarks) disposeModel(c.group);
+    cellMarks.length = 0;
+    const W = 8.6, L = CELL_LEN - 0.3;
+    for (let i = 0; i < sim.map.cells.length; i++) {
+      const group = new THREE.Group();
+      const m = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.28, depthWrite: false });
+      const fillM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.1, depthWrite: false });
+      m.userData.own = fillM.userData.own = true;
+      const dash = (x, z, len, along) => {
+        const d = new THREE.Mesh(geo('plane', along ? len : 0.14, along ? 0.14 : len), m);
+        d.rotation.x = -Math.PI / 2; d.position.set(x, 0.05, z); group.add(d);
+      };
+      for (let x = -L / 2; x < L / 2 - 0.1; x += 0.8) { const len = Math.min(0.5, L / 2 - x); dash(x + len / 2, -W / 2, len, true); dash(x + len / 2, W / 2, len, true); }
+      for (let z = -W / 2; z < W / 2 - 0.1; z += 0.8) { const len = Math.min(0.5, W / 2 - z); dash(-L / 2, z + len / 2, len, false); dash(L / 2, z + len / 2, len, false); }
+      const fill = new THREE.Mesh(geo('plane', L, W), fillM);
+      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04; fill.visible = false;
+      group.add(fill);
+      const c = cellCenter(i);
+      group.position.set(c.x, 0, c.z);
+      group.rotation.y = Math.atan2(-c.dirZ, c.dirX);
+      group.userData.pick = { kind: 'cell', index: i };
+      scene.add(group);
+      cellMarks.push({ group, m, fill, fillM, state: null });
+    }
+  }
+  function syncCellMarks() {
+    const build = sim.phase === 'build';
+    for (let i = 0; i < cellMarks.length; i++) {
+      const c = cellMarks[i];
+      const want = isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : build ? 'idle' : 'hidden';
+      if (c.state === want) continue;
+      c.state = want;
+      // Ritas inte under vågen men går ändå att peka på (strålen bryr sig inte om synlighet).
+      for (const ch of c.group.children) if (ch !== c.fill) ch.visible = want !== 'hidden';
+      c.fill.visible = want === 'hover' || want === 'selected';
+      c.m.color.set(want === 'selected' ? PALETTE.rust : PALETTE.paper);
+      c.m.opacity = want === 'selected' ? 0.9 : want === 'hover' ? 0.6 : 0.28;
+      c.fillM.color.set(want === 'selected' ? PALETTE.rust : PALETTE.paper);
+      c.fillM.opacity = want === 'selected' ? 0.16 : 0.08;
+    }
+  }
+
+  // ---------- markering, pekare och räckvidd ----------
+  let ui = { selected: null, hover: null, range: null };
+  const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
+  const isHov = (kind, id) => ui.hover?.kind === kind && ui.hover.id === id;
+  const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
+  const selRing = new THREE.Mesh(new THREE.RingGeometry(2.05, 2.3, 48), ringM);
+  selRing.rotation.x = -Math.PI / 2; selRing.position.y = 0.06; selRing.visible = false;
+  const rangeM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.45, depthWrite: false });
+  const rangeFillM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.06, depthWrite: false });
+  const range = new THREE.Group();
+  const rangeEdge = new THREE.Mesh(new THREE.RingGeometry(0.988, 1, 128), rangeM);
+  const rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 96), rangeFillM);
+  for (const r of [rangeEdge, rangeFill]) { r.rotation.x = -Math.PI / 2; range.add(r); }
+  rangeEdge.position.y = 0.08; rangeFill.position.y = 0.07;
+  range.visible = false;
+  scene.add(selRing, range);
+  function syncUi() {
+    // ring under en byggd pjäs som är vald eller pekas på
+    const ringFor = ui.selected?.kind === 'slot' ? ui.selected : ui.hover?.kind === 'slot' ? ui.hover : null;
+    const e = ringFor && slots.get(ringFor.id);
+    selRing.visible = !!(e && e.model);
+    if (selRing.visible) {
+      selRing.position.x = e.group.position.x; selRing.position.z = e.group.position.z;
+      const sel = ringFor === ui.selected;
+      ringM.color.set(sel ? PALETTE.rust : PALETTE.paper); ringM.opacity = sel ? 0.85 : 0.5;
+    }
+    range.visible = !!ui.range;
+    if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
+  }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, ...next }; }
+  function pickTargets() {
+    const out = [];
+    for (const [id, e] of slots) out.push({ kind: 'slot', id, object: e.group });
+    cellMarks.forEach((c, i) => out.push({ kind: 'cell', id: i, object: c.group }));
+    for (const [i, e] of cells) out.push({ kind: 'cell', id: i, object: e.group });
+    return out;
   }
 
   // ---------- hinder ----------
@@ -148,6 +253,7 @@ export function createView(scene, initialSim) {
         const c = cellCenter(i);
         group.position.set(c.x, 0, c.z);
         group.rotation.y = Math.atan2(c.dirZ, -c.dirX);   // modellens +x mot horden
+        group.userData.pick = { kind: 'cell', index: i };
         scene.add(group);
         e = { type: ob.type, group, frac: 1 };
         cells.set(i, e); cellObjects.set(i, group);
@@ -163,6 +269,8 @@ export function createView(scene, initialSim) {
     return e ? e.parts.scale : 1;
   }
   function consume(events) {
+    // Positioner som byggts i samma bildruta måste finnas innan skotten ritas.
+    if (events.length) syncSlots(0);
     for (const ev of events) {
       switch (ev.t) {
         case 'shot': {
@@ -213,6 +321,8 @@ export function createView(scene, initialSim) {
     syncZombies(dt);
     syncSlots(dt);
     syncCells();
+    syncCellMarks();
+    syncUi();
     fx.update(dt);
   }
 
@@ -223,8 +333,13 @@ export function createView(scene, initialSim) {
     for (const i of [...cells.keys()]) removeCell(i);
     lastChip.clear();
     fx.clear();
+    const remap = next.map !== sim.map;
     sim = next;
+    if (remap) buildCellMarks();
+    for (const c of cellMarks) c.state = null;
+    ui = { selected: null, hover: null, range: null };
   }
 
-  return { sync, consume, setSim, slotObjects, cellObjects, fx };
+  buildCellMarks();
+  return { sync, consume, setSim, setUi, pickTargets, slotObjects, cellObjects, fx };
 }
