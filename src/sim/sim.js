@@ -1,6 +1,8 @@
 import { ZOMBIES } from '../data/zombies.js';
+import { WEAPONS } from '../data/weapons.js';
 import { makeRng } from './rng.js';
 import { pathLength, pointAt } from './path.js';
+import { weaponStats, weaponUnlocked, upgradeCost } from './stats.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export const CELL_LEN = 3;
@@ -72,6 +74,71 @@ function moveZombies(sim, dt) {
   }
 }
 
-// Stubbar, ersätts i Task 4 (vapen) och Task 5 (hinder).
-function fireWeapons(sim, dt) {}
+export function build(sim, slotId, type) {
+  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  const s = sim.slots.find(x => x.id === slotId);
+  if (s.locked) return { ok: false, reason: 'låst' };
+  if (s.weapon) return { ok: false, reason: 'upptagen' };
+  if (!weaponUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
+  const cost = WEAPONS[type].cost;
+  if (sim.cash < cost) return { ok: false, reason: 'pengar' };
+  sim.cash -= cost;
+  s.weapon = { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost };
+  return { ok: true };
+}
+export function upgrade(sim, slotId) {
+  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  const w = sim.slots.find(x => x.id === slotId).weapon;
+  if (!w) return { ok: false, reason: 'tom' };
+  const cost = upgradeCost(w.type, w.level);
+  if (cost == null) return { ok: false, reason: 'max' };
+  if (sim.cash < cost) return { ok: false, reason: 'pengar' };
+  sim.cash -= cost; w.level++; w.spent += cost;
+  return { ok: true };
+}
+export function sell(sim, slotId) {
+  if (sim.phase !== 'build') return { ok: false, refund: 0 };
+  const s = sim.slots.find(x => x.id === slotId);
+  if (!s.weapon) return { ok: false, refund: 0 };
+  const refund = Math.round(s.weapon.spent * 0.6);
+  sim.cash += refund; s.weapon = null;
+  return { ok: true, refund };
+}
+
+function fireWeapons(sim, dt) {
+  for (const s of sim.slots) {
+    const w = s.weapon; if (!w) continue;
+    const st = weaponStats(w.type, w.level, sim.research);
+    let target = null, best = -1;
+    for (const z of sim.zombies) {
+      if (z.dead) continue;
+      const p = zombiePos(sim, z);
+      if (Math.hypot(p.x - s.x, p.z - s.z) <= st.range && z.d > best) { best = z.d; target = z; }
+    }
+    w.targetId = target ? target.id : null;
+    w.cooldown -= dt;
+    if (!target) { w.cooldown = Math.max(w.cooldown, 0); continue; }
+    const p = zombiePos(sim, target);
+    w.angle = Math.atan2(p.z - s.z, p.x - s.x);
+    while (w.cooldown <= 0) {
+      w.cooldown += 1 / st.rate;
+      const hit = sim.rng() < st.accuracy;
+      sim.events.push({ t: 'shot', slotId: s.id, targetId: target.id, hit, x: p.x, z: p.z });
+      if (hit) damage(sim, target, st.damage, p);
+      if (target.dead) break;
+    }
+  }
+}
+function damage(sim, z, amount, p) {
+  z.hp -= amount;
+  sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z });
+  if (z.hp <= 0 && !z.dead) {
+    const def = ZOMBIES[z.type];
+    z.dead = true; z.deadT = 0;
+    sim.cash += def.bounty; sim.intelEarned += def.intel;
+    sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty: def.bounty, intel: def.intel, x: p.x, z: p.z });
+  }
+}
+
+// Stub, ersätts i Task 5 (hinder).
 function obstacleEffect(sim, z, dt) { return 1; }
