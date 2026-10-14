@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { newProgress, startConfig, dayResult, buyResearch, canBuyResearch } from '../src/meta/progress.js';
 import { loadProgress, saveProgress } from '../src/meta/save.js';
 import { MAPS } from '../src/data/maps.js';
+import { RESEARCH } from '../src/data/research.js';
+const cost = id => RESEARCH.find(r => r.id === id).cost;
 
 const mem = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), _m: m }; };
 
@@ -16,10 +18,10 @@ test('vinst låser upp nästa dag', () => {
   assert.equal(dayResult(newProgress(), { day: 1, won: true, intelEarned: 10 }).unlockedDay, 2);
 });
 test('köpa forskning drar poäng och kräver förutsättning', () => {
-  let p = { ...newProgress(), intel: 40 };
+  let p = { ...newProgress(), intel: 200 };
   assert.equal(canBuyResearch(p, 'block').reason, 'kräver');
   p = buyResearch(p, 'wireTough');
-  assert.equal(p.intel, 28);
+  assert.equal(p.intel, 200 - cost('wireTough'));
   assert.equal(canBuyResearch(p, 'wireTough').reason, 'redan');
   assert.equal(canBuyResearch(p, 'block').ok, true);
 });

@@ -22,10 +22,10 @@ export const MAPS = {
         waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 6, interval: 1.5, delay: 4 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 10, interval: 1.0, delay: 3 }] } ] },
-      { n: 3, startCash: 800, intro: { title: 'Dag 3: Bjässe', text: 'Stor och seg. Grov kaliber biter bäst.' },
+      { n: 3, startCash: 1000, intro: { title: 'Dag 3: Bjässe', text: 'Stor och seg. Grov kaliber biter bäst.' },
         waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
-                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 1, interval: 1, delay: 8 }] },
-                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 10, interval: 0.9, delay: 4 }, { type: 'brute', count: 2, interval: 6, delay: 10 }] } ] },
+                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 3, interval: 4, delay: 8 }] },
+                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 12, interval: 0.8, delay: 4 }, { type: 'brute', count: 10, interval: 2.5, delay: 8 }] } ] },
     ],
     props: [
       { kind: 'car', x: 12, z: 7.5, ry: 0.5, color: '#6b2f22' },
