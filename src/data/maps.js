@@ -1,10 +1,32 @@
-// Banor som data. Task 2 lägger till fler fält.
+// Banor som data.
 export const MAPS = {
   riksvagen: {
     id: 'riksvagen',
     name: 'Riksvägen',
     camera: { target: [-2, 0], view: 25 },
     path: [[46, 0], [-12, 0]],
+    cells: [36, 30, 24, 18, 12, 6],
+    slots: [
+      { id: 'A', x: -14, z: 0 },
+      { id: 'B', x: -6, z: -8 },
+      { id: 'C', x: 2, z: 8 },
+      { id: 'D', x: 10, z: -9, locked: 'slot4' },
+    ],
+    baseHp: 20,
+    days: [
+      { n: 1, startCash: 500, intro: { title: 'Dag 1', text: 'Bygg en M249 på en position. Den skjuter av sig själv.' },
+        waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }] } ] },
+      { n: 2, startCash: 650, intro: { title: 'Dag 2: Löpare', text: 'Snabba och sköra. Lägg taggtråd på vägen så hinner du skjuta.' },
+        waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 6, interval: 1.5, delay: 4 }] },
+                 { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 10, interval: 1.0, delay: 3 }] } ] },
+      { n: 3, startCash: 800, intro: { title: 'Dag 3: Bjässe', text: 'Stor och seg. Grov kaliber biter bäst.' },
+        waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
+                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 1, interval: 1, delay: 8 }] },
+                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 10, interval: 0.9, delay: 4 }, { type: 'brute', count: 2, interval: 6, delay: 10 }] } ] },
+    ],
     props: [
       { kind: 'car', x: 12, z: 7.5, ry: 0.5, color: '#6b2f22' },
       { kind: 'car', x: 26, z: -8, ry: -0.3, color: '#3a3a33', burnt: true },
