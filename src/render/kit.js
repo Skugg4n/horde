@@ -4,7 +4,8 @@ import * as THREE from 'three';
 // Palett: alla färger som modeller, värld och ljus använder. Ändra här, inte i modellerna.
 export const PALETTE = {
   // ljus och luft
-  haze: '#b9aa8c', hemiSky: '#d6dbe0', hemiGround: '#5b4a35', sun: '#ffdcae', dust: '#efe2c4',
+  haze: '#b9aa8c', hemiSky: '#d6dbe0', hemiGround: '#5b4a35', sun: '#ffdcae', fill: '#c9d2dc', dust: '#efe2c4',
+  muzzle: '#ffb15c', muzzleFlash: '#ffd391', tracer: '#ffcc80', brass: '#b08a3a', gib: '#5e130d', splat: ['#5b120d', '#4a0f0b', '#6a1810'],
   // mark
   dirt: '#8c7b5c', dirtSpeck: ['#5e5039', '#a3936f', '#6d6a4b', '#3f362a'],
   asphalt: '#45413a', asphaltSpeck: ['#2d2a25', '#5a554b', '#3a3630', '#6b6456'],
@@ -46,7 +47,27 @@ export function mesh(geo, m, x = 0, y = 0, z = 0) {
   o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true;
   return o;
 }
-export const box = (w, h, d, m, x, y, z) => mesh(new THREE.BoxGeometry(w, h, d), m, x, y, z);
+// Delade geometrier: samma parametrar ger samma BufferGeometry. Disponeras aldrig.
+const geoCache = new Map();
+const GEO = {
+  box: THREE.BoxGeometry, sphere: THREE.SphereGeometry, torus: THREE.TorusGeometry,
+  cylinder: THREE.CylinderGeometry, ring: THREE.RingGeometry, plane: THREE.PlaneGeometry,
+  dodeca: THREE.DodecahedronGeometry,
+};
+export function geo(kind, ...args) {
+  const key = kind + ':' + args.join(',');
+  let g = geoCache.get(key);
+  if (!g) { g = new GEO[kind](...args); g.userData.shared = true; geoCache.set(key, g); }
+  return g;
+}
+export const geoCacheSize = () => geoCache.size;
+export const box = (w, h, d, m, x, y, z) => mesh(geo('box', w, h, d), m, x, y, z);
+// Låda med slumpad storlek: delad enhetskub som skalas, så att cachen inte växer.
+export function sbox(w, h, d, m, x, y, z) {
+  const o = mesh(geo('box', 1, 1, 1), m, x, y, z);
+  o.scale.set(w, h, d);
+  return o;
+}
 
 export function canvasTex(size, draw, repeat = 1) {
   const c = document.createElement('canvas'); c.width = c.height = size;
@@ -81,7 +102,7 @@ export function humanoid({ skin, shirt, pants, helmet }) {
   shR.add(box(0.2, 0.75, 0.22, mat(shirt), 0, -0.3, 0)); shR.add(box(0.17, 0.2, 0.18, mat(skin), 0, -0.75, 0));
   body.add(hipL, hipR, torso, head, shL, shR);
   if (helmet) {
-    const h = mesh(new THREE.SphereGeometry(0.3, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet), 0, 2.1, 0.03);
+    const h = mesh(geo('sphere', 0.3, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet), 0, 2.1, 0.03);
     h.scale.set(1.05, 0.8, 1.1); body.add(h);
   }
   return { root, body, hipL, hipR, shL, shR, head, torso };

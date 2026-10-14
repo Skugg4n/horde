@@ -1,6 +1,6 @@
 // Mark, väg, grus, rekvisita och damm. Rekvisita byggs ur map.props.
 import * as THREE from 'three';
-import { rnd, pick, mat, mesh, box, canvasTex, speckle, PALETTE as P } from './kit.js';
+import { rnd, pick, mat, mesh, box, geo, canvasTex, speckle, PALETTE as P } from './kit.js';
 
 let updateFn = () => {};
 export function updateWorld(dt, time) { updateFn(dt, time); }
@@ -13,7 +13,7 @@ function car(p) {
   g.add(box(2.2, 0.75, 1.75, b, -0.2, 1.55, 0));
   g.add(box(2.0, 0.55, 1.8, mat(P.carGlass, { roughness: 0.3, metalness: 0.4 }), -0.2, 1.55, 0));
   for (const [wx, wz] of [[-1.35, 0.95], [1.35, 0.95], [-1.35, -0.95], [1.35, -0.95]]) {
-    const w = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 10), mat(P.tire), wx, 0.42, wz);
+    const w = mesh(geo('cylinder', 0.42, 0.42, 0.3, 10), mat(P.tire), wx, 0.42, wz);
     w.rotation.x = Math.PI / 2; g.add(w);
   }
   if (burnt) g.children[0].scale.y = 0.85;
@@ -80,7 +80,8 @@ function ruin(p) {
   g.add(box(0.4, 3.8, 2.5, wall, 4, 1.9, -1.8));
   g.add(box(8, 0.2, 6, dark, 0, 0.1, 0));
   for (let i = 0; i < 14; i++) {
-    const r = mesh(new THREE.BoxGeometry(rnd(0.3, 1), rnd(0.2, 0.5), rnd(0.3, 0.8)), pick([wall, dark]), rnd(-3, 4), 0.25, rnd(-2, 3.5));
+    const r = mesh(geo('box', 1, 1, 1), pick([wall, dark]), rnd(-3, 4), 0.25, rnd(-2, 3.5));
+    r.scale.set(rnd(0.3, 1), rnd(0.2, 0.5), rnd(0.3, 0.8));
     r.rotation.set(rnd(0, 1), rnd(0, 3), rnd(0, 1)); g.add(r);
   }
   g.position.set(p.x, 0, p.z); g.rotation.y = p.ry;
@@ -144,9 +145,9 @@ export function buildWorld(scene, map) {
   // grus i vägkanten
   for (let i = 0; i < 260; i++) {
     const side = Math.random() < 0.5 ? -1 : 1;
-    const r = mesh(new THREE.DodecahedronGeometry(rnd(0.08, 0.28), 0), mat(pick(P.gravel)),
+    const r = mesh(geo('dodeca', 1, 0), mat(pick(P.gravel)),
       rnd(-70, 70), 0.05, side * rnd(4.4, 6.5));
-    r.rotation.set(rnd(0, 3), rnd(0, 3), 0);
+    r.scale.setScalar(rnd(0.08, 0.28)); r.rotation.set(rnd(0, 3), rnd(0, 3), 0); r.castShadow = false;
     scene.add(r);
   }
 

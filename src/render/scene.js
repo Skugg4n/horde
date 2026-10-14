@@ -44,5 +44,12 @@ export function createScene(container, map) {
   sun.shadow.normalBias = 0.04;
   scene.add(sun, sun.target);
 
-  return { renderer, scene, camera, sun, resize };
+  // Svag kall fyllning från kamerans håll: zombiernas ryggar ligger i skugga, så kläderna
+  // behöver lite ljus för att synas. Inga skuggor.
+  const fill = new THREE.DirectionalLight(P.fill, 0.6);
+  fill.position.set(tx + 40, 46, tz + 40);
+  fill.target.position.set(tx, 0, tz);
+  scene.add(fill, fill.target);
+
+  return { renderer, scene, camera, sun, fill, resize };
 }

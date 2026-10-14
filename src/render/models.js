@@ -1,6 +1,6 @@
 // Alla spelets modeller, byggda i kod av byggsatsen. Visas i lookbook.html innan de används i spelet.
 import * as THREE from 'three';
-import { rnd, pick, mat, mesh, box, humanoid, PALETTE as P } from './kit.js';
+import { rnd, pick, mat, mesh, box, sbox, geo, humanoid, PALETTE as P } from './kit.js';
 import { ZOMBIES } from '../data/zombies.js';
 
 const METAL = { metalness: 0.55, roughness: 0.45 };
@@ -17,7 +17,7 @@ function sandbagArc(g, { r, layers, n, arc, size = 1, y0 = 0 }) {
     const odd = layer % 2;
     for (let i = 0; i < n - odd; i++) {
       const a = -arc + i * step + odd * step / 2 + rnd(-0.03, 0.03);
-      const s = mesh(new THREE.SphereGeometry(0.5, 7, 5), pick(bags),
+      const s = mesh(geo('sphere', 0.5, 7, 5), pick(bags),
         Math.cos(a) * rr, y0 + (0.28 + layer * 0.36) * size, Math.sin(a) * rr);
       s.scale.set(0.95 * size * rnd(0.94, 1.06), 0.42 * size, 0.55 * size);
       s.rotation.set(rnd(-0.06, 0.06), -a + rnd(-0.08, 0.08), rnd(-0.05, 0.05));
@@ -31,10 +31,10 @@ function sandbagPile(g, x, z, size = 0.8) {
   const bags = P.sandbag.map(c => mat(c));
   for (let i = 0; i < 5; i++) {
     const a = i / 5 * TAU;
-    const s = mesh(new THREE.SphereGeometry(0.5, 7, 5), pick(bags), x + Math.cos(a) * 0.32, 0.22, z + Math.sin(a) * 0.32);
+    const s = mesh(geo('sphere', 0.5, 7, 5), pick(bags), x + Math.cos(a) * 0.32, 0.22, z + Math.sin(a) * 0.32);
     s.scale.set(0.8 * size, 0.42 * size, 0.5 * size); s.rotation.y = -a + Math.PI / 2; g.add(s);
   }
-  const top = mesh(new THREE.SphereGeometry(0.5, 7, 5), pick(bags), x, 0.52, z);
+  const top = mesh(geo('sphere', 0.5, 7, 5), pick(bags), x, 0.52, z);
   top.scale.set(0.9 * size, 0.4 * size, 0.6 * size); g.add(top);
 }
 
@@ -61,9 +61,9 @@ function m2Gun(pivot, metal) {
   pivot.add(box(0.18, 0.12, 0.2, metal, -0.55, 0.02, 0));                 // spadgrepp
   pivot.add(box(0.4, 0.25, 0.32, mat(P.ammo), -0.1, -0.25, 0.25));        // ammolåda
   pivot.add(box(0.08, 0.14, 0.04, metal, 0.45, 0.24, 0));                 // sikte
-  const jacket = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.4, 7), metal, 0.82, 0.03, 0);
+  const jacket = mesh(geo('cylinder', 0.09, 0.09, 0.4, 7), metal, 0.82, 0.03, 0);
   jacket.rotation.z = Math.PI / 2; pivot.add(jacket);
-  const barrel = mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.6, 6), metal, 1.4, 0.03, 0);
+  const barrel = mesh(geo('cylinder', 0.05, 0.06, 1.6, 6), metal, 1.4, 0.03, 0);
   barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
   pivot.add(box(0.22, 0.22, 0.22, metal, 2.2, 0.03, 0));                  // mynningsbroms
   return 2.35;
@@ -75,10 +75,10 @@ function m249Gun(pivot, metal) {
   pivot.add(box(0.3, 0.2, 0.22, mat(P.ammo), 0.05, -0.2, 0.08));          // patronväska
   pivot.add(box(0.3, 0.06, 0.06, metal, 0.05, 0.16, 0));                  // bärhandtag
   pivot.add(box(0.32, 0.13, 0.15, mat(P.gunDark), 0.5, -0.01, 0));        // handskydd
-  const barrel = mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.75, 6), metal, 0.95, 0.01, 0);
+  const barrel = mesh(geo('cylinder', 0.03, 0.035, 0.75, 6), metal, 0.95, 0.01, 0);
   barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
   for (const side of [-1, 1]) {                                           // bipod
-    const leg = mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.42, 4), metal, 0.72, -0.18, side * 0.1);
+    const leg = mesh(geo('cylinder', 0.02, 0.02, 0.42, 4), metal, 0.72, -0.18, side * 0.1);
     leg.rotation.x = side * 0.45; pivot.add(leg);
   }
   return 1.34;
@@ -109,7 +109,7 @@ export function weaponModel(type, level = 1) {
 
   if (heavy) {
     for (let i = 0; i < 3; i++) {                                         // trefot
-      const l = mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 5), metal);
+      const l = mesh(geo('cylinder', 0.04, 0.04, 1.3, 5), metal);
       const a = i * 2.1; l.position.set(Math.cos(a) * 0.35, 0.55, Math.sin(a) * 0.35);
       l.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); group.add(l);
     }
@@ -163,7 +163,7 @@ function wireObstacle() {
   const coils = [], posts = [];
   for (const x of [-0.8, 0.8]) {
     for (let z = -4.2; z <= 4.3; z += 0.55) {
-      const t = mesh(new THREE.TorusGeometry(0.55, 0.025, 4, 18), steel, x + rnd(-0.1, 0.1), 0.55, z + rnd(-0.05, 0.05));
+      const t = mesh(geo('torus', 0.55, 0.025, 4, 18), steel, x + rnd(-0.1, 0.1), 0.55, z + rnd(-0.05, 0.05));
       t.rotation.set(rnd(-0.2, 0.2), Math.PI / 2 + rnd(-0.3, 0.3), 0);
       t.userData = { y: t.position.y, rx: t.rotation.x, cut: rnd(0.05, 0.85), fall: rnd(-1, 1) };
       g.add(t); coils.push(t);
@@ -181,7 +181,7 @@ function wireObstacle() {
   // spänd tråd mellan stolparna
   for (const x of [-0.8, 0.8]) {
     for (const y of [0.45, 1.05]) {
-      const s = mesh(new THREE.CylinderGeometry(0.012, 0.012, 8.6, 3), steel, x, y, 0);
+      const s = mesh(geo('cylinder', 0.012, 0.012, 8.6, 3), steel, x, y, 0);
       s.rotation.x = Math.PI / 2; s.castShadow = false;
       s.userData = { y, cut: rnd(0.3, 0.7) };
       g.add(s); coils.push(s);
@@ -191,13 +191,16 @@ function wireObstacle() {
   return g;
 }
 
+const jerseyCache = new Map();
 function jerseyGeometry(len) {
+  if (jerseyCache.has(len)) return jerseyCache.get(len);
   const shape = new THREE.Shape();
   shape.moveTo(-0.55, 0); shape.lineTo(0.55, 0); shape.lineTo(0.55, 0.08); shape.lineTo(0.3, 0.35); shape.lineTo(0.18, 1.05);
   shape.lineTo(-0.18, 1.05); shape.lineTo(-0.3, 0.35); shape.lineTo(-0.55, 0.08); shape.lineTo(-0.55, 0);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: len, bevelEnabled: false });
-  geo.translate(0, 0, -len / 2);
-  return geo;
+  const g = new THREE.ExtrudeGeometry(shape, { depth: len, bevelEnabled: false });
+  g.translate(0, 0, -len / 2);
+  g.userData.shared = true; jerseyCache.set(len, g);
+  return g;
 }
 
 function blockObstacle() {
@@ -205,6 +208,7 @@ function blockObstacle() {
   // egen materialkopia så att slitage kan mörka just det här hindret
   const concrete = new THREE.MeshStandardMaterial({ color: P.concrete, roughness: 0.95, metalness: 0, flatShading: true });
   const grime = new THREE.MeshStandardMaterial({ color: P.grime, roughness: 1, metalness: 0, flatShading: true });
+  concrete.userData.own = true; grime.userData.own = true;
   const crackM = mat(P.crack);
   const len = 2.8, blocks = [], cracks = [], debris = [];
   for (const z of [-3, 0, 3]) {
@@ -212,14 +216,14 @@ function blockObstacle() {
     b.add(mesh(jerseyGeometry(len), concrete));
     b.add(box(1.12, 0.12, len + 0.01, grime, 0, 0.06, 0));               // smutsrand nertill
     for (const dz of [-0.8, 0.8]) b.add(box(1.14, 0.1, 0.3, mat(P.ink), 0, 0.05, dz)); // gafflingshål
-    const loop = mesh(new THREE.TorusGeometry(0.08, 0.02, 4, 8, Math.PI), mat(P.gunMetal, METAL), 0, 1.05, 0);
+    const loop = mesh(geo('torus', 0.08, 0.02, 4, 8, Math.PI), mat(P.gunMetal, METAL), 0, 1.05, 0);
     loop.rotation.y = Math.PI / 2; b.add(loop);
     // sprickor på framsidan (+x, mot horden) och ovansidan, syns när blocket slits
     for (let i = 0; i < 5; i++) {
       const top = i === 4;
       const c = top
-        ? box(0.2, 0.02, rnd(0.6, 1.2), crackM, rnd(-0.05, 0.05), 1.06, rnd(-0.9, 0.9))
-        : box(0.02, rnd(0.3, 0.7), 0.05, crackM, 0.29 - 0.0, rnd(0.45, 0.8), rnd(-1.2, 1.2));
+        ? sbox(0.2, 0.02, rnd(0.6, 1.2), crackM, rnd(-0.05, 0.05), 1.06, rnd(-0.9, 0.9))
+        : sbox(0.02, rnd(0.3, 0.7), 0.05, crackM, 0.29 - 0.0, rnd(0.45, 0.8), rnd(-1.2, 1.2));
       if (!top) { c.rotation.z = -0.17; c.rotation.x = rnd(-0.6, 0.6); c.position.x = 0.25; }
       c.userData = { at: rnd(0.45, 0.9) }; c.visible = false; c.castShadow = false;
       b.add(c); cracks.push(c);
@@ -230,8 +234,8 @@ function blockObstacle() {
     g.add(b); blocks.push(b);
   }
   for (let i = 0; i < 12; i++) {                                          // lossade bitar framför blocken
-    const d = mesh(new THREE.DodecahedronGeometry(rnd(0.08, 0.2), 0), concrete, rnd(0.6, 1.3), 0.08, rnd(-4.2, 4.2));
-    d.rotation.set(rnd(0, 3), rnd(0, 3), 0);
+    const d = mesh(geo('dodeca', 1, 0), concrete, rnd(0.6, 1.3), 0.08, rnd(-4.2, 4.2));
+    d.scale.setScalar(rnd(0.08, 0.2)); d.rotation.set(rnd(0, 3), rnd(0, 3), 0); d.castShadow = false;
     d.userData = { at: rnd(0.3, 0.75) }; d.visible = false;
     g.add(d); debris.push(d);
   }
@@ -246,6 +250,20 @@ export function obstacleModel(type) {
 }
 
 const C_TMP = new THREE.Color();
+const C_CONC_DARK = new THREE.Color(P.concreteDark), C_CRACK = new THREE.Color(P.crack);
+
+// Städar en modell som tas bort: bara material och geometrier som är modellens egna.
+// Delade (mat()-cachen och geo()-cachen) rörs aldrig.
+export function disposeModel(group) {
+  const done = new Set();
+  group.traverse(o => {
+    const g = o.geometry;
+    if (g && g.userData.own && !g.userData.shared && !done.has(g)) { done.add(g); g.dispose(); }
+    const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of ms) if (m.userData.own && !done.has(m)) { done.add(m); m.dispose(); }
+  });
+  group.removeFromParent();
+}
 // fraction 1 = helt, 0 = borta
 export function setObstacleWear(group, fraction) {
   const f = Math.max(0, Math.min(1, fraction));
@@ -270,8 +288,8 @@ export function setObstacleWear(group, fraction) {
     }
     for (const c of u.cracks) c.visible = f < c.userData.at;
     for (const d of u.debris) d.visible = f < d.userData.at;
-    u.concrete.color.copy(C_TMP.set(P.concrete).lerp(new THREE.Color(P.concreteDark), w * 0.65));
-    u.grime.color.copy(C_TMP.set(P.grime).lerp(new THREE.Color(P.crack), w * 0.5));
+    u.concrete.color.copy(C_TMP.set(P.concrete).lerp(C_CONC_DARK, w * 0.65));
+    u.grime.color.copy(C_TMP.set(P.grime).lerp(C_CRACK, w * 0.5));
   }
 }
 
@@ -286,12 +304,12 @@ const GAIT = {
 // Trasor och fläckar: små platta lådor på kroppen.
 function tatter(h, color, n) {
   for (let i = 0; i < n; i++) {
-    const s = box(rnd(0.08, 0.16), rnd(0.12, 0.3), 0.03, mat(color), rnd(-0.3, 0.3), 0.8, pick([-0.2, 0.2]));
-    s.rotation.z = rnd(-0.3, 0.3); h.body.add(s);
+    const s = sbox(rnd(0.08, 0.16), rnd(0.12, 0.3), 0.03, mat(color), rnd(-0.3, 0.3), 0.8, pick([-0.2, 0.2]));
+    s.rotation.z = rnd(-0.3, 0.3); s.castShadow = false; h.body.add(s);
   }
 }
 function stain(parent, w, hgt, x, y, z) {
-  const s = box(w, hgt, 0.02, mat(pick([P.blood, P.bloodDark])), x, y, z);
+  const s = sbox(w, hgt, 0.02, mat(pick([P.blood, P.bloodDark])), x, y, z);
   s.castShadow = false; parent.add(s);
 }
 
@@ -356,27 +374,29 @@ export function slotMarker(state = 'free') {
   const g = new THREE.Group();
   const m = new THREE.MeshBasicMaterial({ color: P.paper, transparent: true, opacity: 0.35, depthWrite: false });
   const lockM = new THREE.MeshBasicMaterial({ color: P.paper, transparent: true, opacity: 0.5, depthWrite: false });
+  const holeM = new THREE.MeshBasicMaterial({ color: P.ink, transparent: true, opacity: 0.6, depthWrite: false });
+  m.userData.own = lockM.userData.own = holeM.userData.own = true;
   const ring = new THREE.Group();
   const dashes = 28, len = TAU / dashes;
   for (let i = 0; i < dashes; i++) {
-    const d = new THREE.Mesh(new THREE.RingGeometry(2.1, 2.3, 4, 1, i * len, len * 0.62), m);
+    const d = new THREE.Mesh(geo('ring', 2.1, 2.3, 4, 1, i * len, len * 0.62), m);
     d.rotation.x = -Math.PI / 2; ring.add(d);
   }
   ring.position.y = 0.05;
   const plus = new THREE.Group();
   for (const rz of [0, Math.PI / 2]) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 1.4), m);
+    const p = new THREE.Mesh(geo('plane', 0.25, 1.4), m);
     p.rotation.set(-Math.PI / 2, 0, rz); plus.add(p);
   }
   plus.position.y = 0.06;
   // hänglås platt på marken, toppen pekar uppåt i bild
   const lock = new THREE.Group();
   const lockFlat = new THREE.Group();
-  lockFlat.add(new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.75), lockM));
-  const shackle = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.36, 12, 1, 0, Math.PI), lockM);
+  lockFlat.add(new THREE.Mesh(geo('plane', 0.95, 0.75), lockM));
+  const shackle = new THREE.Mesh(geo('ring', 0.22, 0.36, 12, 1, 0, Math.PI), lockM);
   shackle.position.y = 0.375; lockFlat.add(shackle);
-  for (const x of [-0.29, 0.29]) { const leg = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.12), lockM); leg.position.set(x, 0.43, 0); lockFlat.add(leg); }
-  const hole = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.24), new THREE.MeshBasicMaterial({ color: P.ink, transparent: true, opacity: 0.6, depthWrite: false }));
+  for (const x of [-0.29, 0.29]) { const leg = new THREE.Mesh(geo('plane', 0.14, 0.12), lockM); leg.position.set(x, 0.43, 0); lockFlat.add(leg); }
+  const hole = new THREE.Mesh(geo('plane', 0.1, 0.24), holeM);
   hole.position.set(0, -0.06, 0.001); lockFlat.add(hole);
   lockFlat.rotation.x = -Math.PI / 2;
   lock.add(lockFlat); lock.rotation.y = Math.PI / 4; lock.position.y = 0.06;
