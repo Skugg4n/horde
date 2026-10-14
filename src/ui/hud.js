@@ -1,12 +1,12 @@
 // HUD: dag, våg, kvar, pengar, basen och knappen som startar vågen.
-const money = n => '$ ' + Math.round(n).toLocaleString('sv-SE');
+import { money } from './format.js';
 
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
   const i = Math.min(sim.waveIndex, waves.length - 1);
   const total = waves[i].groups.reduce((a, g) => a + g.count, 0);
   let left = total;
-  if (sim.phase === 'wave') left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
+  if (sim.phase === 'wave' || sim.phase === 'lost') left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
   else if (sim.phase === 'won') left = 0;
   return { wave: i + 1, of: waves.length, total, left };
 }
@@ -23,13 +23,14 @@ export function mountHud(root, { onStart } = {}) {
     <div class="cash-box"><div class="k">PENGAR</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
     <div><div class="k">BASEN</div><div class="v hp" data-k="hp">0</div></div>
   </div>
+  <div id="hint" class="plate" hidden><ol><li data-h="0">Klicka på en position.</li><li data-h="1">Bygg en M249.</li><li data-h="2">Starta vågen.</li></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Starta våg</span><kbd data-k="key">Mellanslag</kbd></button>`);
   const $ = k => root.querySelector(`[data-k="${k}"]`);
   const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
 
-  let last = { cash: null, hp: null, text: '' };
+  let last = { cash: null, hp: null };
   let deltaSum = 0, deltaTimer = 0;
   const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
 
@@ -68,8 +69,16 @@ export function mountHud(root, { onStart } = {}) {
     el.key.hidden = !build;
   }
 
+  // Tre steg för första dagen. done: antal klara steg, null döljer rutan.
+  const hintEl = root.querySelector('#hint');
+  function hint(done) {
+    hintEl.hidden = done == null;
+    if (done == null) return;
+    for (const li of hintEl.querySelectorAll('li')) li.classList.toggle('done', Number(li.dataset.h) < done);
+  }
+
   // Nollställ så att en ny dag inte visar en stor minus-ruta.
   function reset() { last = { cash: null, hp: null }; deltaSum = 0; el.delta.className = 'delta'; }
 
-  return { update, reset };
+  return { update, reset, hint };
 }

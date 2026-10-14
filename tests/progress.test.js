@@ -74,3 +74,10 @@ test('utan tillgänglig lagring används minne och spara lyckas', () => {
   assert.equal(saveProgress(p), true);
   assert.equal(loadProgress().intel, 3);
 });
+test('extra fält i sparfilen (seenHint) följer med', () => {
+  const st = mem();
+  const p = { ...newProgress(), seenHint: true };
+  saveProgress(p, st);
+  assert.equal(loadProgress(st).seenHint, true);
+  assert.equal(st.getItem('horde.save.broken'), null);
+});

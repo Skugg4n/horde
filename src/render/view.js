@@ -182,10 +182,11 @@ export function createView(scene, initialSim) {
     const build = sim.phase === 'build';
     for (let i = 0; i < cellMarks.length; i++) {
       const c = cellMarks[i];
-      const want = isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : build ? 'idle' : 'hidden';
+      const want = !build ? 'hidden' : isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : 'idle';
       if (c.state === want) continue;
       c.state = want;
-      // Ritas inte under vågen men går ändå att peka på (strålen bryr sig inte om synlighet).
+      // Ritas inte alls under vågen, inte ens vald eller under musen, men går ändå att
+      // peka på (strålen bryr sig inte om synlighet).
       for (const ch of c.group.children) if (ch !== c.fill) ch.visible = want !== 'hidden';
       c.fill.visible = want === 'hover' || want === 'selected';
       c.m.color.set(want === 'selected' ? PALETTE.rust : PALETTE.paper);

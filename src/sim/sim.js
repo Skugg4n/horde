@@ -3,7 +3,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { pathLength, pointAt } from './path.js';
-import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked } from './stats.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, obstacleRefund } from './stats.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export const CELL_LEN = 3;
@@ -12,7 +12,7 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
   return {
-    map, day, dayCfg, phase: 'build', waveIndex: 0, cash, intelEarned: 0,
+    map, day, dayCfg, phase: 'build', waveIndex: 0, cash, intelEarned: 0, kills: 0,
     baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed),
     research: res, nextId: 1, spawnQueue: [], len: pathLength(map.path),
     slots: map.slots.map(s => ({ id: s.id, x: s.x, z: s.z, locked: !!(s.locked && !res.has(s.locked)), weapon: null })),
@@ -106,7 +106,7 @@ export function sell(sim, slotId) {
   if (sim.phase !== 'build') return { ok: false, refund: 0 };
   const s = sim.slots.find(x => x.id === slotId);
   if (!s || !s.weapon) return { ok: false, refund: 0 };
-  const refund = Math.round(s.weapon.spent * 0.6);
+  const refund = weaponRefund(s.weapon);
   sim.cash += refund; s.weapon = null;
   return { ok: true, refund };
 }
@@ -131,10 +131,7 @@ export function removeObstacle(sim, cell) {
   if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, refund: 0 };
   const ob = sim.obstacles[cell];
   if (sim.phase !== 'build' || !ob) return { ok: false, refund: 0 };
-  const whole = OBSTACLES[ob.type].kind === 'slow'
-    ? ob.durability === ob.maxDurability
-    : ob.hp === ob.maxHp;
-  const refund = whole ? Math.round(OBSTACLES[ob.type].cost * 0.5) : 0;
+  const refund = obstacleRefund(ob);
   sim.cash += refund;
   delete sim.obstacles[cell];
   return { ok: true, refund };
@@ -170,7 +167,7 @@ function damage(sim, z, amount, p) {
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
-    sim.cash += def.bounty; sim.intelEarned += def.intel;
+    sim.cash += def.bounty; sim.intelEarned += def.intel; sim.kills++;
     sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty: def.bounty, intel: def.intel, x: p.x, z: p.z });
   }
 }
