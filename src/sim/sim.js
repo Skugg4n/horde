@@ -185,7 +185,8 @@ function obstacleEffect(sim, z, dt, hitCells) {
     const ob = sim.obstacles[i]; if (!ob) return;
     const o = OBSTACLES[ob.type];
     if (o.kind === 'slow' && z.d >= cd && z.d < cd + CELL_LEN) {
-      mul = Math.min(mul, o.slow);
+      // slowTaken: hur mycket av inbromsningen zombien känner (1 = hela, bjässen bara en del).
+      mul = Math.min(mul, 1 - (1 - o.slow) * (def.slowTaken ?? 1));
       ob.durability -= dt;
       if (ob.durability <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
