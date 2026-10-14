@@ -1,6 +1,6 @@
 // Alla spelets modeller, byggda i kod av byggsatsen. Visas i lookbook.html innan de används i spelet.
 import * as THREE from 'three';
-import { rnd, pick, mat, mesh, box, sbox, geo, humanoid, PALETTE as P } from './kit.js';
+import { rnd, pick, mat, mesh, box, sbox, geo, humanoid, canvasTex, PALETTE as P } from './kit.js';
 import { ZOMBIES } from '../data/zombies.js';
 
 const METAL = { metalness: 0.55, roughness: 0.45 };
@@ -421,4 +421,87 @@ export function setSlotMarkerState(group, state) {
   u.m.opacity = sel ? 0.85 : hov ? (u.locked ? 0.32 : 0.6) : u.locked ? 0.16 : 0.35;
   u.lockM.opacity = sel ? 0.85 : hov ? 0.7 : 0.5;
   u.ring.scale.setScalar(sel ? 1.04 : hov ? 1.02 : 1);
+}
+
+// ---------- basen ----------
+// Vägspärr där vägen tar slut: sandsäcksvallar på båda sidor, en bom tvärs över vägen,
+// en vaktkur med skylten BASEN och en flagga. Origo = grindlinjen mitt på vägen,
+// +x mot horden. Alla material är egna, så att basen kan lysa rött utan att andra modeller gör det.
+function sandbagWall(g, x, z0, z1, layers = 3) {
+  const bags = P.sandbag.map(c => mat(c));
+  const n = Math.max(2, Math.round(Math.abs(z1 - z0) / 0.62));
+  for (let layer = 0; layer < layers; layer++) {
+    const odd = layer % 2;
+    for (let i = 0; i < n - odd; i++) {
+      const z = z0 + (z1 - z0) * ((i + 0.5 + odd * 0.5) / n);
+      const s = mesh(geo('sphere', 0.5, 7, 5), pick(bags), x + rnd(-0.04, 0.04), 0.26 + layer * 0.34, z);
+      s.scale.set(0.62 * rnd(0.94, 1.06), 0.42, 0.72 * rnd(0.94, 1.06));
+      s.rotation.y = rnd(-0.1, 0.1);
+      g.add(s);
+    }
+  }
+}
+function signTexture(text) {
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = P.stencil; g.fillRect(0, 0, s, s);
+    g.fillStyle = P.ink;
+    g.font = 'bold 84px Oswald, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, s / 2, s / 2 + 4);
+  });
+}
+export function baseModel() {
+  const g = new THREE.Group();
+  // Vallar: lucka för vägen i mitten (bommen stänger den).
+  sandbagWall(g, 0, -2.7, -6.2, 3);
+  sandbagWall(g, 0, 2.7, 5.4, 3);
+  sandbagWall(g, -0.62, -2.9, -5.6, 2);
+  sandbagWall(g, -0.62, 2.9, 5.0, 2);
+  // Bommen: stolpe med motvikt och randig stång tvärs över vägen.
+  const postM = mat(P.gunMetal, { metalness: 0.4, roughness: 0.6 });
+  g.add(box(0.34, 1.25, 0.34, postM, 0.15, 0.62, -2.75));
+  g.add(box(0.5, 0.4, 0.5, mat(P.concreteDark), 0.15, 0.2, -2.75));
+  g.add(box(0.28, 0.28, 0.6, postM, 0.15, 1.12, -3.25));
+  const stripes = [mat(P.paper), mat(P.rust)];
+  for (let i = 0; i < 9; i++) {
+    g.add(box(0.12, 0.12, 0.58, stripes[i % 2], 0.15, 1.12, -2.4 + i * 0.58));
+  }
+  g.add(box(0.2, 0.9, 0.2, postM, 0.15, 0.45, 2.85));       // stöd där bommen vilar
+  // Vaktkur bakom södra vallen, skylten mot vägen.
+  const booth = new THREE.Group();
+  const wall = mat(P.wall), roof = mat(P.concreteDark), glass = mat(P.carGlass, { roughness: 0.3, metalness: 0.4 });
+  booth.add(box(2.0, 2.3, 2.0, wall, 0, 1.15, 0));
+  booth.add(box(2.4, 0.18, 2.4, roof, 0, 2.39, 0));
+  booth.add(box(1.5, 0.55, 0.04, glass, 0, 1.6, 1.01));          // fönster mot vägen
+  booth.add(box(0.04, 0.55, 1.3, glass, 1.01, 1.6, 0));           // fönster mot horden
+  booth.add(box(0.7, 1.5, 0.04, mat(P.crateDark), -0.55, 0.75, -1.01));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.6), new THREE.MeshStandardMaterial({ map: signTexture('BASEN'), roughness: 0.9 }));
+  sign.material.map.repeat.set(1, 0.35); sign.material.map.offset.set(0, 0.325);
+  sign.position.set(0, 2.05, 1.03); booth.add(sign);
+  booth.position.set(-2.4, 0, -6.4);
+  g.add(booth);
+  // Flaggstång vid kuren.
+  g.add(mesh(geo('cylinder', 0.05, 0.06, 4.6, 6), postM, -0.9, 2.3, -7.3));
+  const flag = box(1.1, 0.7, 0.03, mat(P.soldierShirt), -0.32, 4.15, -7.3);
+  g.add(flag);
+  // Lådor och en tunna innanför vallen.
+  for (const [x, z, ry] of [[-1.4, 3.8, 0.2], [-1.6, 4.5, -0.3]]) {
+    const c = new THREE.Group();
+    c.add(box(0.78, 0.36, 0.42, mat(P.crate), 0, 0.18, 0));
+    c.add(box(0.82, 0.07, 0.46, mat(P.crateDark), 0, 0.38, 0));
+    c.position.set(x, 0, z); c.rotation.y = ry; g.add(c);
+  }
+  // Egna material: varje mesh får en kopia som kan lysa rött.
+  const mats = [];
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    o.material = o.material.clone();
+    o.material.userData.own = true;
+    if (o.material.emissive) mats.push(o.material);
+  });
+  g.userData = { kind: 'base', mats, flag };
+  return g;
+}
+// Rött sken över hela basen. k 0..1.
+export function setBaseGlow(group, k) {
+  for (const m of group.userData.mats) { m.emissive.setRGB(0.9 * k, 0.08 * k, 0.04 * k); }
 }

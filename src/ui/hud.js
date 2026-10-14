@@ -1,5 +1,22 @@
-// HUD: dag, våg, kvar, pengar, basen och knappen som startar vågen.
+// HUD: dag, våg, kvar, pengar, basen, knappen som startar vågen och raden under vågen
+// (kvar och Snabbare). Plus det som visas när något händer: basen tar skada, horden kommer,
+// vad vågen består av.
 import { money } from './format.js';
+import { ZOMBIES } from '../data/zombies.js';
+
+// Plural för vågens innehåll: "10 vandrare, 6 löpare, 1 bjässe".
+const PLURAL = { walker: ['vandrare', 'vandrare'], runner: ['löpare', 'löpare'], brute: ['bjässe', 'bjässar'] };
+export function waveText(dayCfg, index) {
+  const wave = dayCfg.waves[index];
+  if (!wave) return '';
+  const counts = new Map();
+  for (const g of wave.groups) counts.set(g.type, (counts.get(g.type) || 0) + g.count);
+  const parts = [...counts].map(([t, n]) => {
+    const w = PLURAL[t] || [ZOMBIES[t]?.name.toLowerCase() ?? t, ZOMBIES[t]?.name.toLowerCase() ?? t];
+    return `${n} ${n === 1 ? w[0] : w[1]}`;
+  });
+  return `Våg ${index + 1}: ${parts.join(', ')}`;
+}
 
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
@@ -11,7 +28,7 @@ export function waveCounts(sim) {
   return { wave: i + 1, of: waves.length, total, left };
 }
 
-export function mountHud(root, { onStart } = {}) {
+export function mountHud(root, { onStart, onSpeed } = {}) {
   root.insertAdjacentHTML('beforeend', `
   <div id="day" class="plate">
     <div class="lbl">DAG</div>
@@ -24,11 +41,22 @@ export function mountHud(root, { onStart } = {}) {
     <div><div class="k">BASEN</div><div class="v hp" data-k="hp">0</div></div>
   </div>
   <div id="hint" class="plate" hidden><ol><li data-h="0">Klicka på en position.</li><li data-h="1">Bygg en M249.</li><li data-h="2">Starta vågen.</li></ol></div>
-  <button id="go" class="plate" type="button"><span data-k="go">Starta våg</span><kbd data-k="key">Mellanslag</kbd></button>`);
+  <button id="go" class="plate" type="button"><span data-k="go">Starta våg</span><kbd data-k="key">Mellanslag</kbd></button>
+  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> kvar</span><button type="button" class="speed" data-k="speed" aria-pressed="false">Snabbare<kbd>F</kbd></button></div>
+  <div id="banner" class="plate" hidden></div>
+  <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horden kommer</div></div>`);
+  // Röd puls i skärmkanten när basen tar skada. Ligger under gränssnittet.
+  const hurt = document.createElement('div');
+  hurt.className = 'hurt';
+  root.prepend(hurt);
   const $ = k => root.querySelector(`[data-k="${k}"]`);
   const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
+  const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed');
+  speedBtn.addEventListener('pointerdown', e => e.preventDefault());   // ta inte fokus från mellanslag
+  speedBtn.addEventListener('click', () => onSpeed && onSpeed());
+  const resPlate = root.querySelector('#res');
 
   let last = { cash: null, hp: null };
   let deltaSum = 0, deltaTimer = 0;
@@ -57,16 +85,50 @@ export function mountHud(root, { onStart } = {}) {
     if (cash !== last.cash) { set(el.cash, money(cash)); last.cash = cash; }
 
     const hp = Math.max(0, sim.baseHp);
-    if (last.hp !== null && hp < last.hp) {
-      el.hp.classList.remove('hit'); void el.hp.offsetWidth; el.hp.classList.add('hit');
-    }
     if (hp !== last.hp) { set(el.hp, String(hp)); last.hp = hp; }
+    el.hp.classList.toggle('low', hp <= sim.map.baseHp / 4);
 
     const build = sim.phase === 'build', wave = sim.phase === 'wave';
-    goBtn.hidden = !(build || wave);
-    goBtn.disabled = !build;
-    set(el.go, build ? 'Starta våg' : 'Våg pågår');
-    el.key.hidden = !build;
+    goBtn.hidden = !build;
+    waveBar.hidden = !wave;
+    set(wLeft, String(c.left));
+  }
+
+  function setSpeed(fast) {
+    speedBtn.setAttribute('aria-pressed', fast ? 'true' : 'false');
+    speedBtn.classList.toggle('on', fast);
+  }
+
+  // Basen tar skada: siffran blinkar rött och pulsar, plåten och skärmkanten lyser rött.
+  const restart = (node, cls) => { node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); };
+  function baseHit() {
+    restart(el.hp, 'hit');
+    restart(resPlate, 'hit');
+    restart(hurt, 'pulse');
+  }
+
+  // Kort rad mitt upptill, t.ex. vad vågen består av.
+  const bannerEl = root.querySelector('#banner');
+  let bannerTimer = 0;
+  function banner(text, secs = 4) {
+    clearTimeout(bannerTimer);
+    if (!text) { bannerEl.hidden = true; return; }
+    bannerEl.textContent = text;
+    bannerEl.hidden = false;
+    restart(bannerEl, 'show');
+    bannerTimer = setTimeout(() => { bannerEl.hidden = true; }, secs * 1000);
+  }
+
+  // Pil vid skärmkanten där vägen kommer in. at: { x, y, angle } i px och radianer, eller null.
+  const entryEl = root.querySelector('#entry'), chev = entryEl.querySelector('.chev');
+  function entry(at) {
+    entryEl.hidden = !at;
+    if (!at) return;
+    // Hela pilen och texten ska rymmas i bild, med 12 px marginal.
+    const w = entryEl.offsetWidth / 2 + 12, h = entryEl.offsetHeight / 2 + 12;
+    entryEl.style.left = Math.min(innerWidth - w, Math.max(w, at.x)) + 'px';
+    entryEl.style.top = Math.min(innerHeight - h, Math.max(h, at.y)) + 'px';
+    chev.style.transform = `rotate(${at.angle}rad)`;
   }
 
   // Tre steg för första dagen. done: antal klara steg, null döljer rutan.
@@ -78,7 +140,12 @@ export function mountHud(root, { onStart } = {}) {
   }
 
   // Nollställ så att en ny dag inte visar en stor minus-ruta.
-  function reset() { last = { cash: null, hp: null }; deltaSum = 0; el.delta.className = 'delta'; }
+  function reset() {
+    last = { cash: null, hp: null }; deltaSum = 0; el.delta.className = 'delta';
+    clearTimeout(deltaTimer);
+    el.cash.classList.remove('up', 'down');
+    banner(null); entry(null);
+  }
 
-  return { update, reset, hint };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry };
 }

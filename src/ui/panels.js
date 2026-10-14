@@ -10,13 +10,11 @@ import { canBuyResearch } from '../meta/progress.js';
 import { ICONS } from './icons.js';
 import { money } from './format.js';
 
-const BETWEEN = 'Mellan vågorna';
-
 const REASONS = {
   'pengar': 'Pengarna räcker inte.',
   'låst': 'Positionen är låst.',
   'ej upplåst': 'Det är inte framforskat än.',
-  'fel läge': 'Det går bara mellan vågorna.',
+  'fel läge': 'Dagen är slut.',
   'max': 'Det här är högsta nivån.',
   'tom': 'Här står inget vapen.',
   'okänd': 'Det gick inte.',
@@ -56,14 +54,14 @@ function shell(root, actions) {
   return { el, head, body, say, hush, close };
 }
 
-// Sätter pris/grått på ett kort: pris, "Behöver $X" eller "Mellan vågorna".
+// Sätter pris/grått på ett kort: pris eller "Behöver $X". Uppdateras varje bildruta,
+// så priset blir klickbart så fort pengarna räcker, även mitt i en våg.
 function patchCard(btn, cost, sim) {
   const p = btn.querySelector('[data-price]');
-  const wave = sim.phase !== 'build';
   const poor = sim.cash < cost;
-  const text = wave ? BETWEEN : poor ? 'Behöver ' + money(cost) : money(cost);
+  const text = poor ? 'Behöver ' + money(cost) : money(cost);
   if (p.textContent !== text) p.textContent = text;
-  btn.classList.toggle('off', wave || poor);
+  btn.classList.toggle('off', poor);
 }
 
 export function slotPanel(root, slotId, sim, actions) {
@@ -110,7 +108,7 @@ export function slotPanel(root, slotId, sim, actions) {
     });
     sell.addEventListener('click', () => {
       const r = actions.sell(slotId);
-      if (!r.ok) ui.say(reasonText(cur.phase !== 'build' ? 'fel läge' : 'tom'));
+      if (!r.ok) ui.say(reasonText(cur.phase === 'won' || cur.phase === 'lost' ? 'fel läge' : 'tom'));
     });
     const own = () => { const sl = slotOf(cur); if (sl?.weapon) showRange(sl, weaponStats(sl.weapon.type, sl.weapon.level, cur.research).range); };
     up.addEventListener('mouseenter', () => {
@@ -127,18 +125,17 @@ export function slotPanel(root, slotId, sim, actions) {
       for (const b of ui.body.querySelectorAll('.card')) patchCard(b, WEAPONS[b.dataset.id].cost, s);
       return;
     }
-    const w = slot.weapon, wave = s.phase !== 'build';
+    const w = slot.weapon;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const cost = upgradeCost(w.type, w.level);
-    const upText = cost == null ? 'Högsta nivån' : wave ? BETWEEN : s.cash < cost ? 'Behöver ' + money(cost) : money(cost);
+    const upText = cost == null ? 'Högsta nivån' : s.cash < cost ? 'Behöver ' + money(cost) : money(cost);
     const upP = up.querySelector('[data-p]');
     if (upP.textContent !== upText) upP.textContent = upText;
-    up.classList.toggle('off', cost == null || wave || s.cash < cost);
+    up.classList.toggle('off', cost == null || s.cash < cost);
     up.classList.toggle('max', cost == null);
-    const sellText = wave ? BETWEEN : '+' + money(weaponRefund(w));
+    const sellText = '+' + money(weaponRefund(w));
     const sellP = sell.querySelector('[data-p]');
     if (sellP.textContent !== sellText) sellP.textContent = sellText;
-    sell.classList.toggle('off', wave);
   }
 
   function update(s) {
@@ -188,12 +185,10 @@ export function cellPanel(root, index, sim, actions) {
     const cond = ui.head.querySelector('[data-cond]');
     const condText = `Skick ${Math.max(0, Math.round(f * 100))} %`;
     if (cond.textContent !== condText) cond.textContent = condText;
-    const wave = s.phase !== 'build';
     const rm = ui.body.querySelector('[data-a="rm"]');
-    const t = wave ? BETWEEN : whole ? '+' + money(obstacleRefund(ob)) : 'Ingen återbetalning';
+    const t = whole ? '+' + money(obstacleRefund(ob)) : 'Ingen återbetalning';
     const p = rm.querySelector('[data-p]');
     if (p.textContent !== t) p.textContent = t;
-    rm.classList.toggle('off', wave);
   }
 
   function update(s) {
@@ -330,9 +325,9 @@ export function mainMenu(root, progress, { onDay, onResearch, version }) {
 }
 
 // Liten notis som försvinner av sig själv.
-export function note(root, text) {
+export function note(root, text, cls = '') {
   const el = document.createElement('div');
-  el.className = 'note plate';
+  el.className = 'note plate ' + cls;
   el.textContent = text;
   root.appendChild(el);
   setTimeout(() => el.remove(), 3200);

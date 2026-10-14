@@ -1,10 +1,15 @@
 // Klick och pekare mot scenen. getTargets() anropas vid varje händelse och returnerar
 // [{kind, id, object}]; träffen letar uppåt bland föräldrarna efter userData.pick.
+// Träffas inget föremål räknas punkten på marken om: groundPick(x, z) får säga vad som
+// ligger där (rutorna på vägen), så att hela vägytan svarar och inte bara ritade streck.
 import * as THREE from 'three';
 
-export function createPicker(camera, dom, getTargets) {
+const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+export function createPicker(camera, dom, getTargets, groundPick = () => null) {
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
+  const onGround = new THREE.Vector3();
   const pickCbs = [], hoverCbs = [];
   let hoverKey = null, moveEv = null, queued = false;
 
@@ -19,7 +24,7 @@ export function createPicker(camera, dom, getTargets) {
         if (p) return { kind: p.kind, id: p.kind === 'cell' ? p.index : p.id };
       }
     }
-    return null;
+    return ray.ray.intersectPlane(GROUND, onGround) ? groundPick(onGround.x, onGround.z) : null;
   }
   const keyOf = p => (p ? p.kind + ':' + p.id : null);
 

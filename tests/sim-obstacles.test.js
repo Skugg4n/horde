@@ -83,3 +83,18 @@ test('zombie som skulle passera ett block i ett enda steg stannar vid blocket', 
   assert.ok(firstZ(s).d <= map.cells[0]);
   assert.equal(firstZ(s).d, map.cells[0]);
 });
+test('hinder går att lägga och riva mitt i en våg', () => {
+  const s = mk();
+  startWave(s);
+  run(s, 3);
+  assert.equal(s.phase, 'wave');
+  assert.equal(placeObstacle(s, 2, 'wire').ok, true);
+  assert.equal(removeObstacle(s, 2).ok, true);
+});
+test('när dagen är slut går det inte att lägga hinder', () => {
+  const s = mk();
+  placeObstacle(s, 0, 'wire');
+  s.phase = 'lost';
+  assert.deepEqual(placeObstacle(s, 1, 'wire'), { ok: false, reason: 'fel läge' });
+  assert.deepEqual(removeObstacle(s, 0), { ok: false, refund: 0 });
+});

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, setSlotMarkerState, disposeModel } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -168,7 +168,7 @@ export function createView(scene, initialSim) {
       for (let x = -L / 2; x < L / 2 - 0.1; x += 0.8) { const len = Math.min(0.5, L / 2 - x); dash(x + len / 2, -W / 2, len, true); dash(x + len / 2, W / 2, len, true); }
       for (let z = -W / 2; z < W / 2 - 0.1; z += 0.8) { const len = Math.min(0.5, W / 2 - z); dash(-L / 2, z + len / 2, len, false); dash(L / 2, z + len / 2, len, false); }
       const fill = new THREE.Mesh(geo('plane', L, W), fillM);
-      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04; fill.visible = false;
+      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04;
       group.add(fill);
       const c = cellCenter(i);
       group.position.set(c.x, 0, c.z);
@@ -179,20 +179,21 @@ export function createView(scene, initialSim) {
     }
   }
   function syncCellMarks() {
-    const build = sim.phase === 'build';
+    // Rutorna syns hela dagen (det går att bygga även under vågen), lite svagare medan
+    // zombierna går. Varje ruta har en svag fyllning så att den läses som en platta och
+    // vägen mellan rutorna inte ser ut som en egen ruta.
+    const open = sim.phase === 'build' || sim.phase === 'wave';
+    const calm = sim.phase === 'build';
     for (let i = 0; i < cellMarks.length; i++) {
       const c = cellMarks[i];
-      const want = !build ? 'hidden' : isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : 'idle';
+      const want = !open ? 'hidden' : isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : calm ? 'idle' : 'quiet';
       if (c.state === want) continue;
       c.state = want;
-      // Ritas inte alls under vågen, inte ens vald eller under musen, men går ändå att
-      // peka på (strålen bryr sig inte om synlighet).
-      for (const ch of c.group.children) if (ch !== c.fill) ch.visible = want !== 'hidden';
-      c.fill.visible = want === 'hover' || want === 'selected';
+      for (const ch of c.group.children) ch.visible = want !== 'hidden';
       c.m.color.set(want === 'selected' ? PALETTE.rust : PALETTE.paper);
-      c.m.opacity = want === 'selected' ? 0.9 : want === 'hover' ? 0.6 : 0.28;
+      c.m.opacity = { selected: 0.9, hover: 0.7, idle: 0.32, quiet: 0.16 }[want] ?? 0;
       c.fillM.color.set(want === 'selected' ? PALETTE.rust : PALETTE.paper);
-      c.fillM.opacity = want === 'selected' ? 0.16 : 0.08;
+      c.fillM.opacity = { selected: 0.18, hover: 0.12, idle: 0.05, quiet: 0.025 }[want] ?? 0;
     }
   }
 
@@ -233,6 +234,14 @@ export function createView(scene, initialSim) {
     for (const [i, e] of cells) out.push({ kind: 'cell', id: i, object: e.group });
     return out;
   }
+  // Det som strålen ska träffa: positionerna och hindren (de står upp ur marken). Tomma rutor
+  // räknas fram ur markpunkten i stället, se cellAt.
+  function rayTargets() {
+    const out = [];
+    for (const [id, e] of slots) out.push({ kind: 'slot', id, object: e.group });
+    for (const [i, e] of cells) out.push({ kind: 'cell', id: i, object: e.group });
+    return out;
+  }
 
   // ---------- hinder ----------
   function cellCenter(i) {
@@ -262,6 +271,35 @@ export function createView(scene, initialSim) {
       const frac = ob.maxHp ? ob.hp / ob.maxHp : ob.durability / ob.maxDurability;
       if (Math.abs(frac - e.frac) > 0.004) { e.frac = frac; setObstacleWear(e.group, frac); }
     }
+  }
+
+  // ---------- basen ----------
+  // Står där vägen tar slut. Lyser rött och skakar en kort stund när en zombie tar sig in.
+  let base = null, baseHome = new THREE.Vector3(), baseHitT = 0;
+  const BASE_HIT = 0.7;
+  function buildBase() {
+    if (base) disposeModel(base);
+    const path = sim.map.path, n = path.length;
+    const [ex, ez] = path[n - 1], [px, pz] = path[n - 2];
+    const len = Math.hypot(ex - px, ez - pz), dx = (ex - px) / len, dz = (ez - pz) / len;
+    base = baseModel();
+    // Grindlinjen 0,6 m före vägens slut, modellens +x mot horden.
+    baseHome.set(ex - dx * 0.6, 0, ez - dz * 0.6);
+    base.position.copy(baseHome);
+    base.rotation.y = Math.atan2(dz, -dx);
+    scene.add(base);
+  }
+  function baseHit() { baseHitT = BASE_HIT; }
+  function syncBase(dt) {
+    if (!base) return;
+    base.userData.flag.rotation.y = Math.sin(clock * 2.3) * 0.25;
+    if (baseHitT <= 0) return;
+    baseHitT = Math.max(0, baseHitT - dt);
+    const k = baseHitT / BASE_HIT;
+    setBaseGlow(base, k * (0.6 + 0.4 * Math.sin(clock * 40)));
+    const a = 0.12 * k;
+    base.position.set(baseHome.x + rnd(-a, a), 0, baseHome.z + rnd(-a, a));
+    if (baseHitT === 0) { setBaseGlow(base, 0); base.position.copy(baseHome); }
   }
 
   // ---------- händelser ----------
@@ -298,7 +336,7 @@ export function createView(scene, initialSim) {
           fx.splat(ev.x + 0.8 * sc, ev.z, rnd(1.6, 2.6) * sc);
           break;
         }
-        case 'breach': fx.puff(ev.x, ev.z); break;
+        case 'breach': fx.puff(ev.x, ev.z); baseHit(); break;
         case 'obstacleHit': {
           if (clock - (lastChip.get(ev.cell) ?? -1) < 0.3) break;
           lastChip.set(ev.cell, clock);
@@ -324,6 +362,7 @@ export function createView(scene, initialSim) {
     syncCells();
     syncCellMarks();
     syncUi();
+    syncBase(dt);
     fx.update(dt);
   }
 
@@ -336,11 +375,13 @@ export function createView(scene, initialSim) {
     fx.clear();
     const remap = next.map !== sim.map;
     sim = next;
-    if (remap) buildCellMarks();
+    if (remap) { buildCellMarks(); buildBase(); }
+    baseHitT = 0; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
     ui = { selected: null, hover: null, range: null };
   }
 
   buildCellMarks();
-  return { sync, consume, setSim, setUi, pickTargets, slotObjects, cellObjects, fx };
+  buildBase();
+  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx };
 }

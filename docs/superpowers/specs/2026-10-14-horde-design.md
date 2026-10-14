@@ -16,8 +16,8 @@ Gritty top-down tower defense i 2.5D: en dag i taget håller du en position mot 
 
 ## Kärnloop
 
-1. **Förberedelse** (pausat): köp och placera vapen på **positioner** och hinder på vägen, och uppgradera.
-2. **Våg**: horden går längs fasta vägar mot basen. Vapnen skjuter själva. Du kan pausa och köpa mellan vågor, inte under.
+1. **Bygg när som helst**: köp och placera vapen på **positioner** och hinder på vägen, uppgradera och sälj. Det går både före, mellan och under vågorna, så pengar som kommer in mitt i en våg kan användas direkt.
+2. **Våg**: horden går längs fasta vägar mot basen. Vapnen skjuter själva. Pausen mellan vågorna är till för att andas ut och planera, inte en grind för att bygga. Under vågen kan farten dubblas (Snabbare).
 3. En **dag** = 3 till 6 vågor. Klarar du sista vågen är dagen vunnen och nästa dag låses upp.
 4. Når horden basen så att den faller, börjar **dagen om** från våg 1.
 

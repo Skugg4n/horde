@@ -7,15 +7,21 @@ import { createScene } from './render/scene.js';
 import { buildWorld, updateWorld } from './render/world.js';
 import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
-import { mountHud } from './ui/hud.js';
+import { mountHud, waveText } from './ui/hud.js';
 import { slotPanel, cellPanel, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
 import { startConfig, dayResult, buyResearch } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle, zombiePos } from './sim/sim.js';
+import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
+import { cellAt } from './sim/cells.js';
 import { Vector3 } from 'three';
 
-const DT = 1 / 30, MAX_STEPS = 5;
+const DT = 1 / 30;
+// Snabbare spelar dubbelt så många fasta steg per bildruta; taket följer med.
+const MAX_STEPS_PER_SPEED = 5;
+const BASE_TOAST_GAP = 4;          // sekunder mellan två "Basen tar skada!"
+const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const map = MAPS.riksvagen;
 const { renderer, scene, camera } = createScene(document.getElementById('stage'), map);
 buildWorld(scene, map);
@@ -26,7 +32,7 @@ let progress = loadProgress();
 let day = Math.min(progress.unlockedDay, map.days.length);
 let sim = createSim(startConfig(progress, day));
 const view = createView(scene, sim);
-const hud = mountHud(uiRoot, { onStart: () => go() });
+const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed() });
 const dim = document.createElement('div');
 dim.className = 'dim';
 uiRoot.prepend(dim);
@@ -58,7 +64,10 @@ function open(p) {
   placePanel();
 }
 
-const picker = createPicker(camera, renderer.domElement, () => view.pickTargets());
+const picker = createPicker(camera, renderer.domElement, () => view.rayTargets(), (x, z) => {
+  const i = cellAt(sim.map, x, z);
+  return i == null ? null : { kind: 'cell', id: i };
+});
 picker.onPick(p => { if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return; if (p) open(p); else closePanel(); });
 picker.onHover(p => { hovered = mode === 'play' ? p : null; });
 // Klick utanför panelen (men inte i scenen, den sköts av plockaren) stänger den.
@@ -69,12 +78,73 @@ document.addEventListener('pointerdown', e => {
 
 function go() {
   if (mode !== 'play' || sim.phase !== 'build') return;
-  if (startWave(sim) && hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
+  const index = sim.waveIndex;
+  if (!startWave(sim)) return;
+  hud.banner(waveText(sim.dayCfg, index), 4.5);
+  if (hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
+}
+
+// ---------- fart ----------
+let speed = 1;
+function toggleSpeed() {
+  if (mode !== 'play' || sim.phase !== 'wave') return;
+  speed = speed === 1 ? 2 : 1;
+  hud.setSpeed(speed === 2);
+}
+
+// ---------- basen tar skada ----------
+let lastBaseToast = -Infinity, shakeT = 0;
+const camHome = camera.position.clone();
+function onBreach() {
+  hud.baseHit();
+  shakeT = SHAKE_TIME;
+  if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Basen tar skada!', 'warn'); }
+}
+function shakeCamera(dt) {
+  if (shakeT <= 0) return;
+  shakeT = Math.max(0, shakeT - dt);
+  const a = SHAKE_AMP * (shakeT / SHAKE_TIME);
+  camera.position.set(camHome.x + (Math.random() - 0.5) * 2 * a, camHome.y, camHome.z + (Math.random() - 0.5) * 2 * a);
+  if (shakeT === 0) camera.position.copy(camHome);
+}
+
+// ---------- horden på väg in ----------
+// Pil vid skärmkanten där vägen kommer in, medan zombier är på väg men ännu inte syns.
+const tmpE = new Vector3();
+const EDGE = 60;   // px från skärmkanten
+function onScreen(x, z, margin = 0) {
+  tmpE.set(x, 0, z).project(camera);
+  const sx = (tmpE.x + 1) / 2 * innerWidth, sy = (1 - tmpE.y) / 2 * innerHeight;
+  return { sx, sy, in: sx >= margin && sx <= innerWidth - margin && sy >= margin && sy <= innerHeight - margin };
+}
+let entryAt = null;
+function findEntry() {
+  // Första punkten längs vägen (från spawn) som ligger EDGE px innanför kanten.
+  for (let d = 0; d <= sim.len; d += 0.5) {
+    const p = pointAt(sim.map.path, d);
+    const s = onScreen(p.x, p.z, EDGE);
+    if (s.in) {
+      const q = pointAt(sim.map.path, d + 2), t = onScreen(q.x, q.z);
+      return { x: s.sx, y: s.sy, angle: Math.atan2(t.sy - s.sy, t.sx - s.sx) + Math.PI };
+    }
+  }
+  return null;
+}
+addEventListener('resize', () => { entryAt = null; });
+function updateEntry() {
+  if (mode !== 'play' || sim.phase !== 'wave') { hud.entry(null); return; }
+  const alive = sim.zombies.filter(z => !z.dead);
+  if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
+  const seen = alive.some(z => { const p = zombiePos(sim, z); return onScreen(p.x, p.z, 10).in; });
+  if (seen) { hud.entry(null); return; }
+  entryAt = entryAt || findEntry();
+  hud.entry(entryAt);
 }
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else closePanel(); }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go(); }
+  if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
 }, true);
 addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); }, true);
 
@@ -119,6 +189,8 @@ function startDay(n) {
   sim = createSim(cfg);
   view.setSim(sim);
   hud.reset();
+  speed = 1; hud.setSpeed(false);
+  entryAt = null; shakeT = 0; camera.position.copy(camHome);
   hinting = n === 1 && !progress.seenHint;
   setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], () => setMode('play')));
 }
@@ -169,7 +241,7 @@ function placePanel() {
   panel.el.classList.toggle('top', y > panel.el.getBoundingClientRect().top - 50);
 }
 
-window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, view, renderer, scene, camera };
+window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, view, renderer, scene, camera };
 showMenu();
 
 let last = performance.now(), time = 0, acc = 0;
@@ -177,13 +249,16 @@ function tick(now) {
   const frameDt = Math.min((now - last) / 1000, 0.1);
   last = now; time += frameDt;
 
-  if (mode === 'play') acc += frameDt;
+  const fast = speed === 2 && sim.phase === 'wave';
+  const maxSteps = MAX_STEPS_PER_SPEED * (fast ? 2 : 1);
+  if (mode === 'play') acc += frameDt * (fast ? 2 : 1);
   let steps = 0;
-  while (acc >= DT && steps < MAX_STEPS) {
+  while (acc >= DT && steps < maxSteps) {
     step(sim, DT); view.consume(sim.events);
+    if (sim.events.some(e => e.t === 'breach')) onBreach();
     acc -= DT; steps++;
   }
-  if (steps === MAX_STEPS) acc = Math.min(acc, DT);
+  if (steps === maxSteps) acc = Math.min(acc, DT);
   if (mode !== 'play') acc = 0;
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
   if (hinting) {
@@ -193,6 +268,8 @@ function tick(now) {
 
   if (panel) panel.update(sim);
   hud.update(sim);
+  updateEntry();
+  shakeCamera(frameDt);
   view.setUi({ selected, hover: hovered, range: panelRange || rangeFor(hovered) || rangeFor(selected) });
   view.sync(frameDt);
   updateWorld(frameDt, time);

@@ -77,8 +77,12 @@ function moveZombies(sim, dt) {
   }
 }
 
+// Bygga, uppgradera, sälja och lägga hinder går när som helst under dagen, även mitt i en våg.
+// Bara när dagen är slut (vunnen eller förlorad) är det stängt.
+export const canAct = sim => sim.phase === 'build' || sim.phase === 'wave';
+
 export function build(sim, slotId, type) {
-  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   const s = sim.slots.find(x => x.id === slotId);
   if (!s) return { ok: false, reason: 'okänd' };
   if (s.locked) return { ok: false, reason: 'låst' };
@@ -91,7 +95,7 @@ export function build(sim, slotId, type) {
   return { ok: true };
 }
 export function upgrade(sim, slotId) {
-  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   const s = sim.slots.find(x => x.id === slotId);
   if (!s) return { ok: false, reason: 'okänd' };
   const w = s.weapon;
@@ -103,7 +107,7 @@ export function upgrade(sim, slotId) {
   return { ok: true };
 }
 export function sell(sim, slotId) {
-  if (sim.phase !== 'build') return { ok: false, refund: 0 };
+  if (!canAct(sim)) return { ok: false, refund: 0 };
   const s = sim.slots.find(x => x.id === slotId);
   if (!s || !s.weapon) return { ok: false, refund: 0 };
   const refund = weaponRefund(s.weapon);
@@ -112,7 +116,7 @@ export function sell(sim, slotId) {
 }
 
 export function placeObstacle(sim, cell, type) {
-  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, reason: 'okänd' };
   if (sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
   if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
@@ -130,7 +134,7 @@ export function placeObstacle(sim, cell, type) {
 export function removeObstacle(sim, cell) {
   if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, refund: 0 };
   const ob = sim.obstacles[cell];
-  if (sim.phase !== 'build' || !ob) return { ok: false, refund: 0 };
+  if (!canAct(sim) || !ob) return { ok: false, refund: 0 };
   const refund = obstacleRefund(ob);
   sim.cash += refund;
   delete sim.obstacles[cell];

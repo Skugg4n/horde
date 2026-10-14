@@ -89,3 +89,21 @@ test('okänd plats ger ok:false utan att kasta fel', () => {
   assert.deepEqual(upgrade(s, 'Z'), { ok: false, reason: 'okänd' });
   assert.deepEqual(sell(s, 'Z'), { ok: false, refund: 0 });
 });
+test('bygga, uppgradera och sälja går mitt i en våg', () => {
+  const s = mk();
+  startWave(s);
+  run(s, 3);
+  assert.equal(s.phase, 'wave');
+  assert.equal(build(s, 'A', 'm249').ok, true);
+  assert.equal(upgrade(s, 'A').ok, true);
+  assert.equal(sell(s, 'A').ok, true);
+});
+test('när dagen är slut går det inte att bygga', () => {
+  for (const phase of ['won', 'lost']) {
+    const s = mk();
+    s.phase = phase;
+    assert.deepEqual(build(s, 'A', 'm249'), { ok: false, reason: 'fel läge' });
+    assert.deepEqual(upgrade(s, 'A'), { ok: false, reason: 'fel läge' });
+    assert.deepEqual(sell(s, 'A'), { ok: false, refund: 0 });
+  }
+});
