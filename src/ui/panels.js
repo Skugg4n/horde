@@ -241,7 +241,7 @@ export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills,
     <div class="facts">
       <div><span>Döda zombier</span><b>${kills}</b></div>
       <div><span>Vågor klarade</span><b>${wavesCleared} av ${waves}</b></div>
-      <div><span>Forskning totalt</span><b>${totalIntel}</b></div>
+      <div><span>Forskning att använda</span><b>${totalIntel}</b></div>
     </div>
     <div class="acts">${main}<button type="button" class="act" data-a="research"><span class="a">Forskning</span></button></div>
     ${won && lastDay ? '' : `<button type="button" class="link" data-a="menu">Till menyn</button>`}`);

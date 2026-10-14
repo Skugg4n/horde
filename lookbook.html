@@ -32,7 +32,7 @@ import { VERSION } from './src/version.js';
 import { createScene } from './src/render/scene.js';
 import { dirtTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker } from './src/render/models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, baseModel } from './src/render/models.js';
 import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
@@ -114,6 +114,26 @@ const SV = 24;
   const m = slotMarker(s); m.position.copy(at(u, SV)); scene.add(m);
   label(u, SV, 'Position', txt, 3.2);
 });
+
+// rad 4, höger: basen där vägen tar slut (modellens +x mot horden, som i spelet)
+const BU = 22, BV = 22;
+const base = baseModel(); base.position.copy(at(BU, BV)); scene.add(base);
+const baseRoad = mesh(new THREE.PlaneGeometry(10, 9), new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95 }));
+baseRoad.rotation.x = -Math.PI / 2; baseRoad.position.set(base.position.x + 4, 0.02, base.position.z);
+baseRoad.castShadow = false; scene.add(baseRoad);
+label(BU, BV, 'Basen', 'vägens slut', 7);
+
+// HUD: pilen vid skärmkanten där horden kommer in (samma markup och CSS som i spelet, src/ui/hud.js)
+const entry = document.createElement('div');
+entry.id = 'entry';
+entry.innerHTML = '<div class="chev"><i></i><i></i><i></i></div><div class="txt">Horden kommer</div>';
+entry.style.right = 'auto'; entry.style.left = 'calc(100% - 220px)'; entry.style.top = '120px';
+entry.querySelector('.chev').style.transform = 'rotate(-2.36rad)';
+document.body.appendChild(entry);
+const entryLb = document.createElement('div'); entryLb.className = 'lb';
+entryLb.innerHTML = 'Pil vid kanten <small>HUD, syns tills första zombien är i bild</small>';
+entryLb.style.left = 'calc(100% - 220px)'; entryLb.style.top = '170px';
+document.getElementById('labels').appendChild(entryLb);
 
 // dra och zooma
 let drag = null;

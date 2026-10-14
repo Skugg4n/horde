@@ -35,10 +35,10 @@ const nonNegative = x => Number.isFinite(x) && x >= 0;
 function isValidV1(p) {
   return isObject(p) && p.v === 1
     && typeof p.mapId === 'string' && Object.hasOwn(MAPS, p.mapId)
-    && Number.isFinite(p.unlockedDay) && p.unlockedDay >= 1
+    && Number.isInteger(p.unlockedDay) && p.unlockedDay >= 1
     && nonNegative(p.intel)
     && Array.isArray(p.research) && p.research.every(r => typeof r === 'string')
-    && isObject(p.attempts);
+    && isObject(p.attempts) && Object.values(p.attempts).every(n => Number.isInteger(n) && n >= 0);
 }
 
 export function loadProgress(storage) {

@@ -4,7 +4,9 @@ Gäller från version 0.1.7. Förlagan är det godkända provet `mockups/prov-1-
 
 ## Grundregel
 
-Nya modeller visas i `lookbook.html` innan de används i spelet. Lägg till dem i visningssidan, titta på dem i spelets ljus och på spelets avstånd (knappen "Spelets avstånd"), först därefter in i spelet.
+Nya modeller visas i `lookbook.html` innan de används i spelet. Lägg till dem i visningssidan, titta på dem i spelets ljus och på spelets avstånd (knappen "Spelets avstånd"), först därefter in i spelet. Det gäller även HUD-delar som hör till scenen, som pilen där horden kommer in.
+
+Skärmbild av visningssidan per version: varje version som ändrar grafiken får en skärmbild av `lookbook.html` (översikten, 1440 x 900) i `docs/lookbook-<version>.png`, till exempel `docs/lookbook-0.2.0.png`. Jämför med förra bilden innan versionen släpps.
 
 Inga bildfiler. Allt byggs i kod med byggsatsen i `src/render/kit.js` (`mat`, `mesh`, `box`, `canvasTex`, `humanoid`). Modellerna bor i `src/render/models.js`.
 
@@ -30,6 +32,8 @@ Alla färger finns i `PALETTE` i `src/render/kit.js`. Färgsträngar skrivs inte
 | | kläder | dova blå, bruna, gröna, en rostig röd |
 | | blod | `#4f120d`, `#3a0e0a` |
 | Markering | papper, rost | `#e9dfc9`, `#b5532a` |
+| Basen | vallar, bom, kur, flagga | sandsäckarna, bommen randig papper/rost, kur `#9a8d78` med tak `#6f695d`, flagga `#55593f` |
+| HUD | pilen där horden kommer | `#e0603c`, text `#f0a07a` (i `styles.css`) |
 
 Tonen: dammig eftermiddag, avmättat, varmt. Inga rena eller mättade färger utom rosten på vald markering och mynningsflammor.
 
@@ -40,6 +44,7 @@ Samma i spel, prov och visningssida (`src/render/scene.js`):
 - Sol: riktat ljus `#ffdcae`, styrka 2.6, från position (-34, 30, 26) mot origo. Låg eftermiddagssol, långa skuggor mot +x och -z.
 - Skuggor: PCF mjuka, karta 2048, bias -0.0006, normalBias 0.04.
 - Fyllnad: halvklotsljus himmel `#d6dbe0`, mark `#5b4a35`, styrka 0.75.
+- Fyllnadsljus: riktat ljus `#c9d2dc` (`fill`), styrka 0.6, från kamerans håll (+40, 46, +40 från målpunkten), utan skugga. Lyfter zombiernas ryggar och pjäsernas skuggsidor så att de inte blir svarta.
 - Dis: bakgrund och dimma `#b9aa8c`, dimma från 70 till 120 m från kameran.
 - Tonmappning: ACES Filmic, exponering 1.05, sRGB ut.
 - Gradering i CSS på scenen (`.grade`): contrast 1.08, saturate 0.82, sepia 0.10.
@@ -81,3 +86,22 @@ Ska gå att skilja på spelets avstånd:
 
 - Taggtråd: rullarna sjunker och plattas till, några försvinner, stolparna lutar.
 - Betongblock: blocken lutar och vrids bakåt, sprickor och lösa bitar syns, betongen mörknar.
+
+## Budget för meshar och anrop
+
+Antalet meshar avgör om stilen håller när fler typer och större vågor kommer. Varje mesh som kastar skugga ritas två gånger (skuggpass och huvudpass). Räkna med `renderer.info.render.calls` (öppna spelet med `?debug`, `window.__horde.renderer.info`).
+
+| Modell | Högst | Idag (0.2.0) |
+|---|---|---|
+| Zombie | 15 | vandrare 9 till 13, löpare 14 till 15, bjässe 12 till 13 |
+| Pjäs nivå 1 till 2 | 65 | M249 46 och 50, M2 59 och 63 |
+| Pjäs nivå 3 | 120, mål 60 | M249 102, M2 120 |
+| Hinder | 50 | taggtråd 46, betongblock 42 |
+| Basen | 70 | 65 |
+
+Hela bilden på dag 3 våg 3: högst 1 200 anrop. Uppmätt 1 124 i 0.2.0 (se `docs/balance-log.md`, Prestanda).
+
+Regler:
+- Många likadana småsaker (grus, hylsor, blodstänk, köttbitar) ritas som `InstancedMesh`, aldrig som enskilda meshar.
+- Liggande kroppar kastar ingen skugga, och högst 24 ligger kvar i bild.
+- Nästa steg när budgeten trängs: slå ihop pjäsernas sandsäckar till en geometri per pjäs (de står still), så kommer nivå 3 ner mot 60.

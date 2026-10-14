@@ -81,3 +81,30 @@ test('extra fält i sparfilen (seenHint) följer med', () => {
   assert.equal(loadProgress(st).seenHint, true);
   assert.equal(st.getItem('horde.save.broken'), null);
 });
+test('sparfil med unlockedDay som inte är heltal räknas som trasig', () => {
+  const st = mem();
+  const raw = JSON.stringify({ ...newProgress(), unlockedDay: 1.5 });
+  st.setItem('horde.save', raw);
+  assert.deepEqual(loadProgress(st), newProgress());
+  assert.equal(st.getItem('horde.save.broken'), raw);
+  assert.equal(st.getItem('horde.save'), raw);
+});
+test('sparfil med försök som inte är heltal räknas som trasig', () => {
+  for (const bad of [1.5, '2', -1, null]) {
+    const st = mem();
+    const raw = JSON.stringify({ ...newProgress(), attempts: { 1: 2, 2: bad } });
+    st.setItem('horde.save', raw);
+    assert.deepEqual(loadProgress(st), newProgress(), `attempts ${bad}`);
+    assert.equal(st.getItem('horde.save.broken'), raw);
+  }
+});
+test('giltiga heltal i försök läses in', () => {
+  const st = mem();
+  const p = { ...newProgress(), unlockedDay: 3, attempts: { 1: 0, 3: 4 } };
+  saveProgress(p, st);
+  assert.deepEqual(loadProgress(st), p);
+});
+test('startConfig ger null för en dag som inte finns, så att main.js måste vakta', () => {
+  assert.equal(startConfig(newProgress(), 1.5), null);
+  assert.ok(startConfig(newProgress(), 1));
+});

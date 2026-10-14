@@ -17,7 +17,7 @@ export function mountHud(tagText) {
   <div id="day" class="plate">
     <div class="lbl">DAG</div>
     <div class="big">03</div>
-    <div class="row"><span>VÅG <b id="wave">2</b> / 5</span><span id="left">— KVAR</span></div>
+    <div class="row"><span>VÅG <b id="wave">2</b> / 5</span><span id="left">0 KVAR</span></div>
     <div class="bar"><i id="wavebar"></i></div>
   </div>
   <div id="res" class="plate">

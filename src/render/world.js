@@ -142,14 +142,26 @@ export function buildWorld(scene, map) {
   road.rotation.x = -Math.PI / 2; road.position.y = 0.02; road.castShadow = false;
   scene.add(road);
 
-  // grus i vägkanten
-  for (let i = 0; i < 260; i++) {
+  // grus i vägkanten: en InstancedMesh per färg (tre anrop i stället för 260)
+  const GRAVEL_N = 260;
+  const stones = P.gravel.map(() => []);
+  const tmp = new THREE.Object3D();
+  for (let i = 0; i < GRAVEL_N; i++) {
     const side = Math.random() < 0.5 ? -1 : 1;
-    const r = mesh(geo('dodeca', 1, 0), mat(pick(P.gravel)),
-      rnd(-70, 70), 0.05, side * rnd(4.4, 6.5));
-    r.scale.setScalar(rnd(0.08, 0.28)); r.rotation.set(rnd(0, 3), rnd(0, 3), 0); r.castShadow = false;
-    scene.add(r);
+    tmp.position.set(rnd(-70, 70), 0.05, side * rnd(4.4, 6.5));
+    tmp.scale.setScalar(rnd(0.08, 0.28)); tmp.rotation.set(rnd(0, 3), rnd(0, 3), 0);
+    tmp.updateMatrix();
+    stones[Math.floor(Math.random() * stones.length)].push(tmp.matrix.clone());
   }
+  P.gravel.forEach((color, c) => {
+    const list = stones[c];
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(geo('dodeca', 1, 0), mat(color), list.length);
+    list.forEach((m4, i) => im.setMatrixAt(i, m4));
+    im.castShadow = false; im.receiveShadow = true;
+    im.computeBoundingSphere();
+    scene.add(im);
+  });
 
   // ---------- rekvisita ur data ----------
   for (const p of map.props) {

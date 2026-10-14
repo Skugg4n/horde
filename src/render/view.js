@@ -8,6 +8,9 @@ import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
 const FALL_TIME = 0.3;
+// Högst så många liggande kroppar visas; de äldsta tas bort först. Simuleringen behåller
+// sina döda i 20 s oavsett, det här styr bara hur mycket som ritas.
+const MAX_CORPSES = 24;
 const STEP_PHASE = 2.6;          // gångfas per meter
 // Osynlig träffskiva under varje position (delad, städas aldrig).
 const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
@@ -36,6 +39,7 @@ export function createView(scene, initialSim) {
   let sim = initialSim;
   const fx = createFx(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
+  let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // id → { key, group, model, angle }
   const cells = new Map();        // index → { type, group, frac }
   const slotObjects = new Map(), cellObjects = new Map();
@@ -74,6 +78,15 @@ export function createView(scene, initialSim) {
         // faller bakåt och ligger kvar
         if (e.fall < 1) {
           e.fall = Math.min(1, e.fall + dt / FALL_TIME);
+          if (e.fall === 1) {
+            // ligger still: ingen skugga behövs (halverar kostnaden i skuggpasset)
+            parts.root.traverse(o => { o.castShadow = false; });
+            corpses.push(z.id);
+            while (corpses.length > MAX_CORPSES) {
+              const old = corpses.shift(), oe = zombies.get(old);
+              if (oe) removeZombie(old, oe);
+            }
+          }
           const t = e.fall * e.fall;
           parts.body.rotation.x = parts.lean + (-Math.PI / 2 - parts.lean) * t;
           parts.body.rotation.z *= 0.8;
@@ -99,6 +112,7 @@ export function createView(scene, initialSim) {
       }
     }
     for (const [id, e] of zombies) if (e.seen !== frame) removeZombie(id, e);
+    if (corpses.length && corpses.some(id => !zombies.has(id))) corpses = corpses.filter(id => zombies.has(id));
   }
 
   // ---------- positioner och vapen ----------
@@ -320,7 +334,7 @@ export function createView(scene, initialSim) {
           to.set(ev.x + rnd(-spread, spread), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-spread, spread));
           if (!ev.hit) to.sub(from).multiplyScalar(1.4).add(from);   // missar flyger förbi
           fx.tracer(from, to);
-          fx.flash(e.model.muzzle);
+          fx.flash(e.model.muzzle, ev.slotId);
           fx.casing(e.model.muzzle);
           break;
         }

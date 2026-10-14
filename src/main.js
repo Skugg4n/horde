@@ -9,7 +9,7 @@ import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { slotPanel, cellPanel, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
-import { startConfig, dayResult, buyResearch } from './meta/progress.js';
+import { newProgress, startConfig, dayResult, buyResearch } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
 import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle, zombiePos } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
@@ -30,7 +30,9 @@ const uiRoot = document.getElementById('ui');
 
 let progress = loadProgress();
 let day = Math.min(progress.unlockedDay, map.days.length);
-let sim = createSim(startConfig(progress, day));
+// Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
+// Simuleringen ersätts ändå när spelaren väljer dag i menyn.
+let sim = createSim(startConfig(progress, day) ?? startConfig(newProgress(), 1));
 const view = createView(scene, sim);
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed() });
 const dim = document.createElement('div');
@@ -241,7 +243,8 @@ function placePanel() {
   panel.el.classList.toggle('top', y > panel.el.getBoundingClientRect().top - 50);
 }
 
-window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, view, renderer, scene, camera };
+// Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
+if (new URLSearchParams(location.search).has('debug')) window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, view, renderer, scene, camera };
 showMenu();
 
 let last = performance.now(), time = 0, acc = 0;

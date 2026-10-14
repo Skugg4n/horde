@@ -47,10 +47,12 @@ export function createFx(scene) {
     scene.add(light, plane);
     flashes.push({ light, plane, mat, k: 0 });
   }
-  let flashOwner = new WeakMap(), flashNext = 0;
-  function flash(muzzle) {
-    let i = flashOwner.get(muzzle);
-    if (i === undefined) { i = flashNext; flashNext = (flashNext + 1) % FLASH_N; flashOwner.set(muzzle, i); }
+  // Ljuset hör till positionen (slotId), inte till modellen: en uppgradering bygger en ny
+  // modell med ny mynning, men samma pjäs ska fortsätta lysa med sitt eget ljus.
+  let flashOwner = new Map(), flashNext = 0;
+  function flash(muzzle, key) {
+    let i = flashOwner.get(key);
+    if (i === undefined) { i = flashNext; flashNext = (flashNext + 1) % FLASH_N; flashOwner.set(key, i); }
     const f = flashes[i];
     muzzle.getWorldPosition(f.light.position);
     muzzle.getWorldQuaternion(f.plane.quaternion);
@@ -182,7 +184,7 @@ export function createFx(scene) {
     for (let i = 0; i < SPLAT_CAP; i++) splatIM.setMatrixAt(i, ZERO);
     for (const im of [tracerIM, casingIM, bitIM, splatIM]) im.instanceMatrix.needsUpdate = true;
     for (const f of flashes) { f.k = 0; f.light.intensity = 0; f.plane.visible = false; }
-    flashOwner = new WeakMap();
+    flashOwner = new Map(); flashNext = 0;
   }
 
   return { tracer, flash, casing, gibs, chips, puff, splat, update, clear };
