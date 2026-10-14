@@ -40,7 +40,7 @@ Det gör att ett misslyckat försök aldrig är bortkastat, eftersom du alltid k
 | Vapen | Roll | Låses upp |
 |---|---|---|
 | M249 (lätt kulspruta) | billig, snabb, svag | start |
-| M2 .50 cal | allround, genomslag | dag 2 |
+| M2 .50 cal | allround, grov kaliber | forskning (första noden) |
 | Barrett M82 | prickskytt, lång räckvidd, går igenom flera | forskning |
 | Mk 19 granatspruta | ytskada mot klungor | forskning |
 | M252 81 mm granatkastare | indirekt eld, lång räckvidd, har ett minsta avstånd | forskning |
