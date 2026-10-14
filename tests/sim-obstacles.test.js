@@ -9,13 +9,13 @@ const mk = (o = {}) => createSim({ map, day: 1, cash: 2000, research: [], seed: 
 const firstZ = s => s.zombies.find(z => z.id === 1);
 
 test('taggtråd saktar ner', () => {
-  // Första zombien når taggtråden (d=36) vid ca 22,5 s. Vid 26 s ska den vara efter
-  // ungefär 3,5 s i rutan, alltså ca 2 m in, medan den oskadade är 41,6 m.
+  // Första zombien når taggtråden (d=52) vid ca 32,5 s. Vid 35 s har den sinkats
+  // i rutan medan den oskadade ligger ca 1,5 m längre fram.
   const a = mk(), b = mk();
   placeObstacle(b, 0, 'wire');
   startWave(a); startWave(b);
-  run(a, 26); run(b, 26);
-  assert.ok(firstZ(b).d < firstZ(a).d - 3);
+  run(a, 35); run(b, 35);
+  assert.ok(firstZ(b).d < firstZ(a).d - 1);
 });
 test('taggtråd slits och försvinner', () => {
   const s = mk();
@@ -34,8 +34,8 @@ test('betongblock kräver forskning och stoppar', () => {
   const s = mk({ research: ['block'] });
   placeObstacle(s, 0, 'block');
   startWave(s);
-  // Första zombien når blocket vid ca 22 s och står kvar där.
-  run(s, 30);
+  // Första zombien når blocket vid ca 32 s och står kvar där.
+  run(s, 40);
   assert.ok(firstZ(s).d <= map.cells[0] + 0.01);
   assert.ok(s.obstacles[0].hp < 400);
 });
@@ -44,7 +44,7 @@ test('block visar högst en träff per ruta och steg', () => {
   placeObstacle(s, 0, 'block');
   startWave(s);
   let total = 0;
-  for (let i = 0; i < 30 * 30; i++) {
+  for (let i = 0; i < 30 * 40; i++) {
     step(s, 1 / 30);
     const hits = s.events.filter(e => e.t === 'obstacleHit' && e.cell === 0).length;
     assert.ok(hits <= 1);

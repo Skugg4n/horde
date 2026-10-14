@@ -8,7 +8,7 @@ import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch } from
 
 const DT = 1 / 30;
 const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'm249Rate', 'slot4'];
-const WIRE_CELLS = [1, 2];
+const WIRE_CELLS = [0, 1, 2];
 const BLOCK_CELL = 0;
 const MAX_TICKS = 30 * 600;
 
@@ -16,9 +16,8 @@ function openSlots(sim) { return sim.slots.filter(s => !s.locked && !s.weapon); 
 
 // Girig policy, i ordning:
 // 1. Minst ett vapen (billigaste upplåsta, M2 om den är upplåst och går att köpa).
-// 2. Betongblock i ruta 0 om upplåst och råd kvar för ett vapen, sedan taggtråd i ruta 1 och 2
-//    (de som saknas efter förra vågen). Rutor räknas från basen: bara 0 till 2 ligger inom
-//    vapnens räckvidd, så brief:ens 2, 3, 4 hamnar utanför skotten.
+// 2. Betongblock i ruta 0 (närmast basen, där alla vapen når) om upplåst och råd kvar för ett
+//    vapen, sedan taggtråd i lediga rutor av 0, 1, 2 (de som saknas efter förra vågen).
 // 3. Fler vapen på första lediga position.
 // 4. Uppgraderingar, billigaste först.
 function greedyBuild(sim) {
@@ -54,7 +53,6 @@ export function playDay(progress, day, policy = 'greedy') {
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < MAX_TICKS) {
     if (sim.phase === 'build') {
       greedyBuild(sim);
-      if (process.env.TRACE) console.error(`d${day} våg ${sim.waveIndex} pengar ${sim.cash} bas ${sim.baseHp} ${sim.slots.map(s => (s.weapon ? s.weapon.type + s.weapon.level : '-')).join(',')}`);
       startWave(sim);
     }
     step(sim, DT); ticks++;
@@ -67,6 +65,7 @@ export function campaign(policy = 'greedy', maxAttempts = 6) {
   const log = [];
   for (let day = 1; ; day++) {
     if (!startConfig(progress, day)) break;
+    let won = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const r = playDay(progress, day, policy);
       progress = dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned });
@@ -78,8 +77,9 @@ export function campaign(policy = 'greedy', maxAttempts = 6) {
         progress = buyResearch(progress, id);
       }
       log.push({ day, attempt, won: r.won, intel, baseHp: r.baseHp, waves: r.waves, research: [...progress.research] });
-      if (r.won) break;
+      if (r.won) { won = true; break; }
     }
+    if (!won) break; // dagen klarades aldrig: kampanjen stannar här
   }
   return log;
 }

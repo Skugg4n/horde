@@ -5,7 +5,9 @@ export const MAPS = {
     name: 'Riksvägen',
     camera: { target: [-2, 0], view: 25 },
     path: [[46, 0], [-12, 0]],
-    cells: [36, 30, 24, 18, 12, 6],
+    // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång. Ordnade från basen:
+    // ruta 0 ligger närmast basen (x -6), ruta 5 längst bort (x 24). Alla ligger inom vapnens täckning.
+    cells: [52, 46, 40, 34, 28, 22],
     slots: [
       { id: 'A', x: -14, z: 0 },
       { id: 'B', x: -6, z: -8 },
@@ -20,12 +22,12 @@ export const MAPS = {
                  { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }] } ] },
       { n: 2, startCash: 650, intro: { title: 'Dag 2: Löpare', text: 'Snabba och sköra. Lägg taggtråd på vägen så hinner du skjuta.' },
         waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 6, interval: 1.5, delay: 4 }] },
-                 { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 10, interval: 1.0, delay: 3 }] } ] },
+                 { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 12, interval: 1.0, delay: 4 }] },
+                 { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 22, interval: 0.7, delay: 3 }] } ] },
       { n: 3, startCash: 1000, intro: { title: 'Dag 3: Bjässe', text: 'Stor och seg. Grov kaliber biter bäst.' },
         waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 3, interval: 4, delay: 8 }] },
-                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 12, interval: 0.8, delay: 4 }, { type: 'brute', count: 10, interval: 2.5, delay: 8 }] } ] },
+                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 12, interval: 0.8, delay: 4 }, { type: 'brute', count: 18, interval: 1.8, delay: 8 }] } ] },
     ],
     props: [
       { kind: 'car', x: 12, z: 7.5, ry: 0.5, color: '#6b2f22' },
