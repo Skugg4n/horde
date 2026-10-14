@@ -3,6 +3,9 @@ import { WEAPONS } from '../data/weapons.js';
 export function weaponUnlocked(type, research) {
   return type === 'm249' || research.has(type);
 }
+export function obstacleUnlocked(type, research) {
+  return type === 'wire' || research.has(type);
+}
 export function weaponStats(type, level, research) {
   const w = WEAPONS[type], l = level - 1;
   let rate = w.rate * (1 + 0.15 * l);

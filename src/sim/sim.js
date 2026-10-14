@@ -1,8 +1,9 @@
 import { ZOMBIES } from '../data/zombies.js';
 import { WEAPONS } from '../data/weapons.js';
+import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { pathLength, pointAt } from './path.js';
-import { weaponStats, weaponUnlocked, upgradeCost } from './stats.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked } from './stats.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export const CELL_LEN = 3;
@@ -35,7 +36,7 @@ export function startWave(sim) {
 }
 
 function spawn(sim, type) {
-  const z = { id: sim.nextId++, type, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, d: 0, off: (sim.rng() - 0.5) * 6, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null };
+  const z = { id: sim.nextId++, type, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, d: 0, off: (sim.rng() - 0.5) * 6, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   sim.zombies.push(z);
   sim.events.push({ t: 'spawn', id: z.id });
 }
@@ -46,7 +47,7 @@ export function step(sim, dt) {
   sim.time += dt;
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift().type);
   moveZombies(sim, dt);
-  fireWeapons(sim, dt);   // Task 4
+  fireWeapons(sim, dt);
   for (const z of sim.zombies) if (z.dead) z.deadT += dt;
   sim.zombies = sim.zombies.filter(z => !(z.dead && z.deadT > 20));
   if (sim.baseHp <= 0) { sim.phase = 'lost'; sim.events.push({ t: 'lost' }); return; }
@@ -60,16 +61,18 @@ export function step(sim, dt) {
 }
 
 function moveZombies(sim, dt) {
+  const hitCells = new Set();
   for (const z of sim.zombies) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
-    const speed = def.speed * obstacleEffect(sim, z, dt); // Task 5; returnerar 1 tills dess
+    const speed = def.speed * obstacleEffect(sim, z, dt, hitCells);
     z.d += speed * dt;
     z.wob += dt * speed;
     if (z.d >= sim.len) {
       sim.baseHp -= def.baseDamage;
+      const p = zombiePos(sim, z);
       z.dead = true; z.breached = true; z.deadT = 99;
-      sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage });
+      sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });
     }
   }
 }
@@ -77,6 +80,7 @@ function moveZombies(sim, dt) {
 export function build(sim, slotId, type) {
   if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
   const s = sim.slots.find(x => x.id === slotId);
+  if (!s) return { ok: false, reason: 'okänd' };
   if (s.locked) return { ok: false, reason: 'låst' };
   if (s.weapon) return { ok: false, reason: 'upptagen' };
   if (!weaponUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
@@ -88,7 +92,9 @@ export function build(sim, slotId, type) {
 }
 export function upgrade(sim, slotId) {
   if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
-  const w = sim.slots.find(x => x.id === slotId).weapon;
+  const s = sim.slots.find(x => x.id === slotId);
+  if (!s) return { ok: false, reason: 'okänd' };
+  const w = s.weapon;
   if (!w) return { ok: false, reason: 'tom' };
   const cost = upgradeCost(w.type, w.level);
   if (cost == null) return { ok: false, reason: 'max' };
@@ -99,9 +105,37 @@ export function upgrade(sim, slotId) {
 export function sell(sim, slotId) {
   if (sim.phase !== 'build') return { ok: false, refund: 0 };
   const s = sim.slots.find(x => x.id === slotId);
-  if (!s.weapon) return { ok: false, refund: 0 };
+  if (!s || !s.weapon) return { ok: false, refund: 0 };
   const refund = Math.round(s.weapon.spent * 0.6);
   sim.cash += refund; s.weapon = null;
+  return { ok: true, refund };
+}
+
+export function placeObstacle(sim, cell, type) {
+  if (sim.phase !== 'build') return { ok: false, reason: 'fel läge' };
+  if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, reason: 'okänd' };
+  if (sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
+  if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
+  const o = OBSTACLES[type];
+  if (sim.cash < o.cost) return { ok: false, reason: 'pengar' };
+  sim.cash -= o.cost;
+  if (o.kind === 'slow') {
+    const dur = o.durability * (sim.research.has('wireTough') ? 2 : 1);
+    sim.obstacles[cell] = { type, durability: dur, maxDurability: dur };
+  } else {
+    sim.obstacles[cell] = { type, hp: o.hp, maxHp: o.hp };
+  }
+  return { ok: true };
+}
+export function removeObstacle(sim, cell) {
+  const ob = sim.obstacles[cell];
+  if (sim.phase !== 'build' || !ob) return { ok: false, refund: 0 };
+  const whole = OBSTACLES[ob.type].kind === 'slow'
+    ? ob.durability === ob.maxDurability
+    : ob.hp === ob.maxHp;
+  const refund = whole ? Math.round(OBSTACLES[ob.type].cost * 0.5) : 0;
+  sim.cash += refund;
+  delete sim.obstacles[cell];
   return { ok: true, refund };
 }
 
@@ -140,5 +174,26 @@ function damage(sim, z, amount, p) {
   }
 }
 
-// Stub, ersätts i Task 5 (hinder).
-function obstacleEffect(sim, z, dt) { return 1; }
+// Hinder längs vägen. Returnerar farthållarens multiplikator för zombiens fart denna frame.
+// hitCells: rutor som redan fått en obstacleHit under detta steg.
+function obstacleEffect(sim, z, dt, hitCells) {
+  const def = ZOMBIES[z.type];
+  let mul = 1;
+  sim.map.cells.forEach((cd, i) => {
+    const ob = sim.obstacles[i]; if (!ob) return;
+    const o = OBSTACLES[ob.type];
+    if (o.kind === 'slow' && z.d >= cd && z.d < cd + CELL_LEN) {
+      mul = Math.min(mul, o.slow);
+      ob.durability -= dt;
+      if (ob.durability <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
+    }
+    if (o.kind === 'block' && z.d >= cd - 0.6 && z.d <= cd) {
+      mul = 0; z.d = Math.min(z.d, cd); z.attacking = true;
+      ob.hp -= def.hitDamage * dt;
+      if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
+      if (ob.hp <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
+    }
+  });
+  if (mul > 0) z.attacking = false;
+  return mul;
+}
