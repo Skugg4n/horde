@@ -128,6 +128,7 @@ export function placeObstacle(sim, cell, type) {
   return { ok: true };
 }
 export function removeObstacle(sim, cell) {
+  if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, refund: 0 };
   const ob = sim.obstacles[cell];
   if (sim.phase !== 'build' || !ob) return { ok: false, refund: 0 };
   const whole = OBSTACLES[ob.type].kind === 'slow'
@@ -187,8 +188,10 @@ function obstacleEffect(sim, z, dt, hitCells) {
       ob.durability -= dt;
       if (ob.durability <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
-    if (o.kind === 'block' && z.d >= cd - 0.6 && z.d <= cd) {
-      mul = 0; z.d = Math.min(z.d, cd); z.attacking = true;
+    // Blocket stoppar även zombier som skulle passera det i ett enda steg (stort dt).
+    const crosses = z.d < cd && z.d + def.speed * dt > cd;
+    if (o.kind === 'block' && ((z.d >= cd - 0.6 && z.d <= cd) || crosses)) {
+      mul = 0; if (crosses) z.d = cd; z.attacking = true;
       ob.hp -= def.hitDamage * dt;
       if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
       if (ob.hp <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }

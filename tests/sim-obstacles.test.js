@@ -69,3 +69,17 @@ test('riva oskadat hinder ger 50 % tillbaka', () => {
   assert.equal(s.cash, 1960);
   assert.equal(s.obstacles[0], undefined);
 });
+test('riva okänd ruta ger ok:false, även för egenskaper i objektet', () => {
+  const s = mk();
+  assert.deepEqual(removeObstacle(s, 'constructor'), { ok: false, refund: 0 });
+  assert.deepEqual(removeObstacle(s, 99), { ok: false, refund: 0 });
+});
+test('zombie som skulle passera ett block i ett enda steg stannar vid blocket', () => {
+  const s = mk({ research: ['block'] });
+  placeObstacle(s, 0, 'block');
+  startWave(s);
+  s.zombies.push({ id: 1, type: 'walker', hp: 30, maxHp: 30, d: map.cells[0] - 0.8, off: 0, wob: 0, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false });
+  step(s, 1);
+  assert.ok(firstZ(s).d <= map.cells[0]);
+  assert.equal(firstZ(s).d, map.cells[0]);
+});

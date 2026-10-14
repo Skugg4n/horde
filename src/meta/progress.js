@@ -7,9 +7,12 @@ export function newProgress() {
   return { v: 1, mapId: 'riksvagen', unlockedDay: 1, intel: 0, research: [], attempts: {} };
 }
 
+// Returnerar null om dagen inte finns på kartan (kampanjen klar).
+// Anropare måste hantera null.
 export function startConfig(progress, day) {
   const map = MAPS[progress.mapId];
   const d = map.days.find(x => x.n === day) || map.days[day - 1];
+  if (!d) return null;
   const bonus = progress.research.includes('budget') ? 150 : 0;
   return {
     map,
