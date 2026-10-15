@@ -40,7 +40,9 @@ import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
 import { asphaltTexture } from './src/render/world.js';
-import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree } from './src/render/gnesta-kit.js';
+import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP } from './src/render/gnesta-kit.js';
+import { createFortify } from './src/render/fortify.js';
+import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
 const OVERVIEW = 44, GAME = 25;
@@ -207,6 +209,55 @@ document.getElementById('labels').appendChild(entryLb);
   const gt = q(28, GV + 13); gardenTree(b, frame(null, gt.x, 0, gt.z, 0), 5.5, 2, r);
   label(28, GV + 13, 'Garden tree', '', 2.8);
   b.flush(scene);
+}
+
+// rad 6: befäst position (H036). Samma trädgårdshörna två gånger: orörd, och med en M249
+// utställd. Runt pjäsen huggs häcken ner, staketet rivs, trädet fälls, bilen blir ett vrak,
+// brevlådan välts och sandsäckar läggs i en bruten vall. Samma kod som i spelet (fortify.js).
+{
+  const FV = 78;
+  [['before', -14], ['after', 10]].forEach(([which, u0]) => {
+    const b = createBatch(), r = seeded(21);
+    const o = at(u0, FV), ox = o.x, oz = o.z;
+    const P = (dx, dz) => [ox + dx, oz + dz];
+    const lawn = mesh(new THREE.PlaneGeometry(16, 12), new THREE.MeshStandardMaterial({ color: GP.lawnMown, roughness: 1 }));
+    lawn.rotation.x = -Math.PI / 2; lawn.position.set(ox, 0.01, oz); lawn.castShadow = false; scene.add(lawn);
+    let [ax, az] = P(-6, 3), [cx, cz] = P(6, 3);
+    b.tag = { kind: 'hedge' }; hedge(b, ax, az, cx, cz, r, 1.8);
+    [ax, az] = P(-6, -3); [cx, cz] = P(2, -3);
+    b.tag = { kind: 'fence', ax, az, dx: 1, dz: 0 }; fence(b, ax, az, cx, cz, r, 'picket');
+    const [tx, tz] = P(3.2, -1.5); b.tag = { kind: 'tree', x: tx, z: tz }; gardenTree(b, frame(null, tx, 0, tz, 0), 5.5, 2, r);
+    const [kx, kz] = P(-3.5, 0.2); b.tag = { kind: 'car', x: kx, z: kz, ry: 0.2 }; car(b, frame(null, kx, 0, kz, 0.2), GP.car[6]);
+    const [mx, mz] = P(-1, -2.2); b.tag = { kind: 'junk', what: 'mailbox', x: mx, z: mz }; mailbox(b, frame(null, mx, 0, mz, 0), 2, r);
+    b.tag = null;
+    const sub = new THREE.Group(); scene.add(sub);
+    b.flush(sub);
+    if (which === 'after') {
+      const f = createFortify(sub, { tagged: b.tagged });
+      const [gx, gz] = P(0, 0.4);
+      const w = weaponModel('m249', 1); w.group.position.set(gx, 0, gz); w.pivot.rotation.y = -0.35; scene.add(w.group);
+      f.setPositions([{ x: gx, z: gz, key: 1234 }]);
+    }
+    label(u0, FV, 'Gun position', which === 'before' ? 'before' : 'after: hedge cut, fence down, tree felled, car wrecked', 7);
+  });
+}
+
+// rad 7: Gnestas bas, ishallens entré, hel och på väg att falla (skadan i fem steg)
+{
+  const EV = 96;
+  const doors = [-9.7, -0.8, 0.8, 9.7];
+  [[0, -22, 'intact'], [0.45, -6, 'half'], [0.8, 10, 'nearly fallen'], [1, 26, 'fallen']].forEach(([dmg, u, txt]) => {
+    const p = at(u, EV);
+    const wall = mesh(new THREE.BoxGeometry(2, 3.6, 12), new THREE.MeshStandardMaterial({ color: GP.rinkRed, roughness: 0.9 }));
+    wall.position.set(p.x - 1, 1.8, p.z); wall.rotation.y = -Math.PI / 4; scene.add(wall);
+    const e = rinkEntranceModel({ doors: doors.filter(z => Math.abs(z) < 3), main: 0 });
+    e.position.set(p.x, 0, p.z); e.rotation.y = wall.rotation.y;
+    // väggens framsida: modellens +x
+    const n = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), wall.rotation.y);
+    wall.position.set(p.x - n.x, 1.8, p.z - n.z);
+    setBaseDamage(e, dmg); scene.add(e);
+    label(u, EV, 'Ice rink entrance', txt, 3);
+  });
 }
 
 // dra och zooma

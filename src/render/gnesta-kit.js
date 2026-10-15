@@ -96,11 +96,15 @@ export function createBatch() {
   const _m = new THREE.Matrix4(), _c = new THREE.Color();
   let count = 0;
   const b = {
+    // tag: läggs på varje instans som byggs medan den är satt (fortify.js röjer runt pjäserna).
+    tag: null,
+    tagged: [],
     // geometri g i ramen M, med mitt (x,y,z), storlek (sx,sy,sz), färg, och rotation i ramen
     put(g, M, x, y, z, sx, sy, sz, color, kind = 'matte', ry = 0, rx = 0, rz = 0, opts) {
       const key = g.uuid + '|' + kind + (opts?.noShadow ? '|ns' : '');
       let grp = groups.get(key);
-      if (!grp) { grp = { g, kind, m: [], c: [], noShadow: !!opts?.noShadow }; groups.set(key, grp); }
+      if (!grp) { grp = { g, kind, m: [], c: [], t: [], noShadow: !!opts?.noShadow }; groups.set(key, grp); }
+      grp.t.push(b.tag);
       _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz, 'YXZ')), _s.set(sx, sy, sz));
       grp.m.push(M ? M.clone().multiply(_m) : _m.clone());
       grp.c.push(color);
@@ -112,7 +116,8 @@ export function createBatch() {
       const out = [];
       for (const grp of groups.values()) {
         const im = new THREE.InstancedMesh(grp.g, KINDS[grp.kind](), grp.m.length);
-        grp.m.forEach((m4, i) => { im.setMatrixAt(i, m4); im.setColorAt(i, _c.set(grp.c[i])); });
+        im.userData.kind = grp.kind;
+        grp.m.forEach((m4, i) => { im.setMatrixAt(i, m4); im.setColorAt(i, _c.set(grp.c[i])); if (grp.t[i]) b.tagged.push({ mesh: im, i, tag: grp.t[i] }); });
         im.castShadow = !grp.noShadow; im.receiveShadow = true;
         im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
         im.computeBoundingSphere();

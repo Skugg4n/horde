@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { rnd, pick, mat, mesh, box, geo, canvasTex, speckle, PALETTE as P } from './kit.js';
 import { buildGnesta } from './gnesta-world.js';
+import { createFortify } from './fortify.js';
 
 let updateFn = () => {};
 export function updateWorld(dt, time) { updateFn(dt, time); }
@@ -171,10 +172,16 @@ export function buildWorld(scene, map) {
   });
 
   // ---------- rekvisita ur data ----------
+  const objects = [];
   for (const p of map.props) {
     const build = BUILDERS[p.kind];
-    if (build) scene.add(build(p));
+    if (!build) continue;
+    const o = build(p);
+    scene.add(o);
+    if (p.kind === 'car' || p.kind === 'tree' || p.kind === 'barrel') objects.push({ kind: p.kind, x: p.x, z: p.z, ry: p.ry ?? 0, object: o });
   }
+  // Befästa positioner (H036): bilar, träd och tunnor nära en pjäs röjs undan.
+  scene.userData.fortify = createFortify(scene, { objects });
 
   // ---------- damm i luften ----------
   const dustN = 500, dustPos = new Float32Array(dustN * 3);

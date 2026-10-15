@@ -6,6 +6,7 @@ import {
   car, trailer, lamp, curb, spruce, pine, birch, iceRink, rinkSign, roundaboutIsland, playground, tallLamp, sportHall,
 } from './gnesta-kit.js';
 import { buildSurroundings } from './gnesta-ghost.js';
+import { createFortify } from './fortify.js';
 import { distPolyline, distPoly, inPoly, w as px2w } from '../data/gnesta.js';
 
 const PPM = 14;                          // markens pixlar per meter
@@ -220,8 +221,12 @@ export function buildGnesta(scene, map) {
       if (g0 > 0.02) parts.push([e.a, at(g0)]);
       if (g1 < 0.98) parts.push([at(g1), e.b]);
     } else parts.push([e.a, e.b]);
+    // taggarna: fortify.js hugger ner häckar och river staket runt pjäserna
+    const fenceTag = (ax, az, bx, bz) => { const L = Math.hypot(bx - ax, bz - az) || 1; return { kind: 'fence', ax, az, dx: (bx - ax) / L, dz: (bz - az) / L }; };
     for (const [a, c] of parts) {
+      b.tag = { kind: 'hedge' };
       if (e.kind === 'hedge' || e.kind === 'hedgeSlat') hedge(b, a[0], a[1], c[0], c[1], r, r.range(1.5, 2.1));
+      b.tag = fenceTag(a[0], a[1], c[0], c[1]);
       if (e.kind === 'picket' || e.kind === 'slat') fence(b, a[0], a[1], c[0], c[1], r, e.kind);
       if (e.kind === 'hedgeSlat') {
         // spjälstaket på gatsidan av häcken
@@ -229,8 +234,10 @@ export function buildGnesta(scene, map) {
         const p = map.lots.plots.find(x => x.id === e.plot);
         let nx = -dz / L, nz = dx / L;
         if (p && (nx * p.f[0] + nz * p.f[1]) < 0) { nx = -nx; nz = -nz; }
+        b.tag = fenceTag(a[0] + nx * 0.75, a[1] + nz * 0.75, c[0] + nx * 0.75, c[1] + nz * 0.75);
         fence(b, a[0] + nx * 0.75, a[1] + nz * 0.75, c[0] + nx * 0.75, c[1] + nz * 0.75, r, 'slat');
       }
+      b.tag = null;
     }
   }
   for (const p of map.lots.plots) {
@@ -243,12 +250,15 @@ export function buildGnesta(scene, map) {
     }
     for (const x of p.extras) {
       const M = frame(null, x.x, 0, x.z, x.ry);
+      b.tag = x.kind === 'car' ? { kind: 'car', x: x.x, z: x.z, ry: x.ry } : x.kind === 'tree' ? { kind: 'tree', x: x.x, z: x.z }
+        : x.kind === 'mailbox' || x.kind === 'furniture' || x.kind === 'trailer' ? { kind: 'junk', what: x.kind, x: x.x, z: x.z } : null;
       if (x.kind === 'mailbox') mailbox(b, M, x.n, r);
       else if (x.kind === 'car') car(b, M, GP.car[x.color % GP.car.length]);
       else if (x.kind === 'trailer') trailer(b, M);
       else if (x.kind === 'trampoline') trampoline(b, M);
       else if (x.kind === 'furniture') furniture(b, M, r);
       else if (x.kind === 'tree') gardenTree(b, M, x.h, x.k, r);
+      b.tag = null;
     }
   }
   playground(b, frame(null, map.playground.center[0], 0, map.playground.center[1], map.playground.ry));
@@ -262,7 +272,8 @@ export function buildGnesta(scene, map) {
   signG.add(sign); scene.add(signG);
   roundaboutIsland(scene, b, map.roundabout);
   // parkerade bilar (parkeringen och vid ishallen): bandata, så att placeringen vet var de står
-  for (const c of map.cars ?? []) car(b, frame(null, c.x, 0, c.z, c.ry), GP.car[c.color % GP.car.length]);
+  for (const c of map.cars ?? []) { b.tag = { kind: 'car', x: c.x, z: c.z, ry: c.ry }; car(b, frame(null, c.x, 0, c.z, c.ry), GP.car[c.color % GP.car.length]); }
+  b.tag = null;
   for (const [x, z] of map.parking.poles ?? []) tallLamp(b, frame(null, x, 0, z, 0));
   // sporthallen
   if (map.sporthall) {
@@ -307,10 +318,14 @@ export function buildGnesta(scene, map) {
   for (const [ppx, ppy, h] of [[495, 345, 8], [655, 300, 7], [662, 420, 6.5], [668, 520, 7], [650, 640, 6], [640, 700, 7.5], [580, 280, 6], [800, 770, 7], [1870, 330, 7], [1885, 470, 6], [1900, 640, 6.5], [1240, 880, 7]]) {
     const [x, z] = px2w(ppx, ppy);
     if (roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 2.5) || distPoly(x, z, map.roundabout.island) < map.roundabout.ring + 2.5) continue;
+    b.tag = { kind: 'tree', x, z };
     gardenTree(b, frame(null, x, 0, z, r() * 6), h, 2, r); trees++;
+    b.tag = null;
   }
 
   const meshes = b.flush(scene);
+  // Befästa positioner: röj runt pjäserna (bara bild). view.js hämtar den ur scenen.
+  scene.userData.fortify = createFortify(scene, { tagged: b.tagged });
 
   // ---------- damm i luften ----------
   const dustN = 600, dustPos = new Float32Array(dustN * 3);

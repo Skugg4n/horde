@@ -159,9 +159,19 @@ export function createView(scene, initialSim) {
     disposeModel(e.group);
     slots.delete(id); slotObjects.delete(id);
   }
+  // Befästa positioner (fortify.js): varje ruta som haft en pjäs i dag röjs. En såld pjäs lämnar
+  // skadan; en ny dag börjar med orörd rekvisita.
+  const dug = new Map();          // rutans nyckel -> { x, z, key }
+  const onRoad = (x, z) => { const k = sim.place.keyAt(x, z); return k >= 0 && sim.place.kind[k] === 1; };
+  function syncDug() {
+    let added = false;
+    for (const s of sim.guns) if (!dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
+    if (added) scene.userData.fortify?.setPositions([...dug.values()], { road: onRoad });
+  }
   function syncSlots(dt) {
     const k = 1 - Math.exp(-dt * 12);
     const alive = new Set();
+    syncDug();
     for (const s of sim.guns) {
       alive.add(s.id);
       let e = slots.get(s.id);
@@ -592,6 +602,7 @@ export function createView(scene, initialSim) {
     fx.clear();
     const remap = next.map !== sim.map;
     sim = next;
+    dug.clear(); scene.userData.fortify?.reset();
     if (remap) { buildCellMarks(); buildBase(); }
     baseHitT = 0; baseFrac = -1; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
@@ -603,5 +614,5 @@ export function createView(scene, initialSim) {
   buildBase();
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
-  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde };
+  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, get dug() { return [...dug.values()]; } };
 }
