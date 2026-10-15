@@ -16,6 +16,9 @@ export const PALETTE = {
   grenade: '#4a5232', grenadeBand: '#c9a23a', fireball: '#ffb347', scorch: '#14110d',
   // soldat
   soldierSkin: '#a58467', soldierShirt: '#55593f', soldierPants: '#4a4d38', helmet: '#4f5438', vest: '#43472f',
+  // Hemvärnet (0.9.0): m/90-kamouflage, splittermönster i ljusgrönt, mörkgrönt, brunt och svart
+  // (avmättat som resten), stridsväst och Ak 4 med trästock.
+  m90: ['#6e7a4e', '#3e4a30', '#5d4b35', '#23251e'], hvVest: '#4a5236', hvWood: '#5a4128',
   // hinder
   wireSteel: '#3c3a36', post: '#4a3a2a', concrete: '#a59f90', concreteDark: '#6f695d', grime: '#7d7768', crack: '#3a3630',
   // zombier

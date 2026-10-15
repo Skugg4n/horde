@@ -150,13 +150,18 @@ function moveZombies(sim, dt) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
     let mul = obstacleEffect(sim, z, dt, hitCells);
-    // Hemvärnet: en zombie som når en soldat stannar och slår honom (bara soldaterna, pjäserna
-    // är som förut). Närmaste soldat inom SQUAD.melee, lika: den som kom först i listan.
+    // Hemvärnet: en zombie i en ruta intill en soldats ruta (de åtta grannarna) stannar och slår
+    // honom (bara soldaterna, pjäserna är som förut). Närmaste soldat, lika: först i listan.
     z.foe = null;
     if (troops.length) {
-      const p = zombiePos(sim, z);
-      let foe = null, fd = SQUAD.melee + 1e-9;
-      for (const t of troops) { if (t.s.down) continue; const d = Math.hypot(t.s.x - p.x, t.s.z - p.z); if (d < fd) { fd = d; foe = t; } }
+      const p = zombiePos(sim, z), pl = sim.place;
+      const zi = Math.floor((p.x - pl.origin[0]) / pl.size), zj = Math.floor((p.z - pl.origin[1]) / pl.size);
+      let foe = null, fd = Infinity;
+      for (const t of troops) {
+        if (t.s.down || Math.abs(t.i - zi) > 1 || Math.abs(t.j - zj) > 1) continue;
+        const d = Math.hypot(t.s.x - p.x, t.s.z - p.z);
+        if (d < fd) { fd = d; foe = t; }
+      }
       if (foe) {
         mul = 0; z.attacking = true; z.foe = [foe.s.x, foe.s.z];
         hitSoldier(sim, foe.g, foe.s, def.hitDamage * dt, hurt);
@@ -182,7 +187,8 @@ function runSoldiers(sim, dt) {
 }
 function activeSoldiers(sim) {
   const out = [];
-  for (const g of sim.guns) if (g.squad) for (const s of g.soldiers) if (!s.down && s.run <= 0) out.push({ g, s });
+  const w = sim.place.w;
+  for (const g of sim.guns) if (g.squad) for (const s of g.soldiers) if (!s.down && s.run <= 0) out.push({ g, s, i: s.cell % w, j: Math.floor(s.cell / w) });
   return out;
 }
 function hitSoldier(sim, g, s, amount, hurt) {

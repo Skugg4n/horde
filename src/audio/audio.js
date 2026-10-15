@@ -16,7 +16,7 @@ const OPEN_HZ = 18000, MUFFLE_HZ = 320;
 const CASING_CHANCE = 0.12;
 // Vapnets röst och nivå per skott. Hylsor klingar bara från kulsprutorna.
 const SHOT = { m249: { v: 'm249', gain: 0.6, casing: true }, m2: { v: 'm2', gain: 0.9, casing: true }, ksp58: { v: 'ksp58', gain: 0.75, casing: true },
-  ak5: { v: 'ak5', gain: 0.55 }, psg90: { v: 'psg90', gain: 0.95 } };
+  ak5: { v: 'ak5', gain: 0.55 }, psg90: { v: 'psg90', gain: 0.95 }, hv: { v: 'ak4', gain: 0.5 } };
 const ALARM_FRAC = 0.25, ALARM_GAP = 1.4;
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -155,7 +155,8 @@ export function createAudio({ settings } = {}) {
         case 'shot': {
           const g = sim?.guns?.find(x => x.id === ev.gunId);
           const sh = SHOT[g?.weapon?.type] ?? SHOT.m249;
-          const at = g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z };
+          // Hemvärnet: ljudet från soldaten som sköt (sx, sz), inte från markeringen
+          const at = ev.sx != null ? { x: ev.sx, z: ev.sz } : g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z };
           if (play(sh.v, { ...at, gain: sh.gain }, toScreen) && sh.casing && Math.random() < CASING_CHANCE)
             play('casing', { ...at, delay: R(0.25, 0.45) }, toScreen);
           break;
@@ -166,6 +167,8 @@ export function createAudio({ settings } = {}) {
           break;
         }
         case 'hit': play('hit', { x: ev.x, z: ev.z }, toScreen); break;
+        case 'soldierHit': play('hit', { x: ev.x, z: ev.z, gain: 0.7 }, toScreen); break;
+        case 'soldierDown': play('kill', { x: ev.x, z: ev.z, type: 'walker' }, toScreen); break;
         case 'kill': play('kill', { x: ev.x, z: ev.z, type: ev.type }, toScreen); break;
         case 'grenade': {
           const g = sim?.guns?.find(x => x.id === ev.gunId);

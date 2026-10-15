@@ -19,6 +19,10 @@ export const ICONS = {
   psg90: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
     <path d="M8 22 L30 16 V23 L10 27 Z"/><rect x="30" y="15" width="18" height="7" rx="1"/><path d="M48 18 H112"/>
     <rect x="30" y="7" width="22" height="5" rx="2.5"/><path d="M36 12 V15 M46 12 V15"/><path d="M80 18 L74 30 M80 18 L86 30"/></g></svg>`,
+  // Hemvärnet: tre hjälmar i rad och ett gevär (Ak 4) under
+  hv: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <path d="M28 16 a10 9 0 0 1 20 0 Z"/><path d="M50 14 a10 9 0 0 1 20 0 Z"/><path d="M72 16 a10 9 0 0 1 20 0 Z"/>
+    <path d="M22 26 L38 23 V28 L24 30 Z"/><path d="M38 24 H96"/><path d="M58 27 V31"/></g></svg>`,
   wire: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2">
     <path d="M14 6 V30 M106 6 V30"/><path d="M14 12 C30 2 40 22 56 12 S82 2 106 12"/><path d="M14 22 C30 12 40 32 56 22 S82 12 106 22"/>
     <path d="M34 9 l4 4 M38 9 l-4 4 M74 15 l4 4 M78 15 l-4 4 M50 24 l4 4 M54 24 l-4 4"/></g></svg>`,

@@ -696,6 +696,155 @@ export function zombieFall(z, t) {
   z.elL.rotation.x *= 1 - t * 0.3; z.elR.rotation.x *= 1 - t * 0.3;
 }
 
+// ---------- Hemvärnet (0.9.0) ----------
+// Soldat i m/90: samma människa som de andra, uniform i splittermönster (små vinklade lappar i
+// fyra färger på bål, ben, armar och hjälmöverdrag), stridsväst och Ak 4 (trästock, rakt
+// magasin, lång pipa med flamdämpare). Geväret sitter på ryggen (spine) och följer bålen.
+// Ritas som instanser (horde.js, samma väg som zombierna): alla lappar delar enhetskuben.
+// Ansiktet mot +z. Delar: humanoidens leder plus rifle (geväret) och muzzle (mynningen, +x längs
+// pipan som pjäsernas, för fx.flash).
+const seededRnd = seed => { let x = (seed * 2654435761) >>> 0 || 1; return (a, b) => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return a + (x / 4294967296) * (b - a); }; };
+function ak4(metal) {
+  const g = new THREE.Group();
+  const wood = mat(P.hvWood);
+  g.add(box(0.07, 0.11, 0.3, wood, 0, -0.02, 0.15));                       // kolv
+  g.add(box(0.06, 0.09, 0.32, metal, 0, 0.01, 0.43));                       // låda
+  g.add(box(0.05, 0.16, 0.06, mat(P.gunDark), 0, -0.1, 0.48));               // rakt magasin
+  g.add(box(0.04, 0.09, 0.04, mat(P.gunDark), 0, -0.08, 0.33));              // pistolgrepp
+  g.add(box(0.065, 0.07, 0.24, wood, 0, 0.0, 0.7));                          // handskydd
+  const barrel = mesh(geo('cylinder', 0.014, 0.016, 0.3, 5), metal, 0, 0.02, 0.95);
+  barrel.rotation.x = Math.PI / 2; g.add(barrel);
+  const hider = mesh(geo('cylinder', 0.022, 0.018, 0.07, 5), metal, 0, 0.02, 1.12);
+  hider.rotation.x = Math.PI / 2; g.add(hider);
+  g.add(box(0.02, 0.05, 0.02, metal, 0, 0.07, 1.02));                        // korn
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.02, 1.16); muzzle.rotation.y = -Math.PI / 2;
+  g.add(muzzle);
+  return { g, muzzle };
+}
+export function hvSoldierModel(seed = 1) {
+  const r = seededRnd(seed + 11);
+  const cam = P.m90.map(c => mat(c));
+  const base = P.m90[0];
+  const s = humanoid({ skin: P.soldierSkin, shirt: base, pants: base, helmet: P.m90[1],
+    build: { chestW: 0.45, waistW: 0.37, shX: 0.26, armW: 0.115, foreW: 0.1, legW: 0.16, shinW: 0.13 } });
+  const b = s.build;
+  // splittermönster: tunna lappar i vinkel, mörka färgerna (index 1-3) över grundfärgen
+  const patch = (parent, w, h, x, y, z, ry = 0) => {
+    const m = sbox(r(0.07, 0.16) * w, r(0.06, 0.13) * h, 0.012, cam[1 + Math.floor(r(0, 2.999))], x, y, z);
+    m.rotation.set(0, ry, r(-0.9, 0.9)); m.castShadow = false; parent.add(m);
+  };
+  for (const side of [1, -1]) {
+    for (let i = 0; i < 4; i++) patch(s.spine, 1.4, 1.3, r(-0.17, 0.17), r(0.06, 0.5), side * (b.chestD / 2 + 0.006), side < 0 ? Math.PI : 0);
+  }
+  for (const hip of [s.hipL, s.hipR]) for (let i = 0; i < 2; i++) patch(hip, 0.8, 1.6, r(-0.03, 0.03), -r(0.08, 0.42), b.legW * 0.56);
+  for (const knee of [s.kneeL, s.kneeR]) patch(knee, 0.7, 1.4, 0, -r(0.1, 0.35), b.shinW * 0.64);
+  for (const sh of [s.shL, s.shR]) patch(sh, 0.6, 1.4, 0, -r(0.06, 0.24), b.armW * 0.56);
+  // stridsväst och hjälmöverdrag
+  s.spine.add(box(b.chestW + 0.05, 0.34, b.chestD + 0.07, mat(P.hvVest), 0, b.torsoH - 0.26, 0));
+  s.spine.add(box(0.28, 0.1, 0.07, mat(P.ammo), 0, b.torsoH - 0.42, b.chestD / 2 + 0.06));
+  for (let i = 0; i < 3; i++) { const t = sbox(r(0.06, 0.1), 0.012, r(0.05, 0.09), cam[1 + i], r(-0.07, 0.07), 0.07 + b.head * 0.98, r(-0.05, 0.1)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
+  const metal = mat(P.gunMetal, METAL);
+  const rifle = ak4(metal);
+  s.spine.add(rifle.g);
+  return { ...s, rifle: rifle.g, muzzle: rifle.muzzle, seed };
+}
+// Ställningar. stance: 'crouch' (på huk vid husknut eller bil, lutar sig ut), 'kneel' (på knä
+// bakom häck, staket eller säckar) eller 'prone' (ligger i diket eller på gräset). lean: -1..1
+// åt vilket håll han lutar sig ut (bara crouch). recoil 0..1: geväret stöts bakåt.
+function hvReset(s) {
+  s.body.position.set(0, 0, 0); s.body.rotation.set(0, 0, 0);
+  for (const j of [s.hipL, s.hipR, s.kneeL, s.kneeR, s.shL, s.shR, s.elL, s.elR, s.spine, s.head]) j.rotation.set(0, 0, 0);
+}
+function aimArms(s) {
+  s.shR.rotation.set(-1.25, 0, -0.35); s.elR.rotation.x = -1.15;      // bakre handen vid greppet
+  s.shL.rotation.set(-1.45, 0, 0.32); s.elL.rotation.x = -0.35;       // främre handen under handskyddet
+}
+export function hvPose(s, stance, { lean = 0, recoil = 0 } = {}) {
+  hvReset(s);
+  const rf = s.rifle;
+  if (stance === 'prone') {
+    // på magen, huvudet framåt, geväret framför huvudet på höger sida
+    s.body.rotation.x = Math.PI / 2; s.body.position.set(0, 0.16, -0.95);
+    s.head.rotation.x = -1.1;
+    s.hipL.rotation.z = 0.16; s.hipR.rotation.z = -0.2; s.kneeR.rotation.x = 0.3;
+    s.shL.rotation.set(-2.7, 0, 0.35); s.elL.rotation.x = -0.25;
+    s.shR.rotation.set(-2.45, 0, -0.45); s.elR.rotation.x = -0.9;
+    rf.position.set(0.1, 0.42 - recoil * 0.06, -0.18); rf.rotation.set(-Math.PI / 2 + 0.06, 0, 0);
+    return;
+  }
+  if (stance === 'kneel') {
+    s.body.position.y = -0.47;
+    s.hipL.rotation.x = -1.45; s.kneeL.rotation.x = 1.5;
+    s.hipR.rotation.x = 0.25; s.kneeR.rotation.x = 1.75;
+    s.spine.rotation.x = 0.12; s.head.rotation.x = -0.05;
+  } else {
+    // på huk, lutar sig ut runt hörnet
+    s.body.position.y = -0.44;
+    s.hipL.rotation.set(-1.5, 0, 0.12); s.kneeL.rotation.x = 1.6;
+    s.hipR.rotation.set(-1.2, 0, -0.1); s.kneeR.rotation.x = 1.75;
+    s.body.position.z = -0.12;
+    s.spine.rotation.set(0.35, 0, -lean * 0.42); s.head.rotation.set(-0.3, 0, lean * 0.3);
+  }
+  aimArms(s);
+  // kolven vid axeln, pipan rakt fram (ryggens lutning tas bort så att den ligger vågrätt)
+  rf.position.set(0.1, 0.46, 0.02 - recoil * 0.06);
+  rf.rotation.set(-s.spine.rotation.x - recoil * 0.12, 0, 0);
+}
+// Springer ut till sin plats, geväret snett över bröstet. phase växer med sträckan.
+export function hvRun(s, phase) {
+  hvReset(s);
+  const sn = Math.sin(phase), c = Math.cos(phase);
+  s.body.position.y = Math.abs(c) * 0.05 - 0.04;
+  s.hipL.rotation.x = sn * 0.8 - 0.2; s.hipR.rotation.x = -sn * 0.8 - 0.2;
+  s.kneeL.rotation.x = 0.2 + 1.1 * Math.max(0, -c); s.kneeR.rotation.x = 0.2 + 1.1 * Math.max(0, c);
+  s.spine.rotation.x = 0.22;
+  s.shR.rotation.set(-0.55, 0, -0.25); s.elR.rotation.x = -1.4;
+  s.shL.rotation.set(-1.0, 0, 0.45); s.elL.rotation.x = -1.2;
+  s.rifle.position.set(0.02, 0.32, 0.2); s.rifle.rotation.set(-0.5, 0.9, 0);
+}
+// Stupad: på rygg, geväret bredvid. t 0..1 (fallet).
+export function hvDown(s, t) {
+  hvPose(s, 'kneel');
+  s.body.rotation.x = -Math.PI / 2 * t; s.body.position.set(0, 0.12 * t + (1 - t) * -0.47, 0);
+  s.hipL.rotation.x *= 1 - t; s.kneeL.rotation.x *= 1 - t * 0.7; s.hipR.rotation.x *= 1 - t; s.kneeR.rotation.x *= 1 - t * 0.6;
+  s.shL.rotation.set(-2.4 * t, 0, 0.5 * t); s.shR.rotation.set(-0.3, 0, -0.7 * t); s.elL.rotation.x = -0.3; s.elR.rotation.x = -0.2;
+  s.spine.rotation.x = -0.05; s.head.rotation.set(-0.3 * t, 0.4 * t, 0);
+  s.rifle.position.set(0.45, 0.2, -0.1 * t); s.rifle.rotation.set(0, 0.6, 0.1);
+}
+// Markeringen i handen: en ring med gruppens radie och en liten platta där varje soldat skulle
+// ligga. Samma gröna och röda spökmaterial som pjäserna. setSquadGhost flyttar plattorna.
+export function squadGhost(radius, max = 6) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false });
+  m.userData.own = true;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.14, radius, 72), m);
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07; g.add(ring);
+  const fillM = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.08, depthWrite: false });
+  fillM.userData.own = true;
+  const fill = new THREE.Mesh(new THREE.CircleGeometry(radius, 72), fillM);
+  fill.rotation.x = -Math.PI / 2; fill.position.y = 0.06; g.add(fill);
+  const dot = new THREE.Mesh(geo('ring', 0.35, 0.6, 4, 1, Math.PI / 4), m);
+  dot.rotation.x = -Math.PI / 2; dot.position.y = 0.09; g.add(dot);
+  const men = [];
+  for (let i = 0; i < max; i++) {
+    const t = new THREE.Mesh(geo('ring', 0.55, 0.85, 16), m);
+    t.rotation.x = -Math.PI / 2; t.visible = false; g.add(t);
+    men.push(t);
+  }
+  g.userData.ghost = { m, ok: true, fillM, men };
+  g.renderOrder = 4;
+  return g;
+}
+export function setSquadGhost(group, cx, cz, spots) {
+  const u = group.userData.ghost;
+  u.fillM.color.copy(u.m.color);
+  u.men.forEach((t, i) => {
+    const sp = spots[i];
+    t.visible = !!sp;
+    if (sp) t.position.set(sp.x - cx, 0.09, sp.z - cz);
+  });
+}
+
 // ---------- placeringens spöke ----------
 // Vapnets modell (nivå 1) i en enda genomskinlig färg: grön där pjäsen får stå, röd där den inte
 // får. Följer pekaren i placeringsläget. Ett eget material, delad geometri med vapnet.

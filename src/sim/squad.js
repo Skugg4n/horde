@@ -9,6 +9,8 @@
 //            rutor som båda ser gatan.
 //   utsatt   rutan ligger intill gatan (zombierna når dit): ett avdrag.
 //   avstånd  ett litet avdrag per meter från markeringen.
+//   samma    ett litet avdrag per soldat som redan valt samma sorts skydd (de sprider sig över
+//            olika skydd när det finns: en vid husknuten, en vid bilen, en i diket).
 // Minst SPACING meter mellan soldaterna (de klumpar inte ihop sig), och minst GUN_GAP meter
 // till andra pjäser. Lika poäng: lägst rutnyckel. Taken används inte: där ligger Psg 90, och en
 // grupp på ett sadeltak skulle se fel ut (mitt beslut).
@@ -29,17 +31,17 @@ export const SQUAD = {
   hp: [30, 40, 50],   // liv per soldat och nivå
   runSpeed: 5,        // m/s när de springer ut från markeringen
   runMin: 0.8, runMax: 2,   // sekunder: springet tar så lång tid (syns i bild, sim väntar ut det)
-  melee: 2.2,         // meter: en zombie så nära en soldat slår honom (och stannar för det)
   reinforce: 60,      // pris per stupad soldat som ersätts mitt i dagen
 };
 export const SIGHT_W = 10;       // siktens högsta poäng
 export const EXPOSED = 3;        // avdrag för en ruta intill gatan
 export const DIST_W = 0.25;      // avdrag per meter från markeringen
+export const SAME_COVER = 1.5;   // avdrag per soldat som redan valt samma sorts skydd
 
 // Skyddstyper: poäng och ställning. car = bil, vrak, tunna, träd (allt lågt som står i vägen).
 export const COVER = {
   corner: { score: 10, stance: 'crouch', name: 'house corner' },
-  car: { score: 8, stance: 'crouch', name: 'car' },
+  car: { score: 8, stance: 'crouch', name: 'car or tree' },
   wall: { score: 7, stance: 'crouch', name: 'wall' },
   sandbag: { score: 7, stance: 'kneel', name: 'sandbags' },
   ditch: { score: 7, stance: 'prone', name: 'ditch' },
@@ -144,11 +146,21 @@ export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed =
   const maxSeen = Math.max(1, ...cands.map(c => c.seen));
   for (const c of cands) c.score = COVER[c.cover].score + SIGHT_W * c.seen / maxSeen - DIST_W * c.d - (c.exposed ? EXPOSED : 0);
   cands.sort((a, b) => b.score - a.score || a.cell - b.cell);
-  const picked = [], taken = fixed.map(s => ({ x: s.x, z: s.z }));
-  for (const c of cands) {
-    if (picked.length >= count) break;
-    if (taken.some(s => Math.hypot(s.x - c.x, s.z - c.z) < SQUAD.spacing - 1e-9)) continue;
-    picked.push(c); taken.push(c);
+  // Girigt, en i taget: bästa poäng, minus SAME_COVER för varje soldat som redan tagit samma
+  // sorts skydd (så att en tar husknuten, en bilen, en diket, som i Close Combat). Lika: först i
+  // sorteringen (högst grundpoäng, sedan lägst rutnyckel).
+  const picked = [], taken = fixed.map(s => ({ x: s.x, z: s.z })), used = {};
+  for (const s of fixed) used[s.cover] = (used[s.cover] || 0) + 1;
+  while (picked.length < count) {
+    let best = null, bestScore = -Infinity;
+    for (const c of cands) {
+      if (picked.includes(c) || taken.some(s => Math.hypot(s.x - c.x, s.z - c.z) < SQUAD.spacing - 1e-9)) continue;
+      const sc = c.score - (c.cover === 'open' ? 0 : SAME_COVER * (used[c.cover] || 0));
+      if (sc > bestScore + 1e-9) { best = c; bestScore = sc; }
+    }
+    if (!best) break;
+    picked.push(best); taken.push(best);
+    used[best.cover] = (used[best.cover] || 0) + 1;
   }
   return picked;
 }

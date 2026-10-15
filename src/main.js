@@ -16,7 +16,8 @@ import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview } from './sim/sim.js';
+import { SQUAD, isSquad } from './sim/squad.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
@@ -208,6 +209,17 @@ function placementUi() {
     const cells = obstacleCells(spot.key, placing.type);
     return { ghost: null, cover: null, range: null, obGhost: { type: placing.type, cells, ok: spot.ok }, tiles: { cells: cells.map(c => c.key), tone: spot.ok ? 'ok' : 'bad' } };
   }
+  if (placing && isSquad(placing.type)) {
+    // Hemvärnet: markeringens ring, var soldaterna skulle ta skydd och vad de tillsammans ser
+    if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
+    const men = spot.ok ? squadPreview(sim, spot.key, placing.type) : [];
+    const r = weaponStats(placing.type, 1, sim.research).range;
+    return {
+      ghost: { type: placing.type, x: spot.x, y: 0, z: spot.z, ok: spot.ok, men },
+      range: null,
+      cover: { id: 'p' + spot.key + placing.type, x: spot.x, z: spot.z, r: 1e9, keys: squadKeys(men, r), tone: spot.ok ? 'ok' : 'bad' },
+    };
+  }
   if (placing) {
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
     const r = weaponStats(placing.type, 1, sim.research).range;
@@ -221,7 +233,23 @@ function placementUi() {
   const g = at && sim.guns.find(x => x.id === at.id);
   if (!g) return { ghost: null, cover: null, range: null };
   const rng = (at === selected && panelRange) || rangeFor(at);
+  if (g.squad) {
+    // gruppens samlade sikt: varje soldats egna rutor inom gevärets räckvidd (stupade ser inget)
+    const r = weaponStats(g.weapon.type, g.weapon.level, sim.research).range;
+    const men = g.soldiers.filter(s => !s.down);
+    return { ghost: null, range: rng, squadRange: r, cover: { id: g.id + ':' + g.weapon.level + ':' + men.length, x: g.x, z: g.z, r: 1e9, keys: squadKeys(men, r), tone: 'paper' } };
+  }
   return { ghost: null, range: rng, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
+}
+// Rutorna en grupp ser tillsammans: varje soldats synliga rutor inom räckvidden från honom.
+function squadKeys(men, r) {
+  const p = sim.place, reach = r + p.size * 0.7072, out = new Set();
+  for (const s of men) for (const k of s.sight.keys) {
+    if (out.has(k)) continue;
+    const q = p.center(k);
+    if (Math.hypot(q.x - s.x, q.z - s.z) <= reach) out.add(k);
+  }
+  return [...out];
 }
 function updateGhostTip() {
   const show = placing && spot && !spot.ok;
@@ -248,6 +276,7 @@ const actions = {
   upgrade: withCash('click', id => upgrade(sim, id)),
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
+  reinforce: withCash('click', id => reinforce(sim, id)),
   pick: type => startPlacing(type),
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
   place: withCash('place', (cell, type) => placeAcross(sim, cell, type)),
@@ -629,6 +658,8 @@ function rangeFor(p) {
   if (!p || p.kind !== 'gun') return null;
   const g = sim.guns.find(x => x.id === p.id);
   if (!g) return null;
+  // Hemvärnet: markeringens ring (gruppens område); sikten visas som rutor och linjer
+  if (g.squad) return { x: g.x, z: g.z, r: SQUAD.radius };
   return { x: g.x, z: g.z, r: weaponStats(g.weapon.type, g.weapon.level, sim.research).range };
 }
 
@@ -755,7 +786,7 @@ function tick(now) {
   const pu = placementUi();
   view.setUi({ selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
-    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle' });
+    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null });
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);

@@ -10,6 +10,7 @@ export const VOICES = {
   m2:       { cap: 4, gap: 0.11, lag: 0.08, thin: true },
   ksp58:    { cap: 5, gap: 0.07, lag: 0.07, thin: true },
   ak5:      { cap: 4, gap: 0.09, lag: 0.05, thin: true },
+  ak4:      { cap: 4, gap: 0.07, lag: 0.05, thin: true },
   psg90:    { cap: 2, gap: 0.3, lag: 0.1 },
   thoonk:   { cap: 2, gap: 0.2, lag: 0.1 },
   pop:      { cap: 3, gap: 0.12, lag: 0.12 },

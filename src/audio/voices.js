@@ -107,6 +107,16 @@ const ak5 = { group: 'ak5', dur: 0.22, play(A, t, o, out) {
   thump(A, t, s.in, { f: 210 * j, f2: 90, glide: 0.03, peak: 0.45, d: 0.05 });
   send(A, s.out, 0.18);
 } };
+// Ak 4 (Hemvärnet, 7,62 mm): ett skarpare och tyngre knall än Ak 5. Överljudssmäll (mycket hög,
+// mycket kort), sedan en kropp lägre ner och en längre klang som rullar ut över gatan.
+const ak4 = { group: 'ak4', dur: 0.42, play(A, t, o, out) {
+  const j = o.j ?? R(0.93, 1.07), s = sat(A, out, 3.6, 0.5);
+  burst(A, t, s.in, { type: 'highpass', f: 4200 * j, peak: 1.15, a: 0.0005, d: 0.014 });
+  burst(A, t, s.in, { type: 'bandpass', f: 1250 * j, q: 0.9, peak: 0.85, d: 0.07 });
+  thump(A, t, s.in, { f: 165 * j, f2: 62, glide: 0.06, peak: 0.6, d: 0.1 });
+  burst(A, t, s.in, { buf: 'brown', type: 'lowpass', f: 900 * j, f2: 260, glide: 0.25, peak: 0.35, d: 0.3, delay: 0.012 });
+  send(A, s.out, 0.3);
+} };
 // Granattillsatsen: ett ihåligt "thoonk" ur röret.
 const thoonk = { group: 'thoonk', dur: 0.32, play(A, t, o, out) {
   const j = R(0.95, 1.05), g = A.ctx.createGain(); g.gain.value = 0.7; g.connect(out);
@@ -328,4 +338,4 @@ const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   chain(lp, g, out); send(A, g, 0.6);
 } };
 
-export const SOUNDS = { m249, m2, ksp58, ak5, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, strain, breach, alarm, ui, bonus, horn, stinger };
+export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, strain, breach, alarm, ui, bonus, horn, stinger };

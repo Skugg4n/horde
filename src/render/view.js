@@ -8,6 +8,9 @@ import { createHorde } from './horde.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
+import { createSquadView } from './squad-view.js';
+import { squadGhost, setSquadGhost } from './models.js';
+import { SQUAD, isSquad } from '../sim/squad.js';
 
 const FALL_TIME = 0.3;
 // Högst så många liggande kroppar visas; de äldsta tas bort först. Simuleringen behåller
@@ -17,6 +20,7 @@ const STEP_PHASE = 2.6;          // gångfas per meter
 // Osynlig träffskiva under varje pjäs (delad, städas aldrig).
 const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
+const HIT_MAN = new THREE.CircleGeometry(1.1, 12);     // Hemvärnet: en träffskiva per soldat
 
 // Zombiens läge och riktning frågas av rutten (E4: väglinjen, Gnesta: rutnätet).
 function place(out, sim, z) {
@@ -44,6 +48,8 @@ export function createView(scene, initialSim) {
   const rings = createHealthRings(scene);
   // Zombierna ritas som instanser (horde.js): skelettet per zombie ligger utanför scenen.
   const horde = createHorde(scene);
+  // Hemvärnets soldater: egna instanser, samma väg som horden (squad-view.js).
+  const squadView = createSquadView(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // pjäsens id → { key, group, model, angle }
@@ -117,7 +123,9 @@ export function createView(scene, initialSim) {
       // hälsoringen syns först när zombien tagit skada
       if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale));
       // vrider sig mjukt mot gångriktningen (rutnätets svängar blir inte ryck)
-      e.ry += angleDiff(e.ry, Math.atan2(P.dirX, P.dirZ)) * Math.min(1, dt * 9);
+      // en zombie som slår en soldat vänder sig mot honom
+      const face = z.foe ? Math.atan2(z.foe[0] - e.x, z.foe[1] - e.z) : Math.atan2(P.dirX, P.dirZ);
+      e.ry += angleDiff(e.ry, face) * Math.min(1, dt * 9);
       parts.root.rotation.y = e.ry;
       e.phase += (z.wob * STEP_PHASE - e.phase) * k;
       if (z.attacking) {
@@ -138,9 +146,26 @@ export function createView(scene, initialSim) {
   // ---------- utställda vapen ----------
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
-  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : ''); }
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : ''); }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
+    if (s.squad) {
+      // Gruppen: ingen modell här (soldaterna ritas i squad-view.js), bara en träffskiva under
+      // varje soldat, så att ett klick på vilken soldat som helst öppnar gruppens panel.
+      const group = new THREE.Group();
+      for (const m of s.soldiers) {
+        const hit = new THREE.Mesh(HIT_MAN, HIT_MAT);
+        hit.rotation.x = -Math.PI / 2; hit.position.set(m.x - s.x, 0.1, m.z - s.z);
+        group.add(hit);
+      }
+      group.userData.pick = { kind: 'gun', id: s.id };
+      group.position.set(s.x, 0, s.z);
+      scene.add(group);
+      group.updateMatrixWorld(true);
+      const e = { key: slotKey(s), group, model: null, squad: true, angle: 0 };
+      slots.set(s.id, e); slotObjects.set(s.id, group);
+      return e;
+    }
     // En pjäs på ett tak (Psg 90) står på takets höjd (s.y, simuleringen räknar fram den).
     const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof });
     const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle };
@@ -170,7 +195,7 @@ export function createView(scene, initialSim) {
   function syncDug() {
     let added = false;
     // Skyttar på taken röjer ingenting på marken.
-    for (const s of sim.guns) if (!s.roof && !dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
+    for (const s of sim.guns) if (!s.roof && !s.squad && !dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
     if (added) scene.userData.fortify?.setPositions([...dug.values()], { road: onRoad });
   }
   function syncSlots(dt) {
@@ -181,6 +206,7 @@ export function createView(scene, initialSim) {
       alive.add(s.id);
       let e = slots.get(s.id);
       if (!e || e.key !== slotKey(s)) e = buildSlot(s, e);
+      if (e.squad) continue;
       const w = s.weapon;
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
       const pv = e.model.pivot;
@@ -210,11 +236,14 @@ export function createView(scene, initialSim) {
     if (ghostOn && (!g || ghostOn.key !== gk)) { ghostOn.group.visible = false; ghostOn = null; }
     if (!g) return;
     let e = ghosts.get(gk);
-    if (!e) { e = { key: gk, group: weaponGhost(g.type, { roof: !!g.roof }) }; scene.add(e.group); ghosts.set(gk, e); }
+    const squad = isSquad(g.type);
+    if (!e) { e = { key: gk, group: squad ? squadGhost(SQUAD.radius) : weaponGhost(g.type, { roof: !!g.roof }) }; scene.add(e.group); ghosts.set(gk, e); }
     ghostOn = e;
     e.group.visible = true;
     e.group.position.set(g.x, g.y ?? 0, g.z);
     setGhostTone(e.group, g.ok);
+    // Hemvärnet: ringen och en platta där varje soldat skulle ta skydd
+    if (squad) setSquadGhost(e.group, g.x, g.z, g.men ?? []);
   }
   // Hindret i handen: en spökmodell per ruta det skulle ta (en spärr över hela gatan på Gnesta).
   const obGhosts = new Map();     // typ -> [grupper]
@@ -367,7 +396,7 @@ export function createView(scene, initialSim) {
   }
 
   // ---------- markering, pekare och räckvidd ----------
-  let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false };
+  let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null };
   const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
   const isHov = (kind, id) => ui.hover?.kind === kind && ui.hover.id === id;
   const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
@@ -386,7 +415,10 @@ export function createView(scene, initialSim) {
     // ring under en byggd pjäs som är vald eller pekas på
     const ringFor = ui.selected?.kind === 'gun' ? ui.selected : ui.hover?.kind === 'gun' ? ui.hover : null;
     const e = ringFor && slots.get(ringFor.id);
-    selRing.visible = !!e;
+    // Hemvärnet: en ring under varje soldat och hans siktlinje i stället för pjäsens ring
+    const sq = e?.squad ? sim.guns.find(g => g.id === ringFor.id) : null;
+    squadView.show(sq, sq ? ui.squadRange ?? 15 : 0, ringFor === ui.selected);
+    selRing.visible = !!e && !e.squad;
     if (selRing.visible) {
       selRing.position.x = e.group.position.x; selRing.position.z = e.group.position.z;
       const sel = ringFor === ui.selected;
@@ -395,7 +427,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -510,6 +542,19 @@ export function createView(scene, initialSim) {
     for (const ev of events) {
       switch (ev.t) {
         case 'shot': {
+          if (ev.soldier != null) {
+            // Hemvärnet: skottet går från soldatens gevär (Ak 4)
+            const mz = squadView.fire(ev.gunId, ev.soldier); if (!mz) break;
+            const sc = zombieScale(ev.targetId);
+            mz.getWorldPosition(from);
+            const spread = ev.hit ? 0.3 : 1.4;
+            to.set(ev.x + rnd(-spread, spread), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-spread, spread));
+            if (!ev.hit) to.sub(from).multiplyScalar(1.4).add(from);
+            fx.tracer(from, to, 'light');
+            fx.flash(mz, ev.gunId + ':' + ev.soldier, 'light');
+            fx.casing(mz);
+            break;
+          }
           const e = slots.get(ev.gunId); if (!e) break;
           const sc = zombieScale(ev.targetId);
           e.model.muzzle.getWorldPosition(from);
@@ -536,6 +581,15 @@ export function createView(scene, initialSim) {
           break;
         }
         case 'breach': fx.puff(ev.x, ev.z); baseHit(); break;
+        case 'soldierHit': {
+          // en zombie slår en soldat: lite blod, högst var tredjedels sekund per soldat
+          const k = 's' + ev.gunId + ':' + ev.soldier;
+          if (clock - (lastChip.get(k) ?? -1) < 0.33) break;
+          lastChip.set(k, clock);
+          fx.gibs(ev.x, 0.6, ev.z, 3);
+          break;
+        }
+        case 'soldierDown': fx.gibs(ev.x, 0.7, ev.z, 8); fx.splat(ev.x + rnd(-0.4, 0.4), ev.z + rnd(-0.4, 0.4), rnd(1.2, 1.8)); break;
         case 'grenade': {
           const e = slots.get(ev.gunId); if (!e) break;
           e.model.gunner.root.getWorldPosition(from);
@@ -603,6 +657,7 @@ export function createView(scene, initialSim) {
     frame++; clock += dt;
     syncZombies(dt);
     syncSlots(dt);
+    squadView.sync(sim, dt);
     syncCells();
     syncCellMarks();
     syncTiles();
@@ -619,6 +674,7 @@ export function createView(scene, initialSim) {
     for (const e of slots.values()) disposeModel(e.group);
     slots.clear(); slotObjects.clear();
     for (const i of [...cells.keys()]) removeCell(i);
+    squadView.clear();
     lastChip.clear();
     fx.clear();
     const remap = next.map !== sim.map;
@@ -635,5 +691,5 @@ export function createView(scene, initialSim) {
   buildBase();
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
-  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, get dug() { return [...dug.values()]; } };
+  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
 }

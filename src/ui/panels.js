@@ -11,6 +11,7 @@ import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../met
 import { ICONS } from './icons.js';
 import { SHOP, shopItem, hotkey } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
+import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
 
 const REASONS = {
@@ -35,6 +36,9 @@ const REASONS = {
   'redan': 'This position already has a kit.',
   'zombier': 'Zombies in the way',
   'ingen gata': 'Only on the road',
+  // Hemvärnet (0.9.0)
+  'trångt': 'No room for the squad here',
+  'hela': 'Nobody is down.',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -149,10 +153,11 @@ export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}`;
+  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
+    if (g.squad) { renderSquad(s, g); return; }
     const w = g.weapon, def = WEAPONS[w.type];
     const gs = grenadeStats(s.research);
     ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}</div>`;
@@ -193,8 +198,40 @@ export function gunPanel(root, gunId, sim, actions) {
     own();
   }
 
+  // Hemvärnet: en rad per soldat (skydd och ställning), uppgradera, ersätt stupade, sälj.
+  const STANCE = { crouch: 'crouching', kneel: 'kneeling', prone: 'prone' };
+  function renderSquad(s, g) {
+    const w = g.weapon, st = weaponStats(w.type, w.level, s.research);
+    const next = w.level < MAX_LEVEL ? (squadSize(w.level + 1) > g.soldiers.length ? 'Upgrade: one more rifleman' : 'Upgrade: better rifles') : 'Upgrade';
+    const men = g.soldiers.map(m => `<li class="${m.down ? 'down' : ''}">${m.down ? 'Down' : `${COVER[m.cover].name}, ${STANCE[m.stance]}`}</li>`).join('');
+    const standing = g.soldiers.filter(m => !m.down).length;
+    ui.head.innerHTML = `<div class="t">${WEAPONS[w.type].name}</div><div class="sub">Squad · Level ${w.level} of ${MAX_LEVEL} · ${standing} of ${g.soldiers.length} standing</div>`;
+    ui.body.innerHTML = `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Ak 4 <b>×${g.soldiers.length}</b></span></div>
+      <ul class="men">${men}</ul>
+      <div class="acts">
+        <button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
+      </div>${standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}`;
+    const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
+    upB.addEventListener('click', () => { const r = actions.upgrade(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
+    sellB.addEventListener('click', () => {
+      const r = actions.sell(gunId);
+      if (!r.ok) ui.say(reasonText(cur.phase === 'won' || cur.phase === 'lost' ? 'fel läge' : 'tom'));
+      else actions.close();
+    });
+    if (rf) rf.addEventListener('click', () => { const r = actions.reinforce(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
+    actions.range({ x: g.x, z: g.z, r: SQUAD.radius, id: g.id });
+  }
+
   function patch(s, g) {
     const w = g.weapon;
+    const rf = ui.body.querySelector('[data-a="reinforce"]');
+    if (rf) {
+      const cost = g.soldiers.filter(m => m.down).length * SQUAD.reinforce, poor = s.cash < cost;
+      const t = poor ? 'Need ' + money(cost) : money(cost), rp = rf.querySelector('[data-p]');
+      if (rp.textContent !== t) rp.textContent = t;
+      rf.classList.toggle('off', poor);
+    }
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const cost = upgradeCost(w.type, w.level);
     const upText = cost == null ? 'Max level' : s.cash < cost ? 'Need ' + money(cost) : money(cost);

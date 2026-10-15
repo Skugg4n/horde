@@ -312,6 +312,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .pips i { width: 9px; height: 9px; border: 1px solid rgba(233,223,201,0.55); transform: rotate(45deg); }
 .pips i.on { background: #9fc46a; border-color: #9fc46a; }
 .panel .kitrow { margin-top: 8px; }
+/* Hemvärnet: en rad per soldat i panelen */
+.panel ul.men { list-style: none; margin: 0 0 10px; padding: 0; font-size: 12px; letter-spacing: 0.04em; color: var(--paper-dim); columns: 2; column-gap: 14px; }
+.panel ul.men li { white-space: nowrap; line-height: 1.55; }
+.panel ul.men li::before { content: '\25B8'; color: var(--paper); margin-right: 5px; font-size: 10px; }
+.panel ul.men li.down { color: var(--rust, #b5532a); }
 .panel .info.kit { font-size: 13px; color: var(--paper-dim); margin-top: 8px; }
 
 .menu { min-width: 420px; }
@@ -391,7 +396,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .k .guns { margin-left: 14px; }
 #buildbar .cards { display: flex; gap: 6px; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
-#buildbar .card { width: 108px; padding: 7px 8px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+/* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
+#buildbar .card { width: 96px; padding: 7px 7px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
 #buildbar .card svg:not(.lock) { height: 26px; margin: 2px 0 3px; }
 #buildbar .card .n { font-size: 12px; white-space: nowrap; letter-spacing: 0.02em; }
 #buildbar .card .p { font-size: 13px; }
