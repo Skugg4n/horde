@@ -2,11 +2,11 @@ import { ZOMBIES } from '../data/zombies.js';
 import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
-import { pathLength, pointAt } from './path.js';
+import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, obstacleRefund, tierOf, grenadeStats, wireDurability, blockHp } from './stats.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
-export const CELL_LEN = 3;
+export { CELL_LEN } from './cells.js';
 // Nästa våg: nedräkning efter en klarad våg, och bonus för att kalla den tidigt.
 export const COUNTDOWN = 5;         // sekunder från klarad våg till nästa startar av sig själv
 export const EARLY_PER_SEC = 5;    // pengar per sekund som sparas
@@ -15,33 +15,27 @@ export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många 
 export function createSim({ map, day, cash, research = [], seed = 1 }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
+  const route = routeFor(map);
   return {
     // waveIndex: antal klarade vågor. wavesStarted: antal startade (vågor kan gå samtidigt
     // när nästa kallas tidigt). nextWaveIn: sekunder kvar av nedräkningen, null = väntar på spelaren.
     map, day, dayCfg, phase: 'build', waveIndex: 0, wavesStarted: 0, cleared: [], nextWaveIn: null, cash, intelEarned: 0, kills: 0,
     baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed),
-    research: res, nextId: 1, spawnQueue: [], len: pathLength(map.path),
+    research: res, nextId: 1, spawnQueue: [], route, len: route.len,
     slots: map.slots.map(s => ({ id: s.id, x: s.x, z: s.z, locked: !!(s.locked && tierOf(res, s.locked) < 1), weapon: null })),
     obstacles: {}, grenades: [],
   };
 }
 
-export function zombiePos(sim, z) {
-  const p = pointAt(sim.map.path, z.d);
-  return { x: p.x - p.dirZ * z.off, z: p.z + p.dirX * z.off, dirX: p.dirX, dirZ: p.dirZ };
-}
-
-function posAt(sim, d, off) {
-  const p = pointAt(sim.map.path, Math.min(d, sim.len));
-  return { x: p.x - p.dirZ * off, z: p.z + p.dirX * off };
-}
+// Zombiens läge och riktning. Rutten vet hur (polylinje för E4, rutnät för Gnesta).
+export const zombiePos = (sim, z) => sim.route.place(z);
 
 export const hasNextWave = sim => sim.wavesStarted < sim.dayCfg.waves.length;
 
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
-  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index });
+  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn });
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
   sim.phase = 'wave';
@@ -78,8 +72,9 @@ export function callNextWave(sim) {
   return { ok: true, bonus, index };
 }
 
-function spawn(sim, { type, wave }) {
-  const z = { id: sim.nextId++, type, wave, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, d: 0, off: (sim.rng() - 0.5) * 6, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+// group.spawn väljer ingång på banor med flera (standard: den första).
+function spawn(sim, { type, wave, spawn: spawnId }) {
+  const z = { id: sim.nextId++, type, wave, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, ...sim.route.spawn(sim.rng, spawnId), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   sim.zombies.push(z);
   sim.events.push({ t: 'spawn', id: z.id });
 }
@@ -134,9 +129,9 @@ function moveZombies(sim, dt) {
     const def = ZOMBIES[z.type];
     const speed = def.speed * obstacleEffect(sim, z, dt, hitCells);
     z.v = speed;
-    z.d += speed * dt;
+    sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
-    if (z.d >= sim.len) {
+    if (sim.route.arrived(z)) {
       sim.baseHp -= def.baseDamage;
       const p = zombiePos(sim, z);
       z.dead = true; z.breached = true; z.deadT = 99;
@@ -199,7 +194,7 @@ export function buyKit(sim, slotId) {
 
 export function placeObstacle(sim, cell, type) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
-  if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, reason: 'okänd' };
+  if (!sim.route.validCell(cell)) return { ok: false, reason: 'okänd' };
   if (sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
   if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
   const o = OBSTACLES[type];
@@ -212,15 +207,17 @@ export function placeObstacle(sim, cell, type) {
     const hp = blockHp(sim.research);
     sim.obstacles[cell] = { type, hp, maxHp: hp };
   }
+  sim.route.rebuild(sim.obstacles);
   return { ok: true };
 }
 export function removeObstacle(sim, cell) {
-  if (!Number.isInteger(cell) || cell < 0 || cell >= sim.map.cells.length) return { ok: false, refund: 0 };
+  if (!sim.route.validCell(cell)) return { ok: false, refund: 0 };
   const ob = sim.obstacles[cell];
   if (!canAct(sim) || !ob) return { ok: false, refund: 0 };
   const refund = obstacleRefund(ob);
   sim.cash += refund;
   delete sim.obstacles[cell];
+  sim.route.rebuild(sim.obstacles);
   return { ok: true, refund };
 }
 
@@ -228,11 +225,12 @@ function fireWeapons(sim, dt) {
   for (const s of sim.slots) {
     const w = s.weapon; if (!w) continue;
     const st = weaponStats(w.type, w.level, sim.research);
-    let target = null, best = -1;
+    let target = null, best = -Infinity;
     for (const z of sim.zombies) {
       if (z.dead) continue;
       const p = zombiePos(sim, z);
-      if (Math.hypot(p.x - s.x, p.z - s.z) <= st.range && z.d > best) { best = z.d; target = z; }
+      const pr = sim.route.progress(z);
+      if (Math.hypot(p.x - s.x, p.z - s.z) <= st.range && pr > best) { best = pr; target = z; }
     }
     w.targetId = target ? target.id : null;
     w.cooldown -= dt;
@@ -265,7 +263,7 @@ function throwGrenades(sim, dt) {
       const p = zombiePos(sim, z);
       if (Math.hypot(p.x - s.x, p.z - s.z) > gs.range) continue;
       const lead = z.attacking ? 0 : (z.v ?? ZOMBIES[z.type].speed) * gs.flight;
-      near.push({ z, aim: posAt(sim, z.d + lead, z.off), wt: z.type === 'brute' ? 3 : 1 });
+      near.push({ z, aim: sim.route.ahead(z, lead), pr: sim.route.progress(z), wt: z.type === 'brute' ? 3 : 1 });
     }
     if (!near.length) continue;
     if (near.length < gs.minCount && !near.some(n => n.z.type === 'brute')) continue;
@@ -275,7 +273,7 @@ function throwGrenades(sim, dt) {
       for (const n of near) {
         let score = 0;
         for (const m of near) if (!covered.has(m) && Math.hypot(m.aim.x - n.aim.x, m.aim.z - n.aim.z) <= gs.radius) score += m.wt;
-        if (score > bestScore || (score === bestScore && best && n.z.d > best.z.d)) { best = n; bestScore = score; }
+        if (score > bestScore || (score === bestScore && best && n.pr > best.pr)) { best = n; bestScore = score; }
       }
       if (!best) break;
       for (const m of near) if (Math.hypot(m.aim.x - best.aim.x, m.aim.z - best.aim.z) <= gs.radius) covered.add(m);
@@ -314,29 +312,31 @@ function damage(sim, z, amount, p) {
   }
 }
 
-// Hinder längs vägen. Returnerar farthållarens multiplikator för zombiens fart denna frame.
-// hitCells: rutor som redan fått en obstacleHit under detta steg.
+// Hinder på vägen, nycklade på rutans nyckel. Returnerar multiplikatorn för zombiens fart denna
+// frame. hitCells: rutor som redan fått en obstacleHit under detta steg. Ett sönderslaget hinder
+// gör att rutten räknas om (rutnätet väljer då vägen genom luckan).
 function obstacleEffect(sim, z, dt, hitCells) {
-  const def = ZOMBIES[z.type];
-  let mul = 1;
-  sim.map.cells.forEach((cd, i) => {
-    const ob = sim.obstacles[i]; if (!ob) return;
+  const def = ZOMBIES[z.type], route = sim.route;
+  let mul = 1, broke = false;
+  for (const i of route.obstacleKeys(sim.obstacles)) {
+    const ob = sim.obstacles[i]; if (!ob) continue;
     const o = OBSTACLES[ob.type];
-    if (o.kind === 'slow' && z.d >= cd && z.d < cd + CELL_LEN) {
+    if (o.kind === 'slow' && route.inCell(z, i)) {
       // slowTaken: hur mycket av inbromsningen zombien känner (1 = hela, bjässen bara en del).
       mul = Math.min(mul, 1 - (1 - o.slow) * (def.slowTaken ?? 1));
       ob.durability -= dt;
-      if (ob.durability <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
+      if (ob.durability <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
     // Blocket stoppar även zombier som skulle passera det i ett enda steg (stort dt).
-    const crosses = z.d < cd && z.d + def.speed * dt > cd;
-    if (o.kind === 'block' && ((z.d >= cd - 0.6 && z.d <= cd) || crosses)) {
-      mul = 0; if (crosses) z.d = cd; z.attacking = true;
+    const c = o.kind === 'block' ? route.blockContact(z, i, def.speed * dt) : null;
+    if (c) {
+      mul = 0; if (c.crosses) route.stopAt(z, i); z.attacking = true;
       ob.hp -= def.hitDamage * dt;
       if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
-      if (ob.hp <= 0) { delete sim.obstacles[i]; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
+      if (ob.hp <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
-  });
+  }
+  if (broke) route.rebuild(sim.obstacles);
   if (mul > 0) z.attacking = false;
   return mul;
 }

@@ -1,5 +1,13 @@
 # Ändringslogg
 
+## 0.3.2 (2026-10-15)
+
+Grunden för vägsökningen på bana 2, Gnesta. Bara simuleringen, ingen ny grafik.
+
+- Rutten är ett eget gränssnitt (`src/sim/route.js`). Simuleringen frågar rutten om spawn, gång, läge, framsteg och hinderrutor i stället för att räkna på E4:s väglinje. E4 går som förut: hela balansloggen är identisk med 0.3.1 och ligger som test.
+- Hinder nycklas på rutans nyckel, och rutten räknas om när ett hinder läggs, rivs eller slås sönder.
+- Vågdata kan välja ingång per grupp (`spawn`).
+
 ## 0.3.1 (2026-10-15)
 
 Rättningar efter granskningen av 0.3.0.

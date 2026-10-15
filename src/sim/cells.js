@@ -2,8 +2,7 @@
 // Rutorna är 3 m långa och ligger kant i kant. En punkt hör till rutan som börjar närmast före
 // den (halvöppet intervall), och ett klick strax utanför rutsträckan går till närmaste ruta.
 import { projectOnPath } from './path.js';
-import { CELL_LEN } from './sim.js';
-
+export const CELL_LEN = 3;       // hinderrutans längd längs E4:s väg
 export const ROAD_HALF = 4.5;      // halva vägbredden i meter
 
 // reach: hur långt utanför en ruta (längs vägen) ett klick fortfarande räknas till den.

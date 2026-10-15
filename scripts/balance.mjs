@@ -84,7 +84,7 @@ export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot
     : policy === 'minimal' ? () => minimalBuild(sim, slot)
     : (() => { throw new Error('okänd policy ' + policy); })();
   const early = allowEarly && !!ORDER[policy];
-  const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || z.d < sim.len / 2);
+  const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false;
   const waves = [];
   let ticks = 0, firstHit = null, waveIdx = 0;
