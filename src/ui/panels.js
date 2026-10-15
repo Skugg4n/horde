@@ -11,22 +11,22 @@ import { ICONS } from './icons.js';
 import { money } from './format.js';
 
 const REASONS = {
-  'pengar': 'Pengarna räcker inte.',
-  'låst': 'Positionen är låst.',
-  'ej upplåst': 'Det är inte framforskat än.',
-  'fel läge': 'Dagen är slut.',
-  'max': 'Det här är högsta nivån.',
-  'tom': 'Här står inget vapen.',
-  'okänd': 'Det gick inte.',
+  'pengar': 'Not enough cash.',
+  'låst': 'Position locked.',
+  'ej upplåst': 'Not researched yet.',
+  'fel läge': 'The day is over.',
+  'max': 'Already at max level.',
+  'tom': 'No gun here.',
+  'okänd': 'Can\'t do that.',
 };
 // kind: 'slot' eller 'cell', så att texten säger Positionen eller Rutan.
 export function reasonText(r, kind = 'slot') {
-  if (r === 'upptagen') return kind === 'cell' ? 'Rutan är redan upptagen.' : 'Positionen är redan upptagen.';
+  if (r === 'upptagen') return kind === 'cell' ? 'Tile already taken.' : 'Position already taken.';
   return REASONS[r] || REASONS['okänd'];
 }
 
 function statLine(st) {
-  return `<div class="st"><span>Skada <b>${Math.round(st.damage)}</b></span><span>Räckvidd <b>${Math.round(st.range)} m</b></span></div>`;
+  return `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span></div>`;
 }
 function card(id, icon, name, desc, extra) {
   return `<button type="button" class="card" data-id="${id}">${icon || ''}<div class="n">${name}</div><div class="d">${desc}</div>${extra || ''}<div class="p" data-price></div></button>`;
@@ -36,7 +36,7 @@ function card(id, icon, name, desc, extra) {
 function shell(root, actions) {
   const el = document.createElement('div');
   el.className = 'panel plate';
-  el.innerHTML = `<button type="button" class="x" aria-label="Stäng">×</button><div class="head"></div><div class="body"></div><div class="msg"></div>`;
+  el.innerHTML = `<button type="button" class="x" aria-label="Close">×</button><div class="head"></div><div class="body"></div><div class="msg"></div>`;
   root.appendChild(el);
   const head = el.querySelector('.head'), body = el.querySelector('.body'), msg = el.querySelector('.msg');
   el.querySelector('.x').addEventListener('click', () => actions.close());
@@ -59,7 +59,7 @@ function shell(root, actions) {
 function patchCard(btn, cost, sim) {
   const p = btn.querySelector('[data-price]');
   const poor = sim.cash < cost;
-  const text = poor ? 'Behöver ' + money(cost) : money(cost);
+  const text = poor ? 'Need ' + money(cost) : money(cost);
   if (p.textContent !== text) p.textContent = text;
   btn.classList.toggle('off', poor);
 }
@@ -74,12 +74,12 @@ export function slotPanel(root, slotId, sim, actions) {
   function render(s, slot) {
     if (slot.locked) {
       ui.head.innerHTML = '';
-      ui.body.innerHTML = `<p class="info">Låst. Forska fram fler positioner.</p>`;
+      ui.body.innerHTML = `<p class="info">Locked. Research more positions.</p>`;
       actions.range(null);
       return;
     }
     if (!slot.weapon) {
-      ui.head.innerHTML = `<div class="t">Ledig position</div>`;
+      ui.head.innerHTML = `<div class="t">Empty position</div>`;
       const types = Object.keys(WEAPONS).filter(t => weaponUnlocked(t, s.research));
       ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], WEAPONS[t].name, WEAPONS[t].desc, statLine(weaponStats(t, 1, s.research)))).join('')}</div>`;
       for (const b of ui.body.querySelectorAll('.card')) {
@@ -95,11 +95,11 @@ export function slotPanel(root, slotId, sim, actions) {
       return;
     }
     const w = slot.weapon, def = WEAPONS[w.type];
-    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Nivå ${w.level} av ${MAX_LEVEL}</div>`;
+    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}</div>`;
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
-        <button type="button" class="act" data-a="up"><span class="a">Uppgradera</span><span class="p" data-p></span></button>
-        <button type="button" class="act" data-a="sell"><span class="a">Sälj</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
       </div>`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     up.addEventListener('click', () => {
@@ -128,7 +128,7 @@ export function slotPanel(root, slotId, sim, actions) {
     const w = slot.weapon;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const cost = upgradeCost(w.type, w.level);
-    const upText = cost == null ? 'Högsta nivån' : s.cash < cost ? 'Behöver ' + money(cost) : money(cost);
+    const upText = cost == null ? 'Max level' : s.cash < cost ? 'Need ' + money(cost) : money(cost);
     const upP = up.querySelector('[data-p]');
     if (upP.textContent !== upText) upP.textContent = upText;
     up.classList.toggle('off', cost == null || s.cash < cost);
@@ -159,7 +159,7 @@ export function cellPanel(root, index, sim, actions) {
   function render(s) {
     const ob = s.obstacles[index];
     if (!ob) {
-      ui.head.innerHTML = `<div class="t">Ruta på vägen</div>`;
+      ui.head.innerHTML = `<div class="t">Road tile</div>`;
       const types = Object.keys(OBSTACLES).filter(t => obstacleUnlocked(t, s.research));
       ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], OBSTACLES[t].name, OBSTACLES[t].desc)).join('')}</div>`;
       for (const b of ui.body.querySelectorAll('.card')) {
@@ -171,7 +171,7 @@ export function cellPanel(root, index, sim, actions) {
       return;
     }
     ui.head.innerHTML = `<div class="t">${OBSTACLES[ob.type].name}</div><div class="sub" data-cond></div>`;
-    ui.body.innerHTML = `<div class="acts"><button type="button" class="act" data-a="rm"><span class="a">Ta bort</span><span class="p" data-p></span></button></div>`;
+    ui.body.innerHTML = `<div class="acts"><button type="button" class="act" data-a="rm"><span class="a">Remove</span><span class="p" data-p></span></button></div>`;
     ui.body.querySelector('[data-a="rm"]').addEventListener('click', () => {
       const r = actions.remove(index);
       if (!r.ok) ui.say(reasonText('fel läge'));
@@ -183,10 +183,10 @@ export function cellPanel(root, index, sim, actions) {
     if (!ob) { for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost, s); return; }
     const f = frac(ob), whole = obstacleWhole(ob);
     const cond = ui.head.querySelector('[data-cond]');
-    const condText = `Skick ${Math.max(0, Math.round(f * 100))} %`;
+    const condText = `Condition ${Math.max(0, Math.round(f * 100))} %`;
     if (cond.textContent !== condText) cond.textContent = condText;
     const rm = ui.body.querySelector('[data-a="rm"]');
-    const t = whole ? '+' + money(obstacleRefund(ob)) : 'Ingen återbetalning';
+    const t = whole ? '+' + money(obstacleRefund(ob)) : 'No refund';
     const p = rm.querySelector('[data-p]');
     if (p.textContent !== t) p.textContent = t;
   }
@@ -221,8 +221,8 @@ export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
     <p class="lead">${dayCfg.intro.text}</p>
-    <p class="note-line">Ny dag: du börjar med ${money(cash)} och tomma positioner. Forskningen följer med.</p>
-    <button type="button" class="act main" data-a="go"><span class="a">Till försvaret</span><kbd>Enter</kbd></button>`);
+    <p class="note-line">New day: you start with ${money(cash)} and empty positions. Research carries over.</p>
+    <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;
 }
@@ -230,25 +230,25 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 // lastDay: sista dagen på banan; då leder vinsten till menyn.
 // cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
 export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0 }, { onRetry, onNext, onResearch, onMenu }) {
-  const head = won ? `Dag ${day} klarad.` : 'Basen föll.';
-  const lead = won ? `Du fick ${intelEarned} forskning.` : `Du behåller ${intelEarned} forskning.`;
-  const done = won && lastDay ? `<p class="lead strong">Riksvägen klarad. Fler banor kommer.</p>` : '';
+  const head = won ? `Day ${day} cleared.` : 'The base fell.';
+  const lead = won ? `You earned ${intelEarned} research points.` : `You keep ${intelEarned} research points.`;
+  const done = won && lastDay ? `<p class="lead strong">${MAPS.riksvagen.name} cleared. More maps coming.</p>` : '';
   const main = won
-    ? (lastDay ? `<button type="button" class="act main" data-a="menu"><span class="a">Till menyn</span></button>`
-               : `<button type="button" class="act main" data-a="next"><span class="a">Nästa dag</span></button>`)
-    : `<button type="button" class="act main" data-a="retry"><span class="a">Försök igen</span></button>`;
+    ? (lastDay ? `<button type="button" class="act main" data-a="menu"><span class="a">To menu</span></button>`
+               : `<button type="button" class="act main" data-a="next"><span class="a">Next day</span></button>`)
+    : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span></button>`;
   const p = plate(root, 'result' + (won ? ' won' : ' lost'), `
     <div class="h">${head}</div>
     <p class="lead">${lead}</p>
     ${done}
-    ${won && !lastDay && cashLeft > 0 ? `<p class="note-line">Kvar i kassan: ${money(cashLeft)}, försvinner till nästa dag.</p>` : ''}
+    ${won && !lastDay && cashLeft > 0 ? `<p class="note-line">Left in the cash box: ${money(cashLeft)}. It does not carry over.</p>` : ''}
     <div class="facts">
-      <div><span>Döda zombier</span><b>${kills}</b></div>
-      <div><span>Vågor klarade</span><b>${wavesCleared} av ${waves}</b></div>
-      <div><span>Forskning att använda</span><b>${totalIntel}</b></div>
+      <div><span>Kills</span><b>${kills}</b></div>
+      <div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>
+      <div><span>Research points</span><b>${totalIntel}</b></div>
     </div>
-    <div class="acts">${main}<button type="button" class="act" data-a="research"><span class="a">Forskning</span></button></div>
-    ${won && lastDay ? '' : `<button type="button" class="link" data-a="menu">Till menyn</button>`}`);
+    <div class="acts">${main}<button type="button" class="act" data-a="research"><span class="a">Research</span></button></div>
+    ${won && lastDay ? '' : `<button type="button" class="link" data-a="menu">To menu</button>`}`);
   on(p.el, '[data-a="retry"]', onRetry);
   on(p.el, '[data-a="next"]', onNext);
   on(p.el, '[data-a="research"]', onResearch);
@@ -273,26 +273,26 @@ function researchRows() {
   return rows.sort((a, b) => b.length - a.length);
 }
 function researchState(progress, item) {
-  if (progress.research.includes(item.id)) return { cls: 'bought', text: 'Köpt' };
+  if (progress.research.includes(item.id)) return { cls: 'bought', text: 'Bought' };
   const c = canBuyResearch(progress, item.id);
-  if (c.ok) return { cls: 'buy', text: `Köp (${item.cost})` };
+  if (c.ok) return { cls: 'buy', text: `Buy (${item.cost})` };
   if (c.reason === 'kräver') {
     const need = item.requires.filter(id => !progress.research.includes(id)).map(id => RESEARCH.find(r => r.id === id).name);
-    return { cls: 'locked', text: 'Kräver: ' + need.join(', ') };
+    return { cls: 'locked', text: 'Requires: ' + need.join(', ') };
   }
-  return { cls: 'poor', text: `Behöver ${item.cost - progress.intel} till` };
+  return { cls: 'poor', text: `Need ${item.cost - progress.intel} more` };
 }
 
 // onBuy(id) returnerar det nya framsteget. update(progress) ritar om.
 export function researchPanel(root, progress, onBuy, onClose) {
   const p = plate(root, 'research', `
-    <div class="h">Forskning</div>
+    <div class="h">Research</div>
     <p class="lead" data-have></p>
     <div class="tree" data-tree></div>
-    <div class="acts"><button type="button" class="act main" data-a="close"><span class="a">Klar</span><kbd>Esc</kbd></button></div>`);
+    <div class="acts"><button type="button" class="act main" data-a="close"><span class="a">Done</span><kbd>Esc</kbd></button></div>`);
   const tree = p.el.querySelector('[data-tree]'), have = p.el.querySelector('[data-have]');
   function render(pr) {
-    have.textContent = `Du har ${pr.intel} forskning.`;
+    have.textContent = `You have ${pr.intel} research points.`;
     tree.innerHTML = researchRows().map(row => `<div class="row">${row.map((item, i) => {
       const st = researchState(pr, item);
       return `${i ? '<i class="arrow">→</i>' : ''}<button type="button" class="node ${st.cls}" data-id="${item.id}">
@@ -310,18 +310,18 @@ export function mainMenu(root, progress, { onDay, onResearch, version }) {
   const days = map.days.map(d => {
     const n = d.n;
     const open = n <= progress.unlockedDay, done = n < progress.unlockedDay;
-    const state = !open ? `Klara dag ${n - 1} först` : done ? 'Klarad' : 'Spela';
+    const state = !open ? `Clear day ${n - 1} first` : done ? 'Cleared' : 'Play';
     const name = d.intro.title.includes(':') ? d.intro.title.split(':')[1].trim() : '';
     return `<button type="button" class="day ${open ? '' : 'locked'} ${done ? 'done' : ''}" data-day="${n}" ${open ? '' : 'disabled'}>
-      <div class="lbl">DAG</div><div class="dn">${String(n).padStart(2, '0')}</div><div class="nm">${name}</div><div class="s">${state}</div></button>`;
+      <div class="lbl">DAY</div><div class="dn">${String(n).padStart(2, '0')}</div><div class="nm">${name}</div><div class="s">${state}</div></button>`;
   }).join('');
   const allDone = progress.unlockedDay > map.days.length;
   const p = plate(root, 'menu', `
     <div class="logo">HORDE</div>
     <div class="map">${map.name}</div>
     <div class="days">${days}</div>
-    ${allDone ? '<p class="lead strong">Riksvägen klarad. Fler banor kommer.</p>' : ''}
-    <div class="acts"><button type="button" class="act" data-a="research"><span class="a">Forskning</span><span class="p">Du har ${progress.intel}</span></button></div>
+    ${allDone ? `<p class="lead strong">${map.name} cleared. More maps coming.</p>` : ''}
+    <div class="acts"><button type="button" class="act" data-a="research"><span class="a">Research</span><span class="p">You have ${progress.intel}</span></button></div>
     <div class="v">v${version}</div>`);
   for (const b of p.el.querySelectorAll('.day:not(.locked)')) b.addEventListener('click', () => onDay(Number(b.dataset.day)));
   on(p.el, '[data-a="research"]', onResearch);

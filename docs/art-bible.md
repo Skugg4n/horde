@@ -65,10 +65,23 @@ Följd av ljuset: zombier går mot -x och kameran ser dem bakifrån, så deras r
 ## Proportioner
 
 - 1 enhet = 1 meter. x längs vägen (horden kommer från +x), z tvärs, y upp.
-- Människa: cirka 2.2 m inklusive huvud (`humanoid()`): ben 0.85, bål 0.85, huvud 0.45. Spelet är lite överdrivet så att figurer läses på avstånd.
-- Zombie lutar framåt 0.05 till 0.2 rad. Vandrare 0.05 till 0.14, löpare 0.17 till 0.2 med huvudet framskjutet, bjässe 0.08 till 0.16.
-- Löpare: skala 0.95, smalare bål och lemmar, trasigare kläder, armarna svänger.
-- Bjässe: skala 1.45 (från `ZOMBIES.brute.scale`), bål 1.3 gånger bredare, grova bara armar, litet huvud.
+Från 0.2.2 har människorna verkliga proportioner, inte tecknade (Olas beslut H014). Stilen är fortfarande lågpoly och platt skuggad.
+
+- Människa (`humanoid()` och `BUILD` i `kit.js`): cirka 1.92 m vid skala 1. Huvudet 0.26 m högt, ungefär 1/7,5 av längden. Höften på 0.98 m, lårben 0.48, skenben 0.5, överarm 0.32, underarm 0.3 plus hand. Fingertopparna når mitten av låret.
+- Leder: armar och ben i två delar med armbåge och knä, så att gången kan böjas. Leden heter `hipL/R`, `kneeL/R`, `shL/R`, `elL/R`, `spine` (ryggen) och `head` (nacken).
+- Bålen smalnar mot midjan (fyrkantig kon). Axlarna på en vandrare sitter 0.22 m från mitten, smalare än soldatens 0.27.
+- Ryggen kröker framåt (`spine`), benen står raka: vandrare 0.22 till 0.36 rad, löpare 0.38 till 0.48, bjässe 0.24 till 0.34. Huvudet hänger framåt 0.25 till 0.55 rad på vandrare.
+- Armarna hänger eller sträcker sig ojämnt: en arm framåt, den andra hänger eller sträcks kortare. Ingen zombie har båda armarna exakt lika.
+- Trasig fåll (smala trasor under tröjan) och bara underarmar på en del. Bjässen har alltid bara underarmar.
+- Löpare: skala 0.95, smal, längre ben, sprintar: djupt knäböj, armarna pumpar med böjd armbåge.
+- Bjässe: skala 1.45 (från `ZOMBIES.brute.scale`). Stor och tung men mänsklig: bred bröstkorg, tjocka lemmar, kortare ben, litet huvud på framskjuten nacke. Ingen gorilla.
+- Soldaterna i värnen har samma proportioner, rak rygg, hjälm och väst. M249-skytten står på ett knä, M2-skytten står vid spadgreppen.
+- Animationer (`models.js`): `zombieWalk` (gång med knän), `zombieAttack` (hackar växelvis mot hindret), `zombieFall` (faller bakåt, knäna viker sig).
+- Läs på spelets avstånd: figuren ska synas på silhuetten, och kläderna ska gå att skilja i fyllnadsljuset. Byxorna är därför lite ljusare än förut.
+
+## Hälsoring
+
+En tunn ring på marken under varje levande zombie som tagit skada (`src/render/rings.js`). Bågen är hälsan, börjar uppe i bild och töms medsols; den tömda delen syns svagt. Färgen är papper (benvitt) och går mot rost när hälsan är låg. Radie 0.62 m, bjässen 0.84 m. Hela horden ritas i ett anrop (en `InstancedMesh`, bågen skärs i skuggningen). Ringen försvinner när zombien dör.
 - Värn: M2 har en säckring med radie 2.5 m, M249 2.0 m och lägre. En position är en ring med radie 2.3 m.
 - Hinderruta: 3 m längs vägen, 9 m tvärs.
 
@@ -93,7 +106,8 @@ Antalet meshar avgör om stilen håller när fler typer och större vågor komme
 
 | Modell | Högst | Idag (0.2.0) |
 |---|---|---|
-| Zombie | 15 | vandrare 9 till 13, löpare 14 till 15, bjässe 12 till 13 |
+| Zombie | 16 | 0.2.2: kropp 13, plus högst 3 trasor och fläckar |
+| Soldat | 16 | 0.2.2: 16 |
 | Pjäs nivå 1 till 2 | 65 | M249 46 och 50, M2 59 och 63 |
 | Pjäs nivå 3 | 120, mål 60 | M249 102, M2 120 |
 | Hinder | 50 | taggtråd 46, betongblock 42 |

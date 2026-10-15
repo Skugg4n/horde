@@ -1,4 +1,4 @@
-// Spelet: meny, dagar på Riksvägen och forskning mellan dagarna.
+// Spelet: meny, dagar på E4 och forskning mellan dagarna.
 // Lägen: menu -> intro -> play -> result -> (intro samma dag | intro nästa dag | research).
 // Simuleringen stegas bara i play; scenen ritas alltid (dammet rör sig bakom skyltarna).
 import { VERSION } from './version.js';
@@ -108,7 +108,7 @@ const camHome = camera.position.clone();
 function onBreach() {
   hud.baseHit();
   shakeT = SHAKE_TIME;
-  if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Basen tar skada!', 'warn'); }
+  if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Base under attack!', 'warn'); }
 }
 function shakeCamera(dt) {
   if (shakeT <= 0) return;
@@ -170,7 +170,7 @@ let warnedSave = false;
 function save() {
   if (saveProgress(progress) || warnedSave) return;
   warnedSave = true;
-  note(uiRoot, 'Kunde inte spara.');
+  note(uiRoot, 'Could not save.');
 }
 function setMode(m, makeSheet) {
   if (sheet) sheet.close();

@@ -1,8 +1,8 @@
 export const RESEARCH = [
-  { id: 'm2', name: 'M2 .50 cal', desc: 'Ny pjäs: tung kulspruta.', cost: 100, requires: [] },
-  { id: 'm249Rate', name: 'Snabbare M249', desc: 'M249 skjuter 25 % snabbare.', cost: 40, requires: [] },
-  { id: 'wireTough', name: 'Grövre taggtråd', desc: 'Taggtråd håller dubbelt så länge.', cost: 50, requires: [] },
-  { id: 'block', name: 'Betongblock', desc: 'Nytt hinder som stoppar horden.', cost: 60, requires: ['wireTough'] },
-  { id: 'budget', name: 'Större budget', desc: '150 mer pengar varje dag.', cost: 70, requires: [] },
-  { id: 'slot4', name: 'Ny position', desc: 'Öppnar en fjärde position.', cost: 80, requires: ['m2'] },
+  { id: 'm2', name: 'M2 .50 cal', desc: 'New gun: heavy machine gun.', cost: 100, requires: [] },
+  { id: 'm249Rate', name: 'Faster M249', desc: 'M249 fires 25 % faster.', cost: 40, requires: [] },
+  { id: 'wireTough', name: 'Heavy wire', desc: 'Barbed wire lasts twice as long.', cost: 50, requires: [] },
+  { id: 'block', name: 'Concrete barrier', desc: 'New obstacle that stops the horde.', cost: 60, requires: ['wireTough'] },
+  { id: 'budget', name: 'Bigger budget', desc: '$ 150 more cash every day.', cost: 70, requires: [] },
+  { id: 'slot4', name: 'New position', desc: 'Opens a fourth position.', cost: 80, requires: ['m2'] },
 ];

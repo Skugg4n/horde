@@ -20,7 +20,7 @@ export const PALETTE = {
   // zombier
   zSkin: ['#7e8a69', '#8b8f73', '#6f7962', '#9b9477', '#7a7f6c'],
   zShirt: ['#4a4f5a', '#5e4a3a', '#6b6455', '#3d4a3f', '#7a3b2e', '#8a8577', '#2f3b52'],
-  zPants: ['#2f3340', '#3a352c', '#4a4538', '#24272b'],
+  zPants: ['#3b4050', '#4a4336', '#5a5342', '#34373c'],
   zRunnerShirt: ['#4b4740', '#5c4c3e', '#6a6152', '#3f454b'],
   zBruteSkin: ['#7f8770', '#8a8b74', '#767e68'],
   zBruteShirt: ['#5a4c3b', '#4d4a42', '#6a5a44'],
@@ -87,23 +87,56 @@ export function speckle(g, s, n, colors, rMax) {
   g.globalAlpha = 1;
 }
 
-export function humanoid({ skin, shirt, pants, helmet }) {
+// Människa med verkliga proportioner (stilbibeln, Proportioner): huvudet ungefär 1/7,5 av
+// längden, lemmar i två delar med armbågar och knän. Origo mellan fötterna, ansiktet mot +z.
+// Leden: body (hela kroppen, för fall och gungning) > pelvis, hipL/R > kneeL/R,
+// spine (ryggen, lutar framåt) > torso, head (nacken, huvudet hänger) och shL/R > elL/R.
+// build ändrar mått per typ; samma mått ger samma delade geometri.
+export const BUILD = {
+  hipY: 0.98, hipX: 0.11, thigh: 0.48, shin: 0.5, legW: 0.15, shinW: 0.12,
+  torsoH: 0.6, chestW: 0.44, waistW: 0.36, chestD: 0.25, shX: 0.25,
+  upper: 0.32, fore: 0.3, armW: 0.11, foreW: 0.095, head: 0.26,
+};
+export function humanoid({ skin, shirt, pants, helmet, build = {}, bare = [false, false] }) {
+  const b = { ...BUILD, ...build };
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
-  const hipL = new THREE.Group(), hipR = new THREE.Group();
-  hipL.position.set(-0.18, 0.85, 0); hipR.position.set(0.18, 0.85, 0);
-  hipL.add(box(0.27, 0.85, 0.3, mat(pants), 0, -0.42, 0));
-  hipR.add(box(0.27, 0.85, 0.3, mat(pants), 0, -0.42, 0));
-  const torso = box(0.72, 0.85, 0.42, mat(shirt), 0, 1.3, 0);
-  const head = box(0.42, 0.45, 0.42, mat(skin), 0, 1.98, 0.03);
-  const shL = new THREE.Group(), shR = new THREE.Group();
-  shL.position.set(-0.47, 1.62, 0); shR.position.set(0.47, 1.62, 0);
-  shL.add(box(0.2, 0.75, 0.22, mat(shirt), 0, -0.3, 0)); shL.add(box(0.17, 0.2, 0.18, mat(skin), 0, -0.75, 0));
-  shR.add(box(0.2, 0.75, 0.22, mat(shirt), 0, -0.3, 0)); shR.add(box(0.17, 0.2, 0.18, mat(skin), 0, -0.75, 0));
-  body.add(hipL, hipR, torso, head, shL, shR);
+  const pelvis = box(b.waistW, 0.2, b.chestD * 0.92, mat(pants), 0, b.hipY + 0.02, 0);
+  body.add(pelvis);
+  const legs = [-1, 1].map(side => {
+    const hip = new THREE.Group(); hip.position.set(side * b.hipX, b.hipY - 0.04, 0);
+    hip.add(box(b.legW, b.thigh, b.legW * 1.1, mat(pants), 0, -b.thigh / 2, 0));
+    const knee = new THREE.Group(); knee.position.y = -b.thigh;
+    // skenbenet räcker ner till marken, lite framåt nertill där foten sitter
+    knee.add(box(b.shinW, b.shin, b.shinW * 1.25, mat(pants), 0, -b.shin / 2, 0.015));
+    hip.add(knee); body.add(hip);
+    return { hip, knee };
+  });
+  const spine = new THREE.Group(); spine.position.y = b.hipY + 0.08; body.add(spine);
+  // Bålen smalnar mot midjan: fyrkantig cylinder, vriden så att sidorna står rakt.
+  const r = Math.SQRT1_2;
+  const torso = mesh(geo('cylinder', b.chestW * r, b.waistW * r, b.torsoH, 4), mat(shirt), 0, b.torsoH / 2, 0);
+  torso.rotation.y = Math.PI / 4; torso.scale.set(1, 1, b.chestD / b.chestW);
+  spine.add(torso);
+  const head = new THREE.Group(); head.position.set(0, b.torsoH + 0.02, 0.02); spine.add(head);
+  const skull = box(b.head * 0.76, b.head, b.head * 0.88, mat(skin), 0, 0.07 + b.head / 2, 0.03);
+  head.add(skull);
+  const arms = [-1, 1].map((side, i) => {
+    const sh = new THREE.Group(); sh.position.set(side * b.shX, b.torsoH - 0.06, 0);
+    sh.add(box(b.armW, b.upper, b.armW * 1.1, mat(shirt), 0, -b.upper / 2, 0));
+    const el = new THREE.Group(); el.position.y = -b.upper;
+    el.add(box(b.foreW, b.fore, b.foreW * 1.05, mat(bare[i] ? skin : shirt), 0, -b.fore / 2, 0));
+    el.add(box(b.foreW * 0.85, 0.11, b.foreW * 1.15, mat(skin), 0, -b.fore - 0.05, 0));
+    sh.add(el); spine.add(sh);
+    return { sh, el };
+  });
   if (helmet) {
-    const h = mesh(geo('sphere', 0.3, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet), 0, 2.1, 0.03);
-    h.scale.set(1.05, 0.8, 1.1); body.add(h);
+    const h = mesh(geo('sphere', b.head * 0.62, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(helmet), 0, 0.07 + b.head * 0.72, 0.03);
+    h.scale.set(1.05, 0.85, 1.12); head.add(h);
   }
-  return { root, body, hipL, hipR, shL, shR, head, torso };
+  return {
+    root, body, pelvis, spine, torso, head, skull, build: b,
+    hipL: legs[0].hip, hipR: legs[1].hip, kneeL: legs[0].knee, kneeR: legs[1].knee,
+    shL: arms[0].sh, shR: arms[1].sh, elL: arms[0].el, elR: arms[1].el,
+  };
 }

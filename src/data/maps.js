@@ -2,7 +2,7 @@
 export const MAPS = {
   riksvagen: {
     id: 'riksvagen',
-    name: 'Riksvägen',
+    name: 'E4',
     camera: { target: [-2, 0], view: 25 },
     path: [[27, 0], [-12, 0]],
     // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång, utan mellanrum.
@@ -17,15 +17,15 @@ export const MAPS = {
     ],
     baseHp: 20,
     days: [
-      { n: 1, startCash: 500, intro: { title: 'Dag 1', text: 'Bygg en M249 på en position. Den skjuter av sig själv.' },
+      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Build an M249 on a position. It fires on its own.' },
         waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
-      { n: 2, startCash: 550, intro: { title: 'Dag 2: Löpare', text: 'Snabba och sköra. Lägg taggtråd på vägen så hinner du skjuta.' },
+      { n: 2, startCash: 550, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Put barbed wire on the road to buy time to shoot.' },
         waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 12, interval: 1.0, delay: 4 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 32, interval: 0.45, delay: 3 }] } ] },
-      { n: 3, startCash: 1000, intro: { title: 'Dag 3: Bjässe', text: 'Stor och seg, och taggtråden håller den knappt. Grov kaliber biter bäst.' },
+      { n: 3, startCash: 1000, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. Heavy caliber works best.' },
         waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 3, interval: 4, delay: 8 }] },
                  { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 12, interval: 0.8, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },

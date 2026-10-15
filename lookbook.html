@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="sv"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Horde · visningssida</title>
+<title>Horde lookbook</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="styles.css">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
 <style>
@@ -21,9 +22,9 @@
 <div id="stage" class="grade"></div>
 <div id="labels"></div>
 <div id="head" class="plate">
-  <div class="t">VISNINGSSIDA</div>
-  <div class="s">Alla modeller under spelets ljus. Dra för att flytta, hjul för att zooma.</div>
-  <button id="zoom">Spelets avstånd</button>
+  <div class="t">LOOKBOOK</div>
+  <div class="s">Every model under the game light. Drag to pan, wheel to zoom.</div>
+  <button id="zoom">Game distance</button>
 </div>
 <div id="ver"></div>
 <script type="module">
@@ -32,7 +33,8 @@ import { VERSION } from './src/version.js';
 import { createScene } from './src/render/scene.js';
 import { dirtTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, baseModel } from './src/render/models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, slotMarker, baseModel } from './src/render/models.js';
+import { createHealthRings } from './src/render/rings.js';
 import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
@@ -79,7 +81,7 @@ const WV = -15;
     w.group.position.copy(at(u0 + (lv - 1) * 8, WV));
     w.pivot.rotation.y = -0.35;                                           // siktar lite mot vägen
     scene.add(w.group);
-    label(u0 + (lv - 1) * 8, WV, WEAPONS[t].name, 'nivå ' + lv, 4.6);
+    label(u0 + (lv - 1) * 8, WV, WEAPONS[t].name, 'level ' + lv, 4.6);
   }
 });
 
@@ -91,11 +93,13 @@ const OV = 1;
   road.rotation.x = -Math.PI / 2; road.position.set(p.x, 0.02, p.z); road.castShadow = false; scene.add(road);
   const o = obstacleModel(t); setObstacleWear(o, wear);
   o.position.copy(p); scene.add(o);
-  label(u, OV, OBSTACLES[t].name, wear === 1 ? 'hel' : 'halvsliten', 5.4);
+  label(u, OV, OBSTACLES[t].name, wear === 1 ? 'intact' : 'half worn', 5.4);
 });
 
-// rad 3: zombier, tre varianter av varje, går på stället mot basen (-x)
+// rad 3: zombier, tre varianter av varje, går på stället mot basen (-x).
+// Hälsoringen vid 100, 60 och 20 % (i spelet syns den först när zombien tagit skada).
 const ZV = 13, zombies = [];
+const rings = createHealthRings(scene, 32), HEALTH = [1, 0.6, 0.2];
 [['walker', -20], ['runner', -5], ['brute', 10]].forEach(([t, u0]) => {
   for (let i = 0; i < 3; i++) {
     const z = zombieModel(t);
@@ -103,35 +107,47 @@ const ZV = 13, zombies = [];
     z.root.position.copy(at(u, ZV + (i % 2) * 0.6));
     z.root.rotation.y = -Math.PI / 2;
     z.phase = Math.random() * 6;
+    z.hp = HEALTH[i];
     scene.add(z.root); zombies.push(z);
   }
-  label(u0, ZV, ZOMBIES[t].name, 'skala ' + ZOMBIES[t].scale, 2.6);
+  label(u0, ZV, ZOMBIES[t].name, 'scale ' + ZOMBIES[t].scale + ' · health 100, 60, 20 %', 2.6);
 });
+// till höger: slår mot ett hinder, och faller (om och om igen)
+const poses = [];
+[['walker', 'attack', 17.5], ['brute', 'attack', 20.5], ['walker', 'fall', 24]].forEach(([t, act, u]) => {
+  const z = zombieModel(t);
+  z.root.position.copy(at(u, ZV));
+  z.root.rotation.y = -Math.PI / 2;
+  z.act = act; z.t = Math.random() * 3; z.hp = act === 'fall' ? 0 : 0.45;
+  scene.add(z.root); poses.push(z);
+});
+label(19, ZV, 'Attacking', 'barrier', 2.6);
+label(24, ZV, 'Dying', 'loops', 2.6);
 
 // rad 4: positionsmarkörer
 const SV = 24;
-[['free', 'ledig', -10], ['locked', 'låst', 0], ['selected', 'vald', 10]].forEach(([s, txt, u]) => {
+[['free', 'free', -10], ['locked', 'locked', 0], ['selected', 'selected', 10]].forEach(([s, txt, u]) => {
   const m = slotMarker(s); m.position.copy(at(u, SV)); scene.add(m);
   label(u, SV, 'Position', txt, 3.2);
 });
 
 // rad 4, höger: basen där vägen tar slut (modellens +x mot horden, som i spelet)
-const BU = 22, BV = 22;
+const BU = 23, BV = 28;
 const base = baseModel(); base.position.copy(at(BU, BV)); scene.add(base);
 const baseRoad = mesh(new THREE.PlaneGeometry(10, 9), new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95 }));
 baseRoad.rotation.x = -Math.PI / 2; baseRoad.position.set(base.position.x + 4, 0.02, base.position.z);
 baseRoad.castShadow = false; scene.add(baseRoad);
-label(BU, BV, 'Basen', 'vägens slut', 7);
+label(BU, BV, 'Base', 'end of the road', 2.5);
 
 // HUD: pilen vid skärmkanten där horden kommer in (samma markup och CSS som i spelet, src/ui/hud.js)
 const entry = document.createElement('div');
 entry.id = 'entry';
-entry.innerHTML = '<div class="chev"><i></i><i></i><i></i></div><div class="txt">Horden kommer</div>';
+entry.innerHTML = '<div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div>';
 entry.style.right = 'auto'; entry.style.left = 'calc(100% - 220px)'; entry.style.top = '120px';
 entry.querySelector('.chev').style.transform = 'rotate(-2.36rad)';
 document.body.appendChild(entry);
 const entryLb = document.createElement('div'); entryLb.className = 'lb';
-entryLb.innerHTML = 'Pil vid kanten <small>HUD, syns tills första zombien är i bild</small>';
+entryLb.innerHTML = 'Edge arrow <small>HUD, shown until the first zombie is on screen</small>';
 entryLb.style.left = 'calc(100% - 220px)'; entryLb.style.top = '170px';
 document.getElementById('labels').appendChild(entryLb);
 
@@ -152,7 +168,7 @@ const zoomBtn = document.getElementById('zoom');
 zoomBtn.onclick = () => {
   const toGame = view !== GAME; view = toGame ? GAME : OVERVIEW;
   if (!toGame) target.set(0, 0, 0);
-  zoomBtn.textContent = toGame ? 'Översikt' : 'Spelets avstånd'; applyCamera();
+  zoomBtn.textContent = toGame ? 'Overview' : 'Game distance'; applyCamera();
 };
 
 // för felsökning i konsolen: lookbook.focus(u, v, view)
@@ -162,10 +178,22 @@ const v3 = new THREE.Vector3();
 let last = performance.now();
 function tick(now) {
   const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  rings.begin();
   for (const z of zombies) {
     z.phase += dt * ZOMBIES[z.type].speed * 2.6 / z.scale;
     zombieWalk(z, z.phase);
+    rings.add(z.root.position.x, z.root.position.z, z.hp, Math.min(1.35, z.scale));
   }
+  for (const z of poses) {
+    z.t += dt;
+    if (z.act === 'attack') { zombieAttack(z, z.t * 11); rings.add(z.root.position.x, z.root.position.z, z.hp, Math.min(1.35, z.scale)); }
+    else {
+      const f = Math.min(1, (z.t % 2.4) / 0.3);
+      if (f < 0.05) zombieWalk(z, 0);
+      zombieFall(z, f * f);
+    }
+  }
+  rings.end();
   renderer.render(scene, camera);
   for (const l of labels) {
     v3.copy(l.p).project(camera);

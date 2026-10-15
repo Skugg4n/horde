@@ -16,9 +16,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 ## Olas feedback efter genomspelning 2026-10-15
 
-- [ ] H012 | grafik | Hälsoring under varje zombie (töms när den tar skada).
-- [ ] H013 | språk | Spelet på engelska, bara ett språk. Bana 1 heter E4 (Olas beslut 2026-10-15).
-- [ ] H014 | grafik | Mindre tecknat: zombier med verkliga proportioner.
+- [x] H012 | grafik | Hälsoring under varje zombie (töms när den tar skada).
+- [x] H013 | språk | Spelet på engelska, bara ett språk. Bana 1 heter E4 (Olas beslut 2026-10-15).
+- [x] H014 | grafik | Mindre tecknat: zombier med verkliga proportioner.
 - [ ] H015 | forskning | Mer forskning i nivåer (t.ex. M249 I-II-III), så det alltid finns något nytt att ta fram.
 - [ ] H016 | vapen | Handgranater: värnen kastar automatiskt när zombier kommer nära (uppgradering/forskning, Olas beslut).
 - [ ] H017 | banor | Från bana/dag 4: kameran zoomar ut ett steg, längre väg in, fler positioner.

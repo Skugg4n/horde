@@ -4,8 +4,8 @@
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
 
-// Plural för vågens innehåll: "10 vandrare, 6 löpare, 1 bjässe".
-const PLURAL = { walker: ['vandrare', 'vandrare'], runner: ['löpare', 'löpare'], brute: ['bjässe', 'bjässar'] };
+// Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
+const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'] };
 export function waveText(dayCfg, index) {
   const wave = dayCfg.waves[index];
   if (!wave) return '';
@@ -15,7 +15,7 @@ export function waveText(dayCfg, index) {
     const w = PLURAL[t] || [ZOMBIES[t]?.name.toLowerCase() ?? t, ZOMBIES[t]?.name.toLowerCase() ?? t];
     return `${n} ${n === 1 ? w[0] : w[1]}`;
   });
-  return `Våg ${index + 1}: ${parts.join(', ')}`;
+  return `Wave ${index + 1}: ${parts.join(', ')}`;
 }
 
 export function waveCounts(sim) {
@@ -31,20 +31,20 @@ export function waveCounts(sim) {
 export function mountHud(root, { onStart, onSpeed } = {}) {
   root.insertAdjacentHTML('beforeend', `
   <div id="day" class="plate">
-    <div class="lbl">DAG</div>
+    <div class="lbl">DAY</div>
     <div class="big" data-k="day">01</div>
-    <div class="row"><span data-k="wave">Våg 1 av 3</span><span data-k="left">0 kvar</span></div>
+    <div class="row"><span data-k="wave">Wave 1 of 3</span><span data-k="left">0 left</span></div>
     <div class="bar"><i data-k="bar"></i></div>
   </div>
   <div id="res" class="plate">
-    <div class="cash-box"><div class="k">PENGAR</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
-    <div><div class="k">BASEN</div><div class="v hp" data-k="hp">0</div></div>
+    <div class="cash-box"><div class="k">CASH</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
+    <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
-  <div id="hint" class="plate" hidden><ol><li data-h="0">Klicka på en position.</li><li data-h="1">Bygg en M249.</li><li data-h="2">Starta vågen.</li></ol></div>
-  <button id="go" class="plate" type="button"><span data-k="go">Starta våg</span><kbd data-k="key">Mellanslag</kbd></button>
-  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> kvar</span><button type="button" class="speed" data-k="speed" aria-pressed="false">Snabbare<kbd>F</kbd></button></div>
+  <div id="hint" class="plate" hidden><ol><li data-h="0">Click a position.</li><li data-h="1">Build an M249.</li><li data-h="2">Start the wave.</li></ol></div>
+  <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd></button>
+  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="speed" data-k="speed" aria-pressed="false">Faster<kbd>F</kbd></button></div>
   <div id="banner" class="plate" hidden></div>
-  <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horden kommer</div></div>`);
+  <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
   // Röd puls i skärmkanten när basen tar skada. Ligger under gränssnittet.
   const hurt = document.createElement('div');
   hurt.className = 'hurt';
@@ -96,9 +96,9 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
   function update(sim) {
     const c = waveCounts(sim);
     set(el.day, String(sim.day).padStart(2, '0'));
-    set(el.wave, `Våg ${c.wave} av ${c.of}`);
+    set(el.wave, `Wave ${c.wave} of ${c.of}`);
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
-    set(el.left, sim.phase === 'lost' ? '' : `${c.left} kvar`);
+    set(el.left, sim.phase === 'lost' ? '' : `${c.left} left`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);

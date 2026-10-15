@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
+import { createHealthRings } from './rings.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -46,6 +47,7 @@ const SHOT_LOOK = {
 export function createView(scene, initialSim) {
   let sim = initialSim;
   const fx = createFx(scene);
+  const rings = createHealthRings(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // id → { key, group, model, angle }
@@ -73,6 +75,7 @@ export function createView(scene, initialSim) {
   }
   function syncZombies(dt) {
     const k = 1 - Math.exp(-dt * 22);
+    rings.begin();
     for (const z of sim.zombies) {
       if (z.breached) continue;
       let e = zombies.get(z.id);
@@ -95,30 +98,24 @@ export function createView(scene, initialSim) {
               if (oe) removeZombie(old, oe);
             }
           }
-          const t = e.fall * e.fall;
-          parts.body.rotation.x = parts.lean + (-Math.PI / 2 - parts.lean) * t;
-          parts.body.rotation.z *= 0.8;
-          parts.body.position.y = -0.22 * t;
-          parts.hipL.rotation.x *= 0.7; parts.hipR.rotation.x *= 0.7;
-          parts.shL.rotation.x += (-2.6 - parts.shL.rotation.x) * t * 0.5;
-          parts.shR.rotation.x += (-2.4 - parts.shR.rotation.x) * t * 0.5;
+          zombieFall(parts, e.fall * e.fall);
         }
         continue;
       }
+      // hälsoringen syns först när zombien tagit skada
+      if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale));
       e.ry = Math.atan2(P.dirX, P.dirZ);
       parts.root.rotation.y = e.ry;
       e.phase += (z.wob * STEP_PHASE - e.phase) * k;
       if (z.attacking) {
         // slår med armarna mot hindret
         e.chop += dt * 11;
-        zombieWalk(parts, 0);
-        parts.body.rotation.x = parts.lean + 0.15;
-        parts.shL.rotation.x = -1.9 + Math.sin(e.chop) * 0.8;
-        parts.shR.rotation.x = -1.9 + Math.sin(e.chop + Math.PI) * 0.8;
+        zombieAttack(parts, e.chop);
       } else {
         zombieWalk(parts, e.phase);
       }
     }
+    rings.end();
     for (const [id, e] of zombies) if (e.seen !== frame) removeZombie(id, e);
     if (corpses.length && corpses.some(id => !zombies.has(id))) corpses = corpses.filter(id => zombies.has(id));
   }

@@ -67,7 +67,7 @@ Varje bana har 5 dagar. Förslag i ordning: **Riksvägen** (en väg, lärbana), 
 
 ## Gränssnitt
 
-Samma stil som i proven: mörka plattor, stencilsiffror, kort för byggmenyn. Klicka på en position för att bygga eller uppgradera. Forskningsträdet nås mellan dagarna. Kortspråket är svenskt och klarspråk: en text per sak och inga interna ord.
+Samma stil som i proven: mörka plattor, stencilsiffror, kort för byggmenyn. Klicka på en position för att bygga eller uppgradera. Forskningsträdet nås mellan dagarna. Spelartexten är på engelska (Olas beslut 2026-10-15), bara ett språk, kort och militärt rakt: en text per sak och inga interna ord. Dokumenten är kvar på svenska.
 
 ## Teknik
 
