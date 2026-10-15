@@ -4,12 +4,13 @@ import { mat, mesh, canvasTex } from './kit.js';
 import {
   GP, createBatch, frame, seeded, villa, preschool, shop, hedge, fence, mailbox, gardenTree, trampoline, furniture,
   car, trailer, lamp, curb, spruce, pine, birch, iceRink, rinkSign, roundaboutIsland, playground, tallLamp, sportHall,
+  rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard,
 } from './gnesta-kit.js';
 import { buildSurroundings } from './gnesta-ghost.js';
 import { createFortify } from './fortify.js';
 import { distPolyline, distPoly, inPoly, w as px2w } from '../data/gnesta.js';
 
-const PPM = 14;                          // markens pixlar per meter
+const PPM_DEFAULT = 14;                  // markens pixlar per meter (en större bana kan ange färre)
 
 // ---------- mönster för marken ----------
 function pattern(size, base, specks, n, rMax, extra) {
@@ -28,6 +29,7 @@ function pattern(size, base, specks, n, rMax, extra) {
 
 function paintGround(map) {
   const { x0, x1, z0, z1 } = map.ground.bounds;
+  const PPM = map.ground.ppm ?? PPM_DEFAULT;
   const W = Math.round((x1 - x0) * PPM), H = Math.round((z1 - z0) * PPM);
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
@@ -80,8 +82,9 @@ function paintGround(map) {
   poly(map.ground.gravelField, P.gravel, 3);
   for (const f of map.ground.forest) poly(f, P.forest, 10);
 
-  // tomter: klippt gräs, uppfarter
+  // tomter: klippt gräs, uppfarter. Radhusens gårdar likaså.
   for (const p of map.lots.plots) poly(p.corners, P.lawn, 1.5);
+  for (const y of map.yards?.yards ?? []) poly(y.front, P.lawn, 1.5);
   for (const p of map.lots.plots) if (p.drive) line([p.drive.a, p.drive.b], p.drive.width, p.drive.surface === 'paving' ? P.paving : P.gravel, { cap: 'butt' });
 
   // ishallens plan och parkeringen
@@ -111,14 +114,13 @@ function paintGround(map) {
   line([...R.island, R.island[0]], R.ring * 2, P.asphalt);
   poly(R.island, P.lawn);
   // vändplaner där stickgatorna slutar
-  for (const id of ['spur1', 'spur2', 'spur3']) {
-    const rd = map.roads.find(x => x.id === id), [ex, ez] = rd.pts[rd.pts.length - 1];
+  for (const rd of map.roads.filter(x => x.turn || ['spur1', 'spur2', 'spur3'].includes(x.id))) {
+    const [ex, ez] = rd.pts[rd.pts.length - 1];
     g.beginPath(); g.arc(X(ex), Z(ez), 3.6 * PPM, 0, 7); g.fillStyle = '#8d887a'; g.fill();
     g.beginPath(); g.arc(X(ex), Z(ez), 3.35 * PPM, 0, 7); g.fillStyle = P.asphalt; g.fill();
   }
-  // blekt mittlinje på Sigtunavägen
-  const sig = map.roads.find(x => x.center);
-  line(sig.pts, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
+  // blekt mittlinje på Sigtunavägen (och Dansutvägen)
+  for (const sig of map.roads.filter(x => x.center)) line(sig.pts, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
   // parkeringsrutor
   g.save(); g.strokeStyle = 'rgba(225,218,200,0.55)'; g.lineWidth = 0.12 * PPM;
   for (const row of map.parking.bays) for (const [x, z] of row.lines) {
@@ -244,7 +246,7 @@ export function buildGnesta(scene, map) {
     const h = p.house;
     if (h) {
       const M = frame(null, h.x, 0, h.z, h.ry);
-      if (h.kind === 'preschool') preschool(b, M, { ...h, w: Math.max(h.w, 13), d: Math.max(h.d, 7.5) });
+      if (h.kind === 'preschool') forskola(b, M, { ...h, w: Math.max(h.w, 13), d: Math.max(h.d, 7.5) });
       else if (h.kind === 'shop') shop(b, M, h);
       else villa(b, M, h);
     }
@@ -262,6 +264,21 @@ export function buildGnesta(scene, map) {
     }
   }
   playground(b, frame(null, map.playground.center[0], 0, map.playground.center[1], map.playground.ry));
+
+  // ---------- Gnesta Norr: radhusen, gårdarnas murar och staket, parkeringarna, förskolans gård ----------
+  for (const R of map.rows ?? []) {
+    b.tag = null;
+    rowHouse(b, frame(null, R.x, 0, R.z, R.ry), R);
+  }
+  for (const w of map.yards?.brick ?? []) { b.tag = { kind: 'junk', what: 'wall', x: (w.a[0] + w.b[0]) / 2, z: (w.a[1] + w.b[1]) / 2 }; brickWall(b, w.a[0], w.a[1], w.b[0], w.b[1], w.h); }
+  for (const f of map.yards?.plank ?? []) {
+    const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]) || 1;
+    b.tag = { kind: 'fence', ax: f.a[0], az: f.a[1], dx: (f.b[0] - f.a[0]) / L, dz: (f.b[1] - f.a[1]) / L };
+    plankFence(b, f.a[0], f.a[1], f.b[0], f.b[1], f.h);
+  }
+  b.tag = null;
+  for (const L of map.parkingLots ?? []) parkingLot(b, frame(null, L.x, 0, L.z, L.ry), { ...L, rows: L.rows.length });
+  if (map.forskolaYard) { const Y = map.forskolaYard; forskolaYard(b, frame(null, Y.center[0], 0, Y.center[1], Y.ry), Y); }
 
   // ---------- ishallen, rondellen och parkeringen ----------
   const hr = map.iceRink;
@@ -286,6 +303,7 @@ export function buildGnesta(scene, map) {
   const blocked = (x, z) => roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)
     || map.lots.blocks.some(B => inPoly(x, z, B.outer))
     || inPoly(x, z, map.parking.poly) || distPoly(x, z, map.roundabout.island) < 9
+    || (map.clearings ?? []).some(poly => inPoly(x, z, poly))
     || Math.hypot(x - hr.x, z - hr.z) < hr.len / 2 + 9
     || (map.sporthall && Math.hypot(x - map.sporthall.x, z - map.sporthall.z) < map.sporthall.len / 2 + 12);
   let trees = 0;

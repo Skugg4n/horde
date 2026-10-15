@@ -547,3 +547,173 @@ export function sportHall(b, M, o) {
     b.put(UNIT.prism, M, L[0], A.h, L[1], A.len + 0.5, 0.9, A.wid + 0.5, GP.hallBlue);
   }
 }
+
+// ---------- Gnesta Norr: radhusen ----------
+// Färgerna ur Olas bilder: gult tegel nertill, mörkbrun stående panel upptill och i gavlarna,
+// bruna tegeltak, svarta skorstenar med plåthuv, vita dörrar och fönsterbågar.
+export const RP = {
+  brick: '#c2a962', brickDark: '#a38c4d', brickCap: '#8f8a7e', wood: '#43301f', woodDark: '#35251a',
+  tile: '#6b4332', tileDark: '#5b3a2c', tileLine: '#4a2f23', chimney: '#2c2826', cap: '#5f6062',
+  door: '#e2ded3', frame: '#e6e2d6', plank: '#4b3626', plankPost: '#3a2a1e', pump: '#d9d7d0',
+  lot: '#5f5a52', paint: '#dcd6c6',
+};
+// Radhuslänga. Lokal ram: längan längs x, entréerna mot +z, mitt vid marken.
+// o: { units, unitW, depth, storeys (1 | 2), seed, roofColor ('tile' | 'tileDark') }
+// Varje lägenhet: vit dörr i en indragen entré under takfoten, ett fönster bredvid, en låg
+// tegelpelare mot grannen, skorsten på nocken, en värmepump ibland. Två våningar: panel upptill.
+export function rowHouse(b, M, o) {
+  const r = seeded(o.seed ?? 7);
+  const n = o.units, uw = o.unitW, L = n * uw, D = o.depth;
+  const PL = 0.3, two = o.storeys === 2;
+  const gH = 2.4, wallH = two ? 5.0 : 2.4, top = PL + wallH;
+  const roofC = RP[o.roofColor] ?? RP.tile;
+  b.box(M, 0, PL / 2, 0, L + 0.12, PL, D + 0.12, GP.plinth);
+  // bottenvåningen i tegel, en mörkare skift vid foten
+  b.box(M, 0, PL + gH / 2, 0, L, gH, D, RP.brick);
+  b.box(M, 0, PL + 0.18, 0, L + 0.02, 0.36, D + 0.02, RP.brickDark);
+  if (two) {
+    // övervåningen: stående panel, lite utskjutande mot framsidan
+    b.box(M, 0, PL + gH + (wallH - gH) / 2, 0.08, L, wallH - gH, D + 0.16, RP.wood);
+    for (let x = -L / 2 + 0.3; x < L / 2; x += 0.55) for (const sz of [-1, 1]) b.box(M, x, PL + gH + (wallH - gH) / 2, sz * (D / 2 + 0.17) + 0.08, 0.06, wallH - gH, 0.03, RP.woodDark);
+  } else {
+    // takfotsbräda i mörkt trä
+    for (const sz of [-1, 1]) b.box(M, 0, top - 0.15, sz * (D / 2 + 0.02), L + 0.02, 0.3, 0.05, RP.wood);
+  }
+  // gavlarna: trekant i mörkt trä
+  const pitch = 0.47, rh = (D / 2) * Math.tan(pitch);
+  b.put(UNIT.prism, M, 0, top, 0, L, rh, D, RP.wood);
+  // taket: två fall med lite större utsprång mot framsidan (skyddar entréerna)
+  const ovS = 0.35, t = 0.14;
+  for (const side of [-1, 1]) {
+    const ov = side > 0 ? 0.75 : 0.5, Ls = (D / 2 + ov) / Math.cos(pitch);
+    const zc = side * (D / 2 + ov) / 2, yc = top + rh - ((D / 2 + ov) / 2) * Math.tan(pitch);
+    const nx = Math.sin(pitch) * side, ny = Math.cos(pitch);
+    b.box(M, 0, yc + ny * t / 2, zc + nx * t / 2, L + ovS * 2, t, Ls, roofC, 'matte', 0, side * pitch);
+    // tegelraderna: några mörka streck längs takfallet, i takfallets egen ram
+    const S = frame(M, 0, yc + ny * t / 2, zc + nx * t / 2, 0, side * pitch);
+    for (let k = 1; k <= 5; k++) b.box(S, 0, t / 2 + 0.012, Ls * (k / 6 - 0.5), L + ovS * 2, 0.025, 0.07, RP.tileLine);
+  }
+  b.box(M, 0, top + rh + 0.06, 0, L + ovS * 2, 0.12, 0.26, RP.tileDark);
+  // per lägenhet
+  for (let i = 0; i < n; i++) {
+    const x0 = -L / 2 + i * uw, xc = x0 + uw / 2, flip = i % 2 ? -1 : 1;
+    const dx = xc + flip * uw * 0.24;
+    // entrén: vit dörr i en mörk nisch, tegelpelare mot grannen
+    b.box(M, dx, PL + 1.1, D / 2 + 0.02, 1.25, 2.25, 0.04, '#2c2a26');
+    b.box(M, dx, PL + 1.05, D / 2 + 0.05, 0.92, 2.08, 0.05, RP.door);
+    b.box(M, dx + flip * 0.32, PL + 1.0, D / 2 + 0.09, 0.05, 0.05, 0.04, GP.metal, 'metal');
+    b.box(M, dx, PL + 0.04, D / 2 + 0.55, 1.4, 0.1, 1.0, GP.paving);
+    if (i > 0) b.box(M, x0, PL + 1.15, D / 2 + 0.45, 0.32, 2.3, 0.9, RP.brick);
+    // fönster bredvid dörren
+    const wx = xc - flip * uw * 0.2;
+    b.box(M, wx, PL + 1.45, D / 2 + 0.03, 1.15, 1.2, 0.06, RP.frame);
+    b.box(M, wx, PL + 1.45, D / 2 + 0.06, 0.95, 1.0, 0.04, r() < 0.3 ? GP.glassSky : GP.glass, 'glass');
+    // lampa vid dörren, värmepump ibland
+    b.box(M, dx - flip * 0.75, PL + 1.9, D / 2 + 0.08, 0.14, 0.2, 0.1, GP.lampHead);
+    if (r() < 0.4) b.box(M, wx + flip * 0.2, 0.45, D / 2 + 0.28, 0.8, 0.6, 0.32, RP.pump, 'metal');
+    // baksidan: altandörr och fönster
+    b.box(M, xc - uw * 0.15, PL + 1.15, -D / 2 - 0.03, 1.5, 2.1, 0.06, RP.frame);
+    b.box(M, xc - uw * 0.15, PL + 1.15, -D / 2 - 0.06, 1.3, 1.9, 0.04, GP.glass, 'glass');
+    if (two) for (const ux of [-0.25, 0.25]) for (const sz of [-1, 1]) {
+      b.box(M, xc + ux * uw, PL + gH + 1.3, sz * (D / 2 + 0.2) + 0.08, 1.05, 1.1, 0.05, RP.frame);
+      b.box(M, xc + ux * uw, PL + gH + 1.3, sz * (D / 2 + 0.23) + 0.08, 0.85, 0.9, 0.03, GP.glass, 'glass');
+    }
+    // skorsten på nocken, en per lägenhet
+    const cx = xc + flip * uw * 0.18, ch = rh + 0.85;
+    b.box(M, cx, top + ch / 2 + 0.1, -0.35, 0.46, ch, 0.46, RP.chimney);
+    b.box(M, cx, top + ch + 0.18, -0.35, 0.62, 0.08, 0.62, RP.cap, 'metal');
+    b.box(M, cx, top + ch + 0.3, -0.35, 0.3, 0.18, 0.3, RP.cap, 'metal');
+    // stuprör mellan lägenheterna
+    if (i > 0) b.box(M, x0 + 0.22, PL + wallH / 2, D / 2 + 0.72, 0.08, wallH, 0.08, GP.sheet, 'metal');
+  }
+}
+// Låg tegelmur längs a-b (världskoordinater), med täckplåt.
+export function brickWall(b, ax, az, bx, bz, h = 1.3) {
+  const L = Math.hypot(bx - ax, bz - az); if (L < 0.2) return;
+  const ry = -Math.atan2(bz - az, bx - ax), mx = (ax + bx) / 2, mz = (az + bz) / 2;
+  b.box(null, mx, h / 2, mz, L, h, 0.24, RP.brick, 'matte', ry);
+  b.box(null, mx, 0.15, mz, L + 0.01, 0.3, 0.25, RP.brickDark, 'matte', ry);
+  b.box(null, mx, h + 0.03, mz, L + 0.04, 0.06, 0.32, RP.brickCap, 'matte', ry);
+}
+// Plankstaket längs a-b: stolpar och tät panel i mörkt trä.
+export function plankFence(b, ax, az, bx, bz, h = 1.6) {
+  const L = Math.hypot(bx - ax, bz - az); if (L < 0.3) return;
+  const ry = -Math.atan2(bz - az, bx - ax);
+  const M = frame(null, ax, 0, az, ry);
+  for (let x = 0; x <= L + 0.01; x += Math.max(1.2, L / Math.ceil(L / 2))) b.box(M, x, h / 2 + 0.05, 0, 0.1, h + 0.1, 0.1, RP.plankPost);
+  b.box(M, L / 2, h / 2 + 0.08, 0.05, L, h - 0.05, 0.04, RP.plank);
+  b.box(M, L / 2, h + 0.06, 0.05, L, 0.05, 0.1, RP.plankPost);
+}
+// Parkering med vita vinklar vid rutornas hörn (som på bilderna). Lokal ram: rutraden längs x,
+// rutorna mot +z. o: { len, depth, rows (1 | 2), bay }. Asfalten ligger tunt ovanpå marken.
+export function parkingLot(b, M, o) {
+  const bay = o.bay ?? 2.6, len = o.len, depth = o.depth, rows = o.rows ?? 1;
+  b.box(M, 0, 0.012, 0, len, 0.024, depth, RP.lot, 'matte', 0, 0, 0, { noShadow: true });
+  const n = Math.floor((len - 1) / bay);
+  const bd = Math.min(5, depth / rows - 0.3);
+  for (let row = 0; row < rows; row++) {
+    const sz = rows === 2 ? (row ? 1 : -1) : -1, z0 = sz * depth / 2;
+    for (let i = 0; i <= n; i++) {
+      const x = -n * bay / 2 + i * bay;
+      // vinkeln: kort streck in i rutan och ett tvärs, vid rutans inre ände
+      const zi = z0 - sz * (bd - 0.45);
+      b.box(M, x, 0.03, zi, 0.11, 0.012, 0.9, RP.paint, 'matte', 0, 0, 0, { noShadow: true });
+      b.box(M, x, 0.03, zi - sz * 0.42, 0.7, 0.012, 0.11, RP.paint, 'matte', 0, 0, 0, { noShadow: true });
+      // och ett kort streck vid rutans yttre ände
+      b.box(M, x, 0.03, z0 - sz * 0.5, 0.11, 0.012, 0.7, RP.paint, 'matte', 0, 0, 0, { noShadow: true });
+    }
+  }
+}
+
+// ---------- Förskola Ringleken ----------
+// Förskolans byggnad: Gnestas långa låga hus (villans regler, samma tak), med färgade skivor
+// vid fönstren, skärmtak och en barnvagnsbod. o: som preschool.
+export function forskola(b, M, o) {
+  preschool(b, M, o);
+  const W = o.w, D = o.d, colors = ['#7c3a2c', '#3e5566', '#4f6a3a', '#c49a3c'];
+  for (let i = 0; i < 4; i++) {
+    const x = -W / 2 + W * (0.12 + i * 0.25);
+    b.box(M, x, 1.2, D / 2 + 0.05, 0.5, 1.6, 0.05, colors[i]);
+    b.box(M, x, 1.2, -D / 2 - 0.05, 0.5, 1.6, 0.05, colors[(i + 2) % 4]);
+  }
+  // barnvagnsbod vid gaveln
+  b.box(M, W / 2 + 1.6, 1.0, D / 2 - 1.2, 2.2, 2.0, 2.4, '#7a6146');
+  b.box(M, W / 2 + 1.6, 2.1, D / 2 - 1.2, 2.6, 0.12, 2.8, GP.roof.charcoal, 'matte', 0, 0.1);
+}
+// Förskolans lekgård: lågt grönt staket runt, sandlåda, lekstuga, gungor, rutschkana och en
+// klätterställning. Lokal ram: w längs x, d längs z, mitt vid marken.
+export function forskolaYard(b, M, o) {
+  const W = o.w, D = o.d, r = seeded(o.seed ?? 3);
+  const fenceC = '#3f5a3a';
+  const edge = (ax, az, bx, bz) => {
+    const L = Math.hypot(bx - ax, bz - az), ry = -Math.atan2(bz - az, bx - ax), F = frame(M, ax, 0, az, ry);
+    for (let x = 0; x <= L + 0.01; x += 1.25) b.box(F, x, 0.55, 0, 0.06, 1.1, 0.06, fenceC, 'metal');
+    for (const y of [0.15, 1.05]) b.box(F, L / 2, y, 0, L, 0.04, 0.04, fenceC, 'metal');
+    for (let x = 0.15; x < L; x += 0.15) b.box(F, x, 0.6, 0, 0.02, 0.9, 0.02, fenceC, 'metal');
+  };
+  edge(-W / 2, -D / 2, W / 2, -D / 2); edge(W / 2, -D / 2, W / 2, D / 2 - 2); edge(W / 2, D / 2, -W / 2, D / 2); edge(-W / 2, D / 2, -W / 2, -D / 2);
+  // sand under lekredskapen
+  b.box(M, -W * 0.12, 0.02, -D * 0.15, W * 0.6, 0.04, D * 0.5, GP.sand, 'matte', 0, 0, 0, { noShadow: true });
+  // lekstuga: röd med vita knutar
+  const H = frame(M, W * 0.28, 0, D * 0.25, 0.1);
+  b.box(H, 0, 0.75, 0, 1.8, 1.5, 1.5, '#8a3426');
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(H, sx * 0.9, 0.75, sz * 0.75, 0.08, 1.5, 0.08, GP.trim);
+  b.put(UNIT.prism, H, 0, 1.5, 0, 2.1, 0.7, 1.9, '#3e3e3e');
+  b.box(H, 0, 0.6, 0.77, 0.5, 1.0, 0.04, GP.trim);
+  // gungor, rutschkana, klätterställning och sandlåda (som Gnestas lekplats, mindre)
+  const G2 = frame(M, -W * 0.22, 0, -D * 0.28, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(G2, sx * 1.5, 1.0, sz * 0.5, 0.1, 2.1, 0.1, GP.wood, 'matte', 0, sz * 0.22);
+  b.box(G2, 0, 2.05, 0, 3.2, 0.12, 0.12, GP.wood);
+  for (const x of [-0.7, 0.7]) { for (const k of [-0.16, 0.16]) b.box(G2, x + k, 1.35, 0, 0.02, 1.4, 0.02, GP.sheet, 'metal'); b.box(G2, x, 0.62, 0, 0.45, 0.06, 0.22, GP.play[r() < 0.5 ? 0 : 2]); }
+  const C = frame(M, -W * 0.05, 0, D * 0.12, -0.3);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(C, sx * 0.7, 1.0, sz * 0.7, 0.12, 2.0, 0.12, GP.wood);
+  b.box(C, 0, 1.0, 0, 1.6, 0.1, 1.6, GP.wood);
+  b.put(UNIT.prism, C, 0, 2.0, 0, 1.8, 0.6, 1.8, GP.play[1]);
+  b.box(C, 0, 0.55, 1.75, 0.6, 0.07, 2.2, GP.play[2], 'matte', 0, 0.45);
+  const S = frame(M, -W * 0.3, 0, D * 0.3, 0);
+  for (const [x, z, w, d] of [[0, -1, 2.2, 0.16], [0, 1, 2.2, 0.16], [-1, 0, 0.16, 2.2], [1, 0, 0.16, 2.2]]) b.box(S, x, 0.14, z, w, 0.28, d, GP.wood);
+  b.box(S, 0, 0.05, 0, 1.9, 0.1, 1.9, GP.sand);
+  // bänk och några buskar längs staketet
+  b.box(M, W * 0.3, 0.42, -D * 0.38, 1.6, 0.07, 0.42, GP.wood);
+  for (let i = 0; i < 5; i++) { const x = -W / 2 + 1 + r() * (W - 2); b.put(UNIT.blob, M, x, 0.55, D / 2 - 0.8, 1.2, 1.0, 1.1, r.pick(GP.hedge), 'matte', r() * 6); }
+}

@@ -7,7 +7,7 @@ import { UNIT } from './gnesta-kit.js';
 import { PALETTE } from './kit.js';
 
 const PPM = 2;                     // markens pixlar per meter (lågupplöst med flit)
-const EXTENT = { x0: -230, x1: 250, z0: -190, z1: 200 };
+const EXTENT_DEFAULT = { x0: -230, x1: 250, z0: -190, z1: 200 };   // banan kan ange sin egen (surroundings.extent)
 const HAZE = new THREE.Color(PALETTE.haze);
 const WALL = new THREE.Color('#b9b4a6'), ROOF = new THREE.Color('#77766f'), LINE = new THREE.Color('#ece4cf');
 
@@ -48,6 +48,7 @@ function ghostMaterial(crisp, fade, base) {
 }
 
 function paintGhostGround(sur) {
+  const EXTENT = sur.extent ?? EXTENT_DEFAULT;
   const W = Math.round((EXTENT.x1 - EXTENT.x0) * PPM), H = Math.round((EXTENT.z1 - EXTENT.z0) * PPM);
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
@@ -85,7 +86,7 @@ function paintGhostGround(sur) {
 }
 
 // Dimskivan: genomskinlig inne i den skarpa ytan, tätnar utåt till nästan helt dis.
-function fogSheet(crisp, fade) {
+function fogSheet(crisp, fade, EXTENT) {
   const m = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, fog: false,
     uniforms: { uHaze: { value: HAZE }, uCrisp: { value: new THREE.Vector4(crisp.x0, crisp.z0, crisp.x1, crisp.z1) }, uFade: { value: fade } },
@@ -109,6 +110,7 @@ function fogSheet(crisp, fade) {
 
 export function buildSurroundings(scene, map) {
   const sur = map.surroundings;
+  const EXTENT = sur.extent ?? EXTENT_DEFAULT;
   const group = new THREE.Group();
   group.name = 'ghosts';
 
@@ -168,7 +170,7 @@ export function buildSurroundings(scene, map) {
   const outline = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false }));
   group.add(outline);
 
-  group.add(fogSheet(sur.crisp, sur.fade));
+  group.add(fogSheet(sur.crisp, sur.fade, EXTENT));
   scene.add(group);
   return { group, stats: { buildings: all.length, calls: 6 } };
 }

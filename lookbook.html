@@ -44,7 +44,7 @@ import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
 import { asphaltTexture } from './src/render/world.js';
-import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP } from './src/render/gnesta-kit.js';
+import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP, rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard } from './src/render/gnesta-kit.js';
 import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
 import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost } from './src/render/models.js';
@@ -347,6 +347,50 @@ const hvMen = [];
     }
     label(u0, BV, 'Hemvärnet at a house corner', which === 'before' ? 'before: the marker in hand, where each man will go' : 'after: corner, car, hedge and ditch', 9.5);
   });
+}
+
+// rad 10: Gnesta Norr (1.0.0). Radhuslängorna (en och två våningar), gårdarnas tegelmurar och
+// plankstaket, parkeringen med vita vinklar, Förskola Ringleken och dess lekgård. Samma byggsats
+// som i spelet, allt i en batch.
+{
+  const NV = 196, b = createBatch(), r = seeded(41);
+  const yaw = Math.atan2(R.x, R.z) - Math.PI / 2 + 0.35;            // framsidan snett mot kameran
+  const rowAt = (u, v, o, t, sub) => {
+    const p = at(u, v), M = frame(null, p.x, 0, p.z, yaw);
+    rowHouse(b, M, o);
+    // murar mellan förgårdarna, plankstaket mellan baksidorna (som i spelet)
+    const L = o.units * o.unitW, D = o.depth, c = Math.cos(yaw), s = Math.sin(yaw);
+    const w = (lx, lz) => [p.x + lx * c + lz * s, p.z - lx * s + lz * c];
+    for (let i = 0; i <= o.units; i++) {
+      const lx = -L / 2 + i * o.unitW, end = i === 0 || i === o.units;
+      const [ax, az] = w(lx, D / 2), [bx, bz] = w(lx, D / 2 + (end ? 3.2 : 2.6));
+      brickWall(b, ax, az, bx, bz, end ? 1.7 : 1.25);
+      const [cx, cz] = w(lx, -D / 2), [dx, dz] = w(lx, -D / 2 - 4.5);
+      plankFence(b, cx, cz, dx, dz, 1.6);
+    }
+    const [ex, ez] = w(-L / 2, -D / 2 - 4.5), [fx, fz] = w(L / 2, -D / 2 - 4.5);
+    plankFence(b, ex, ez, fx, fz, 1.6);
+    label(u, v, t, sub, 9);
+  };
+  rowAt(-20, NV, { units: 5, unitW: 3.6, depth: 5.6, storeys: 1, seed: 3, roofColor: 'tile' }, 'Terraced row', '1 storey, wood gable');
+  rowAt(8, NV, { units: 5, unitW: 3.6, depth: 5.6, storeys: 2, seed: 4, roofColor: 'tileDark' }, 'Terraced row', '2 storeys, panel upstairs');
+  // parkeringen framför, med några bilar
+  {
+    const p = at(-20, NV + 17), M = frame(null, p.x, 0, p.z, yaw);
+    parkingLot(b, M, { len: 18, depth: 5.4, rows: 1, bay: 2.6 });
+    for (const [i, k] of [[0, 0], [2, 3], [3, 1], [5, 5]]) car(b, frame(M, -18 / 2 + 1.3 + 2.6 * i + 0.1, 0, -0.1, Math.PI / 2 + (i % 2 ? Math.PI : 0)), GP.car[k]);
+    label(-20, NV + 17, 'Parking lot', 'white corner marks', 3);
+  }
+  {
+    const p = at(6, NV + 24), yawF = yaw;
+    forskola(b, frame(null, p.x, 0, p.z, yawF), { w: 14, d: 8, facade: 'yellow', roofColor: 'charcoal', seed: 12, kind: 'preschool' });
+    const y = at(24, NV + 24);
+    forskolaYard(b, frame(null, y.x, 0, y.z, yawF), { w: 11, d: 14, seed: 5 });
+    label(6, NV + 24, 'Förskola Ringleken', 'low building, coloured panels', 5);
+    label(24, NV + 24, 'Förskola yard', 'fence, playhouse, swings, slide', 3.5);
+  }
+  void r;
+  b.flush(scene);
 }
 
 // dra och zooma

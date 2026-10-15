@@ -1,5 +1,6 @@
-// Banor som data. Gnesta bor i en egen fil (gnesta.js) och läggs till sist.
+// Banor som data. Gnesta och Gnesta Norr bor i egna filer (gnesta.js, gnesta-norr.js) och läggs till sist.
 import { gnesta } from './gnesta.js';
+import { gnestaNorr } from './gnesta-norr.js';
 import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
 import { ROAD_HALF } from '../sim/cells.js';
 
@@ -81,6 +82,7 @@ export const MAPS = {
     ],
   },
   gnesta,
+  'gnesta-norr': gnestaNorr,
 };
 MAPS.riksvagen.place = e4Place(MAPS.riksvagen.props, MAPS.riksvagen.path);
 // Dikena (0.9.0): rutorna närmast asfalten på båda sidor är vägdiken. Hemvärnet ligger där
