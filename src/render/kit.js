@@ -13,6 +13,7 @@ export const PALETTE = {
   // värn och vapen
   sandbag: ['#8f8160', '#7f7254', '#9a8c6a', '#867a5b'],
   gunMetal: '#2a2b28', gunDark: '#1d1e1c', shield: '#8a8b64', ammo: '#4d4f3a', crate: '#55603f', crateDark: '#3d4530', stencil: '#c9bd98',
+  grenade: '#4a5232', grenadeBand: '#c9a23a', fireball: '#ffb347', scorch: '#14110d',
   // soldat
   soldierSkin: '#a58467', soldierShirt: '#55593f', soldierPants: '#4a4d38', helmet: '#4f5438', vest: '#43472f',
   // hinder

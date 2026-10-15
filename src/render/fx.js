@@ -1,9 +1,12 @@
-// Effekter: spårljus, mynningsflamma, hylsor, köttbitar, damm och blodstänk.
+// Effekter: spårljus, mynningsflamma, hylsor, köttbitar, damm, blodstänk, granater och smällar.
 // Allt ligger i fasta förråd (instanser och ringbuffertar), så inget skapas per skott.
 import * as THREE from 'three';
 import { rnd, pick, canvasTex, PALETTE as P } from './kit.js';
 
-const TRACER_CAP = 48, HEAVY_CAP = 24, CASING_CAP = 140, BIT_CAP = 260, SPLAT_CAP = 150, FLASH_N = 4;
+const TRACER_CAP = 48, HEAVY_CAP = 24, CASING_CAP = 140, BIT_CAP = 420, SPLAT_CAP = 150, FLASH_N = 4;
+// Granater: i luften, eldklot, brännmärken. BOOM_N ljus läggs sist i mynningsförrådet när det
+// byggs, så att antalet ljus är fast från start och shadern aldrig byggs om.
+const GRENADE_CAP = 12, FIRE_CAP = 24, SCORCH_CAP = 30, BOOM_N = 2;
 // Två sorters spårljus: lätt (M249, tunt och snabbt) och tungt (M2, tjockt och ljust).
 const TRACER_KIND = {
   light: { speed: 110, len: 1.2, w: 0.045, color: P.tracer, cap: TRACER_CAP },
@@ -13,15 +16,19 @@ const TRACER_KIND = {
 const FLASH_KIND = {
   light: { size: 0.75, light: 45, fade: 80 },
   heavy: { size: 2.1, light: 140, fade: 40 },
+  boom: { size: 0, light: 260, fade: 12, distance: 18 },
 };
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 // Färger på småbitar: blod, betong, damm.
-const BIT_COLORS = { blood: new THREE.Color(P.gib), concrete: new THREE.Color(P.concreteDark), dust: new THREE.Color(P.dust), smoke: new THREE.Color('#5d5a52') };
+const BIT_COLORS = { blood: new THREE.Color(P.gib), concrete: new THREE.Color(P.concreteDark), dust: new THREE.Color(P.dust), smoke: new THREE.Color('#5d5a52'),
+  dirt: P.dirtSpeck.map(c => new THREE.Color(c)), soot: new THREE.Color('#4a453e') };
+const FIRE_HOT = new THREE.Color('#ffd27a'), FIRE_MID = new THREE.Color(P.fireball), FIRE_END = new THREE.Color('#5a1e08'), BLACK = new THREE.Color(0, 0, 0);
 
 export function createFx(scene) {
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler(), tmpC = new THREE.Color();
+  const splatGeoFor = () => new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 
   function instanced(geo, material, cap, { shadow = false, color = false } = {}) {
     const im = new THREE.InstancedMesh(geo, material, cap);
@@ -51,7 +58,7 @@ export function createFx(scene) {
   const flashMat = new THREE.MeshBasicMaterial({ color: P.muzzleFlash, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const flashGeo = new THREE.PlaneGeometry(1.2, 0.7);
   const flashes = [];
-  for (let i = 0; i < FLASH_N; i++) {
+  for (let i = 0; i < FLASH_N + BOOM_N; i++) {
     const light = new THREE.PointLight(P.muzzle, 0, 14, 1.6);
     const mat = flashMat.clone();
     const plane = new THREE.Mesh(flashGeo, mat);
@@ -72,6 +79,17 @@ export function createFx(scene) {
     muzzle.localToWorld(f.plane.position.set(0.42 * f.kind.size, 0, 0));
     f.plane.rotateX(rnd(0, 3));
     f.plane.scale.set(f.kind.size * rnd(0.85, 1.15), f.kind.size * rnd(0.8, 1.2), 1);
+    f.k = 1;
+  }
+
+  // Smällens ljus: de två sista platserna i förrådet, turvis. Starkt men kort.
+  let boomNext = 0;
+  function boomLight(x, z) {
+    const f = flashes[FLASH_N + boomNext]; boomNext = (boomNext + 1) % BOOM_N;
+    f.kind = FLASH_KIND.boom;
+    f.light.position.set(x, 1.6, z);
+    f.light.distance = FLASH_KIND.boom.distance;
+    f.plane.visible = false;
     f.k = 1;
   }
 
@@ -146,11 +164,82 @@ export function createFx(scene) {
     splatIM.instanceMatrix.needsUpdate = true; splatIM.instanceColor.needsUpdate = true;
   }
 
+  // ---------- granater i luften ----------
+  const grenadeIM = instanced(new THREE.SphereGeometry(0.11, 8, 6).scale(1, 1.25, 1), new THREE.MeshStandardMaterial({ color: P.grenade, roughness: 0.7 }), GRENADE_CAP);
+  const flying = Array.from({ length: GRENADE_CAP }, () => ({ on: false, from: new THREE.Vector3(), to: new THREE.Vector3(), t: 0, dur: 1, h: 2, spin: 0 }));
+  let grenadeNext = 0;
+  // Bågen: från kastaren till nedslaget på dur sekunder, högre ju längre kastet är.
+  function grenade(from, to, dur) {
+    const g = flying[grenadeNext]; grenadeNext = (grenadeNext + 1) % GRENADE_CAP;
+    g.on = true; g.from.copy(from); g.to.copy(to); g.t = 0; g.dur = Math.max(0.1, dur);
+    g.h = 1.8 + from.distanceTo(to) * 0.28; g.spin = rnd(0, 6);
+  }
+
+  // ---------- smällen: eldklot, jord och skräp, rök, ljus, brännmärke ----------
+  const fireIM = instanced(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ffffff', blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }), FIRE_CAP, { color: true });
+  const fires = Array.from({ length: FIRE_CAP }, () => ({ on: false, p: new THREE.Vector3(), t: 0, life: 0.4, r0: 0.3, r1: 1 }));
+  let fireNext = 0;
+  // alphaMap läser gråskalan (grön kanal), så märket ritas i grått på svart, inte med alfa.
+  const scorchTex = canvasTex(128, (g, sz) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, sz, sz);
+    g.strokeStyle = 'rgb(120,120,120)'; g.lineCap = 'round';
+    for (let i = 0; i < 14; i++) {                               // sotstrålar ut från mitten
+      const a = rnd(0, 7), l = rnd(30, 60); g.lineWidth = rnd(2, 6);
+      g.beginPath(); g.moveTo(sz / 2, sz / 2); g.lineTo(sz / 2 + Math.cos(a) * l, sz / 2 + Math.sin(a) * l); g.stroke();
+    }
+    const grad = g.createRadialGradient(sz / 2, sz / 2, 2, sz / 2, sz / 2, sz / 2);
+    grad.addColorStop(0, 'rgb(215,215,215)'); grad.addColorStop(0.3, 'rgb(130,130,130)'); grad.addColorStop(0.7, 'rgb(35,35,35)'); grad.addColorStop(1, '#000');
+    g.globalCompositeOperation = 'lighten';
+    g.fillStyle = grad; g.fillRect(0, 0, sz, sz);
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#000';                                          // hål: trasig kant
+    for (let i = 0; i < 26; i++) { g.beginPath(); g.arc(sz / 2 + rnd(-56, 56), sz / 2 + rnd(-56, 56), rnd(3, 10), 0, 7); g.fill(); }
+  });
+  scorchTex.colorSpace = THREE.NoColorSpace;
+  const scorchIM = instanced(splatGeoFor(), new THREE.MeshStandardMaterial({
+    color: P.scorch, alphaMap: scorchTex, transparent: true, opacity: 0.85, roughness: 1, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1,
+  }), SCORCH_CAP, { shadow: true });
+  let scorchNext = 0;
+  function scorch(x, z, size) {
+    const i = scorchNext; scorchNext = (scorchNext + 1) % SCORCH_CAP;
+    q.setFromEuler(e.set(0, rnd(0, 7), 0));
+    m4.compose(v.set(x, 0.025 + (i % 20) * 0.0003, z), q, s.set(size, 1, size));
+    scorchIM.setMatrixAt(i, m4); scorchIM.instanceMatrix.needsUpdate = true;
+  }
+  function blast(x, z, r = 3) {
+    for (let k = 0; k < 3; k++) {
+      const f = fires[fireNext]; fireNext = (fireNext + 1) % FIRE_CAP;
+      f.on = true; f.t = 0; f.life = rnd(0.3, 0.45);
+      f.p.set(x + rnd(-0.5, 0.5), 0.5 + k * 0.35, z + rnd(-0.5, 0.5));
+      f.r0 = r * 0.1; f.r1 = r * rnd(0.28, 0.38);
+    }
+    for (let i = 0; i < 26; i++) {                                // jord som kastas upp och ut
+      const a = rnd(0, 7), sp = rnd(2, 7);
+      bit(x, 0.3, z, pick(BIT_COLORS.dirt), rnd(0.07, 0.16), rnd(1.0, 1.6), 18).v.set(Math.cos(a) * sp, rnd(4, 10), Math.sin(a) * sp);
+    }
+    for (let i = 0; i < 8; i++) {                                 // skräp: asfalt- och betongflisor
+      const a = rnd(0, 7), sp = rnd(3, 8);
+      bit(x, 0.4, z, BIT_COLORS.concrete, rnd(0.06, 0.12), 1.2, 20).v.set(Math.cos(a) * sp, rnd(3, 7), Math.sin(a) * sp);
+    }
+    for (let i = 0; i < 9; i++) {                                 // dammring längs marken
+      const a = i / 9 * 7;
+      const d = bit(x + Math.cos(a) * 0.6, 0.3, z + Math.sin(a) * 0.6, BIT_COLORS.dust, rnd(0.14, 0.2), rnd(0.6, 0.9), -0.3);
+      d.v.set(Math.cos(a) * rnd(2, 3.5), rnd(0.2, 0.6), Math.sin(a) * rnd(2, 3.5)); d.grow = 0.45;
+    }
+    for (let i = 0; i < 4; i++) {                                 // svart rök som stiger
+      const d = bit(x + rnd(-0.4, 0.4), 0.9, z + rnd(-0.4, 0.4), BIT_COLORS.soot, rnd(0.2, 0.3), rnd(0.8, 1.1), -1.2);
+      d.v.set(rnd(-0.3, 0.3), rnd(1.2, 2), rnd(-0.3, 0.3)); d.grow = 0.5;
+    }
+    boomLight(x, z);
+    scorch(x, z, r * rnd(1.0, 1.25));
+  }
+
   // ---------- bildruta ----------
   function update(dt) {
     for (const f of flashes) {
       if (f.k <= 0) continue;
-      f.light.intensity = f.kind.light * f.k; f.mat.opacity = f.k; f.plane.visible = true;
+      f.light.intensity = f.kind.light * f.k; f.mat.opacity = f.k; f.plane.visible = f.kind.size > 0;
       f.k *= Math.pow(0.5, dt * f.kind.fade);
       if (f.k < 0.02) { f.k = 0; f.light.intensity = 0; f.plane.visible = false; }
     }
@@ -198,6 +287,33 @@ export function createFx(scene) {
     }
     bitIM.instanceMatrix.needsUpdate = true;
     if (bitColorDirty) { bitIM.instanceColor.needsUpdate = true; bitColorDirty = false; }
+
+    for (let i = 0; i < GRENADE_CAP; i++) {
+      const g = flying[i]; if (!g.on) continue;
+      g.t += dt;
+      const k = g.t / g.dur;
+      if (k >= 1) { g.on = false; grenadeIM.setMatrixAt(i, ZERO); continue; }
+      v.lerpVectors(g.from, g.to, k); v.y += g.h * 4 * k * (1 - k);
+      q.setFromEuler(e.set(g.spin + g.t * 9, 0, g.t * 6));
+      m4.compose(v, q, s.set(1, 1, 1));
+      grenadeIM.setMatrixAt(i, m4);
+    }
+    grenadeIM.instanceMatrix.needsUpdate = true;
+
+    let fireColor = false;
+    for (let i = 0; i < FIRE_CAP; i++) {
+      const f = fires[i]; if (!f.on) continue;
+      f.t += dt;
+      const k = f.t / f.life;
+      if (k >= 1) { f.on = false; fireIM.setMatrixAt(i, ZERO); continue; }
+      const r = f.r0 + (f.r1 - f.r0) * (1 - (1 - k) * (1 - k));
+      m4.compose(v.copy(f.p).setY(f.p.y + k * 0.8), q.identity(), s.set(r, r * 0.85, r));
+      fireIM.setMatrixAt(i, m4);
+      tmpC.copy(k < 0.3 ? FIRE_HOT : FIRE_MID).lerp(k < 0.3 ? FIRE_MID : FIRE_END, k < 0.3 ? k / 0.3 : (k - 0.3) / 0.7).lerp(BLACK, Math.max(0, k - 0.6) / 0.4);
+      fireIM.setColorAt(i, tmpC); fireColor = true;
+    }
+    fireIM.instanceMatrix.needsUpdate = true;
+    if (fireColor) fireIM.instanceColor.needsUpdate = true;
   }
 
   function clear() {
@@ -208,10 +324,13 @@ export function createFx(scene) {
     for (let i = 0; i < CASING_CAP; i++) { casings[i].on = false; casingIM.setMatrixAt(i, ZERO); }
     for (let i = 0; i < BIT_CAP; i++) { bits[i].on = false; bitIM.setMatrixAt(i, ZERO); }
     for (let i = 0; i < SPLAT_CAP; i++) splatIM.setMatrixAt(i, ZERO);
-    for (const im of [casingIM, bitIM, splatIM]) im.instanceMatrix.needsUpdate = true;
+    for (let i = 0; i < GRENADE_CAP; i++) { flying[i].on = false; grenadeIM.setMatrixAt(i, ZERO); }
+    for (let i = 0; i < FIRE_CAP; i++) { fires[i].on = false; fireIM.setMatrixAt(i, ZERO); }
+    for (let i = 0; i < SCORCH_CAP; i++) scorchIM.setMatrixAt(i, ZERO);
+    for (const im of [casingIM, bitIM, splatIM, grenadeIM, fireIM, scorchIM]) im.instanceMatrix.needsUpdate = true;
     for (const f of flashes) { f.k = 0; f.light.intensity = 0; f.plane.visible = false; }
     flashOwner = new Map(); flashNext = 0;
   }
 
-  return { tracer, flash, muzzleSmoke, casing, gibs, chips, puff, splat, update, clear };
+  return { tracer, flash, muzzleSmoke, casing, gibs, chips, puff, splat, grenade, blast, update, clear };
 }

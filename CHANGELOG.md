@@ -1,5 +1,29 @@
 # Ändringslogg
 
+## 0.3.1 (2026-10-15)
+
+Rättningar efter granskningen av 0.3.0.
+
+- Fartknappen syns även under nedräkningen, så en dold 2x eller 3x finns inte längre.
+- Start wave och Next wave går samma väg för händelser som resten av spelet (en gemensam händelseloop i main.js).
+- Gamla sparfiler: ett känt forsknings-id med trasig nivå behålls i stället för att tappas.
+- Banan hämtas ur sparfilens `mapId`, och resultatskylten visar banans namn.
+- Texter: "Faster M249" och "Maxed".
+- Granatens ledning räknar med zombiens verkliga fart (taggtråd, bjässar).
+
+## 0.3.0 (2026-10-15)
+
+Granater, forskning i nivåer och nästa våg med bonus (H015, H016, H022), plus tre önskemål från Olas speltest.
+
+- Forskning i nivåer: M2 (upplåsning, sedan skada I och II), M249 rate I till III, Heavy wire I och II, Concrete barrier (upplåsning, sedan hp I och II), Bigger budget I till III, New position och Grenades I till III. Varje nod visar prickar för köpta nivåer, vad nästa nivå gör och vad den kostar. Krav kan peka på en nivå i en annan nod.
+- Gamla sparfiler fungerar: platta forsknings-id (t.ex. `m249Rate`) blir nivå I när sparfilen läses.
+- Granatlåda: när Grenades är forskat köps den för $ 200 i positionens panel, bredvid Upgrade. Bara positioner med låda kastar, och de gör det själva när horden klumpar ihop sig eller en bjässe kommer nära. Lådan står bredvid skytten.
+- Granaten flyger i en båge och smäller: eldklot, jord och skräp, damm, rök, ett kort starkt ljus, ett brännmärke på vägen, kroppar som kastas undan och en liten skakning av kameran. Visningssidan visar lådan, granaten och smällen.
+- Next wave: efter en klarad våg räknar knappen ner 5 s och startar nästa våg själv. Mellanslag eller knappen kallar den tidigt, även mitt i en våg, och ger en bonus som syns som "+$ 20 early". Knappen visar "Next wave (Space) 4s · +$ 20".
+- Fart i tre steg: 1x, 2x och 3x. F eller knappen stegar runt. Gäller även under nedräkningen.
+- Zombierna rör sig mer obehagligt: ryck i huvud och axlar, snubbelsteg och korta kast framåt, ben och armar i otakt, huvudet som knycker upp mot basen. Löparna darrar och fäktar, bjässarna stöter tungt i varje steg. Bara bild, simuleringen är oförändrad, och varje zombie rycker likadant varje gång (styrt av dess id).
+- Taggtråden biter mer: zombierna går i 40 % av farten (förut 50 %) och tråden håller 60 s (förut 40). Dag 2 och 3 fick fler löpare och bjässen lite mer hp så att kurvan håller. Se balansloggen.
+
 ## 0.2.2 (2026-10-15)
 
 Tre av Olas beslut efter första genomspelningen (H012, H013, H014). Inga balanssiffror ändrade.

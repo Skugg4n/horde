@@ -11,30 +11,32 @@ import { mountHud, waveText } from './ui/hud.js';
 import { slotPanel, cellPanel, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
 import { newProgress, startConfig, dayResult, buyResearch } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle, zombiePos } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle, zombiePos, buyKit, callNextWave } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { cellAt } from './sim/cells.js';
 import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
-// Snabbare spelar dubbelt så många fasta steg per bildruta; taket följer med.
+// Fart 1x, 2x, 3x: fler fasta steg per bildruta (simuleringen har samma dt), taket följer med.
+const SPEEDS = [1, 2, 3];
 const MAX_STEPS_PER_SPEED = 5;
 const BASE_TOAST_GAP = 4;          // sekunder mellan två "Basen tar skada!"
 const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
-const map = MAPS.riksvagen;
+const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
+let progress = loadProgress();
+const map = MAPS[progress.mapId] ?? MAPS.riksvagen;
 const { renderer, scene, camera } = createScene(document.getElementById('stage'), map);
 buildWorld(scene, map);
 document.getElementById('ver').textContent = 'v' + VERSION;
 const uiRoot = document.getElementById('ui');
 
-let progress = loadProgress();
 let day = Math.min(progress.unlockedDay, map.days.length);
 // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
 // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
 let sim = createSim(startConfig(progress, day) ?? startConfig(newProgress(), 1));
 const view = createView(scene, sim);
-const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed() });
+const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go() });
 const dim = document.createElement('div');
 dim.className = 'dim';
 uiRoot.prepend(dim);
@@ -60,6 +62,7 @@ const actions = {
   build: withCash((id, type) => build(sim, id, type)),
   upgrade: withCash(id => upgrade(sim, id)),
   sell: withCash(id => sell(sim, id)),
+  kit: withCash(id => buyKit(sim, id)),
   place: withCash((cell, type) => placeObstacle(sim, cell, type)),
   remove: withCash(cell => removeObstacle(sim, cell)),
   range: r => { panelRange = r; },
@@ -86,34 +89,62 @@ document.addEventListener('pointerdown', e => {
   closePanel();
 });
 
+// En enda väg för händelser: efter varje step och efter startWave/callNextWave.
+function handleEvents() {
+  const evs = sim.events;
+  view.consume(evs);
+  if (evs.some(e => e.t === 'breach')) onBreach();
+  if (evs.some(e => e.t === 'blast')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
+  for (const ev of evs) {
+    if (ev.t === 'waveStart') hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
+    else if (ev.t === 'earlyBonus') hud.early(ev.amount);
+    else if (ev.t === 'kill' && ev.bounty) {
+      tmpV.set(ev.x, 2, ev.z).project(camera);
+      hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
+    }
+  }
+  sim.events = [];
+}
+
+// Mellanslag och knappen: Start wave före våg 1, annars Next wave (under nedräkningen eller mitt
+// i en våg). Tidigt kall ger bonus, som visas under kassan.
 function go() {
-  if (mode !== 'play' || sim.phase !== 'build') return;
-  const index = sim.waveIndex;
-  if (!startWave(sim)) return;
-  hud.banner(waveText(sim.dayCfg, index), 4.5);
+  if (mode !== 'play') return;
+  if (sim.phase === 'build' && sim.nextWaveIn == null) {
+    if (!startWave(sim)) return;
+  } else {
+    if (!callNextWave(sim).ok) return;
+  }
+  handleEvents();
   if (hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
 }
 
 // ---------- fart ----------
 let speed = 1;
+// F och knappen stegar 1x, 2x, 3x och runt. Gäller under vågen och nedräkningen.
 function toggleSpeed() {
-  if (mode !== 'play' || sim.phase !== 'wave') return;
-  speed = speed === 1 ? 2 : 1;
-  hud.setSpeed(speed === 2);
+  if (mode !== 'play' || !(sim.phase === 'wave' || sim.phase === 'build')) return;
+  speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+  hud.setSpeed(speed);
 }
 
 // ---------- basen tar skada ----------
-let lastBaseToast = -Infinity, shakeT = 0;
+let lastBaseToast = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
 const camHome = camera.position.clone();
 function onBreach() {
   hud.baseHit();
-  shakeT = SHAKE_TIME;
+  shake(SHAKE_TIME, SHAKE_AMP);
   if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Base under attack!', 'warn'); }
+}
+// Samma skak för basen och granaterna; en starkare pågående skakning skrivs inte över av en svagare.
+function shake(len, amp) {
+  if (shakeT > 0 && shakeAmp * (shakeT / shakeLen) > amp) return;
+  shakeT = shakeLen = len; shakeAmp = amp;
 }
 function shakeCamera(dt) {
   if (shakeT <= 0) return;
   shakeT = Math.max(0, shakeT - dt);
-  const a = SHAKE_AMP * (shakeT / SHAKE_TIME);
+  const a = shakeAmp * (shakeT / shakeLen);
   camera.position.set(camHome.x + (Math.random() - 0.5) * 2 * a, camHome.y, camHome.z + (Math.random() - 0.5) * 2 * a);
   if (shakeT === 0) camera.position.copy(camHome);
 }
@@ -202,7 +233,7 @@ function startDay(n) {
   sim = createSim(cfg);
   view.setSim(sim);
   hud.reset();
-  speed = 1; hud.setSpeed(false);
+  speed = 1; hud.setSpeed(1);
   entryAt = null; shakeT = 0; camera.position.copy(camHome);
   hinting = n === 1 && !progress.seenHint;
   setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
@@ -220,7 +251,7 @@ function finishDay() {
   showResult();
 }
 function showResult() {
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel }, {
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel, mapName: map.name }, {
     onRetry: () => startDay(day),
     onNext: () => startDay(day + 1),
     onResearch: () => showResearch('result'),
@@ -270,7 +301,7 @@ function hudRects() {
     if (r.width) out.push({ x0: r.left - PAD, y0: r.top - PAD, x1: r.right + PAD, y1: r.bottom + PAD });
   }
   // Knappen och raden nere i mitten byter med fasen; hela den ytan hålls fri.
-  out.push({ x0: innerWidth / 2 - 230, y0: innerHeight - 90, x1: innerWidth / 2 + 230, y1: innerHeight });
+  out.push({ x0: innerWidth / 2 - 320, y0: innerHeight - 90, x1: innerWidth / 2 + 320, y1: innerHeight });
   // Vågens rad uppe i mitten.
   out.push({ x0: innerWidth / 2 - 260, y0: 0, x1: innerWidth / 2 + 260, y1: 64 });
   return out;
@@ -317,17 +348,15 @@ function tick(now) {
   const frameDt = Math.min((now - last) / 1000, 0.1);
   last = now; time += frameDt;
 
-  const fast = speed === 2 && sim.phase === 'wave';
-  const maxSteps = MAX_STEPS_PER_SPEED * (fast ? 2 : 1);
-  if (mode === 'play') acc += frameDt * (fast ? 2 : 1);
+  // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
+  const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
+  const mul = running ? speed : 1;
+  const maxSteps = MAX_STEPS_PER_SPEED * mul;
+  if (mode === 'play') acc += frameDt * mul;
   let steps = 0;
   while (acc >= DT && steps < maxSteps) {
-    step(sim, DT); view.consume(sim.events);
-    if (sim.events.some(e => e.t === 'breach')) onBreach();
-    for (const ev of sim.events) if (ev.t === 'kill' && ev.bounty) {
-      tmpV.set(ev.x, 2, ev.z).project(camera);
-      hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
-    }
+    step(sim, DT);
+    handleEvents();
     acc -= DT; steps++;
   }
   if (steps === maxSteps) acc = Math.min(acc, DT);

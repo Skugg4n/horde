@@ -1,6 +1,6 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress } from './progress.js';
+import { newProgress, migrateResearch } from './progress.js';
 import { MAPS } from '../data/maps.js';
 
 const KEY = 'horde.save';
@@ -62,7 +62,7 @@ export function loadProgress(storage) {
     keepBroken(s, raw);
     return newProgress();
   }
-  return { ...newProgress(), ...parsed };
+  return { ...newProgress(), ...parsed, research: migrateResearch(parsed.research) };
 }
 
 // Returnerar false om framsteget inte gick att spara; kastar aldrig.

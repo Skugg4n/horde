@@ -47,11 +47,11 @@ test('dag 1 med bara en M249 vinns, men basen tar lite skada', () => {
 });
 
 test('M2 går att köpa före dag 3 om man klarar dag 1 och 2', () => {
-  const m2 = RESEARCH.find(r => r.id === 'm2').cost;
+  const m2 = RESEARCH.find(r => r.id === 'm2').tiers[0].cost;
   for (const log of logs) {
     const intel = [1, 2].reduce((sum, d) => sum + tries(log, d).reduce((a, r) => a + r.intel, 0), 0);
     assert.ok(intel >= m2, `forskning efter dag 1 och 2: ${intel}, M2 kostar ${m2}`);
-    assert.ok(tries(log, 3)[0].had.includes('m2'), 'policyn har M2 på dag 3 försök 1');
+    assert.ok(tries(log, 3)[0].had.includes('m2.1'), 'policyn har M2 på dag 3 försök 1');
   }
 });
 
