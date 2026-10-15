@@ -255,7 +255,7 @@ test('spärr tvärs över gatan: hela bredden, betalt per ruta, rivs tillsammans
     '..........',
     '##########',
   ]);
-  const map = { id: 't', grid: wide, baseHp: 20, freeObstacles: ['block'],
+  const map = { id: 't', grid: wide, baseHp: 20, unlocks: ['block'],
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
   const sim = createSim({ map, day: 1, cash: 1000, seed: 1 });
   const k = (i, j) => j * wide.w + i;

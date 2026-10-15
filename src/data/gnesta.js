@@ -636,9 +636,9 @@ export const gnesta = {
   baseHp: 20, days: DAYS,
   // Basen (vägspärren med skylten) står på rondellens ö, vänd mot öster.
   basePlace: { x: ROUNDABOUT.center[0] - 0.4, z: ROUNDABOUT.center[1] + 0.2, ry: 0, scale: 0.62 },
-  // Barrikaden (Concrete barrier) kräver forskningen även här (0.5.2: speltestet köpte den dag 1
-  // utan forskning medan forskningen sa "Requires Heavy wire I"). freeObstacles finns kvar i
-  // stats.js för banor som vill ge ett hinder gratis.
+  // Banans upplåsningar (0.6.0): dag 1 lär ut barrikaden, så den finns här utan forskning.
+  // På E4 kräver den forskningen som förut (Concrete barrier, efter Heavy wire I).
+  unlocks: ['block'],
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },
 };

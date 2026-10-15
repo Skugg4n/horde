@@ -187,7 +187,7 @@ export function build(sim, key, type) {
   const check = checkSpot(sim, key);
   if (!check.ok) return check;
   if (!WEAPONS[type]) return { ok: false, reason: 'okänd' };
-  if (!weaponUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
+  if (!weaponUnlocked(type, sim.research, sim.map)) return { ok: false, reason: 'ej upplåst' };
   const cost = WEAPONS[type].cost;
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
   sim.cash -= cost;

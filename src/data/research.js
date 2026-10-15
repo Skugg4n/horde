@@ -17,7 +17,7 @@ export const RESEARCH = [
     { cost: 90, requires: [], effect: 'Barbed wire lasts three times as long.', durability: 3 },
   ] },
   { id: 'block', name: 'Concrete barrier', tiers: [
-    { cost: 60, requires: ['wireTough.1'], effect: 'New obstacle that stops the horde.' },
+    { cost: 60, requires: ['wireTough.1'], effect: 'New obstacle that stops the horde. Gnesta has it from day 1.' },
     { cost: 70, requires: [], effect: 'Barriers take 50 % more blows.', hp: 1.5 },
     { cost: 120, requires: [], effect: 'Barriers take twice the blows.', hp: 2 },
   ] },

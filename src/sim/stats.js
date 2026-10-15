@@ -27,12 +27,14 @@ export function maxGuns(research) {
   return BASE_GUNS + tierOf(research, 'positions');
 }
 
-export function weaponUnlocked(type, research) {
-  return type === 'm249' || tierOf(research, type) >= 1;
+// map.unlocks: vapen och hinder som banan ger utan forskning (Gnesta lär ut barrikaden dag 1).
+// Forskningen gäller som vanligt på andra banor.
+export const mapUnlocks = (map, id) => !!map?.unlocks?.includes(id);
+export function weaponUnlocked(type, research, map = null) {
+  return type === 'm249' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
 }
-// map.freeObstacles: hinder som banan ger utan forskning (Gnesta lär ut barrikader dag 1).
 export function obstacleUnlocked(type, research, map = null) {
-  return type === 'wire' || !!map?.freeObstacles?.includes(type) || tierOf(research, type) >= 1;
+  return type === 'wire' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
 }
 export function weaponStats(type, level, research) {
   const w = WEAPONS[type], l = level - 1;
