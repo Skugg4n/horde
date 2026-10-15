@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.5.0 (2026-10-15)
+
+Fri placering och siktlinjer, på båda banorna.
+
+- Positionerna är borta. Vapenkorten nere till vänster (eller 1 och 2) startar placeringen: ett spöke av pjäsen följer pekaren i 2 m-rutor, grönt där den får stå och rött med skälet där den inte får ("On the road", "Inside a house", "Too close to another gun", "Max guns reached (research more)", "In the forest", "Something in the way"). Räckvidden syns, och gatrutorna inom den som pjäsen ser lyser; gata bakom hus förblir mörk. Klick ställer ut, Esc eller högerklick avbryter.
+- Pjäser får stå överallt där zombier inte går: tomter, gräs, parkeringen, uppfarter, vägkanten. Inte på gatan, i hus (en meter runt väggarna räknas till huset), på rondellens ö, i den täta skogen eller på bilar och liknande. Minst 5 m mellan två pjäser.
+- Högst fyra pjäser. New position heter More positions och har tre nivåer, en pjäs till per nivå (80, 140, 220).
+- Siktlinjer: hus skymmer, häckar, staket, bilar och barrikader är låga och skymmer inte. Sikten räknas en gång när pjäsen ställs ut (rutvis stråle mot husrutor), siktet och granatlådan tar bara zombier i rutor pjäsen ser. Prioriteten är som förut: minst kvar att gå.
+- Klick på en utställd pjäs öppnar panelen (uppgradera, granatlåda, sälj) och visar vad den ser.
+- E4 har fått ett eget placeringsrutnät ur bandata (vägen, ruinen, bilar och betongsuggor). Gnestas bilar på parkeringen är bandata, så att placeringen vet var de står.
+- Dag 1-tipset: Pick the M249. Place it by the road. Start the wave.
+- Sparfil v3: en gammal New position blir More positions I. En v2-sparfil sparas oförändrad som `horde.save.v2` när den läses. Ingen sparfil raderas.
+- Balans: E4 dag 2 och 3 och Gnesta dag 1 till 5 har nya hp-faktorer, och balanspolicyerna ställer pjäserna där de ser mest av hordens väg. Gnestas smarta policy spärrar nu Sigtunavägen vid rondellen, så att horden går över fältet. Detaljer och skäl i `docs/balance-log.md`. E4:s balanskvitto är nytt, avsiktligt.
+
 ## 0.4.2 (2026-10-15)
 
 Gnesta balanserad dag 1 till 5, och barrikaden kostar ett fast pris per spärr.

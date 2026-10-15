@@ -1,6 +1,6 @@
 # Horde
 
-Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr på E4 i dagsljus: bygg kulsprutor på positionerna längs vägen, lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
+Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr på E4 i dagsljus: ställ ut kulsprutor där de ser vägen (hus skymmer), lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
 
 Version 0.3.1: E4 dag 1 till 3, två vapen (M249 och M2 .50 cal), två hinder, tre sorters zombier (Walker, Runner, Brute) och forskning mellan dagarna. Framsteget sparas i webbläsaren.
 

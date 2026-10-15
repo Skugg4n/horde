@@ -114,6 +114,32 @@ Förluster rasar gradvis: 87 till 470 s från första skadan till noll (naiv, oc
 
 Att speltesta: smart vinner alla dagar på första försöket, så "kan förlora dag 5 första gången" sker bara med svagare spel än policyn. Dag 5 är smal (2 till 5 kvar): en sämre spelare förlorar, och omförsök ger lite eftersom forskningen tar slut runt dag 4. Granatlådorna är fortfarande ett stöd (1 till 3 liv), inte huvudsaken.
 
+## 0.5.0: fri placering och siktlinjer
+
+Positionerna är borta. En pjäs ställs i valfri 2 m-ruta där zombierna inte går (minst 5 m mellan pjäserna, högst fyra plus More positions I till III), och den skjuter bara mot zombier i gatrutor den ser: husen skymmer, häckar, staket, bilar och barrikader gör det inte. Det ändrade allt i balansen, eftersom en pjäs nu kan stå precis vid vägkanten där den ser mest.
+
+Policyerna (scripts/balance.mjs):
+- `coveragePlan`: varje öppen ruta får sin täckning, hordens vägrutor inom räckvidden som syns därifrån. Pjäserna väljs en i taget efter det de lägger till; en vägruta som redan ses av k valda pjäser väger 0,5^k på E4 och 0,7^k på Gnesta, så att pjäserna sprids men ändå hjälps åt. Skäl: utan avtagande står alla pjäser i en klunga och ser samma bit (starkast i simuleringen, men ingen människa gör så och den gav inga skillnader mellan policyerna); med 0,5 på Gnesta hamnade pjäserna utspridda längs hela slingan och sköt en och en.
+- E4 `greedy`: planen över hela vägen med M249:ns räckvidd. Pjäserna hamnar vid (5, -5), (11, -5), (5, 5), (11, 5): tätt intill vägen mitt på sträckan. Policyn `strong` (fasta positioner C, B, D, A) togs bort, den har inget att välja mellan längre.
+- E4 `minimal`: en M249 på tre platser en förstagångsspelare gärna väljer (A tätt intill vägen, B snett framför basen, C långt från vägen bakom basen), ingen av dem den bästa.
+- Gnesta `smart`: spärren flyttad från Sigtunavägen mellan stickgata 1 och 2 till Sigtunavägen strax öster om rondellen (-45, 24). Horden måste upp första stickgatan, längs cykelvägen och ner över det öppna fältet till rondellen. Vägrutorna närmast basen väger dubbelt mot ingången. Skäl: prov med samma pjäser och olika spärrar (3 seeds, dag 1): varvet runt kvarteret gick mellan husen där pjäserna såg 25 till 30 vägrutor, och smart var inte bättre än naive (bas kvar 6, 7, 14 mot 6, 9, 6 med naives egna platser). Vid rondellen ser bästa platsen 42 rutor över fältet, och smart vann med 16, 16, 20 mot naives 6, 9, 8. Två spärrar (rondellen och stickgatorna) var sämre än en.
+- Gnesta `naive`: som förut, men pjäserna efter täckning av sin egen väg.
+
+E4 (fem seeds):
+- Dag 2 hp-faktor 1,5 (ny). Skäl: med pjäserna vid vägkanten vann girig dag 2 utan skada (bas 20 i alla seeds); målet är snitt 4 till 17. Nu 10, 11, 7, 11, 14.
+- Dag 3 hp-faktor 1,15 (ny). Skäl: girig vann dag 3 på första försöket (bas 2 till 5) trots målet att första försöket ska förloras. Med 1,08 vann en seed direkt och en på andra försöket, med 1,15 förloras försök 1 och 2 i alla seeds (basen faller på 39 till 45 s) och försök 3 vinns med bas 6 till 15 efter m2, wireTough, budget, block, grenade, m249Rate och More positions I. Dag 3 utan forskning förloras fortfarande.
+- Dag 1 orörd: girig vinner utan skada, en M249 ensam vinner med snittskada 3,7 till 5,3 över A, B, C (mål 1 till 6).
+- Fyra pjäser i stället för tre utan forskning: E4 hade A, B, C öppna och D bakom New position. Nu fyra, fem med More positions I.
+- Kvittot i tests/route-e4.test.js är nytt (3a2cb567, 7663 tecken). Skäl: fri placering, policyn strong borta, nya hp-faktorer. Det byts avsiktligt en gång här.
+
+Gnesta (fem seeds, efter E4 med girig policy):
+- Startforskningen från E4 är större än förut (E4 dag 3 tar tre försök i stället för två): m2.1, wireTough.1, budget.1, block.1, grenade.1, m249Rate.1, positions.1, m2.2, m249Rate.2.
+- hp-faktorer dag 1 till 5: 2,8 / 3,8 / 4,2 / 4,6 / 4,0 till 3,8 / 4,6 / 4,8 / 5,6 / 4,6. Skäl: fri placering gjorde alla dagar lätta (smart vann dag 1 till 5 direkt med bas 15 till 20, naive likaså). Varje dag trimmades för sig i ordning med samma mål som 0.4.2.
+- Resultat: dag 1 smart vinner direkt med bas 16 till 20 (snitt 17,4), naive 4 till 12 (snitt 7,8). Dag 2 smart direkt (snitt 12,6), naive förlorar i tre av fem. Dag 3 smart på försök 1 eller 2 (förlust faller på 135 s). Dag 4 smart direkt med snitt 7, med bara E4:s forskning förloras den, granatlådorna ger lika eller mer bas kvar i varje seed. Dag 5 smart på försök 1 eller 2 med snitt 4,4, lägst av alla dagar. Flest levande 239 (gräns 250).
+- Märkt: naive vinner dag 3 med full bas medan smart förlorar första försöket. Skogsvägen öppnar då, och med spärren vid rondellen går alla tre ingångarna över fältet i en lång kö; naive möter dem på Sigtunavägen där pjäserna ser lika långt. Testerna kräver inget om naive dag 3, men det är värt ett speltest: kanske ska spärren läggas på ett annat ställe när skogsvägen öppnar.
+
+Ny kostnad i forskningen: More positions I 80 (kräver M2 I, som förut), II 140, III 220. Balanspolicyn köper II sist i ordningen; ingen körning kom dit än.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.
