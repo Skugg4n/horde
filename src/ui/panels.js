@@ -8,7 +8,7 @@ import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, 
 import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
-import { acrossCells } from '../sim/sim.js';
+import { acrossCells, checkObstacle } from '../sim/sim.js';
 import { ICONS } from './icons.js';
 import { money } from './format.js';
 
@@ -31,6 +31,7 @@ const REASONS = {
   'upptagen': 'Tile already taken.',
   'okänd': 'Can\'t do that.',
   'redan': 'This position already has a kit.',
+  'zombier': 'Zombies in the way',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -207,10 +208,15 @@ export function cellPanel(root, index, sim, actions) {
     if (!ob) {
       const n = count(s);
       ui.head.innerHTML = grid ? `<div class="t">Street</div><div class="sub">One price for the whole width (${n} ${n === 1 ? 'tile' : 'tiles'})</div>` : `<div class="t">Road tile</div>`;
-      const types = Object.keys(OBSTACLES).filter(t => obstacleUnlocked(t, s.research, s.map));
+      // Alla hinder visas; de som inte är forskade är låsta och säger vad som krävs.
+      const types = Object.keys(OBSTACLES);
       ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], OBSTACLES[t].name, OBSTACLES[t].desc)).join('')}</div>`;
       for (const b of ui.body.querySelectorAll('.card')) {
+        const locked = !obstacleUnlocked(b.dataset.id, s.research, s.map);
+        b.classList.toggle('locked', locked);
+        b.dataset.locked = locked ? '1' : '';
         b.addEventListener('click', () => {
+          if (b.dataset.locked) { ui.say(`Research ${researchNode(b.dataset.id)?.name ?? OBSTACLES[b.dataset.id].name} first.`); return; }
           const r = actions.place(index, b.dataset.id);
           if (!r.ok) ui.say(reasonText(r.reason));
         });
@@ -230,7 +236,15 @@ export function cellPanel(root, index, sim, actions) {
 
   function patch(s) {
     const ob = s.obstacles[index];
-    if (!ob) { for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost, s); return; }
+    if (!ob) {
+      for (const b of ui.body.querySelectorAll('.card')) {
+        const t = b.dataset.id, p = b.querySelector('[data-price]');
+        const why = b.dataset.locked ? 'Needs research' : checkObstacle(s, index, t).reason === 'zombier' ? reasonText('zombier') : null;
+        if (why) { if (p.textContent !== why) p.textContent = why; b.classList.add('off'); }
+        else patchCard(b, OBSTACLES[t].cost, s);
+      }
+      return;
+    }
     const line = lineOf(s);
     const f = Math.min(...line.map(frac));
     const cond = ui.head.querySelector('[data-cond]');
@@ -391,7 +405,18 @@ export function mainMenu(root, progress, { onDay, onResearch, onMap, version, de
     <div class="acts"><button type="button" class="act" data-a="research"><span class="a">Research</span><span class="p">You have ${progress.intel}</span></button></div>
     <div class="v">v${version}</div>`);
   for (const b of p.el.querySelectorAll('.day:not(.locked)')) b.addEventListener('click', () => onDay(Number(b.dataset.day)));
-  for (const b of p.el.querySelectorAll('.maptab:not(.locked)')) b.addEventListener('click', () => { if (b.dataset.map !== map.id) onMap?.(b.dataset.map); });
+  // Banbytet bygger en ny scen, vilket kan ta en stund: kortet markeras direkt ("Loading") och
+  // bytet görs först efter nästa målning, så att klicket syns (speltestet 0.5.1 trodde att
+  // första klicket gick förlorat). Fler klick under tiden gör ingenting.
+  let switching = false;
+  for (const b of p.el.querySelectorAll('.maptab:not(.locked)')) b.addEventListener('click', () => {
+    if (switching || b.dataset.map === map.id) return;
+    switching = true;
+    for (const t of p.el.querySelectorAll('.maptab')) t.classList.toggle('on', t === b);
+    b.classList.add('loading');
+    const sub = b.querySelector('.s'); if (sub) sub.textContent = 'Loading';
+    setTimeout(() => onMap?.(b.dataset.map), 40);
+  });
   on(p.el, '[data-a="research"]', onResearch);
   return p;
 }

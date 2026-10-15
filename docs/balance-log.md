@@ -140,6 +140,12 @@ Gnesta (fem seeds, efter E4 med girig policy):
 
 Ny kostnad i forskningen: More positions I 80 (kräver M2 I, som förut), II 140, III 220. Balanspolicyn köper II sist i ordningen; ingen körning kom dit än.
 
+## 0.5.2: kvitto för Gnesta
+
+- Gnestas balanslogg har ett fingeravtryck som E4 (`tests/route-gnesta.test.js`, '2cf5b351', 39527 tecken): smart policy dag 1 till 5 över fem seeds plus naiv dag 1 till 5. Körningen delas med `tests/balance-gnesta.test.js` via `tests/gnesta-logs.js`.
+- Ingen balansändring. Barrikaden kräver nu forskningen även på Gnesta och en spärr får inte läggas på levande zombier; båda kvittona (E4 och Gnesta) är oförändrade, eftersom E4-spelaren redan har block.1 och policyerna aldrig spärrar där zombier står.
+- Gnestas längsta zoom är 68 m (var 84).
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

@@ -11,19 +11,19 @@ import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
-import { newProgress, startConfig, dayResult, buyResearch, mapState, mapUnlocked, selectMap } from './meta/progress.js';
+import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
-import { loadSettings, saveSettings, normalizeSettings } from './meta/settings.js';
+import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
 import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
-// Fart 1x, 2x, 3x: fler fasta steg per bildruta (simuleringen har samma dt), taket följer med.
-const SPEEDS = [1, 2, 3];
+// Fart 1x, 2x, 3x (SPEEDS i settings.js): fler fasta steg per bildruta (simuleringen har samma dt),
+// taket följer med. Farten sparas i inställningarna och följer med mellan dagarna.
 const MAX_STEPS_PER_SPEED = 5;
 const BASE_TOAST_GAP = 4;          // sekunder mellan två "Basen tar skada!"
 const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
@@ -70,7 +70,7 @@ function loadMap(id) {
 const routeKeys = { now: null, preview: null };
 loadMap(progress.mapId);
 
-const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go() });
+const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go({ stack: true }) });
 const dim = document.createElement('div');
 dim.className = 'dim';
 uiRoot.prepend(dim);
@@ -225,26 +225,30 @@ function handleEvents() {
 }
 
 // Mellanslag och knappen: Start wave före våg 1, annars Next wave (under nedräkningen eller mitt
-// i en våg). Tidigt kall ger bonus, som visas under kassan.
-function go() {
+// i en våg). Tidigt kall ger bonus, som visas under kassan. Mitt i en våg staplar bara ett
+// uttryckligt klick på knappen eller Shift+Space (stack); mellanslaget ensamt gör då ingenting.
+function go({ stack = false } = {}) {
   if (mode !== 'play') return;
   if (sim.phase === 'build' && sim.nextWaveIn == null) {
     if (!startWave(sim)) return;
   } else {
-    if (!callNextWave(sim).ok) return;
+    if (!callNextWave(sim, { stack }).ok) return;
   }
   handleEvents();
   if (hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
 }
 
 // ---------- fart ----------
-let speed = 1;
-// F och knappen stegar 1x, 2x, 3x och runt. Gäller under vågen och nedräkningen.
+let settings = loadSettings();
+let speed = settings.speed;
+hud.setSpeed(speed);
+// F och knappen stegar 1x, 2x, 3x och runt. Gäller under vågen och nedräkningen. Sparas.
 const canSpeed = () => mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build');
 function setSpeed(n) {
   if (!canSpeed() || !SPEEDS.includes(n)) return;
   speed = n;
   hud.setSpeed(speed);
+  if (settings.speed !== n) { settings = normalizeSettings({ ...settings, speed: n }); saveSettings(settings); }
 }
 function toggleSpeed() {
   if (menu.isOpen()) return;
@@ -264,7 +268,8 @@ function shake(len, amp) {
   shakeT = shakeLen = len; shakeAmp = amp;
 }
 function shakeCamera(dt) {
-  if (shakeT <= 0) return;
+  // Pausad (dt 0): kameran står still bakom menyn och skakar vidare när spelet fortsätter.
+  if (shakeT <= 0 || dt <= 0) return;
   shakeT = Math.max(0, shakeT - dt);
   const a = shakeAmp * (shakeT / shakeLen);
   if (shakeT === 0) rig.setShake(0, 0);
@@ -403,10 +408,12 @@ addEventListener('keydown', e => {
     if (t) startPlacing(t);
   }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
-  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go(); }
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
+  if (e.key === 'Shift') hud.shift(true);
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
 }, true);
-addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); }, true);
+addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') hud.shift(false); }, true);
+addEventListener('blur', () => hud.shift(false));
 
 // ---------- dagcykeln ----------
 let mode = 'menu';
@@ -455,7 +462,7 @@ function startDay(n) {
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
-  speed = 1; hud.setSpeed(1);
+  hud.setSpeed(speed);
   entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
   hinting = n === 1 && !progress.seenHint;
   setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
@@ -568,10 +575,15 @@ if (DEBUG) window.__horde = { get placing() { return placing; }, get spot() { re
 
 // ---------- spelmenyn och paus ----------
 // Medan menyn är öppen går ingen tid i spelet (se tick). Scenen ritas ändå, så dammet rör sig.
-let settings = loadSettings();
+// Restart day och Main menu mitt i en dag räknar försöket (ny seed, som efter Try again).
+function abandon() {
+  if (mode !== 'play') return;
+  progress = abandonDay(progress, { day, mapId: map.id });
+  save();
+}
 const menu = mountMenu(uiRoot, {
   mode: () => mode, day: () => day, speed: () => speed, canSpeed, setSpeed,
-  resume: () => {}, restart: () => startDay(day), toMain: () => showMenu(),
+  resume: () => {}, restart: () => { abandon(); startDay(day); }, toMain: () => { abandon(); showMenu(); },
   settings: () => settings,
   setSetting: (k, v) => { settings = normalizeSettings({ ...settings, [k]: v }); saveSettings(settings); },
   // Öppnandet avbryter placering och panel: inget ska hänga kvar när spelet fortsätter.

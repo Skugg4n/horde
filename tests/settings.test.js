@@ -15,7 +15,7 @@ test('sparade inställningar läses tillbaka, under nyckeln horde.settings', () 
   const s = fake();
   assert.equal(saveSettings({ sound: 0.3, music: 0, soundMuted: true, musicMuted: false }, s), true);
   assert.ok(s.m.has('horde.settings'));
-  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false });
+  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false, speed: 1 });
 });
 
 test('trasig eller konstig data ger standardvärden och nivåerna hålls mellan 0 och 1', () => {
@@ -42,4 +42,12 @@ test('avstängd kanal ger volym 0', () => {
   const st = { sound: 0.5, music: 0.7, soundMuted: true, musicMuted: false };
   assert.equal(effectiveVolume(st, 'sound'), 0);
   assert.equal(effectiveVolume(st, 'music'), 0.7);
+});
+
+test('farten sparas och läses tillbaka; okänd fart ger 1x', () => {
+  const s = fake();
+  saveSettings({ ...DEFAULT_SETTINGS, speed: 3 }, s);
+  assert.equal(loadSettings(s).speed, 3);
+  assert.equal(normalizeSettings({ speed: 7 }).speed, 1);
+  assert.equal(normalizeSettings({ speed: '2' }).speed, 1);
 });

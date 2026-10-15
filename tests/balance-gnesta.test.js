@@ -4,17 +4,11 @@ import { gnestaCampaign, playGnestaDay, gnestaPlan, daySpawns } from '../scripts
 import { createSim, placeAcross, removeObstacle, acrossCells } from '../src/sim/sim.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { gnesta } from '../src/data/gnesta.js';
+import { SEEDS, logs, tries, naives } from './gnesta-logs.js';
 
-// Gnesta efter E4: spelaren har forskningen som en girig E4-körning slutar med. Fem
-// seed-förskjutningar, smart policy (barrikad vid rondellen, horden runt över fältet) dag 1 till 5, och naiv policy
-// (samma vapen, aldrig en barrikad) på dagens första försök med samma forskning.
-const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
-const logs = SEEDS.map(seedOffset => gnestaCampaign('smart', 6, { seedOffset }));
-const tries = (log, d) => log.filter(r => r.day === d);
+// Körningen (fem seeds, smart och naiv) ligger i gnesta-logs.js och delas med fingeravtrycket.
 const winIdx = (log, d) => tries(log, d).findIndex(r => r.won);
 const winner = (log, d) => tries(log, d).find(r => r.won);
-const naive = (log, d, i) => playGnestaDay(tries(log, d)[0].before, d, 'naive', { seedOffset: SEEDS[i] });
-const naives = logs.map((log, i) => [1, 2, 3, 4, 5].map(d => naive(log, d, i)));
 const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 test('dag 1: smart vinner direkt, naiv tar klart mer skada', () => {
@@ -92,7 +86,7 @@ test('smart planen lämnar en väg öppen och tvingar horden runt över fältet'
 });
 
 test('barrikaden: ett fast pris per spärr, hur bred gatan än är', () => {
-  const sim = createSim({ map: gnesta, day: 1, cash: 1000, seed: 1 });
+  const sim = createSim({ map: gnesta, day: 1, cash: 1000, research: ['wireTough.1', 'block.1'], seed: 1 });
   const cell = sim.route.cellAt(-3, 35);                 // Sigtunavägen, 4 rutor bred
   assert.ok(acrossCells(sim, cell).length >= 3);
   const r = placeAcross(sim, cell, 'block');

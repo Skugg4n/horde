@@ -58,6 +58,12 @@ export function dayResult(progress, { day, won, intelEarned, mapId = progress.ma
   };
 }
 
+// Dagen lämnas mitt i (Restart day eller Main menu): försöket räknas, så att nästa start får
+// en ny seed som efter Try again. Ingen forskning, inget upplåst.
+export function abandonDay(progress, { day, mapId = progress.mapId }) {
+  return dayResult(progress, { day, won: false, intelEarned: 0, mapId });
+}
+
 // Sparfil v1 (före 0.4.0): en bana, unlockedDay och attempts på toppen. Blir v3 med banans
 // framsteg under maps; övriga fält (seenHint m.m.) följer med.
 export function migrateV1(p) {

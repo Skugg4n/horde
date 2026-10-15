@@ -1,11 +1,12 @@
-// Inställningar (ljud och musik) i localStorage, skilda från sparfilen med framsteg.
+// Inställningar (ljud, musik och spelets fart) i localStorage, skilda från sparfilen med framsteg.
 // Läsning och skrivning kastar aldrig: utan lagring gäller standardvärdena.
 const KEY = 'horde.settings';
 
 // Spelet har inget ljud än. När det finns: sätt till true så försvinner tipset i menyn.
 export const AUDIO_READY = false;
 
-export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false });
+export const SPEEDS = [1, 2, 3];
+export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false, speed: 1 });
 
 const level = (x, fallback) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : fallback);
 
@@ -17,6 +18,8 @@ export function normalizeSettings(raw) {
     music: level(r.music, DEFAULT_SETTINGS.music),
     soundMuted: r.soundMuted === true,
     musicMuted: r.musicMuted === true,
+    // Farten följer med mellan dagarna och omstarterna (0.5.2).
+    speed: SPEEDS.includes(r.speed) ? r.speed : DEFAULT_SETTINGS.speed,
   };
 }
 

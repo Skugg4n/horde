@@ -100,3 +100,42 @@ test('när dagen är slut går det inte att lägga hinder', () => {
   assert.deepEqual(placeObstacle(s, 1, 'wire'), { ok: false, reason: 'fel läge' });
   assert.deepEqual(removeObstacle(s, 0), { ok: false, refund: 0 });
 });
+
+// 0.5.2: en spärr på levande zombier låste in dem i betongen. Nu nekas den.
+test('spärr på rutor med levande zombier nekas med skälet zombier (E4 och Gnesta)', async () => {
+  const { placeAcross, checkObstacle } = await import('../src/sim/sim.js');
+  const s = mk({ research: ['block.1'] });
+  startWave(s);
+  run(s, 21);                                   // första zombien står i ruta 0 (d 33 till 35)
+  assert.ok(s.zombies.some(z => !z.dead && s.route.inCell(z, 0)));
+  const cash = s.cash;
+  assert.deepEqual(placeObstacle(s, 0, 'block'), { ok: false, reason: 'zombier' });
+  assert.equal(s.cash, cash);
+  assert.equal(placeObstacle(s, 0, 'wire').ok, true, 'taggtråd går att lägga på dem');
+
+  const g = createSim({ map: MAPS.gnesta, day: 1, cash: 2000, research: ['wireTough.1', 'block.1'], seed: 3 });
+  startWave(g);
+  for (let i = 0; i < 30 * 20; i++) step(g, 1 / 30);   // horden är inne på Sigtunavägen
+  const z = g.zombies.find(q => !q.dead && g.route.validCell(q.cell) && g.route.span(q.cell).length >= 2);
+  assert.ok(z, 'en zombie på en gata');
+  // Spärren över gatan genom en ruta bredvid zombien täcker också zombiens ruta.
+  const side = g.route.span(z.cell).find(k => k !== z.cell && g.route.span(k).includes(z.cell));
+  assert.ok(side != null);
+  assert.deepEqual(checkObstacle(g, side, 'block'), { ok: false, reason: 'zombier' });
+  assert.deepEqual(placeAcross(g, side, 'block'), { ok: false, reason: 'zombier' });
+  assert.equal(Object.keys(g.obstacles).length, 0);
+});
+
+test('Gnesta: betongbarriären kräver forskningen även här', async () => {
+  const { placeAcross, checkObstacle } = await import('../src/sim/sim.js');
+  const { obstacleUnlocked } = await import('../src/sim/stats.js');
+  const g = createSim({ map: MAPS.gnesta, day: 1, cash: 2000, research: [], seed: 1 });
+  const cell = g.route.cellAt(-3, 35);
+  assert.equal(obstacleUnlocked('block', [], MAPS.gnesta), false);
+  assert.deepEqual(checkObstacle(g, cell, 'block'), { ok: false, reason: 'ej upplåst' });
+  assert.equal(placeAcross(g, cell, 'block').reason, 'ej upplåst');
+  assert.equal(g.cash, 2000);
+  assert.equal(placeAcross(g, cell, 'wire').ok, true, 'taggtråd behöver ingen forskning');
+  const h = createSim({ map: MAPS.gnesta, day: 1, cash: 2000, research: ['wireTough.1', 'block.1'], seed: 1 });
+  assert.equal(placeAcross(h, cell, 'block').ok, true);
+});

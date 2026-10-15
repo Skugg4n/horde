@@ -65,9 +65,19 @@ export function earlyBonus(sim) {
   return Math.round((COUNTDOWN + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
+// Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
+export const waveLeft = sim => sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
+
 // Next wave: under nedräkningen eller mitt i en våg. Vågornas spawn läggs ihop.
-export function callNextWave(sim) {
+// stack: false vägrar mitt i en våg så länge zombier är kvar ({ ok: false, reason: 'kvar', left }),
+// så att ett vanligt tryck inte staplar vågor av misstag. Spelaren staplar med knappen eller
+// Shift+Space (stack: true, standard för policyerna).
+export function callNextWave(sim, { stack = true } = {}) {
   if (!canAct(sim) || !hasNextWave(sim)) return { ok: false, bonus: 0 };
+  if (!stack && sim.phase === 'wave') {
+    const left = waveLeft(sim);
+    if (left > 0) return { ok: false, bonus: 0, reason: 'kvar', left };
+  }
   const bonus = earlyBonus(sim);
   const index = launch(sim);
   if (bonus) { sim.cash += bonus; sim.events.push({ t: 'earlyBonus', amount: bonus, index }); }
@@ -223,21 +233,30 @@ export function buyKit(sim, id) {
 }
 
 export function placeObstacle(sim, cell, type) {
-  const check = canPlace(sim, cell, type);
+  const check = canPlace(sim, cell, type, [cell]);
   if (!check.ok) return check;
   sim.cash -= OBSTACLES[type].cost;
   putObstacle(sim, cell, type);
   sim.route.rebuild(sim.obstacles);
   return { ok: true };
 }
-function canPlace(sim, cell, type, n = 1) {
+// keys: rutorna hindret tar (en spärr över gatan: alla lediga rutor över bredden).
+function canPlace(sim, cell, type, keys) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   if (!sim.route.validCell(cell)) return { ok: false, reason: 'okänd' };
-  if (n === 1 && sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
+  if (keys.length === 1 && keys[0] === cell && sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
   if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research, sim.map)) return { ok: false, reason: 'ej upplåst' };
-  if (n < 1) return { ok: false, reason: 'upptagen' };
+  if (keys.length < 1) return { ok: false, reason: 'upptagen' };
+  // En spärr på levande zombier skulle låsa in dem i betongen: nekas.
+  if (OBSTACLES[type].kind === 'block' && zombiesIn(sim, keys)) return { ok: false, reason: 'zombier' };
   if (sim.cash < OBSTACLES[type].cost) return { ok: false, reason: 'pengar' };
   return { ok: true };
+}
+// Står någon levande zombie i någon av rutorna?
+export const zombiesIn = (sim, keys) => sim.zombies.some(z => !z.dead && keys.some(k => sim.route.inCell(z, k)));
+// Kan hindret läggas här just nu (spärren över gatan på Gnesta)? Samma svar som placeAcross ger.
+export function checkObstacle(sim, cell, type) {
+  return canPlace(sim, cell, type, sim.route.span ? acrossCells(sim, cell) : [cell]);
 }
 // paid: rutans del av priset (en spärr delar sitt pris lika på sina rutor), så att återbetalningen
 // blir halva det man betalade för hela spärren.
@@ -265,7 +284,7 @@ export function acrossCells(sim, cell) {
 export function placeAcross(sim, cell, type) {
   if (!sim.route.span) return placeObstacle(sim, cell, type);
   const keys = acrossCells(sim, cell);
-  const check = canPlace(sim, cell, type, keys.length);
+  const check = canPlace(sim, cell, type, keys);
   if (!check.ok) return check;
   const line = sim.nextLine++, cost = OBSTACLES[type].cost;
   sim.cash -= cost;

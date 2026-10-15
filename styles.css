@@ -105,9 +105,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* Röd puls i skärmkanten när basen tar skada */
 .hurt {
   position: fixed; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(150, 20, 10, 0.55) 100%);
+  /* Kraftig nog att synas även på Gnestas ljusa gräs (0.5.2) */
+  background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(170, 18, 8, 0.5) 78%, rgba(150, 10, 4, 0.85) 100%);
+  box-shadow: inset 0 0 0 6px rgba(200, 30, 12, 0.75);
 }
-.hurt.pulse { animation: hurt 0.8s ease-out; }
+.hurt.pulse { animation: hurt 1.1s ease-out; }
 @keyframes hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Raden under vågen: kvar och Snabbare */
@@ -138,6 +140,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   letter-spacing: 0.1em; text-transform: uppercase;
 }
 #wavebar .next[hidden] { display: none; }
+/* Mitt i en våg: dämpad, staplar bara på klick eller Shift+Space */
+#wavebar .next.still { border-color: rgba(233,223,201,0.22); background: transparent; color: var(--paper-dim); }
+#wavebar .next.still kbd { opacity: 0.6; }
+#wavebar .next .cd[hidden] { display: none; }
 .cd { font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: 0.02em; text-transform: none; color: #f2d18a; }
 #go .cd[hidden] { display: none; }
 #go.counting { font-size: 18px; padding: 11px 22px 12px; }
@@ -174,7 +180,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #f0a07a;
   background: var(--plate); border: 1px solid rgba(224,96,60,0.5); padding: 3px 10px; border-radius: 2px; white-space: nowrap;
 }
-.note.warn { color: #ff7a5a; top: 64px; }
+.note.warn { color: #fff1e6; top: 64px; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
 #res .delta {
   position: absolute; left: 0; top: 100%; margin-top: 2px; font: 600 13px 'IBM Plex Mono', monospace;
   opacity: 0; transform: translateY(-4px); transition: opacity 0.2s, transform 0.2s; white-space: nowrap;
@@ -214,6 +220,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel .card { width: 176px; text-align: left; display: block; color: var(--paper); }
 .panel .card.off { opacity: 0.45; }
 .panel .card.off .p { color: var(--paper-dim); }
+.panel .card.locked { opacity: 0.45; border-style: dashed; }
 .st { display: flex; gap: 12px; white-space: nowrap; font-size: 12px; letter-spacing: 0.05em; color: var(--paper-dim); margin-top: 4px; }
 .st b { color: var(--paper); font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
 .panel .head + .body > .st { margin: -4px 0 10px; font-size: 13px; }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, callNextWave, earlyBonus, COUNTDOWN, EARLY_PER_SEC } from '../src/sim/sim.js';
+import { createSim, startWave, step, callNextWave, waveLeft, earlyBonus, COUNTDOWN, EARLY_PER_SEC } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
 
 const map = MAPS.riksvagen;
@@ -85,4 +85,24 @@ test('samma seed och samma kall ger samma dag', () => {
     return [s.phase, s.baseHp, s.cash, s.kills, s.time.toFixed(3)].join();
   };
   assert.equal(play(), play());
+});
+
+test('Next wave utan stack mitt i en våg gör inget så länge zombier är kvar', () => {
+  const s = mk();
+  startWave(s);
+  run(s, 3);
+  const cash = s.cash, left = waveLeft(s);
+  assert.ok(left > 0);
+  assert.deepEqual(callNextWave(s, { stack: false }), { ok: false, bonus: 0, reason: 'kvar', left });
+  assert.equal(s.wavesStarted, 1);
+  assert.equal(s.cash, cash);
+  // Under nedräkningen (inga kvar) går det utan stack, som förut.
+  s.spawnQueue = []; for (const z of s.zombies) z.dead = true;
+  step(s, DT);
+  assert.equal(s.phase, 'build');
+  assert.equal(callNextWave(s, { stack: false }).ok, true);
+  // Uttryckligt staplande (knappen, Shift+Space) går mitt i vågen.
+  run(s, 1);
+  assert.equal(callNextWave(s, { stack: true }).ok, true);
+  assert.equal(s.wavesStarted, 3);
 });

@@ -3,7 +3,7 @@
 // vad vågen består av.
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { earlyBonus, hasNextWave } from '../sim/sim.js';
+import { earlyBonus, hasNextWave, waveLeft } from '../sim/sim.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
 const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'] };
@@ -49,7 +49,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   </div>
   <div id="hint" class="plate" hidden><ol><li data-h="0">Pick the M249.</li><li data-h="1">Place it by the road.</li><li data-h="2">Start the wave.</li></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
-  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next">Next wave<kbd>Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
+  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
   <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
   <div id="banner" class="plate" hidden></div>
   <div id="entry" class="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
@@ -58,7 +58,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   hurt.className = 'hurt';
   root.prepend(hurt);
   const $ = k => root.querySelector(`[data-k="${k}"]`);
-  const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd') };
+  const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd'), nextLbl: $('nextlbl'), nextKey: $('nextkey') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
   const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed'), speedBtn2 = root.querySelector('#speedcd');
@@ -68,6 +68,11 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   speedBtn2.addEventListener('click', () => onSpeed && onSpeed());
   el.next.addEventListener('pointerdown', e => e.preventDefault());
   el.next.addEventListener('click', () => onNext && onNext());
+  // Bonusen för att stapla visas bara när den gäller: Shift hålls ner eller pekaren står på knappen.
+  let shiftDown = false, nextHover = false;
+  el.next.addEventListener('pointerenter', () => { nextHover = true; });
+  el.next.addEventListener('pointerleave', () => { nextHover = false; });
+  const shift = on => { shiftDown = !!on; };
   const resPlate = root.querySelector('#res');
 
   let last = { cash: null, hp: null };
@@ -131,10 +136,19 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     speedBtn2.hidden = !counting;
     goBtn.classList.toggle('counting', counting);
     if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
-    // Mitt i en våg går nästa att kalla tidigt så länge det finns en.
+    // Mitt i en våg går nästa att kalla tidigt så länge det finns en, men bara uttryckligen:
+    // klick på knappen eller Shift+Space. Knappen säger hur många som är kvar och är dämpad.
     const canCall = wave && hasNextWave(sim);
     el.next.hidden = !canCall;
-    if (canCall) set(el.nextCd, '+' + money(earlyBonus(sim)));
+    if (canCall) {
+      const n = waveLeft(sim), still = n > 0;
+      set(el.nextLbl, still ? `Next wave: still ${n} left` : 'Next wave');
+      set(el.nextKey, still ? 'Shift+Space' : 'Space');
+      el.next.classList.toggle('still', still);
+      const showBonus = !still || shiftDown || nextHover;
+      el.nextCd.hidden = !showBonus;
+      if (showBonus) set(el.nextCd, '+' + money(earlyBonus(sim)) + ' early');
+    }
   }
 
   // Bonus för tidigt kall: "+$ 20 early" under kassan.
@@ -216,5 +230,5 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, early, bounty };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, early, bounty, shift };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newProgress, startConfig, dayResult, buyResearch, canBuyResearch, migrateResearch, nextTier, mapState, mapUnlocked, selectMap, migrateV1 } from '../src/meta/progress.js';
+import { newProgress, startConfig, dayResult, abandonDay, buyResearch, canBuyResearch, migrateResearch, nextTier, mapState, mapUnlocked, selectMap, migrateV1 } from '../src/meta/progress.js';
 import { loadProgress, saveProgress } from '../src/meta/save.js';
 import { MAPS } from '../src/data/maps.js';
 import { RESEARCH } from '../src/data/research.js';
@@ -275,4 +275,16 @@ test('More positions I till III: en pjäs till per nivå', async () => {
   assert.equal(maxGuns(['positions.1']), 5);
   assert.equal(maxGuns(['positions.1', 'positions.2', 'positions.3']), 7);
   assert.equal(RESEARCH.find(n => n.id === 'positions').tiers.length, 3);
+});
+
+test('Restart day och Main menu mitt i en dag räknar försöket: ny seed, inget annat ändras', () => {
+  const p0 = { ...newProgress(), intel: 12 };
+  const before = startConfig(p0, 1).seed;
+  const p1 = abandonDay(p0, { day: 1 });
+  assert.equal(mapState(p1).attempts[1], 1);
+  assert.notEqual(startConfig(p1, 1).seed, before);
+  assert.equal(startConfig(p1, 1).seed, startConfig(dayResult(p0, { day: 1, won: false, intelEarned: 0 }), 1).seed, 'samma seed som efter Try again');
+  assert.equal(p1.intel, 12);
+  assert.equal(mapState(p1).unlockedDay, 1);
+  assert.deepEqual(p1.research, p0.research);
 });

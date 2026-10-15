@@ -1,5 +1,21 @@
 # Ändringslogg
 
+## 0.5.2 (2026-10-15)
+
+Rättningar efter granskningen av 0.5 och speltestet av 0.5.1.
+
+- En betongbarriär kan inte längre läggas på rutor där levande zombier står ("Zombies in the way"). Förut låstes de in i betongen. Gatupanelen säger det på kortet medan zombierna står där.
+- Betongbarriären kräver forskningen Concrete barrier även på Gnesta. Gatupanelen visar alla hinder; ett låst kort är streckat och säger "Needs research".
+- Next wave mitt i en våg: mellanslaget ensamt gör ingenting medan zombier är kvar. Knappen är dämpad och säger "Next wave: still N left". Vågor staplas bara med ett klick på knappen eller Shift+Space, och "+$X early" syns bara då (Shift nere eller pekaren på knappen).
+- Basen tar skada: skärmkantens röda puls är kraftigare och "Base under attack!" är en tydlig röd skylt. Kontrollerat på båda banorna (basen lyser, plåten blinkar, notisen och pulsen syns).
+- Rutorna en pjäs ser lyser i en kall blå färg med mörk kant, så att de syns på Gnestas ljusa gräs och gator.
+- Gnesta zoomar ut högst till 68 m (var 84), så att zombierna går att skilja åt.
+- Pausen fryser även kameraskakningen, pjäsernas rekyljitter och basens skakning.
+- Restart day och Main menu mitt i en dag räknar försöket, så att dagen får en ny seed som efter Try again.
+- Farten (1x, 2x, 3x) sparas i inställningarna och följer med vid Try again, Restart day och nästa dag.
+- Bankortet i menyn markeras direkt vid klick ("Loading") innan den nya banan byggs, så att klicket inte verkar försvinna.
+- Gnestas balans har ett fingeravtryck (`tests/route-gnesta.test.js`), samma disciplin som E4.
+
 ## 0.5.1 (2026-10-15)
 
 Meny med paus.

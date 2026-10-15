@@ -5,7 +5,7 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, GHOST_OK, disposeModel, baseModel, setBaseGlow } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -173,7 +173,8 @@ export function createView(scene, initialSim) {
       // Rekyl: pjäsen stöts bakåt längs pipan och mynningen lyfts, sedan tillbaka.
       if (dt > 0) e.recoil *= Math.exp(-dt * e.look.back);
       const r = e.recoil < 0.01 ? 0 : e.recoil;
-      const back = r * e.look.kick, jit = r ? e.look.rattle : 0;
+      // Pausad (dt 0): rekylen står still, inget jitter bakom menyn.
+      const back = r * e.look.kick, jit = dt > 0 && r ? e.look.rattle : 0;
       pv.position.set(
         e.pivotHome.x - Math.cos(e.angle) * back + rnd(-jit, jit),
         e.pivotHome.y + rnd(-jit, jit),
@@ -201,11 +202,21 @@ export function createView(scene, initialSim) {
   }
   const tm = new THREE.Matrix4();
   const COVER_MAX = 1600;
-  const coverM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.3, depthWrite: false });
+  // Rutorna pjäsen ser: kraftig fyllning i en kall färg (syns på både E4:s asfalt och Gnestas
+  // ljusa gräs och gator) plus en mörk kant runt varje ruta (0.5.2, speltestet såg dem knappt).
+  const COVER_OK = '#2fc4e6';
+  const coverM = new THREE.MeshBasicMaterial({ color: COVER_OK, transparent: true, opacity: 0.45, depthWrite: false });
   const coverGeo = new THREE.PlaneGeometry(1, 1); coverGeo.rotateX(-Math.PI / 2);
   const cover = new THREE.InstancedMesh(coverGeo, coverM, COVER_MAX);
   cover.count = 0; cover.frustumCulled = false; cover.renderOrder = 2; cover.castShadow = false;
   scene.add(cover);
+  const edgeShape = new THREE.Shape([[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]].map(([x, y]) => new THREE.Vector2(x, y)));
+  edgeShape.holes.push(new THREE.Path([[-0.4, -0.4], [-0.4, 0.4], [0.4, 0.4], [0.4, -0.4]].map(([x, y]) => new THREE.Vector2(x, y))));
+  const edgeGeo = new THREE.ShapeGeometry(edgeShape); edgeGeo.rotateX(-Math.PI / 2);
+  const edgeM = new THREE.MeshBasicMaterial({ color: '#0d2a33', transparent: true, opacity: 0.7, depthWrite: false });
+  const coverEdge = new THREE.InstancedMesh(edgeGeo, edgeM, COVER_MAX);
+  coverEdge.count = 0; coverEdge.frustumCulled = false; coverEdge.renderOrder = 3; coverEdge.castShadow = false;
+  scene.add(coverEdge);
   let coverKey = '';
   function syncCover() {
     const c = ui.cover;
@@ -219,14 +230,20 @@ export function createView(scene, initialSim) {
         const q = p.center(k);
         if (Math.hypot(q.x - c.x, q.z - c.z) > c.r) continue;
         if (n >= COVER_MAX) break;
-        tm.makeScale(size * 0.9, 1, size * 0.9); tm.setPosition(q.x, 0.065, q.z);
-        cover.setMatrixAt(n++, tm);
+        tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(q.x, 0.065, q.z);
+        cover.setMatrixAt(n, tm);
+        tm.setPosition(q.x, 0.07, q.z);
+        coverEdge.setMatrixAt(n++, tm);
       }
-      coverM.color.set(c.tone === 'ok' ? GHOST_OK : c.tone === 'bad' ? PALETTE.rust : PALETTE.paper);
-      coverM.opacity = c.tone === 'bad' ? 0.18 : 0.32;
+      const bad = c.tone === 'bad';
+      coverM.color.set(bad ? PALETTE.rust : COVER_OK);
+      coverM.opacity = bad ? 0.3 : c.tone === 'ok' ? 0.5 : 0.4;
+      edgeM.color.set(bad ? '#3a120a' : '#0d2a33');
+      edgeM.opacity = bad ? 0.45 : 0.7;
     }
-    cover.count = n;
+    cover.count = n; coverEdge.count = n;
     cover.instanceMatrix.needsUpdate = true;
+    coverEdge.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- rutor på vägen (streckade rektanglar, syns i byggläget) ----------
@@ -415,7 +432,7 @@ export function createView(scene, initialSim) {
   function syncBase(dt) {
     if (!base) return;
     base.userData.flag.rotation.y = Math.sin(clock * 2.3) * 0.25;
-    if (baseHitT <= 0) return;
+    if (baseHitT <= 0 || dt <= 0) return;
     baseHitT = Math.max(0, baseHitT - dt);
     const k = baseHitT / BASE_HIT;
     setBaseGlow(base, k * (0.6 + 0.4 * Math.sin(clock * 40)));
