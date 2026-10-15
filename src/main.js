@@ -21,6 +21,7 @@ import { weaponStats } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
+import { createAudio } from './audio/audio.js';
 import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
@@ -152,8 +153,9 @@ const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase
 function startPlacing(type) {
   if (!canPlaceNow()) return;
   if (placing?.type === type) { stopPlacing(); return; }
-  if (buyState(sim, type).state !== 'ok') { bar.shake(type); return; }
+  if (buyState(sim, type).state !== 'ok') { bar.shake(type); audio.ui('deny'); return; }
   closePanel();
+  audio.ui('pick');
   placing = { type, kind: shopItem(type).kind };
   spot = null;
   hovered = null;
@@ -175,7 +177,7 @@ function spotFor(key) {
 }
 function placeHere(key) {
   const sp = spotFor(key);
-  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn'); return; }
+  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn'); audio.ui('deny'); return; }
   const type = placing.type;
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type);
   if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn'); return; }
@@ -230,22 +232,24 @@ function updateGhostTip() {
 renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
 renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
-// Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet.
-const withCash = fn => (...args) => {
+// Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet,
+// och låter: ett klick när den gick igenom, en nekande ton när den inte gjorde det.
+const withCash = (sound, fn) => (...args) => {
   const before = sim.cash;
   const r = fn(...args);
   if (r.ok && sim.cash !== before) hud.cashDelta(Math.round(sim.cash) - Math.round(before));
+  audio.ui(r.ok ? sound : 'deny');
   return r;
 };
 const actions = {
-  build: withCash((id, type) => build(sim, id, type)),
-  upgrade: withCash(id => upgrade(sim, id)),
-  sell: withCash(id => sell(sim, id)),
-  kit: withCash(id => buyKit(sim, id)),
+  build: withCash('place', (id, type) => build(sim, id, type)),
+  upgrade: withCash('click', id => upgrade(sim, id)),
+  sell: withCash('click', id => sell(sim, id)),
+  kit: withCash('click', id => buyKit(sim, id)),
   pick: type => startPlacing(type),
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
-  place: withCash((cell, type) => placeAcross(sim, cell, type)),
-  remove: withCash(cell => removeObstacle(sim, cell)),
+  place: withCash('place', (cell, type) => placeAcross(sim, cell, type)),
+  remove: withCash('click', cell => removeObstacle(sim, cell)),
   range: r => { panelRange = r; },
   close: closePanel,
 };
@@ -286,6 +290,7 @@ document.addEventListener('pointerdown', e => {
 function handleEvents() {
   const evs = sim.events;
   view.consume(evs);
+  audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach();
   if (evs.some(e => e.t === 'blast')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
   for (const ev of evs) {
@@ -312,8 +317,20 @@ function go({ stack = false } = {}) {
   handleEvents();
 }
 
-// ---------- fart ----------
+// ---------- ljud ----------
+// Ljudet startar vid första klick eller tangent (webbläsarnas regel). Det läser händelserna och
+// läget, aldrig tvärtom (src/audio/audio.js).
 let settings = loadSettings();
+const audio = createAudio({ settings });
+audio.attach(window);
+const tmpS = new Vector3();
+function toScreen(x, z) {
+  tmpS.set(x, 0, z).project(camera);
+  return { sx: (tmpS.x + 1) / 2 * innerWidth, sy: (1 - tmpS.y) / 2 * innerHeight };
+}
+let lastVolTick = 0;
+
+// ---------- fart ----------
 let speed = settings.speed;
 hud.setSpeed(speed);
 // F och knappen stegar 1x, 2x, 3x och runt. Gäller under vågen och nedräkningen. Sparas.
@@ -665,7 +682,7 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { get worlds() { return worlds; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { get worlds() { return worlds; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 
@@ -681,7 +698,12 @@ const menu = mountMenu(uiRoot, {
   mode: () => mode, day: () => day, speed: () => speed, canSpeed, setSpeed,
   resume: () => {}, restart: () => { abandon(); startDay(day); }, toMain: () => { abandon(); showMenu(); },
   settings: () => settings,
-  setSetting: (k, v) => { settings = normalizeSettings({ ...settings, [k]: v }); saveSettings(settings); },
+  setSetting: (k, v) => {
+    settings = normalizeSettings({ ...settings, [k]: v }); saveSettings(settings);
+    audio.setSettings(settings);
+    // Ljudreglaget hörs medan man drar i det (gränssnittets ljud går igenom pausen).
+    if (k === 'sound' || k === 'soundMuted') { const t = performance.now(); if (t - lastVolTick > 120) { lastVolTick = t; audio.ui('click'); } }
+  },
   // Öppnandet avbryter placering och panel: inget ska hänga kvar när spelet fortsätter.
   onOpen: () => { stopPlacing(); closePanel(); hovered = null; },
   onClose: () => {},
@@ -719,6 +741,7 @@ function tick(now) {
     range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle' });
   view.sync(vdt);
+  audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

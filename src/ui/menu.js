@@ -1,6 +1,5 @@
 // Spelmenyn: knappen uppe i hörnet och skylten med paus. Raderna är en lista av definitioner
 // (MENU_ITEMS): en ny rad är en ny post i listan. ctx kommer från main.js.
-import { AUDIO_READY } from '../meta/settings.js';
 
 // type: 'button' | 'choice' | 'volume'
 // enabled(ctx): false gråar raden. confirm(ctx): ger { title, text, ok } om raden ska fråga först.
@@ -55,7 +54,7 @@ export function mountMenu(root, ctx, items = MENU_ITEMS) {
         mark();
       } else if (i.type === 'volume') {
         const s = ctx.settings();
-        row.innerHTML = `<span class="lab">${i.label}${AUDIO_READY ? '' : ' <small>(no audio yet)</small>'}</span>
+        row.innerHTML = `<span class="lab">${i.label}</span>
           <span class="vol"><input type="range" min="0" max="100" step="1" aria-label="${i.label} volume"><b></b><button type="button" class="mute" aria-label="Mute ${i.label}"></button></span>`;
         const input = row.querySelector('input'), out = row.querySelector('b'), mute = row.querySelector('.mute');
         const paint = () => {

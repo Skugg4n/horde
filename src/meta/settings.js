@@ -2,9 +2,6 @@
 // Läsning och skrivning kastar aldrig: utan lagring gäller standardvärdena.
 const KEY = 'horde.settings';
 
-// Spelet har inget ljud än. När det finns: sätt till true så försvinner tipset i menyn.
-export const AUDIO_READY = false;
-
 export const SPEEDS = [1, 2, 3];
 export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false, speed: 1 });
 
