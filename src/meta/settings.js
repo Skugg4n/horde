@@ -3,7 +3,10 @@
 const KEY = 'horde.settings';
 
 export const SPEEDS = [1, 2, 3];
-export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false, speed: 1 });
+// Springarens skrik (0.8.0): 'classic' (det tonala skriket från 0.7.0, standard) eller 'torn'
+// (lägre, hesare, mer sönderriven strupe). Väljs i ljudbordet (A/B) eller med nyckeln shriek.
+export const SHRIEKS = ['classic', 'torn'];
+export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false, speed: 1, shriek: 'classic' });
 
 const level = (x, fallback) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : fallback);
 
@@ -17,6 +20,7 @@ export function normalizeSettings(raw) {
     musicMuted: r.musicMuted === true,
     // Farten följer med mellan dagarna och omstarterna (0.5.2).
     speed: SPEEDS.includes(r.speed) ? r.speed : DEFAULT_SETTINGS.speed,
+    shriek: SHRIEKS.includes(r.shriek) ? r.shriek : DEFAULT_SETTINGS.shriek,
   };
 }
 

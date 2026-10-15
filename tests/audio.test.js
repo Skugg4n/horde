@@ -107,3 +107,22 @@ test('skärmläget ger svag panorering och dämpning ut mot kanterna', () => {
   assert.equal(far.pan, 0.6); assert.equal(far.gain, 0.25);
   assert.deepEqual(placeOnScreen(NaN, 0, 1000, 800), { pan: 0, gain: 1 });
 });
+
+test('arsenalen: varje vapen har en egen röst med tak och takt i röstbudgeten', async () => {
+  const { SOUNDS } = await import('../src/audio/voices.js');
+  for (const id of ['m249', 'm2', 'ksp58', 'ak5', 'psg90', 'thoonk', 'pop']) {
+    assert.ok(SOUNDS[id], id);
+    assert.equal(SOUNDS[id].group, id);
+    assert.ok(VOICES[id].cap >= 1 && VOICES[id].gap > 0, id);
+  }
+  for (const v of Object.values(SOUNDS)) assert.ok(VOICES[v.group], 'röstbudget för ' + v.group);
+  // Ksp 58 ligger mellan Ksp 90 och Ksp 88 i tak och takt
+  assert.ok(VOICES.m249.cap > VOICES.ksp58.cap && VOICES.ksp58.cap > VOICES.m2.cap);
+  assert.ok(VOICES.m249.gap < VOICES.ksp58.gap && VOICES.ksp58.gap < VOICES.m2.gap);
+  // Psg 90:s eko är långt, men högst två samtidigt
+  assert.ok(SOUNDS.psg90.dur >= 2 && VOICES.psg90.cap <= 2);
+  const L = createLimiter(), c = { t: 0 };
+  let ok = 0;
+  for (let i = 0; i < 20; i++) if (L.tryStart('psg90', c.t, SOUNDS.psg90.dur) != null) ok++;
+  assert.equal(ok, 1, 'samma ögonblick: ett skott, resten tystas');
+});

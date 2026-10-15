@@ -91,6 +91,51 @@ const m2 = { group: 'm2', dur: 0.55, play(A, t, o, out) {
   burst(A, t, s.in, { type: 'bandpass', f: 2300 * j, q: 1, peak: 0.55, d: 0.045 });
   send(A, s.out, 0.32);
 } };
+// Ksp 58 (7,62): mellan Ksp 90:s smatter och Ksp 88:s duns, tätare kropp än Ksp 90.
+const ksp58 = { group: 'ksp58', dur: 0.26, play(A, t, o, out) {
+  const j = o.j ?? R(0.92, 1.08), s = sat(A, out, 2.7, 0.55);
+  burst(A, t, s.in, { type: 'bandpass', f: 1050 * j, q: 0.85, peak: 0.95, d: 0.09 * j });
+  burst(A, t, s.in, { type: 'highpass', f: 2700, peak: 0.4, d: 0.025 });
+  thump(A, t, s.in, { f: 140 * j, f2: 55, glide: 0.08, peak: 0.75, d: 0.12 });
+  send(A, s.out, 0.2);
+} };
+// Ak 5: ett enda torrt, skarpt skott, kort klang.
+const ak5 = { group: 'ak5', dur: 0.22, play(A, t, o, out) {
+  const j = o.j ?? R(0.94, 1.06), s = sat(A, out, 3.2, 0.42);
+  burst(A, t, s.in, { type: 'highpass', f: 2900 * j, peak: 1, d: 0.028 });
+  burst(A, t, s.in, { type: 'bandpass', f: 1800 * j, q: 1.1, peak: 0.7, d: 0.05 });
+  thump(A, t, s.in, { f: 210 * j, f2: 90, glide: 0.03, peak: 0.45, d: 0.05 });
+  send(A, s.out, 0.18);
+} };
+// Granattillsatsen: ett ihåligt "thoonk" ur röret.
+const thoonk = { group: 'thoonk', dur: 0.32, play(A, t, o, out) {
+  const j = R(0.95, 1.05), g = A.ctx.createGain(); g.gain.value = 0.7; g.connect(out);
+  thump(A, t, g, { f: 165 * j, f2: 92, glide: 0.07, peak: 0.85, d: 0.16 });
+  thump(A, t, g, { type: 'triangle', f: 330 * j, f2: 250, glide: 0.06, peak: 0.25, d: 0.09 });
+  burst(A, t, g, { type: 'bandpass', f: 420 * j, q: 4, peak: 0.55, d: 0.08 });
+  burst(A, t, g, { buf: 'brown', type: 'lowpass', f: 700, peak: 0.4, d: 0.12, delay: 0.01 });
+} };
+// 40 mm-granatens smäll: en mindre, torrare variant av granatlådans.
+const pop = { group: 'pop', dur: 0.9, play(A, t, o, out) {
+  const s = sat(A, out, 2.2, 0.7);
+  thump(A, t, s.in, { f: 100, f2: 36, glide: 0.35, peak: 1, d: 0.45 });
+  burst(A, t, s.in, { buf: 'brown', type: 'lowpass', f: 1500, f2: 300, glide: 0.4, peak: 0.95, d: 0.42 });
+  burst(A, t, s.in, { type: 'highpass', f: 1400, peak: 0.6, d: 0.05 });
+  burst(A, t, s.in, { buf: 'crackle', type: 'bandpass', f: 2800, q: 0.7, a: 0.02, peak: 0.6, d: 0.4, delay: 0.03 });
+  send(A, s.out, 0.35);
+} };
+// Psg 90: en skarp knall och ett långt eko som studsar mellan husen och dör bort.
+const psg90 = { group: 'psg90', dur: 2.3, play(A, t, o, out) {
+  const j = o.j ?? R(0.97, 1.03), s = sat(A, out, 3, 0.75);
+  burst(A, t, s.in, { type: 'highpass', f: 3600 * j, peak: 1.3, d: 0.022 });
+  burst(A, t, s.in, { type: 'bandpass', f: 2300 * j, q: 1.2, peak: 0.9, d: 0.06 });
+  thump(A, t, s.in, { f: 125 * j, f2: 42, glide: 0.14, peak: 0.85, d: 0.2 });
+  // ekot: mörkare och svagare för varje studs
+  const echo = A.ctx.createGain(); echo.gain.value = 1; echo.connect(out);
+  for (const [delay, f, p] of [[0.22, 1400, 0.42], [0.5, 1000, 0.28], [0.86, 760, 0.18], [1.3, 560, 0.1]])
+    burst(A, t, echo, { buf: 'brown', type: 'lowpass', f, a: 0.03, peak: p, d: 0.5, delay });
+  send(A, s.out, 0.7);
+} };
 const casing = { group: 'casing', dur: 0.32, play(A, t, o, out) {
   const j = R(0.9, 1.15), g = A.ctx.createGain(); g.gain.value = 0.05; g.connect(out);
   for (const [k, delay, p] of [[1, 0, 1], [1.02, 0.09, 0.55], [0.99, 0.15, 0.3]])
@@ -155,7 +200,19 @@ function voiceTract(A, t, out, { f0, f1, len, form, wob = 5, depth = 6, k = 2, n
 }
 const groan = { group: 'groan', dur: 1.8, play(A, t, o, out) {
   const type = o.type ?? 'walker';
-  if (type === 'runner') {
+  if (type === 'runner' && o.shriek === 'torn') {
+    // Variant B (0.8.0): lägre och hesare, mest brus genom en sönderriven strupe, nästan ingen ton.
+    const f = R(210, 290), len = R(0.5, 0.8);
+    const g = voiceTract(A, t, out, { f0: f * 1.25, f1: [f * 1.55, f * 1.2, f * 0.95, f * 0.6], len, form: [[760, 2.4, 1], [1650, 3, 0.85], [3000, 5, 0.3]],
+      wob: R(11, 16), depth: 34, k: 8, noiseAmt: 1.5, peak: 0.24, att: 0.03 });
+    // raspet: brus som sveper nedåt, ojämnt fladdrande
+    const rasp = A.ctx.createGain(); rasp.gain.value = 1;
+    const fl = A.ctx.createOscillator(), fg = A.ctx.createGain(); fl.frequency.value = R(22, 34); fg.gain.value = 0.5;
+    fl.connect(fg); fg.connect(rasp.gain); fl.start(t); fl.stop(t + len + 0.05);
+    rasp.connect(out);
+    burst(A, t, rasp, { buf: 'brown', type: 'bandpass', f: 1500, f2: 520, glide: len, q: 1.4, a: 0.04, peak: 0.55, d: len });
+    send(A, g, 0.12);
+  } else if (type === 'runner') {
     const f = R(360, 480), len = R(0.45, 0.7);
     voiceTract(A, t, out, { f0: f, f1: [f * 1.7, f * 1.45, f * 0.9], len, form: [[1100, 4, 1], [2500, 6, 0.7]], wob: 9, depth: 18, k: 5, noiseAmt: 0.55, peak: 0.22, att: 0.04 });
   } else if (type === 'brute') {
@@ -271,4 +328,4 @@ const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   chain(lp, g, out); send(A, g, 0.6);
 } };
 
-export const SOUNDS = { m249, m2, casing, throw: toss, blast, hit, kill, groan, knock, crunch, strain, breach, alarm, ui, bonus, horn, stinger };
+export const SOUNDS = { m249, m2, ksp58, ak5, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, strain, breach, alarm, ui, bonus, horn, stinger };

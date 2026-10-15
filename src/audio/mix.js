@@ -8,6 +8,11 @@ import { effectiveVolume } from '../meta/settings.js';
 export const VOICES = {
   m249:     { cap: 6, gap: 0.045, lag: 0.06, thin: true },
   m2:       { cap: 4, gap: 0.11, lag: 0.08, thin: true },
+  ksp58:    { cap: 5, gap: 0.07, lag: 0.07, thin: true },
+  ak5:      { cap: 4, gap: 0.09, lag: 0.05, thin: true },
+  psg90:    { cap: 2, gap: 0.3, lag: 0.1 },
+  thoonk:   { cap: 2, gap: 0.2, lag: 0.1 },
+  pop:      { cap: 3, gap: 0.12, lag: 0.12 },
   casing:   { cap: 3, gap: 0.09, lag: 0, thin: true },
   hit:      { cap: 4, gap: 0.07, lag: 0, thin: true },
   kill:     { cap: 4, gap: 0.09, lag: 0.05, thin: true },

@@ -33,7 +33,10 @@
 
   <section class="plate"><h2>Weapons</h2><div class="row" id="weapons"></div></section>
   <section class="plate"><h2>Grenades</h2><div class="row" id="grenades"></div></section>
-  <section class="plate"><h2>Zombies</h2><div class="row" id="zombies"></div></section>
+  <section class="plate"><h2>Zombies</h2><div class="row" id="zombies"></div>
+    <div class="row" id="shriek" style="margin-top:8px"></div>
+    <div class="hint">Runner shriek in the game: A is the tonal shriek from 0.7.0 (default), B is lower and hoarse, a torn throat. The choice is saved (settings key <code>shriek</code>).</div>
+  </section>
   <section class="plate"><h2>Hits and kills</h2><div class="row" id="hits"></div></section>
   <section class="plate"><h2>Barricades, wire, base</h2><div class="row" id="base"></div></section>
   <section class="plate"><h2>Interface</h2><div class="row" id="ui"></div></section>
@@ -88,19 +91,33 @@ mark(posEl, posEl.children[1]);
 const play = (name, o = {}) => audio.play(name, { ...at(), ...o });
 const burst = (name, n, gap, o) => { for (let i = 0; i < n; i++) setTimeout(() => play(name, o), i * gap); };
 buttons('weapons', [
-  ['M249 single', () => play('m249', { gain: 0.6 })],
-  ['M249 burst', () => burst('m249', 12, 125, { gain: 0.6 })],
-  ['M2 .50 single', () => play('m2', { gain: 0.9 })],
-  ['M2 .50 burst', () => burst('m2', 6, 250, { gain: 0.9 })],
+  ['Ksp 90 single', () => play('m249', { gain: 0.6 })],
+  ['Ksp 90 burst', () => burst('m249', 12, 125, { gain: 0.6 })],
+  ['Ksp 58 single', () => play('ksp58', { gain: 0.75 })],
+  ['Ksp 58 burst', () => burst('ksp58', 9, 167, { gain: 0.75 })],
+  ['Ksp 88 single', () => play('m2', { gain: 0.9 })],
+  ['Ksp 88 burst', () => burst('m2', 6, 250, { gain: 0.9 })],
+  ['Ak 5 single', () => play('ak5', { gain: 0.55 })],
+  ['Ak 5 steady', () => burst('ak5', 6, 400, { gain: 0.55 })],
+  ['Granattillsats thoonk', () => play('thoonk')],
+  ['Granattillsats thoonk + blast', () => { play('thoonk'); setTimeout(() => play('pop'), 600); }],
+  ['Psg 90 shot', () => play('psg90', { gain: 0.95 })],
   ['Casing', () => play('casing')],
 ]);
 buttons('grenades', [['Throw', () => play('throw')], ['Explosion', () => { play('blast'); audio.duckMusic(); }], ['Throw + explosion', () => { play('throw'); setTimeout(() => { play('blast'); audio.duckMusic(); }, 800); }]]);
 buttons('zombies', [
   ['Walker groan', () => play('groan', { type: 'walker' })],
-  ['Runner shriek', () => play('groan', { type: 'runner' })],
+  ['Runner shriek A (classic)', () => play('groan', { type: 'runner', shriek: 'classic' })],
+  ['Runner shriek B (torn)', () => play('groan', { type: 'runner', shriek: 'torn' })],
   ['Brute roar', () => play('groan', { type: 'brute' })],
   ['Horde: none', () => { horde = 0; }], ['Horde: 30', () => { horde = 30; }], ['Horde: 120', () => { horde = 120; }], ['Horde: 250', () => { horde = 250; }],
 ]);
+const shriekEl = buttons('shriek', [['In game: A (classic)', b => setShriek('classic', b)], ['In game: B (torn)', b => setShriek('torn', b)]]);
+function setShriek(v, b) {
+  settings = normalizeSettings({ ...settings, shriek: v }); saveSettings(settings); audio.setSettings(settings);
+  mark(shriekEl, b); play('groan', { type: 'runner', shriek: v });
+}
+mark(shriekEl, shriekEl.children[settings.shriek === 'torn' ? 1 : 0]);
 buttons('hits', [['Hit', () => play('hit')], ['Kill', () => play('kill')], ['Brute kill', () => play('kill', { type: 'brute' })], ['Many kills', () => burst('kill', 20, 30)]]);
 buttons('base', [
   ['Barricade knock', () => play('knock')], ['Barricade breaks', () => play('crunch', { type: 'block' })],
@@ -131,7 +148,7 @@ pb.addEventListener('click', () => { audio.unlock(); paused = !paused; pb.classL
 // ---------- en falsk dag för horden och stresstestet ----------
 let horde = 0, stressUntil = 0, peak = 0, worst = 0;
 const fakeSim = { phase: 'wave', baseHp: 20, map: { baseHp: 20 }, zombies: [], obstacles: {},
-  guns: Array.from({ length: 10 }, (_, i) => ({ id: 'g' + i, x: (i - 5) * 3, z: (i % 2) * 4 - 2, weapon: { type: i % 3 ? 'm249' : 'm2' } })),
+  guns: Array.from({ length: 10 }, (_, i) => ({ id: 'g' + i, x: (i - 5) * 3, z: (i % 2) * 4 - 2, weapon: { type: ['m249', 'ksp58', 'm2', 'ak5', 'm249', 'psg90'][i % 6] } })),
   route: { cellCenter: () => ({ x: 0, z: 0 }) } };
 const types = ['walker', 'walker', 'walker', 'runner', 'brute'];
 const toScreen = (x, z) => ({ sx: innerWidth / 2 + x * 18, sy: innerHeight / 2 + z * 18 });
@@ -148,13 +165,14 @@ function tick(now) {
     // 3x: 15 steg i bildrutan, varje med skott från alla pjäser, träffar och döda.
     const evs = [];
     for (let s = 0; s < 15; s++) for (const g of fakeSim.guns) {
-      if (Math.random() < (g.weapon.type === 'm2' ? 0.13 : 0.27)) {
+      if (Math.random() < ({ m2: 0.13, ksp58: 0.2, ak5: 0.08, psg90: 0.02 }[g.weapon.type] ?? 0.27)) {
         const z = fakeSim.zombies[(Math.random() * fakeSim.zombies.length) | 0];
         evs.push({ t: 'shot', gunId: g.id, hit: true, x: z.x, z: z.z }, { t: 'hit', x: z.x, z: z.z });
         if (Math.random() < 0.1) evs.push({ t: 'kill', type: z.type, x: z.x, z: z.z });
       }
     }
     if (Math.random() < 0.01) evs.push({ t: 'blast', x: 0, z: 0 });
+    if (Math.random() < 0.03) evs.push({ t: 'launch', gunId: 'g3', x: 0, z: 0 }, { t: 'blast', kind: 'grt', x: 2, z: 1 });
     audio.consume(evs, fakeSim, toScreen);
   }
   audio.update(dt, horde ? fakeSim : null, { paused, mode: horde ? 'play' : 'menu', speed: now < stressUntil ? 3 : 1, toScreen, zombiePos: z => z });

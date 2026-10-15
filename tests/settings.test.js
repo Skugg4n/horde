@@ -15,7 +15,7 @@ test('sparade inställningar läses tillbaka, under nyckeln horde.settings', () 
   const s = fake();
   assert.equal(saveSettings({ sound: 0.3, music: 0, soundMuted: true, musicMuted: false }, s), true);
   assert.ok(s.m.has('horde.settings'));
-  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false, speed: 1 });
+  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false, speed: 1, shriek: 'classic' });
 });
 
 test('trasig eller konstig data ger standardvärden och nivåerna hålls mellan 0 och 1', () => {
@@ -50,4 +50,13 @@ test('farten sparas och läses tillbaka; okänd fart ger 1x', () => {
   assert.equal(loadSettings(s).speed, 3);
   assert.equal(normalizeSettings({ speed: 7 }).speed, 1);
   assert.equal(normalizeSettings({ speed: '2' }).speed, 1);
+});
+
+test('springarens skrik: classic som standard, torn går att välja, okänt blir classic', () => {
+  assert.equal(DEFAULT_SETTINGS.shriek, 'classic');
+  const s = fake();
+  saveSettings({ ...DEFAULT_SETTINGS, shriek: 'torn' }, s);
+  assert.equal(loadSettings(s).shriek, 'torn');
+  assert.equal(normalizeSettings({ shriek: 'gurgle' }).shriek, 'classic');
+  assert.equal(normalizeSettings({}).shriek, 'classic');
 });

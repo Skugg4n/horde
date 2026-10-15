@@ -14,6 +14,9 @@ import { createMusic } from './music.js';
 const RAMP = 0.05;                 // reglagen knastrar inte
 const OPEN_HZ = 18000, MUFFLE_HZ = 320;
 const CASING_CHANCE = 0.12;
+// Vapnets röst och nivå per skott. Hylsor klingar bara från kulsprutorna.
+const SHOT = { m249: { v: 'm249', gain: 0.6, casing: true }, m2: { v: 'm2', gain: 0.9, casing: true }, ksp58: { v: 'ksp58', gain: 0.75, casing: true },
+  ak5: { v: 'ak5', gain: 0.55 }, psg90: { v: 'psg90', gain: 0.95 } };
 const ALARM_FRAC = 0.25, ALARM_GAP = 1.4;
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -151,10 +154,15 @@ export function createAudio({ settings } = {}) {
       switch (ev.t) {
         case 'shot': {
           const g = sim?.guns?.find(x => x.id === ev.gunId);
-          const type = g?.weapon?.type === 'm2' ? 'm2' : 'm249';
+          const sh = SHOT[g?.weapon?.type] ?? SHOT.m249;
           const at = g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z };
-          if (play(type, { ...at, gain: type === 'm2' ? 0.9 : 0.6 }, toScreen) && Math.random() < CASING_CHANCE)
+          if (play(sh.v, { ...at, gain: sh.gain }, toScreen) && sh.casing && Math.random() < CASING_CHANCE)
             play('casing', { ...at, delay: R(0.25, 0.45) }, toScreen);
+          break;
+        }
+        case 'launch': {
+          const g = sim?.guns?.find(x => x.id === ev.gunId);
+          play('thoonk', g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z }, toScreen);
           break;
         }
         case 'hit': play('hit', { x: ev.x, z: ev.z }, toScreen); break;
@@ -164,7 +172,10 @@ export function createAudio({ settings } = {}) {
           play('throw', g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z }, toScreen);
           break;
         }
-        case 'blast': if (play('blast', { x: ev.x, z: ev.z }, toScreen)) duckMusic(); break;
+        case 'blast':
+          if (ev.kind === 'grt') play('pop', { x: ev.x, z: ev.z }, toScreen);
+          else if (play('blast', { x: ev.x, z: ev.z }, toScreen)) duckMusic();
+          break;
         case 'breach': play('breach', { x: ev.x, z: ev.z }, toScreen); break;
         case 'obstacleHit': {
           const c = sim?.route?.cellCenter?.(ev.cell);
@@ -216,7 +227,7 @@ export function createAudio({ settings } = {}) {
         if (!best || d < best.d) best = { d, s, type: z.type };
       }
       const pl = placeOnScreen(best.s.sx, best.s.sy, W, H);
-      play('groan', { sx: best.s.sx, sy: best.s.sy, type: best.type, gain: pl.gain < 0.5 ? 0.6 : 1 });
+      play('groan', { sx: best.s.sx, sy: best.s.sy, type: best.type, shriek: cur?.shriek, gain: pl.gain < 0.5 ? 0.6 : 1 });
     }
     // Basen nästan slut: en låg pulserande varning.
     if (sim.phase === 'wave' && baseFrac > 0 && baseFrac <= ALARM_FRAC) {
