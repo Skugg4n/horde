@@ -50,6 +50,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   <div id="hint" class="plate" hidden><ol><li data-h="0">Click a position.</li><li data-h="1">Build an M249.</li><li data-h="2">Start the wave.</li></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
   <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next">Next wave<kbd>Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
+  <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
   <div id="banner" class="plate" hidden></div>
   <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
   // Röd puls i skärmkanten när basen tar skada. Ligger under gränssnittet.
@@ -60,9 +61,11 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
-  const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed');
+  const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed'), speedBtn2 = root.querySelector('#speedcd');
   speedBtn.addEventListener('pointerdown', e => e.preventDefault());   // ta inte fokus från mellanslag
   speedBtn.addEventListener('click', () => onSpeed && onSpeed());
+  speedBtn2.addEventListener('pointerdown', e => e.preventDefault());
+  speedBtn2.addEventListener('click', () => onSpeed && onSpeed());
   el.next.addEventListener('pointerdown', e => e.preventDefault());
   el.next.addEventListener('click', () => onNext && onNext());
   const resPlate = root.querySelector('#res');
@@ -125,6 +128,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const counting = build && sim.nextWaveIn != null;
     set(el.go, counting ? 'Next wave' : 'Start wave');
     el.cd.hidden = !counting;
+    speedBtn2.hidden = !counting;
     goBtn.classList.toggle('counting', counting);
     if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
     // Mitt i en våg går nästa att kalla tidigt så länge det finns en.
@@ -143,10 +147,12 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   }
 
   // Fart 1x, 2x eller 3x. Lyser rost när den är över 1x.
-  const speedX = $('speedx');
+  const speedX = $('speedx'), speedX2 = $('speedx2');
   function setSpeed(x) {
     set(speedX, x + 'x');
     speedBtn.classList.toggle('on', x > 1);
+    set(speedX2, x + 'x');
+    speedBtn2.classList.toggle('on', x > 1);
   }
 
   // Basen tar skada: siffran blinkar rött och pulsar, plåten och skärmkanten lyser rött.

@@ -24,13 +24,13 @@ const MAX_STEPS_PER_SPEED = 5;
 const BASE_TOAST_GAP = 4;          // sekunder mellan två "Basen tar skada!"
 const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
-const map = MAPS.riksvagen;
+let progress = loadProgress();
+const map = MAPS[progress.mapId] ?? MAPS.riksvagen;
 const { renderer, scene, camera } = createScene(document.getElementById('stage'), map);
 buildWorld(scene, map);
 document.getElementById('ver').textContent = 'v' + VERSION;
 const uiRoot = document.getElementById('ui');
 
-let progress = loadProgress();
 let day = Math.min(progress.unlockedDay, map.days.length);
 // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
 // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
@@ -89,20 +89,33 @@ document.addEventListener('pointerdown', e => {
   closePanel();
 });
 
+// En enda väg för händelser: efter varje step och efter startWave/callNextWave.
+function handleEvents() {
+  const evs = sim.events;
+  view.consume(evs);
+  if (evs.some(e => e.t === 'breach')) onBreach();
+  if (evs.some(e => e.t === 'blast')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
+  for (const ev of evs) {
+    if (ev.t === 'waveStart') hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
+    else if (ev.t === 'earlyBonus') hud.early(ev.amount);
+    else if (ev.t === 'kill' && ev.bounty) {
+      tmpV.set(ev.x, 2, ev.z).project(camera);
+      hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
+    }
+  }
+  sim.events = [];
+}
+
 // Mellanslag och knappen: Start wave före våg 1, annars Next wave (under nedräkningen eller mitt
 // i en våg). Tidigt kall ger bonus, som visas under kassan.
 function go() {
   if (mode !== 'play') return;
   if (sim.phase === 'build' && sim.nextWaveIn == null) {
-    const index = sim.wavesStarted;
     if (!startWave(sim)) return;
-    hud.banner(waveText(sim.dayCfg, index), 4.5);
   } else {
-    const r = callNextWave(sim);
-    if (!r.ok) return;
-    hud.banner(waveText(sim.dayCfg, r.index), 4.5);
-    hud.early(r.bonus);
+    if (!callNextWave(sim).ok) return;
   }
+  handleEvents();
   if (hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
 }
 
@@ -238,7 +251,7 @@ function finishDay() {
   showResult();
 }
 function showResult() {
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel }, {
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel, mapName: map.name }, {
     onRetry: () => startDay(day),
     onNext: () => startDay(day + 1),
     onResearch: () => showResearch('result'),
@@ -342,15 +355,8 @@ function tick(now) {
   if (mode === 'play') acc += frameDt * mul;
   let steps = 0;
   while (acc >= DT && steps < maxSteps) {
-    step(sim, DT); view.consume(sim.events);
-    if (sim.events.some(e => e.t === 'breach')) onBreach();
-    if (sim.events.some(e => e.t === 'blast')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
-    // Nedräkningen gick ut: vågen startade av sig själv.
-    for (const ev of sim.events) if (ev.t === 'waveStart') hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
-    for (const ev of sim.events) if (ev.t === 'kill' && ev.bounty) {
-      tmpV.set(ev.x, 2, ev.z).project(camera);
-      hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
-    }
+    step(sim, DT);
+    handleEvents();
     acc -= DT; steps++;
   }
   if (steps === maxSteps) acc = Math.min(acc, DT);

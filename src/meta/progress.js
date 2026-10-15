@@ -43,6 +43,8 @@ export function migrateResearch(list) {
   for (const id of list) {
     const node = researchNode(id.split('.')[0]);
     if (!node) { add(id); continue; }
+    const t0 = tierOf([id], node.id);
+    if (t0 === 0) { add(id); continue; }
     const t = Math.min(tierOf([id], node.id), node.tiers.length);
     for (let k = 1; k <= t; k++) add(`${node.id}.${k}`);
   }

@@ -122,6 +122,15 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   border: 1px solid rgba(233,223,201,0.3); border-radius: 2px; background: rgba(233,223,201,0.06);
   letter-spacing: 0.1em; text-transform: uppercase;
 }
+#speedcd {
+  position: fixed; bottom: 18px; left: calc(50% + 250px);
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
+  font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase;
+}
+#speedcd[hidden] { display: none; }
+#speedcd b { font: 600 15px 'IBM Plex Mono', monospace; min-width: 2ch; }
+#speedcd.on { background: var(--rust); border-color: rgba(233,223,201,0.45); }
+#speedcd kbd { font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: none; padding: 2px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85; }
 #wavebar .speed:hover, #wavebar .next:hover { background: rgba(233,223,201,0.12); }
 #wavebar .next {
   display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;

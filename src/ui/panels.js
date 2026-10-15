@@ -252,10 +252,10 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 
 // lastDay: sista dagen på banan; då leder vinsten till menyn.
 // cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
-export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0 }, { onRetry, onNext, onResearch, onMenu }) {
+export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, mapName = '' }, { onRetry, onNext, onResearch, onMenu }) {
   const head = won ? `Day ${day} cleared.` : 'The base fell.';
   const lead = won ? `You earned ${intelEarned} research points.` : `You keep ${intelEarned} research points.`;
-  const done = won && lastDay ? `<p class="lead strong">${MAPS.riksvagen.name} cleared. More maps coming.</p>` : '';
+  const done = won && lastDay ? `<p class="lead strong">${mapName} cleared. More maps coming.</p>` : '';
   const main = won
     ? (lastDay ? `<button type="button" class="act main" data-a="menu"><span class="a">To menu</span></button>`
                : `<button type="button" class="act main" data-a="next"><span class="a">Next day</span></button>`)
@@ -294,7 +294,7 @@ function researchRows() {
 }
 function researchState(progress, node) {
   const next = nextTier(progress, node.id);
-  if (!next) return { cls: 'bought', text: 'Done', effect: node.tiers[node.tiers.length - 1].effect };
+  if (!next) return { cls: 'bought', text: 'Maxed', effect: node.tiers[node.tiers.length - 1].effect };
   const c = canBuyResearch(progress, node.id);
   const effect = next.data.effect;
   const label = node.tiers.length > 1 ? `${ROMAN[next.tier]}: ` : '';

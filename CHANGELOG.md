@@ -1,5 +1,16 @@
 # Ändringslogg
 
+## 0.3.1 (2026-10-15)
+
+Rättningar efter granskningen av 0.3.0.
+
+- Fartknappen syns även under nedräkningen, så en dold 2x eller 3x finns inte längre.
+- Start wave och Next wave går samma väg för händelser som resten av spelet (en gemensam händelseloop i main.js).
+- Gamla sparfiler: ett känt forsknings-id med trasig nivå behålls i stället för att tappas.
+- Banan hämtas ur sparfilens `mapId`, och resultatskylten visar banans namn.
+- Texter: "Faster M249" och "Maxed".
+- Granatens ledning räknar med zombiens verkliga fart (taggtråd, bjässar).
+
 ## 0.3.0 (2026-10-15)
 
 Granater, forskning i nivåer och nästa våg med bonus (H015, H016, H022), plus tre önskemål från Olas speltest.

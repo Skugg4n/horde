@@ -41,3 +41,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H028 | balans | Taggtråden biter för lite på dag 1 och 2.
 - [ ] H029 | ux | Speltesta att granatlådans pris ($ 200) och nedräkningens bonus ($ 5 per sekund) känns rätt i händerna.
 
+- [ ] H029 | verktyg | Ta bort horde/horde-gnesta ur nexus/.claude/launch.json när spelet körs från egna sessioner i ~/Projects/horde.

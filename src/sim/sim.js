@@ -133,6 +133,7 @@ function moveZombies(sim, dt) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
     const speed = def.speed * obstacleEffect(sim, z, dt, hitCells);
+    z.v = speed;
     z.d += speed * dt;
     z.wob += dt * speed;
     if (z.d >= sim.len) {
@@ -263,7 +264,7 @@ function throwGrenades(sim, dt) {
       if (z.dead) continue;
       const p = zombiePos(sim, z);
       if (Math.hypot(p.x - s.x, p.z - s.z) > gs.range) continue;
-      const lead = z.attacking ? 0 : ZOMBIES[z.type].speed * gs.flight;
+      const lead = z.attacking ? 0 : (z.v ?? ZOMBIES[z.type].speed) * gs.flight;
       near.push({ z, aim: posAt(sim, z.d + lead, z.off), wt: z.type === 'brute' ? 3 : 1 });
     }
     if (!near.length) continue;

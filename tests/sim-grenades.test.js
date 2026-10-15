@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, build, buyKit, sell, zombiePos } from '../src/sim/sim.js';
+import { createSim, startWave, step, build, buyKit, sell, zombiePos, placeObstacle } from '../src/sim/sim.js';
 import { grenadeStats } from '../src/sim/stats.js';
 import { MAPS } from '../src/data/maps.js';
 import { GRENADE_KIT } from '../src/data/weapons.js';
+import { ZOMBIES } from '../src/data/zombies.js';
 import { RESEARCH } from '../src/data/research.js';
 
 const map = MAPS.riksvagen;
@@ -93,4 +94,19 @@ test('två granater per kast på nivå III', () => {
   const { log } = playWithKit(['grenade.1', 'grenade.2', 'grenade.3', 'm2.1']);
   const first = log.find(e => e.t === 'grenade');
   assert.equal(log.filter(e => e.t === 'grenade' && e.at === first.at).length, 2);
+});
+test('ledningen räknar med verklig fart i taggtråd', () => {
+  const s = mk({ research: ['grenade.1'] });
+  build(s, 'C', 'm249'); buyKit(s, 'C');
+  placeObstacle(s, 0, 'wire');
+  startWave(s);
+  s.spawnQueue = [];
+  s.zombies.push({ id: 900, type: 'brute', wave: 0, hp: 99999, maxHp: 99999, d: 33.5, off: 0, wob: 0, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false });
+  const z = s.zombies[0], gs = grenadeStats(['grenade.1']);
+  let ev = null;
+  for (let i = 0; i < 30 * 10 && !ev; i++) { step(s, DT); ev = s.events.find(e => e.t === 'grenade'); }
+  assert.ok(ev, 'en granat kastades');
+  assert.ok(z.v < ZOMBIES.brute.speed, 'tråden saktar bjässen');
+  const want = zombiePos(s, { ...z, d: z.d + z.v * gs.flight });
+  assert.ok(Math.hypot(ev.x - want.x, ev.z - want.z) < 1e-6);
 });

@@ -7,7 +7,7 @@ export const RESEARCH = [
     { cost: 120, requires: [], effect: 'M2 hits 20 % harder.', damage: 1.2 },
     { cost: 170, requires: [], effect: 'M2 hits 40 % harder.', damage: 1.4 },
   ] },
-  { id: 'm249Rate', name: 'M249 rate', tiers: [
+  { id: 'm249Rate', name: 'Faster M249', tiers: [
     { cost: 40, requires: [], effect: 'M249 fires 25 % faster.', rate: 1.25 },
     { cost: 80, requires: [], effect: 'M249 fires 45 % faster.', rate: 1.45 },
     { cost: 130, requires: ['m2.1'], effect: 'M249 fires 65 % faster.', rate: 1.65 },

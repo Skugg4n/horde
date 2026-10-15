@@ -151,3 +151,7 @@ test('startConfig ger null för en dag som inte finns, så att main.js måste va
   assert.equal(startConfig(newProgress(), 1.5), null);
   assert.ok(startConfig(newProgress(), 1));
 });
+test('migrateResearch behåller känd nod med trasig nivå', () => {
+  assert.deepEqual(migrateResearch(['m2.x']), ['m2.x']);
+  assert.deepEqual(migrateResearch(['m2.0', 'm2.1']), ['m2.0', 'm2.1']);
+});
