@@ -30,9 +30,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H023 | gnesta | Horden går bara på gator (tomter stängda). Barrikader fritt på gatornas rutnät, dyra att passera: horden går runt kvarteret, slår sig igenom närmaste om allt är stängt.
 - [ ] H024 | gnesta | Vapenpositioner på tomter/i hus: skjuter, kastar granater, molotovs.
 - [ ] H025 | gnesta | Senare överraskningar: nya spawns från annat håll; zombier bryter igenom en tomt/ett hus och skapar ny väg.
-- [ ] H026 | spel | Snabbare i tre steg (1x, 2x, 3x) i stället för av/på.
-- [ ] H027 | grafik | Läskigare zombierörelser: ryckiga, stötvisa.
-- [ ] H028 | balans | Taggtråd verkar för lite, särskilt nivå 1 på E4.
 
 ## Olas önskemål under 0.3.0
 
@@ -41,7 +38,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H028 | balans | Taggtråden biter för lite på dag 1 och 2.
 - [ ] H029 | ux | Speltesta att granatlådans pris ($ 200) och nedräkningens bonus ($ 5 per sekund) känns rätt i händerna.
 
-- [ ] H029 | verktyg | Ta bort horde/horde-gnesta ur nexus/.claude/launch.json när spelet körs från egna sessioner i ~/Projects/horde.
+- [ ] H049 | verktyg | Ta bort horde/horde-gnesta ur nexus/.claude/launch.json när spelet körs från egna sessioner i ~/Projects/horde.
 
 ## Efter Gnesta 0.4.0
 
