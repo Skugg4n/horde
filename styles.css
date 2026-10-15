@@ -391,7 +391,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .k .guns { margin-left: 14px; }
 #buildbar .cards { display: flex; gap: 6px; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
-#buildbar .card { width: 128px; padding: 7px 8px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+#buildbar .card { width: 108px; padding: 7px 8px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
 #buildbar .card svg:not(.lock) { height: 26px; margin: 2px 0 3px; }
 #buildbar .card .n { font-size: 12px; white-space: nowrap; letter-spacing: 0.02em; }
 #buildbar .card .p { font-size: 13px; }
@@ -469,9 +469,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #loading .s { font-size: 13px; letter-spacing: 0.06em; color: var(--paper-dim); }
 
 /* Köpraden nere till vänster tar plats (0.6.0): vågens knapp och rad flyttas åt höger när
-   fönstret inte är brett nog för att de ska stå fritt i mitten. */
+   fönstret inte är brett nog för att de ska stå fritt i mitten. 0.8.0: sju kort; köpradens
+   högerkant mäts (--bar-r, panels.js) och raden bryts i två när fönstret är smalt. */
 @media (min-width: 761px) {
-  #go { left: max(50%, 720px); }
-  #wavebar { left: max(50%, 880px); white-space: nowrap; }
-  #speedcd { left: calc(max(50%, 720px) + 250px); }
+  #buildbar { max-width: calc(100vw - 600px); }
+  #buildbar .cards { flex-wrap: wrap; }
+  #go { left: max(50%, calc(var(--bar-r, 580px) + 140px)); }
+  #wavebar { left: max(50%, calc(var(--bar-r, 580px) + 300px)); white-space: nowrap; }
+  #speedcd { left: calc(max(50%, calc(var(--bar-r, 580px) + 140px)) + 250px); }
 }

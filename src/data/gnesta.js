@@ -652,6 +652,7 @@ export function roofBuildings() {
   return out;
 }
 
+const ROOF_SAMPLES = [[0, 0], ...Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * 0.8, Math.sin(i * Math.PI / 4) * 0.8])];
 export function buildPlacement(grid) {
   const houses = houseRects(), things = thingRects();
   const place = buildPlace({
@@ -677,8 +678,11 @@ export function buildPlacement(grid) {
     if (place.kind[k] !== KIND.house) continue;
     const x = grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, z = grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize;
     for (let i = 0; i < blds.length; i++) {
-      const y = blds[i].height(x, z);
-      if (y > 0) { roof[k] = Math.round(y * 100) / 100; bldg[k] = i + 1; break; }
+      if (!(blds[i].height(x, z) > 0)) continue;
+      // Skytten ligger ovanpå taket: högsta punkten inom 0,8 m (annars sjunker han in i takfallet).
+      let y = 0;
+      for (const [dx, dz] of ROOF_SAMPLES) y = Math.max(y, blds[i].height(x + dx, z + dz));
+      roof[k] = Math.round(y * 100) / 100; bldg[k] = i + 1; break;
     }
   }
   return { ...place, roof, bldg, buildings: blds.map(b => b.rects) };

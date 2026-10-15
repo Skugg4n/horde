@@ -59,32 +59,194 @@ function soldier() {
   return s;
 }
 
-function m2Gun(pivot, metal) {
+// Vapnen själva. Varje funktion bygger på pivot (vrids med siktet) med pipan längs +x och
+// returnerar mynningens x. Lågpoly, närmare de riktiga vapnen sedan 0.8.0.
+
+// Ksp 88 (M2HB, 12,7 mm): fyrkantig låda, spadgrepp, perforerad pipmantel, konisk flamdämpare,
+// ammunitionslåda på vänster sida.
+function ksp88Gun(pivot, metal) {
   pivot.add(box(1.1, 0.32, 0.3, metal, 0.1, 0, 0));                      // låda
-  pivot.add(box(0.18, 0.12, 0.2, metal, -0.55, 0.02, 0));                 // spadgrepp
-  pivot.add(box(0.4, 0.25, 0.32, mat(P.ammo), -0.1, -0.25, 0.25));        // ammolåda
+  pivot.add(box(0.5, 0.05, 0.31, mat(P.gunDark), 0.25, 0.18, 0));        // matarlock
+  for (const z of [-0.09, 0.09]) pivot.add(box(0.06, 0.16, 0.04, metal, -0.55, 0.02, z)); // spadgrepp
+  pivot.add(box(0.06, 0.04, 0.24, metal, -0.6, 0.08, 0));
+  pivot.add(box(0.36, 0.26, 0.2, mat(P.ammo), 0.15, -0.1, -0.3));        // ammolåda, vänster
+  pivot.add(box(0.14, 0.04, 0.12, mat(P.brass), 0.15, 0.06, -0.2));      // bandet in i lådan
   pivot.add(box(0.08, 0.14, 0.04, metal, 0.45, 0.24, 0));                 // sikte
-  const jacket = mesh(geo('cylinder', 0.09, 0.09, 0.4, 7), metal, 0.82, 0.03, 0);
+  const jacket = mesh(geo('cylinder', 0.09, 0.09, 0.42, 7), metal, 0.83, 0.03, 0);
   jacket.rotation.z = Math.PI / 2; pivot.add(jacket);
-  const barrel = mesh(geo('cylinder', 0.05, 0.06, 1.6, 6), metal, 1.4, 0.03, 0);
+  for (const x of [0.7, 0.83, 0.96]) pivot.add(box(0.03, 0.2, 0.2, mat(P.gunDark), x, 0.03, 0)); // hål i manteln
+  const barrel = mesh(geo('cylinder', 0.05, 0.055, 1.6, 6), metal, 1.42, 0.03, 0);
   barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
-  pivot.add(box(0.22, 0.22, 0.22, metal, 2.2, 0.03, 0));                  // mynningsbroms
-  return 2.35;
+  const hider = mesh(geo('cylinder', 0.09, 0.06, 0.22, 7), metal, 2.28, 0.03, 0);
+  hider.rotation.z = Math.PI / 2; pivot.add(hider);
+  return 2.4;
 }
 
-function m249Gun(pivot, metal) {
-  pivot.add(box(0.75, 0.22, 0.17, metal, 0, 0, 0));                       // låda
-  pivot.add(box(0.5, 0.2, 0.12, metal, -0.6, -0.04, 0));                  // kolv
-  pivot.add(box(0.3, 0.2, 0.22, mat(P.ammo), 0.05, -0.2, 0.08));          // patronväska
-  pivot.add(box(0.3, 0.06, 0.06, metal, 0.05, 0.16, 0));                  // bärhandtag
-  pivot.add(box(0.32, 0.13, 0.15, mat(P.gunDark), 0.5, -0.01, 0));        // handskydd
-  const barrel = mesh(geo('cylinder', 0.03, 0.035, 0.75, 6), metal, 0.95, 0.01, 0);
+// Ksp 90 (FN Minimi, 5,56 mm): kort, bärhandtag, patronlåda under, skjutbar kolv, tvåbensstöd.
+function ksp90Gun(pivot, metal) {
+  pivot.add(box(0.72, 0.2, 0.15, metal, 0, 0, 0));                       // låda
+  pivot.add(box(0.42, 0.05, 0.16, mat(P.gunDark), 0.02, 0.12, 0));       // matarlock
+  pivot.add(box(0.36, 0.06, 0.05, metal, -0.55, 0.04, 0));                // skjutbar kolv: rör
+  pivot.add(box(0.06, 0.2, 0.1, mat(P.gunDark), -0.74, -0.02, 0));       // kolvplatta
+  pivot.add(box(0.05, 0.14, 0.05, mat(P.gunDark), -0.2, -0.15, 0));      // pistolgrepp
+  pivot.add(box(0.26, 0.22, 0.2, mat(P.ammo), 0.08, -0.2, 0.06));        // patronlåda (200 skott)
+  pivot.add(box(0.26, 0.05, 0.05, metal, 0.12, 0.17, 0));                 // bärhandtag
+  pivot.add(box(0.3, 0.12, 0.14, mat(P.gunDark), 0.5, -0.02, 0));        // handskydd
+  const barrel = mesh(geo('cylinder', 0.03, 0.034, 0.72, 6), metal, 0.95, 0.01, 0);
   barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
+  const hider = mesh(geo('cylinder', 0.04, 0.034, 0.1, 6), metal, 1.33, 0.01, 0);
+  hider.rotation.z = Math.PI / 2; pivot.add(hider);
   for (const side of [-1, 1]) {                                           // bipod
-    const leg = mesh(geo('cylinder', 0.02, 0.02, 0.42, 4), metal, 0.72, -0.18, side * 0.1);
+    const leg = mesh(geo('cylinder', 0.02, 0.02, 0.42, 4), metal, 0.74, -0.18, side * 0.1);
     leg.rotation.x = side * 0.45; pivot.add(leg);
   }
-  return 1.34;
+  return 1.38;
+}
+
+// Ksp 58 (FN MAG, 7,62 mm): lång låda, svart kolv, bärhandtag på pipan, gasrör under, tvåben
+// långt fram och ett patronband som hänger ut på vänster sida.
+function ksp58Gun(pivot, metal) {
+  pivot.add(box(0.62, 0.22, 0.16, metal, 0, 0, 0));                      // låda
+  pivot.add(box(0.48, 0.05, 0.17, mat(P.gunDark), 0.04, 0.13, 0));       // matarlock
+  const stock = box(0.5, 0.18, 0.11, mat(P.gunDark), -0.55, -0.04, 0);   // kolv, smalnar bakåt
+  stock.rotation.z = 0.08; pivot.add(stock);
+  pivot.add(box(0.05, 0.15, 0.05, mat(P.gunDark), -0.16, -0.15, 0));     // pistolgrepp
+  const barrel = mesh(geo('cylinder', 0.032, 0.038, 0.95, 6), metal, 0.78, 0.03, 0);
+  barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
+  const gas = mesh(geo('cylinder', 0.022, 0.022, 0.6, 5), metal, 0.62, -0.05, 0);
+  gas.rotation.z = Math.PI / 2; pivot.add(gas);
+  pivot.add(box(0.2, 0.04, 0.04, mat(P.gunDark), 0.55, 0.14, 0));       // bärhandtag
+  pivot.add(box(0.03, 0.08, 0.03, mat(P.gunDark), 0.5, 0.1, 0));
+  pivot.add(box(0.03, 0.08, 0.03, mat(P.gunDark), 0.6, 0.1, 0));
+  const hider = mesh(geo('cylinder', 0.045, 0.038, 0.12, 6), metal, 1.3, 0.03, 0);
+  hider.rotation.z = Math.PI / 2; pivot.add(hider);
+  for (const side of [-1, 1]) {                                           // tvåben vid gasblocket
+    const leg = mesh(geo('cylinder', 0.02, 0.02, 0.46, 4), metal, 0.92, -0.2, side * 0.1);
+    leg.rotation.x = side * 0.42; pivot.add(leg);
+  }
+  for (let i = 0; i < 6; i++) {                                           // patronbandet
+    const l = box(0.06, 0.03, 0.09, mat(i % 2 ? P.brass : P.gunDark), 0.02 - i * 0.015, -0.02 - i * 0.07, -0.13 - i * 0.012);
+    l.rotation.x = 0.3; pivot.add(l);
+  }
+  return 1.37;
+}
+
+// Ak 5 (Ak 5C) med granattillsats: kort gevär med rödpunktsikte, böjt magasin och ett 40 mm-rör
+// under pipan.
+function ak5Gun(pivot, metal) {
+  pivot.add(box(0.38, 0.12, 0.08, metal, 0, 0, 0));                      // låda
+  pivot.add(box(0.36, 0.09, 0.06, mat(P.gunDark), -0.36, -0.03, 0));     // kolv
+  pivot.add(box(0.06, 0.13, 0.08, mat(P.gunDark), -0.54, -0.04, 0));     // kolvplatta
+  const mag = box(0.08, 0.2, 0.05, mat(P.gunDark), 0.08, -0.14, 0);      // magasin, böjt framåt
+  mag.rotation.z = 0.28; pivot.add(mag);
+  pivot.add(box(0.05, 0.11, 0.05, mat(P.gunDark), -0.1, -0.11, 0));      // pistolgrepp
+  const sight = mesh(geo('cylinder', 0.03, 0.03, 0.12, 6), metal, 0.02, 0.1, 0);
+  sight.rotation.z = Math.PI / 2; pivot.add(sight);                       // rödpunktsikte
+  pivot.add(box(0.26, 0.09, 0.08, mat(P.gunDark), 0.31, 0.0, 0));        // handskydd
+  const barrel = mesh(geo('cylinder', 0.018, 0.02, 0.34, 6), metal, 0.56, 0.02, 0);
+  barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
+  const tube = mesh(geo('cylinder', 0.04, 0.04, 0.3, 7), mat(P.grenade, METAL), 0.33, -0.08, 0);
+  tube.rotation.z = Math.PI / 2; pivot.add(tube);                         // granattillsatsen
+  pivot.add(box(0.06, 0.07, 0.05, metal, 0.2, -0.13, 0));                 // avtryckare till röret
+  return 0.74;
+}
+
+// Psg 90 (prickskyttegevär, 7,62 mm): lång pipa med mynningsbroms, stort kikarsikte, kindstöd
+// och tvåben.
+function psg90Gun(pivot, metal) {
+  const stockM = mat('#3a3d2c');
+  pivot.add(box(0.3, 0.11, 0.08, metal, 0, 0, 0));                       // låda
+  pivot.add(box(0.48, 0.12, 0.08, stockM, -0.38, -0.02, 0));             // kolv
+  pivot.add(box(0.2, 0.06, 0.07, stockM, -0.4, 0.07, 0));                 // kindstöd
+  pivot.add(box(0.06, 0.18, 0.08, stockM, -0.64, -0.03, 0));             // kolvplatta
+  pivot.add(box(0.06, 0.1, 0.04, mat(P.gunDark), 0.08, -0.1, 0));        // magasin
+  const scope = mesh(geo('cylinder', 0.035, 0.035, 0.36, 7), mat(P.gunDark), 0.0, 0.12, 0);
+  scope.rotation.z = Math.PI / 2; pivot.add(scope);
+  for (const x of [-0.18, 0.18]) {
+    const bell = mesh(geo('cylinder', 0.048, 0.04, 0.06, 7), mat(P.gunDark), x, 0.12, 0);
+    bell.rotation.z = Math.PI / 2; pivot.add(bell);
+  }
+  pivot.add(box(0.36, 0.06, 0.07, stockM, 0.32, -0.01, 0));              // framstock
+  const barrel = mesh(geo('cylinder', 0.02, 0.024, 0.7, 6), metal, 0.8, 0.01, 0);
+  barrel.rotation.z = Math.PI / 2; pivot.add(barrel);
+  pivot.add(box(0.08, 0.05, 0.06, metal, 1.17, 0.01, 0));                 // mynningsbroms
+  for (const side of [-1, 1]) {
+    const leg = mesh(geo('cylinder', 0.014, 0.014, 0.3, 4), metal, 0.42, -0.13, side * 0.07);
+    leg.rotation.x = side * 0.35; pivot.add(leg);
+  }
+  return 1.22;
+}
+
+// Ghillie: trasor i jordfärger över ryggen, benen och hjälmen, så att skytten blir en kulle.
+const GHILLIE = ['#4f5530', '#5f5a3a', '#3e4428', '#6b6440', '#55502f'];
+function ghillie(gunner) {
+  const ms = GHILLIE.map(c => mat(c));
+  const tuft = (parent, n, w, h, y0, y1, spread) => {
+    for (let i = 0; i < n; i++) {
+      const t = box(rnd(0.05, 0.09), rnd(0.18, 0.32), rnd(0.03, 0.06), pick(ms), rnd(-w, w), rnd(y0, y1), -spread + rnd(-0.04, 0.04));
+      t.rotation.set(rnd(-0.9, 0.9), rnd(-1, 1), rnd(-0.9, 0.9));
+      parent.add(t);
+    }
+  };
+  tuft(gunner.spine, 14, 0.24, 0.05, 0.6, 0.15);
+  tuft(gunner.head, 6, 0.14, 0.14, 0.38, 0.05);
+  tuft(gunner.hipL, 4, 0.08, -0.45, -0.05, 0.09);
+  tuft(gunner.hipR, 4, 0.08, -0.45, -0.05, 0.09);
+  // en rygg av säckväv över bålen
+  gunner.spine.add(box(gunner.build.chestW + 0.12, gunner.build.torsoH + 0.1, 0.08, pick(ms), 0, gunner.build.torsoH / 2, -0.16));
+}
+
+// Typ till byggsätt: säckringen (nivå 1-2, nivå 3 en rad till), pivotens höjd, vapnet, skyttens
+// ställning, skölden på nivå 2, yttre vallen på nivå 3, ammolådornas och granatlådans plats.
+const KINDS = {
+  m249: { ring: { r: 2.0, layers: 2, n: 11, arc: 1.9, size: 0.92 }, pile: true, y: 0.95, gun: ksp90Gun, pose: 'kneel',
+    shield: { x: 0.45, w: 0.95, h: 0.75, y: 0.12 }, outer: { r: 2.85, layers: 2, n: 13, arc: 1.2, size: 0.92 }, crate: 2.4, kit: [-0.6, -1.35] },
+  ksp58: { ring: { r: 2.2, layers: 2, n: 12, arc: 1.9, size: 0.95 }, pile: true, y: 0.95, gun: ksp58Gun, pose: 'kneel',
+    shield: { x: 0.5, w: 1.05, h: 0.8, y: 0.14 }, outer: { r: 3.05, layers: 2, n: 14, arc: 1.2, size: 0.95 }, crate: 2.6, kit: [-0.7, -1.45] },
+  m2: { ring: { r: 2.5, layers: 3, n: 13, arc: 1.95, size: 1 }, tripod: true, y: 1.15, gun: ksp88Gun, pose: 'stand',
+    shield: { x: 0.75, w: 1.3, h: 1.1, y: 0.2 }, outer: { r: 3.45, layers: 2, n: 15, arc: 1.25, size: 1 }, crate: 2.9, kit: [-0.85, -1.6] },
+  ak5: { ring: { r: 1.8, layers: 3, n: 11, arc: 1.85, size: 0.9 }, y: 1.38, gun: ak5Gun, pose: 'rifle',
+    shield: { x: 0.35, w: 0.8, h: 0.55, y: -0.32 }, outer: { r: 2.65, layers: 2, n: 12, arc: 1.2, size: 0.9 }, crate: 2.2, kit: [-0.5, -1.2] },
+  psg90: { ring: { r: 1.9, layers: 1, n: 11, arc: 1.5, size: 0.85 }, y: 0.3, gun: psg90Gun, pose: 'prone',
+    shield: { x: 0.95, w: 0.7, h: 0.32, y: -0.08 }, outer: { r: 2.7, layers: 1, n: 12, arc: 1.1, size: 0.85 }, crate: 2.3, kit: [-0.9, -1.0] },
+};
+export const weaponKinds = () => Object.keys(KINDS);
+
+function pose(gunner, how, kind) {
+  const g = gunner;
+  if (how === 'stand') {
+    // står bakom spadgreppen, lutar in i vapnet
+    g.root.position.set(-1.0, -1.15, 0);
+    g.spine.rotation.x = 0.28; g.head.rotation.x = -0.25;
+    g.hipL.rotation.x = -0.25; g.kneeL.rotation.x = 0.35; g.hipR.rotation.x = 0.15; g.kneeR.rotation.x = 0.1;
+    g.shL.rotation.set(-1.0, 0, 0.12); g.shR.rotation.set(-1.0, 0, -0.12);
+    g.elL.rotation.x = -0.55; g.elR.rotation.x = -0.55;
+  } else if (how === 'kneel') {
+    // på ett knä bakom kulsprutan
+    g.root.position.set(kind === 'ksp58' ? -1.05 : -1.0, -0.95, 0);
+    g.body.position.y = -0.47;
+    g.hipL.rotation.x = -1.45; g.kneeL.rotation.x = 1.5;
+    g.hipR.rotation.x = 0.25; g.kneeR.rotation.x = 1.75;
+    g.spine.rotation.x = 0.45; g.head.rotation.x = -0.45;
+    g.shL.rotation.set(-1.15, 0, 0.1); g.shR.rotation.set(-1.05, 0, -0.1);
+    g.elL.rotation.x = -0.45; g.elR.rotation.x = -0.6;
+  } else if (how === 'rifle') {
+    // står bakom vallen med geväret mot axeln
+    g.root.position.set(-0.42, -1.38, 0.06);
+    g.spine.rotation.x = 0.12; g.head.rotation.set(-0.1, 0, 0);
+    g.hipL.rotation.x = -0.2; g.kneeL.rotation.x = 0.25; g.hipR.rotation.x = 0.25;
+    g.shR.rotation.set(-1.45, 0, -0.55); g.elR.rotation.x = -1.35;   // bakre handen vid greppet
+    g.shL.rotation.set(-1.4, 0, 0.35); g.elL.rotation.x = -0.35;     // främre handen under handskyddet
+  } else if (how === 'prone') {
+    // ligger på magen bakom geväret; huvudet vid kindstödet
+    g.root.rotation.set(Math.PI / 2, 0, 0);
+    g.root.position.set(0, -0.17, -1.95);
+    g.head.rotation.x = -1.15;
+    g.hipL.rotation.z = 0.18; g.hipR.rotation.z = -0.18;
+    g.kneeL.rotation.x = 0.1; g.kneeR.rotation.x = 0.25;
+    g.shL.rotation.set(-2.65, 0, 0.42); g.shR.rotation.set(-2.75, 0, -0.3);
+    g.elL.rotation.x = -0.35; g.elR.rotation.x = -0.6;
+  }
 }
 
 // Gevärssköld: platta med vinklade sidovingar, sitter på pivot och vrids med vapnet.
@@ -124,72 +286,60 @@ export function grenadeModel() {
   return g;
 }
 
-// kit: positionen har en granatlåda (ritas bredvid skytten).
-export function weaponModel(type, level = 1, { kit = false } = {}) {
-  const heavy = type === 'm2';
+// kit: positionen har en granatlåda (ritas bredvid skytten). roof: pjäsen ligger på ett hustak
+// (Psg 90): ingen säckring, bara en säck under tvåbenet; gruppen ställs på takets höjd av vyn.
+export function weaponModel(type, level = 1, { kit = false, roof = false } = {}) {
+  const K = KINDS[type] ?? KINDS.m249;
   const group = new THREE.Group();
   const pivot = new THREE.Group();
   const muzzle = new THREE.Object3D();
   const metal = mat(P.gunMetal, METAL);
 
-  const ring = heavy
-    ? { r: 2.5, layers: level >= 3 ? 4 : 3, n: 13, arc: 1.95, size: 1 }
-    : { r: 2.0, layers: level >= 3 ? 3 : 2, n: 11, arc: 1.9, size: 0.92 };
-  sandbagArc(group, ring);
+  if (!roof) sandbagArc(group, { ...K.ring, layers: K.ring.layers + (level >= 3 ? 1 : 0) });
+  else {
+    const bag = mesh(geo('sphere', 0.5, 7, 5), mat(P.sandbag[0]), 0.4, 0.12, 0);
+    bag.scale.set(0.6, 0.26, 0.4); group.add(bag);
+  }
 
-  if (heavy) {
+  if (K.tripod) {
     for (let i = 0; i < 3; i++) {                                         // trefot
       const l = mesh(geo('cylinder', 0.04, 0.04, 1.3, 5), metal);
       const a = i * 2.1; l.position.set(Math.cos(a) * 0.35, 0.55, Math.sin(a) * 0.35);
       l.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); group.add(l);
     }
-    pivot.position.set(0, 1.15, 0);
-    muzzle.position.set(m2Gun(pivot, metal), 0.03, 0);
-  } else {
-    sandbagPile(group, 0.25, 0);
-    pivot.position.set(0, 0.95, 0);
-    muzzle.position.set(m249Gun(pivot, metal), 0.01, 0);
-  }
+  } else if (K.pile) sandbagPile(group, 0.25, 0);
+  pivot.position.set(0, K.y, 0);
+  muzzle.position.set(K.gun(pivot, metal), type === 'm2' ? 0.03 : 0.01, 0);
   group.add(pivot); pivot.add(muzzle);
 
-  // skytten står bakom vapnet och följer med när det vrids
+  // skytten följer med när vapnet vrids. Liggande skytt: i en hållare vriden mot +x.
   const gunner = soldier();
-  gunner.root.rotation.y = Math.PI / 2;
-  if (heavy) {
-    // står bakom spadgreppen, lutar in i vapnet
-    gunner.root.position.set(-1.0, -1.15, 0);
-    gunner.spine.rotation.x = 0.28; gunner.head.rotation.x = -0.25;
-    gunner.hipL.rotation.x = -0.25; gunner.kneeL.rotation.x = 0.35; gunner.hipR.rotation.x = 0.15; gunner.kneeR.rotation.x = 0.1;
-    gunner.shL.rotation.set(-1.0, 0, 0.12); gunner.shR.rotation.set(-1.0, 0, -0.12);
-    gunner.elL.rotation.x = -0.55; gunner.elR.rotation.x = -0.55;
+  if (K.pose === 'prone') {
+    const holder = new THREE.Group(); holder.rotation.y = Math.PI / 2;
+    holder.add(gunner.root); pivot.add(holder);
+    ghillie(gunner);
   } else {
-    // på ett knä bakom kulsprutan
-    gunner.root.position.set(-1.0, -0.95, 0);
-    gunner.body.position.y = -0.47;
-    gunner.hipL.rotation.x = -1.45; gunner.kneeL.rotation.x = 1.5;
-    gunner.hipR.rotation.x = 0.25; gunner.kneeR.rotation.x = 1.75;
-    gunner.spine.rotation.x = 0.45; gunner.head.rotation.x = -0.45;
-    gunner.shL.rotation.set(-1.15, 0, 0.1); gunner.shR.rotation.set(-1.05, 0, -0.1);
-    gunner.elL.rotation.x = -0.45; gunner.elR.rotation.x = -0.6;
+    gunner.root.rotation.y = Math.PI / 2;
+    pivot.add(gunner.root);
   }
-  pivot.add(gunner.root);
+  pose(gunner, K.pose, type);
 
-  // nivå 2: sköld framför
-  if (level >= 2) gunShield(pivot, heavy ? { x: 0.75, w: 1.3, h: 1.1, y: 0.2 } : { x: 0.45, w: 0.95, h: 0.75, y: 0.12 });
+  // nivå 2: sköld framför (inte på taket)
+  if (level >= 2 && !roof) gunShield(pivot, K.shield);
 
-  // nivå 3: yttre säckvall framåt och ammolådor bakom
+  // nivå 3: yttre säckvall framåt och ammolådor bakom (på taket: en låda bredvid skytten)
   if (level >= 3) {
-    sandbagArc(group, heavy
-      ? { r: 3.45, layers: 2, n: 15, arc: 1.25, size: 1 }
-      : { r: 2.85, layers: 2, n: 13, arc: 1.2, size: 0.92 });
-    const cr = heavy ? 2.9 : 2.4;
-    crate(group, -cr, 0, cr * 0.42, 0.4);
-    crate(group, -cr - 0.1, 0.45, cr * 0.42 + 0.05, 0.3);
-    crate(group, -cr + 0.2, 0, cr * 0.42 + 0.6, 0.5);
-    crate(group, -cr + 0.1, 0, -cr * 0.5, -0.3);
+    if (!roof) {
+      sandbagArc(group, K.outer);
+      const cr = K.crate;
+      crate(group, -cr, 0, cr * 0.42, 0.4);
+      crate(group, -cr - 0.1, 0.45, cr * 0.42 + 0.05, 0.3);
+      crate(group, -cr + 0.2, 0, cr * 0.42 + 0.6, 0.5);
+      crate(group, -cr + 0.1, 0, -cr * 0.5, -0.3);
+    } else crate(group, -1.2, 0, 0.75, 0.3);
   }
-  if (kit) grenadeCrate(group, heavy ? -0.85 : -0.6, heavy ? -1.6 : -1.35, 0.35);
-  group.userData = { kind: 'weapon', type, level, kit };
+  if (kit) grenadeCrate(group, K.kit[0], K.kit[1], 0.35);
+  group.userData = { kind: 'weapon', type, level, kit, roof };
   return { group, pivot, muzzle, gunner };
 }
 
@@ -550,8 +700,8 @@ export function zombieFall(z, t) {
 // Vapnets modell (nivå 1) i en enda genomskinlig färg: grön där pjäsen får stå, röd där den inte
 // får. Följer pekaren i placeringsläget. Ett eget material, delad geometri med vapnet.
 export const GHOST_OK = '#7fbf5a', GHOST_BAD = '#c8452f';
-export function weaponGhost(type) {
-  const model = weaponModel(type, 1);
+export function weaponGhost(type, { roof = false } = {}) {
+  const model = weaponModel(type, 1, { roof });
   const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false });
   m.userData.own = true;
   model.group.traverse(o => {

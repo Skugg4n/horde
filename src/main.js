@@ -12,10 +12,11 @@ import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
 import { shopItem } from './data/shop.js';
+import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
@@ -172,8 +173,9 @@ function spotFor(key) {
     return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
   }
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
-  const c = sim.place.center(key), check = checkSpot(sim, key);
-  return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
+  const c = sim.place.center(key), check = checkSpot(sim, key, placing?.type);
+  const roof = onRoof(sim, key, placing?.type);
+  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason };
 }
 function placeHere(key) {
   const sp = spotFor(key);
@@ -210,7 +212,7 @@ function placementUi() {
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
     const r = weaponStats(placing.type, 1, sim.research).range;
     return {
-      ghost: { type: placing.type, x: spot.x, z: spot.z, ok: spot.ok },
+      ghost: { type: placing.type, x: spot.x, y: spot.y, z: spot.z, roof: spot.roof, ok: spot.ok },
       range: { x: spot.x, z: spot.z, r },
       cover: { id: 'p' + spot.key + placing.type, x: spot.x, z: spot.z, r, keys: sightOf(placing.type, spot.key).keys, tone: spot.ok ? 'ok' : 'bad' },
     };
@@ -262,11 +264,24 @@ function open(p) {
   placePanel();
 }
 
+// Ett vapen som får ligga på tak (Psg 90): taket som strålen träffar först. Strålen stegas
+// nedåt i höjd; första rutan vars tak ligger i höjd med strålen är taket under pekaren.
+const ray3 = new Vector3();
+function roofUnder(ray) {
+  const p = sim.place;
+  if (!ray || !p.roof || !WEAPONS[placing?.type]?.roof || ray.direction.y >= 0) return null;
+  for (let h = 9; h > 0.5; h -= 0.25) {
+    ray3.copy(ray.direction).multiplyScalar((h - ray.origin.y) / ray.direction.y).add(ray.origin);
+    const k = p.keyAt(ray3.x, ray3.z);
+    if (k >= 0 && p.roof[k] >= h - 0.2) return k;
+  }
+  return null;
+}
 // Med något i handen svarar bara marken (rutan under pekaren). Annars pjäserna och hindren som
 // står ute; en tom gata öppnar ingenting (köp sker från köpraden).
-const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z) => {
+const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z, ray) => {
   if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i }; }
-  if (placing) return { kind: 'spot', id: sim.place.keyAt(x, z) };
+  if (placing) return { kind: 'spot', id: roofUnder(ray) ?? sim.place.keyAt(x, z) };
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
 }, { ignoreClick: () => rig.takeDrag() });
@@ -292,7 +307,8 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach();
-  if (evs.some(e => e.t === 'blast')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
+  // Granattillsatsens små smällar skakar inte bilden, bara granatlådans.
+  if (evs.some(e => e.t === 'blast' && e.kind !== 'grt')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
   for (const ev of evs) {
     if (ev.t === 'waveStart') hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);

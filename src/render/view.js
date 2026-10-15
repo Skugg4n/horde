@@ -33,6 +33,9 @@ const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const SHOT_LOOK = {
   m2: { tracer: 'heavy', flash: 'heavy', kick: 0.24, rise: 0.12, back: 9, rattle: 0, smoke: true },
   m249: { tracer: 'light', flash: 'light', kick: 0.05, rise: 0.025, back: 22, rattle: 0.012, smoke: false },
+  ksp58: { tracer: 'light', flash: 'light', kick: 0.09, rise: 0.05, back: 16, rattle: 0.01, smoke: false },
+  ak5: { tracer: 'light', flash: 'light', kick: 0.06, rise: 0.06, back: 18, rattle: 0, smoke: false },
+  psg90: { tracer: 'heavy', flash: 'heavy', kick: 0.12, rise: 0.18, back: 5, rattle: 0, smoke: true },
 };
 
 export function createView(scene, initialSim) {
@@ -135,10 +138,11 @@ export function createView(scene, initialSim) {
   // ---------- utställda vapen ----------
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
-  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : ''); }
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : ''); }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
-    const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit });
+    // En pjäs på ett tak (Psg 90) står på takets höjd (s.y, simuleringen räknar fram den).
+    const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof });
     const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle };
     model.pivot.rotation.y = -e.angle;
     e.pivotHome = model.pivot.position.clone();
@@ -148,7 +152,7 @@ export function createView(scene, initialSim) {
     hit.rotation.x = -Math.PI / 2; hit.position.y = 0.1;
     e.group.add(hit);
     e.group.userData.pick = { kind: 'gun', id: s.id };
-    e.group.position.set(s.x, 0, s.z);
+    e.group.position.set(s.x, s.y ?? 0, s.z);
     scene.add(e.group);
     e.group.updateMatrixWorld(true);
     slots.set(s.id, e); slotObjects.set(s.id, e.group);
@@ -165,7 +169,8 @@ export function createView(scene, initialSim) {
   const onRoad = (x, z) => { const k = sim.place.keyAt(x, z); return k >= 0 && sim.place.kind[k] === 1; };
   function syncDug() {
     let added = false;
-    for (const s of sim.guns) if (!dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
+    // Skyttar på taken röjer ingenting på marken.
+    for (const s of sim.guns) if (!s.roof && !dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
     if (added) scene.userData.fortify?.setPositions([...dug.values()], { road: onRoad });
   }
   function syncSlots(dt) {
@@ -201,13 +206,14 @@ export function createView(scene, initialSim) {
   let ghostOn = null;
   function syncGhost() {
     const g = ui.ghost;
-    if (ghostOn && (!g || ghostOn.type !== g.type)) { ghostOn.group.visible = false; ghostOn = null; }
+    const gk = g ? g.type + (g.roof ? ':roof' : '') : null;
+    if (ghostOn && (!g || ghostOn.key !== gk)) { ghostOn.group.visible = false; ghostOn = null; }
     if (!g) return;
-    let e = ghosts.get(g.type);
-    if (!e) { e = { type: g.type, group: weaponGhost(g.type) }; scene.add(e.group); ghosts.set(g.type, e); }
+    let e = ghosts.get(gk);
+    if (!e) { e = { key: gk, group: weaponGhost(g.type, { roof: !!g.roof }) }; scene.add(e.group); ghosts.set(gk, e); }
     ghostOn = e;
     e.group.visible = true;
-    e.group.position.set(g.x, 0, g.z);
+    e.group.position.set(g.x, g.y ?? 0, g.z);
     setGhostTone(e.group, g.ok);
   }
   // Hindret i handen: en spökmodell per ruta det skulle ta (en spärr över hela gatan på Gnesta).
@@ -536,6 +542,21 @@ export function createView(scene, initialSim) {
           from.y += 1.5;
           to.set(ev.x, 0.15, ev.z);
           fx.grenade(from, to, ev.flight);
+          break;
+        }
+        case 'launch': {
+          // granattillsatsen: granaten lämnar röret under pipan i en flack båge
+          const e = slots.get(ev.gunId); if (!e) break;
+          e.model.muzzle.getWorldPosition(from);
+          to.set(ev.x, 0.15, ev.z);
+          fx.grenade(from, to, ev.flight);
+          fx.flash(e.model.muzzle, ev.gunId + 'g', 'light');
+          e.recoil = 1;
+          break;
+        }
+        case 'pierce': {
+          const sc = zombieScale(ev.targetId);
+          fx.gibs(ev.x, 1.2 * sc, ev.z, 6);
           break;
         }
         case 'blast': fx.blast(ev.x, ev.z, ev.r); blasts.push(ev); break;

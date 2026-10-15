@@ -18,6 +18,7 @@ const REASONS = {
   // placeringen (korta, de står vid pekaren)
   'gata': 'On the road',
   'hus': 'Inside a house',
+  'kant': 'Not on the roof, too close to the edge',
   'nära': 'Too close to another gun',
   'fullt': 'Max guns reached (research more)',
   'skog': 'In the forest',
@@ -74,9 +75,12 @@ function shell(root, actions) {
 // ändras). pick(id) från main.js; shake(id) skakar ett kort som inte går att ta upp.
 const LOCK = '<svg class="lock" viewBox="0 0 16 16"><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="7" width="10" height="7.5" rx="1" fill="currentColor"/></svg>';
 const itemName = (it) => (it.kind === 'gun' ? WEAPONS[it.id].name : OBSTACLES[it.id].name);
+// Kortets namn: kort form där den finns (Ak 5 + Grt), hela namnet i tipset och panelen.
+const itemShort = (it) => { const d = it.kind === 'gun' ? WEAPONS[it.id] : OBSTACLES[it.id]; return d.short ?? d.name; };
 const itemDesc = (it, sim) => {
-  if (it.kind === 'gun') { const st = weaponStats(it.id, 1, sim.research); return `${WEAPONS[it.id].desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
-  return OBSTACLES[it.id].desc + (sim.route.kind === 'grid' ? ' Spans the whole street.' : '');
+  if (it.kind === 'gun') { const w = WEAPONS[it.id], st = weaponStats(it.id, 1, sim.research); return `${w.short ? w.name + '. ' : ''}${w.desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
+  const o = OBSTACLES[it.id];
+  return (o.short ? o.name + '. ' : '') + o.desc + (sim.route.kind === 'grid' ? ' Spans the whole street.' : '');
 };
 export function buildBar(root, actions) {
   const el = document.createElement('div');
@@ -85,12 +89,19 @@ export function buildBar(root, actions) {
   el.hidden = true;
   root.appendChild(el);
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
-  let key = null;
+  let key = null, barR = -1;
   const cards = new Map();      // id -> { btn, price, why, state }
+  // Köpradens högerkant till CSS (--bar-r): vågens knapp och rad ställer sig till höger om den.
+  function measure() {
+    if (el.hidden) return;
+    const r = Math.round(el.getBoundingClientRect().right);
+    if (r !== barR) { barR = r; document.documentElement.style.setProperty('--bar-r', r + 'px'); }
+  }
+  addEventListener('resize', () => { barR = -1; measure(); });
   function render(sim) {
     el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="cards">${SHOP.map((it, i) => `
       <button type="button" class="card buy" data-id="${it.id}" title="${itemDesc(it, sim)}">
-        <kbd>${hotkey(i)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemName(it)}</div>
+        <kbd>${hotkey(i)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
         <div class="p" data-price></div><div class="why" data-why></div></button>`).join('')}</div>`;
     cards.clear();
     for (const b of el.querySelectorAll('.card')) {
@@ -103,7 +114,7 @@ export function buildBar(root, actions) {
     el.hidden = !show;
     if (!show) return;
     const k = [...sim.research].join(',') + '|' + sim.map.id;
-    if (k !== key) { key = k; render(sim); }
+    if (k !== key || barR < 0) { key = k; render(sim); measure(); }
     set(el.querySelector('[data-n]'), `${sim.guns.length} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
@@ -316,7 +327,7 @@ export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills,
   return p;
 }
 
-// Kravets namn: 'm2.1' blir "M2 .50 cal I".
+// Kravets namn: 'm2.1' blir "Ksp 88 I".
 const reqName = req => { const [id, t] = req.split('.'); return `${researchNode(id).name} ${ROMAN[Number(t || 1)]}`; };
 // Noder som kräver en annan nod (vilken nivå som helst) ligger till höger om den.
 function researchRows() {

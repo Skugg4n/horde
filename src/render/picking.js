@@ -2,6 +2,7 @@
 // [{kind, id, object}]; träffen letar uppåt bland föräldrarna efter userData.pick.
 // Träffas inget föremål räknas punkten på marken om: groundPick(x, z) får säga vad som
 // ligger där (rutorna på vägen), så att hela vägytan svarar och inte bara ritade streck.
+// Tredje argumentet är strålen (för att hitta ett hustak under pekaren, se main.js).
 import * as THREE from 'three';
 
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -27,7 +28,7 @@ export function createPicker(camera, dom, getTargets, groundPick = () => null, o
         if (p) return { kind: p.kind, id: p.kind === 'cell' ? p.index : p.id };
       }
     }
-    return ray.ray.intersectPlane(GROUND, onGround) ? groundPick(onGround.x, onGround.z) : null;
+    return ray.ray.intersectPlane(GROUND, onGround) ? groundPick(onGround.x, onGround.z, ray.ray) : null;
   }
   const keyOf = p => (p ? p.kind + ':' + p.id : null);
 

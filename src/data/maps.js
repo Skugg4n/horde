@@ -43,9 +43,9 @@ export const MAPS = {
     cells: [33, 30, 27, 24, 21, 18],
     baseHp: 20,
     days: [
-      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Place an M249 by the road. It fires on its own at what it can see.' },
+      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Place a Ksp 90 machine gun by the road. It fires on its own at what it can see.' },
         // Tipsen första gången: rader och stegen som bockar av dem (main.js updateHint).
-        hints: { lines: ['Pick the M249 (1).', 'Place it by the road.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
+        hints: { lines: ['Pick the Ksp 90 (1).', 'Place it by the road.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
         waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
