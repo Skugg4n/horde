@@ -14,7 +14,16 @@
 export const KIND = { open: 0, road: 1, house: 2, water: 3, forest: 4, thing: 5, base: 6 };
 // Varför en ruta inte går (simuleringens skäl, panelerna översätter).
 export const KIND_REASON = ['', 'gata', 'hus', 'vatten', 'skog', 'hinder', 'bas'];
-export const MIN_SPACING = 5;      // meter mellan två vapens mittpunkter (sandsäckarna är 2-2,5 m i radie)
+export const MIN_SPACING = 5;
+// Hustak (0.8.0): en bana kan ge placeringen tak. roof[k] = takets höjd i meter i rutans mitt
+// (0 = inget tak att ligga på), bldg[k] = byggnadens nummer + 1 (0 = ingen), buildings[i] =
+// byggnadens rektanglar (huset och garaget). Bara vapen med roof: true (Psg 90) får stå där.
+//
+// Regeln för sikt från taket (Olas fråga, mitt beslut): skytten ligger högt och ser över ALLA hus,
+// också sitt eget, utom marken närmast det egna huset. Gångbara rutor vars mitt ligger närmare
+// än ROOF_DEAD meter från det egna husets fotavtryck (huset eller garaget) syns inte: takfoten
+// skymmer dem (död vinkel). Allt annat inom räckvidden syns. På marken gäller vanlig sikt.
+export const ROOF_DEAD = 4;      // meter mellan två vapens mittpunkter (sandsäckarna är 2-2,5 m i radie)
 
 // Rektangel i världen: mitt, rotation.y (som three.js), bredd längs lokal x och djup längs lokal z.
 export const rect = (x, z, ry, w, d) => ({ x, z, c: Math.cos(ry), s: Math.sin(ry), hw: w / 2, hd: d / 2 });
@@ -50,6 +59,7 @@ export function placementFor(map) {
   const n = w * h;
   const p = {
     w, h, n, size, origin: [x0, z0], kind, walk,
+    roof: data.roof ?? null, bldg: data.bldg ?? null, buildings: data.buildings ?? [],
     keyAt(x, z) {
       const i = Math.floor((x - x0) / size), j = Math.floor((z - z0) / size);
       return i < 0 || j < 0 || i >= w || j >= h ? -1 : j * w + i;
@@ -103,6 +113,29 @@ export function sightFrom(p, key, radius) {
     const q = p.center(k);
     if (Math.hypot(q.x - c.x, q.z - c.z) > reach) continue;
     if (lineOfSight(p, key, k)) { mask[k] = 1; keys.push(k); }
+  }
+  return { mask, keys };
+}
+
+// Avstånd från en punkt till rektangelns kant (0 inne i den).
+export function distRect(r, px, pz) {
+  const dx = px - r.x, dz = pz - r.z;
+  const lx = dx * r.c - dz * r.s, lz = dx * r.s + dz * r.c;
+  return Math.hypot(Math.max(0, Math.abs(lx) - r.hw), Math.max(0, Math.abs(lz) - r.hd));
+}
+// Takhöjden i rutan (0 = inget tak att ställa något på).
+export const roofAt = (p, key) => (p.roof && p.valid(key) ? p.roof[key] : 0);
+
+// Sikten från ett tak: se regeln vid ROOF_DEAD. Samma svar som sightFrom ({ mask, keys }).
+export function roofSightFrom(p, key, radius) {
+  const mask = new Uint8Array(p.n), keys = [];
+  const c = p.center(key), reach = radius + p.size * 0.7072;
+  const own = p.buildings[(p.bldg?.[key] ?? 0) - 1] ?? [];
+  for (const k of p.walkKeys) {
+    const q = p.center(k);
+    if (Math.hypot(q.x - c.x, q.z - c.z) > reach) continue;
+    if (own.some(r => distRect(r, q.x, q.z) < ROOF_DEAD)) continue;
+    mask[k] = 1; keys.push(k);
   }
   return { mask, keys };
 }

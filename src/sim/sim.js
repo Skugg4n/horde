@@ -1,10 +1,10 @@
 import { ZOMBIES } from '../data/zombies.js';
-import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
+import { WEAPONS, GRENADE_KIT, PIERCE_WIDTH } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
-import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
-import { placementFor, sightFrom, KIND, KIND_REASON, MIN_SPACING } from './placement.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
+import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING } from './placement.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export { CELL_LEN } from './cells.js';
@@ -117,6 +117,7 @@ export function step(sim, dt) {
   moveZombies(sim, dt);
   const cells = zombieCells(sim);
   fireWeapons(sim, dt, cells);
+  fireLaunchers(sim, dt, cells);
   landGrenades(sim, dt);
   throwGrenades(sim, dt, cells);
   ageCorpses(sim, dt);
@@ -165,36 +166,41 @@ export const canAct = sim => sim.phase === 'build' || sim.phase === 'wave';
 const gunOf = (sim, id) => sim.guns.find(g => g.id === id);
 
 // Går det att ställa ett vapen i rutan key? Skälen i ordning: dagen slut, fullt, utanför
-// kartan, rutans innehåll (gata, hus, skog ...), för nära ett annat vapen.
-export function checkSpot(sim, key) {
+// kartan, rutans innehåll (gata, hus, skog ...), för nära ett annat vapen. type: vapnet som ska
+// stå där. Ett vapen med roof (Psg 90) får också stå på ett hustak (en husruta med takhöjd).
+export const onRoof = (sim, key, type) => !!WEAPONS[type]?.roof && sim.place.kind[key] === KIND.house && roofAt(sim.place, key) > 0;
+export function checkSpot(sim, key, type = null) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   if (sim.guns.length >= sim.maxGuns) return { ok: false, reason: 'fullt' };
   const p = sim.place;
   if (!p.valid(key)) return { ok: false, reason: 'utanför' };
   const kind = p.kind[key];
-  if (kind !== KIND.open) return { ok: false, reason: KIND_REASON[kind] || 'okänd' };
+  if (kind !== KIND.open && !onRoof(sim, key, type)) return { ok: false, reason: kind === KIND.house && WEAPONS[type]?.roof ? 'kant' : KIND_REASON[kind] || 'okänd' };
   const c = p.center(key);
   if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
   return { ok: true };
 }
 // Rutan under en punkt på marken, eller -1 utanför kartan.
 export const spotAt = (sim, x, z) => sim.place.keyAt(x, z);
-// Sikten från en ruta för ett vapen av typen (största räckvidden, nivå 3).
-export const sightFor = (sim, key, type) => sightFrom(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
+// Sikten från en ruta för ett vapen av typen (största räckvidden, nivå 3). På ett tak ser
+// skytten över husen (placement.js, roofSightFrom).
+export const sightFor = (sim, key, type) => (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
 
 // Ställ ut ett vapen i rutan key. Returnerar { ok, id }.
 export function build(sim, key, type) {
-  const check = checkSpot(sim, key);
-  if (!check.ok) return check;
   if (!WEAPONS[type]) return { ok: false, reason: 'okänd' };
+  const check = checkSpot(sim, key, type);
+  if (!check.ok) return check;
   if (!weaponUnlocked(type, sim.research, sim.map)) return { ok: false, reason: 'ej upplåst' };
   const cost = WEAPONS[type].cost;
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
   sim.cash -= cost;
   const c = sim.place.center(key);
   const id = 'g' + sim.nextGun++;
-  sim.guns.push({ id, x: c.x, z: c.z, cell: key, sight: sightFor(sim, key, type),
-    weapon: { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost } });
+  // y: takets höjd för en pjäs på ett tak (0 på marken). roof: står på ett tak.
+  const roof = onRoof(sim, key, type);
+  sim.guns.push({ id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight: sightFor(sim, key, type),
+    weapon: { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost, ...(WEAPONS[type].launcher ? { lCooldown: 0 } : {}) } });
   return { ok: true, id };
 }
 export function upgrade(sim, id) {
@@ -333,8 +339,28 @@ function fireWeapons(sim, dt, cells) {
       const hit = sim.rng() < st.accuracy;
       sim.events.push({ t: 'shot', gunId: s.id, targetId: target.id, hit, x: p.x, z: p.z });
       if (hit) damage(sim, target, st.damage, p);
+      if (hit && st.pierce > 1) pierce(sim, s, target, p, st, cells);
       if (target.dead) break;
     }
+  }
+}
+// Psg 90: kulan går igenom målet och träffar upp till pierce - 1 till bakom det, i skottlinjen
+// (inom PIERCE_WIDTH m från linjen, längre bort än målet, inom räckvidd och synliga), närmast
+// först. Samma skada på alla.
+function pierce(sim, s, target, p, st, cells) {
+  const dx = p.x - s.x, dz = p.z - s.z, L = Math.hypot(dx, dz) || 1, ux = dx / L, uz = dz / L;
+  const behind = [];
+  for (const [z, { p: q, k }] of cells) {
+    if (z === target || z.dead || k < 0 || !s.sight.mask[k]) continue;
+    const along = (q.x - s.x) * ux + (q.z - s.z) * uz;
+    if (along <= L || along > st.range) continue;
+    if (Math.abs((q.x - s.x) * uz - (q.z - s.z) * ux) > PIERCE_WIDTH) continue;
+    behind.push({ z, q, along });
+  }
+  behind.sort((a, b) => a.along - b.along || a.z.id - b.z.id);
+  for (const b of behind.slice(0, st.pierce - 1)) {
+    sim.events.push({ t: 'pierce', gunId: s.id, targetId: b.z.id, x: b.q.x, z: b.q.z });
+    damage(sim, b.z, st.damage, b.q);
   }
 }
 // Granater: ett vapen med granatlåda kastar själv när minst minCount zombier, eller en
@@ -357,20 +383,52 @@ function throwGrenades(sim, dt, cells) {
     }
     if (!near.length) continue;
     if (near.length < gs.minCount && !near.some(n => n.z.type === 'brute')) continue;
-    const covered = new Set();
-    for (let c = 0; c < gs.count; c++) {
-      let best = null, bestScore = 0;
-      for (const n of near) {
-        let score = 0;
-        for (const m of near) if (!covered.has(m) && Math.hypot(m.aim.x - n.aim.x, m.aim.z - n.aim.z) <= gs.radius) score += m.wt;
-        if (score > bestScore || (score === bestScore && best && n.pr > best.pr)) { best = n; bestScore = score; }
-      }
-      if (!best) break;
-      for (const m of near) if (Math.hypot(m.aim.x - best.aim.x, m.aim.z - best.aim.z) <= gs.radius) covered.add(m);
+    for (const best of aimClusters(near, gs.radius, gs.count)) {
       sim.grenades.push({ gunId: s.id, x: best.aim.x, z: best.aim.z, left: gs.flight, damage: gs.damage, r: gs.radius, falloff: gs.falloff });
       sim.events.push({ t: 'grenade', gunId: s.id, x: best.aim.x, z: best.aim.z, flight: gs.flight });
     }
     w.gCooldown = gs.cooldown;
+  }
+}
+// Siktet för granater: där flest hamnar inom radien (bjässar väger tre), lika: den som kommit
+// längst. Nästa granat tar nästa klunga. near: [{ z, aim, pr, wt }].
+function aimClusters(near, radius, count) {
+  const covered = new Set(), out = [];
+  for (let c = 0; c < count; c++) {
+    let best = null, bestScore = 0;
+    for (const n of near) {
+      let score = 0;
+      for (const m of near) if (!covered.has(m) && Math.hypot(m.aim.x - n.aim.x, m.aim.z - n.aim.z) <= radius) score += m.wt;
+      if (score > bestScore || (score === bestScore && best && n.pr > best.pr)) { best = n; bestScore = score; }
+    }
+    if (!best) break;
+    for (const m of near) if (Math.hypot(m.aim.x - best.aim.x, m.aim.z - best.aim.z) <= radius) covered.add(m);
+    out.push(best);
+  }
+  return out;
+}
+// Granattillsatsen (Ak 5): en 40 mm-granat var cooldown:e sekund mot den tätaste klungan som
+// vapnet ser inom range, när minst minCount zombier (eller en bjässe) är där. Granaten flyger
+// flight sekunder och landar som kitets granater (landGrenades), med kind 'grt'.
+function fireLaunchers(sim, dt, cells) {
+  for (const s of sim.guns) {
+    const w = s.weapon;
+    if (w.lCooldown == null) continue;
+    w.lCooldown = Math.max(0, w.lCooldown - dt);
+    if (w.lCooldown > 0) continue;
+    const ls = launcherStats(w.type, w.level, sim.research);
+    const near = [];
+    for (const [z, { p, k }] of cells) {
+      if (z.dead || k < 0 || !s.sight.mask[k]) continue;
+      if (Math.hypot(p.x - s.x, p.z - s.z) > ls.range) continue;
+      const lead = z.attacking ? 0 : (z.v ?? ZOMBIES[z.type].speed) * ls.flight;
+      near.push({ z, aim: sim.route.ahead(z, lead), pr: sim.route.progress(z), wt: z.type === 'brute' ? 3 : 1 });
+    }
+    if (!near.length || (near.length < ls.minCount && !near.some(n => n.z.type === 'brute'))) continue;
+    const [best] = aimClusters(near, ls.radius, 1);
+    sim.grenades.push({ gunId: s.id, kind: 'grt', x: best.aim.x, z: best.aim.z, left: ls.flight, damage: ls.damage, r: ls.radius, falloff: ls.falloff });
+    sim.events.push({ t: 'launch', gunId: s.id, x: best.aim.x, z: best.aim.z, flight: ls.flight });
+    w.lCooldown = ls.cooldown;
   }
 }
 // Granaten landar: skada inom radien, avtagande ut mot kanten.
@@ -381,7 +439,7 @@ function landGrenades(sim, dt) {
   if (!landed.length) return;
   sim.grenades = sim.grenades.filter(g => g.left > 1e-6);
   for (const g of landed) {
-    sim.events.push({ t: 'blast', x: g.x, z: g.z, r: g.r });
+    sim.events.push({ t: 'blast', x: g.x, z: g.z, r: g.r, ...(g.kind ? { kind: g.kind } : {}) });
     for (const z of sim.zombies) {
       if (z.dead) continue;
       const p = zombiePos(sim, z);

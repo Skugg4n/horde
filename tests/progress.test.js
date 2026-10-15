@@ -269,12 +269,15 @@ test('v1-sparfil med gamla New position blir More positions I', () => {
   st.setItem('horde.save', JSON.stringify(v1({ unlockedDay: 3, research: ['m2', 'slot4'] })));
   assert.deepEqual(loadProgress(st).research, ['m2.1', 'positions.1']);
 });
-test('More positions I till III: en pjäs till per nivå', async () => {
+test('More positions I till IV: en pjäs till per nivå', async () => {
   const { maxGuns } = await import('../src/sim/stats.js');
   assert.equal(maxGuns([]), 4);
   assert.equal(maxGuns(['positions.1']), 5);
   assert.equal(maxGuns(['positions.1', 'positions.2', 'positions.3']), 7);
-  assert.equal(RESEARCH.find(n => n.id === 'positions').tiers.length, 3);
+  assert.equal(maxGuns(['positions.1', 'positions.2', 'positions.3', 'positions.4']), 8);
+  // 0.8.0: nivå IV (forskningen räcker längre, H034), kräver Psg 90.
+  assert.equal(RESEARCH.find(n => n.id === 'positions').tiers.length, 4);
+  assert.deepEqual(RESEARCH.find(n => n.id === 'positions').tiers[3].requires, ['psg90.1']);
 });
 
 test('Restart day och Main menu mitt i en dag räknar försöket: ny seed, inget annat ändras', () => {

@@ -6,6 +6,10 @@ export const SHOP = [
   { id: 'm2', kind: 'gun' },
   { id: 'block', kind: 'obstacle' },
   { id: 'wire', kind: 'obstacle' },
+  // 0.8.0: arsenalen (snabbval 5, 6, 7)
+  { id: 'ksp58', kind: 'gun' },
+  { id: 'ak5', kind: 'gun' },
+  { id: 'psg90', kind: 'gun' },
 ];
 export const shopItem = id => SHOP.find(s => s.id === id);
 // Snabbvalet för plats i (0-baserad): 1-9 och sist 0.

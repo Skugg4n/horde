@@ -41,7 +41,19 @@ export function weaponStats(type, level, research) {
   let rate = w.rate * (1 + 0.15 * l), damage = w.damage * (1 + 0.3 * l);
   if (type === 'm249') rate *= tierData(research, 'm249Rate')?.rate ?? 1;
   if (type === 'm2') damage *= tierData(research, 'm2')?.damage ?? 1;
-  return { range: w.range * (1 + 0.1 * l), rate, damage, accuracy: w.accuracy };
+  if (type === 'ksp58') rate *= tierData(research, 'ksp58')?.rate ?? 1;
+  let pierce = w.pierce ?? 1;
+  if (type === 'psg90') { const t = tierData(research, 'psg90'); damage *= t?.damage ?? 1; pierce = t?.pierce ?? pierce; }
+  return { range: w.range * (1 + 0.1 * l), rate, damage, accuracy: w.accuracy, pierce };
+}
+// Granattillsatsen (Ak 5) med nivå och forskning, eller null för vapen utan. Nivån höjer skadan
+// som skotten (30 % per nivå); forskningen skada, radie och nedkylning.
+export function launcherStats(type, level, research) {
+  const L = WEAPONS[type]?.launcher;
+  if (!L) return null;
+  const t = tierData(research, type);
+  return { range: L.range * (1 + 0.1 * (level - 1)), minCount: L.minCount, flight: L.flight, falloff: L.falloff,
+    damage: L.damage * (1 + 0.3 * (level - 1)) * (t?.gDamage ?? 1), radius: L.radius * (t?.gRadius ?? 1), cooldown: t?.gCooldown ?? L.cooldown };
 }
 export function wireDurability(research) {
   return OBSTACLES.wire.durability * (tierData(research, 'wireTough')?.durability ?? 1);

@@ -603,9 +603,58 @@ function denseForest(x, z) {
   return Math.min(...ROADS.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
 }
 const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDABOUT.flag, [cx + 1.3, cz - 0.4], [cx - 0.9, cz + 1.2]]; };
+// Taken (0.8.0): villorna, förskolan, affären och garagen går att ligga på (Psg 90). Ishallen är
+// basen och sporthallen ligger utanför striden, så de har inga tak att ställa något på.
+// Takens höjd följer hur gnesta-kit.js ritar husen (sockel 0,32 m, vägg 2,75 eller 3,3 m,
+// taklutningen per hustyp); håll dem i takt om husen ritas om.
+const PLINTH = 0.32;
+function roofShape(h) {
+  const pre = h.kind === 'preschool', shop = h.kind === 'shop';
+  const W = pre ? Math.max(h.w, 13) : h.w, D = pre ? Math.max(h.d, 7.5) : h.d;
+  const storeys = pre || shop ? 1 : h.storeys;
+  const roof = pre || shop ? 'gable' : h.roof;
+  const ridgeX = (pre ? 'x' : h.ridge ?? 'x') === 'x';
+  const pitch = pre ? 0.38 : shop ? 0.3 : storeys === 1.5 ? 0.74 : roof === 'hip' ? 0.4 : 0.47;
+  const top = PLINTH + (storeys === 1.5 ? 3.3 : 2.75);
+  const len = ridgeX ? W : D, span = ridgeX ? D : W, rh = (span / 2) * Math.tan(pitch);
+  return { W, D, top, rh, len, span, ridgeX, hip: roof === 'hip' };
+}
+// Takets höjd i en punkt i husets lokala ram (lx längs bredden, lz längs djupet).
+function roofHeight(sh, lx, lz) {
+  const across = sh.ridgeX ? Math.abs(lz) : Math.abs(lx), along = sh.ridgeX ? Math.abs(lx) : Math.abs(lz);
+  let k = 1 - across / (sh.span / 2);
+  if (sh.hip) k = Math.min(k, (sh.len / 2 - along) / (sh.span / 2));
+  return sh.top + sh.rh * Math.max(0, Math.min(1, k));
+}
+const GARAGE_TOP = 2.8;
+// Byggnaderna med tak: { rects: [huset, garaget], height(x, z) } där height ger 0 utanför taket.
+export function roofBuildings() {
+  const out = [];
+  for (const p of LOTS.plots) {
+    const h = p.house;
+    if (!h) continue;
+    const sh = roofShape(h), c = Math.cos(h.ry), sn = Math.sin(h.ry);
+    const main = rect(h.x, h.z, h.ry, sh.W, sh.D), rects = [main];
+    let garage = null;
+    if (h.garage) {
+      const gd = Math.min(sh.D * 0.95, 6.4), gx = h.garage * (sh.W / 2 + 1.85), gz = sh.D / 2 - gd / 2;
+      garage = rect(h.x + c * gx + sn * gz, h.z - sn * gx + c * gz, h.ry, 3.7, gd);
+      rects.push(garage);
+    }
+    out.push({ rects, height(x, z) {
+      if (inRect(main, x, z)) {
+        const dx = x - h.x, dz = z - h.z;
+        return roofHeight(sh, dx * c - dz * sn, dx * sn + dz * c);
+      }
+      return garage && inRect(garage, x, z) ? GARAGE_TOP : 0;
+    } });
+  }
+  return out;
+}
+
 export function buildPlacement(grid) {
   const houses = houseRects(), things = thingRects();
-  return buildPlace({
+  const place = buildPlace({
     w: grid.w, h: grid.h, cellSize: grid.cellSize, origin: grid.origin,
     walk: (x, z, k) => grid.walk[k] === 1,
     classify(x, z) {
@@ -621,6 +670,18 @@ export function buildPlacement(grid) {
       return KIND.open;
     },
   });
+  // Taken: rutor vars mitt ligger på ett tak (inte i marginalen runt huset).
+  const blds = roofBuildings(), n = grid.w * grid.h;
+  const roof = new Float32Array(n), bldg = new Int32Array(n);
+  for (let k = 0; k < n; k++) {
+    if (place.kind[k] !== KIND.house) continue;
+    const x = grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, z = grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize;
+    for (let i = 0; i < blds.length; i++) {
+      const y = blds[i].height(x, z);
+      if (y > 0) { roof[k] = Math.round(y * 100) / 100; bldg[k] = i + 1; break; }
+    }
+  }
+  return { ...place, roof, bldg, buildings: blds.map(b => b.rects) };
 }
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
