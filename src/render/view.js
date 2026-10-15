@@ -5,7 +5,7 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, disposeModel, baseModel, setBaseGlow } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -410,8 +410,14 @@ export function createView(scene, initialSim) {
   const BASE_HIT = 0.7;
   function buildBase() {
     if (base) disposeModel(base);
-    base = baseModel();
-    if (sim.map.basePlace) {
+    const rink = sim.map.baseModel === 'rink' && sim.map.iceRink;
+    base = rink ? rinkEntranceModel(rink) : baseModel();
+    if (rink) {
+      // Gnesta: överlevarna är inne i ishallen, basen är entrén (fasaden mot rondellen).
+      const [x, z] = rink.at(rink.face, rink.main ?? 0);
+      baseHome.set(x, 0, z);
+      base.rotation.y = rink.ry;
+    } else if (sim.map.basePlace) {
       // Banan säger var basen står (Gnesta: på rondellens ö, mot öster).
       const b = sim.map.basePlace;
       baseHome.set(b.x, 0, b.z);
@@ -429,13 +435,25 @@ export function createView(scene, initialSim) {
     scene.add(base);
   }
   function baseHit() { baseHitT = BASE_HIT; }
+  let baseFrac = -1;
   function syncBase(dt) {
     if (!base) return;
-    base.userData.flag.rotation.y = Math.sin(clock * 2.3) * 0.25;
+    const u = base.userData;
+    if (u.flag) u.flag.rotation.y = Math.sin(clock * 2.3) * 0.25;
+    // Entrén: skadan följer basens liv (plankor, sprickor, blod).
+    const frac = 1 - Math.max(0, sim.baseHp) / sim.map.baseHp;
+    if (u.planks && frac !== baseFrac) { baseFrac = frac; setBaseDamage(base, frac); }
     if (baseHitT <= 0 || dt <= 0) return;
     baseHitT = Math.max(0, baseHitT - dt);
     const k = baseHitT / BASE_HIT;
     setBaseGlow(base, k * (0.6 + 0.4 * Math.sin(clock * 40)));
+    if (u.planks) {
+      // plankorna rycker inåt när någon tar sig in; fasaden står still
+      setBaseDamage(base, frac);
+      for (const pl of u.planks) pl.p.position.x -= rnd(0, 0.12) * k;
+      if (baseHitT === 0) { setBaseGlow(base, 0); setBaseDamage(base, frac); }
+      return;
+    }
     const a = 0.12 * k;
     base.position.set(baseHome.x + rnd(-a, a), 0, baseHome.z + rnd(-a, a));
     if (baseHitT === 0) { setBaseGlow(base, 0); base.position.copy(baseHome); }
@@ -550,7 +568,7 @@ export function createView(scene, initialSim) {
     const remap = next.map !== sim.map;
     sim = next;
     if (remap) { buildCellMarks(); buildBase(); }
-    baseHitT = 0; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
+    baseHitT = 0; baseFrac = -1; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
     ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null };
     tileKey = '-'; coverKey = '-';

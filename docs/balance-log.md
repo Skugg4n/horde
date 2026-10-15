@@ -146,6 +146,17 @@ Ny kostnad i forskningen: More positions I 80 (kräver M2 I, som förut), II 140
 - Ingen balansändring. Barrikaden kräver nu forskningen även på Gnesta och en spärr får inte läggas på levande zombier; båda kvittona (E4 och Gnesta) är oförändrade, eftersom E4-spelaren redan har block.1 och policyerna aldrig spärrar där zombier står.
 - Gnestas längsta zoom är 68 m (var 84).
 
+## 0.6.0: basen är ishallens entré
+
+- Basen (hordens mål) flyttad från rondellens mitt till ishallens huvudingång, framför dörrarna i tillbyggnaden mot rondellen (H039). En kort gångbar förplan går från rondellen till dörrarna. Tillbyggnaden är nu hus i placeringen (förut gick det att ställa en pjäs inne i den), och rondellens ö går att bygga på (sista försvarslinjen, utom vid flaggstången och elskåpen).
+- Vägarna: Sigtunavägen öst blir 9 rutor längre (runt rondellen till entrén), smarts väg över fältet 3 rutor kortare (fältet slutar vid rondellens spets, som ligger närmast entrén). Den norra gruppen (dag 2, 3 och 5) tar nu cykelvägen bakom husen hela vägen till entrén i stället för Sigtunavägen: cykelvägen är 21 kostnadsenheter (två rutor) billigare till den nya basen. Dag 2 har alltså två riktiga ingångar.
+- Det krävde balans. Med 0.5.2:s siffror blev dag 1 svårare för smart (bas kvar 2 till 20, snitt 12 mot 17,4) och naiv förlorade alla dagar; naiv dag 2 föll på 7 till 10 s (två pjäser räcker inte för två ingångar, kolonnen från öst gick rakt in), vilket bröt "en förlorad dag rasar gradvis".
+- Dag 1 hp-faktor 3,8 till 3,6: smart vinner direkt med bas 13 till 20 (snitt 17,8, förut 17,4), naiv vinner med 1 till 7 (snitt 4,6, förut 7,8).
+- Dag 2 startkassa $ 900 till $ 1100 och hp 4,6 till 5,0: pengar till en pjäs vid den andra ingången, samma tryck. Smart vinner direkt med bas 5 till 20 (snitt 15,2, förut 12,6), naiv förlorar alla fem och basen faller på 140 s i stället för 8.
+- Dag 3 till 5 orörda: smart dag 3 på försök 1 eller 2, dag 4 direkt med bas 7 till 9, dag 5 direkt med bas 5 till 8 (lägst av dagarna). Flest levande 238.
+- Kvittot i tests/route-gnesta.test.js byttes avsiktligt: '38b664c', 37245 tecken.
+- Betongbarriären finns på Gnesta från dag 1 utan forskning (banans upplåsningar, `unlocks`). Policyn hade redan block.1 från E4, så det ändrar inget i loggen.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

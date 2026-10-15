@@ -35,6 +35,14 @@ test('alla spawnpunkter och basen ligger på gångbara rutor', () => {
   assert.equal(g.walk[idx(...g.base)], 1);
 });
 
+test('basen är ishallens entré: framför dörrarna, på andra sidan rondellen', () => {
+  const [bx, bz] = g.center(...g.base), hr = gnesta.iceRink;
+  const [ex, ez] = hr.entrance;
+  assert.ok(Math.hypot(bx - ex, bz - ez) < 2.5, `basrutan ${bx},${bz} mot entrén ${ex.toFixed(1)},${ez.toFixed(1)}`);
+  const [rx, rz] = gnesta.roundabout.center;
+  assert.ok(Math.hypot(bx - rx, bz - rz) > 9, 'basen ligger inte i rondellen');
+});
+
 test('horden når basen från varje spawn (4-grannar)', () => {
   const seen = reach(g.base);
   for (const s of g.spawns) assert.equal(seen[idx(...s.cell)], 1, s.id);
@@ -55,7 +63,7 @@ test('inget hus står på en väg', () => {
   }
 });
 
-test('placeringen: gatan är gata, husen hus, ön bas, och det finns gott om öppen mark nära gatan', () => {
+test('placeringen: gatan är gata, husen hus, ön går att bygga på, entrén är hus, och det finns gott om öppen mark nära gatan', () => {
   const p = placementFor(gnesta);
   assert.equal(p.w, g.w); assert.equal(p.h, g.h);
   for (let k = 0; k < p.n; k++) if (g.walk[k]) assert.equal(p.kind[k], KIND.road);
@@ -63,7 +71,13 @@ test('placeringen: gatan är gata, husen hus, ön bas, och det finns gott om öp
     const k = p.keyAt(h.x, h.z);
     if (k >= 0) assert.equal(p.kind[k], KIND.house, `hus vid ${h.x.toFixed(1)},${h.z.toFixed(1)}`);
   }
-  assert.equal(p.kind[p.keyAt(...gnesta.roundabout.center)], KIND.base);
+  // Rondellens ö är sista försvarslinjen (0.6.0): öppen mark, utom vid flaggstången.
+  const R = gnesta.roundabout;
+  assert.ok([[-1.5, 1.5], [1.5, -1.5], [0, -2], [2, 1]].some(([dx, dz]) => p.kind[p.keyAt(R.center[0] + dx, R.center[1] + dz)] === KIND.open), 'ön har öppen mark');
+  assert.equal(p.kind[p.keyAt(...R.flag)], KIND.thing);
+  // Tillbyggnaden med dörrarna är hus (ingen pjäs inne i entrén).
+  const hr = gnesta.iceRink;
+  assert.equal(p.kind[p.keyAt(...hr.at(hr.len / 2 + hr.annex.depth / 2, 6))], KIND.house);
   // öppna rutor 2 till 10 m från en gångbar gata (vägkanten, tomter, parkeringen)
   let near = 0;
   for (let k = 0; k < p.n; k++) {

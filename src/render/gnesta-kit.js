@@ -415,9 +415,15 @@ export function iceRink(b, M, o) {
   const aw = wid + 4, ad = 4.4, ah = 3.6;
   b.box(M, len / 2 + ad / 2, ah / 2, 0, ad, ah, aw, GP.rinkRed);
   b.box(M, len / 2 + ad / 2 + 0.3, ah + 0.25, 0, ad + 1.2, 0.3, aw + 0.8, GP.annexRoof, 'matte', 0, 0, -0.16);
-  for (const z of [-aw * 0.38, -aw * 0.12, aw * 0.16, aw * 0.36]) {
+  // dörrarna: huvudingångens dubbeldörr och en sidodörr åt varje håll (bandata, o.doors)
+  for (const z of o.doors ?? [-aw * 0.38, -aw * 0.12, aw * 0.16, aw * 0.36]) {
     b.box(M, len / 2 + ad + 0.03, 1.15, z, 0.06, 2.3, 1.5, GP.rinkWhite);
     b.box(M, len / 2 + ad + 0.06, 1.1, z, 0.05, 2.1, 1.2, GP.glassSky, 'glass');
+  }
+  if (o.doors) {
+    // skärmtak över huvudingången
+    const mz = o.main ?? 0;
+    b.box(M, len / 2 + ad + 0.7, 2.75, mz, 1.4, 0.12, 4.2, GP.annexRoof);
   }
   for (const z of [-aw / 2 + 0.1, aw / 2 - 0.1]) b.box(M, len / 2 + ad / 2, ah / 2, z, ad + 0.06, ah, 0.12, GP.rinkWhite);
   // liten röd bod vid sidan

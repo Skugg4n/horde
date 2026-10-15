@@ -98,7 +98,7 @@ function paintGround(map) {
 
   // vägar: grus och jord först, asfalt sist. Mörkare kant under.
   const order = { dirt: 0, gravel: 1, asphalt: 2 };
-  const roads = [...map.roads].sort((a, b) => order[a.surface] - order[b.surface]);
+  const roads = map.roads.filter(rd => rd.paint !== false).sort((a, b) => order[a.surface] - order[b.surface]);
   for (const rd of roads) {
     if (rd.surface === 'asphalt') line(rd.pts, rd.width + 0.5, '#8d887a');
     else line(rd.pts, rd.width + 1.2, rd.surface === 'dirt' ? '#5e5541' : GP.gravelDark, { blur: 3, alpha: 0.55 });

@@ -6,7 +6,7 @@
 import { makeRng } from '../sim/rng.js';
 import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
 
-export const GNESTA_VERSION = '0.2.1';
+export const GNESTA_VERSION = '0.3.0';
 
 // ---------- skala ----------
 // 1 bildpixel = 0.095 m (ungefär halva verkliga skalan). Origo mitt i spelytan.
@@ -112,8 +112,28 @@ export const ICE_RINK = (() => {
   const [ax, az] = w(0, 622), [bx, bz] = w(350, 733);
   const ry = -Math.atan2(bz - az, bx - ax);        // långsidan parallell med vägen
   const [x, z] = w(165, 500);
-  return { x, z, ry, len: 36, wid: 23, wallH: 7.2 };
+  const len = 36, wid = 23;
+  // Tillbyggnaden längs gaveln mot rondellen: entrén. Huvudingången (dubbeldörr) mitt på,
+  // en sidodörr åt varje håll. Överlevarna är inne i hallen: horden vill in här.
+  const annex = { depth: 4.4, width: wid + 4, h: 3.6 };
+  const at = (lx, lz) => [x + lx * Math.cos(ry) + lz * Math.sin(ry), z - lx * Math.sin(ry) + lz * Math.cos(ry)];
+  const face = len / 2 + annex.depth;                 // fasaden med dörrarna (lokalt x)
+  // Huvudingången ligger söder om mitten, mot Sigtunavägen (lokalt +z är söderut).
+  const main = 0;
+  const doors = [-annex.width * 0.36, main - 0.8, main + 0.8, annex.width * 0.36];
+  return { x, z, ry, len, wid, wallH: 7.2, annex, face, doors, main, at, entrance: at(face + 1.2, main) };
 })();
+// Vägen från rondellen till entrén: förplanen framför dörrarna. Gångbar, men ritas inte som
+// gata (planen är redan asfalt). Horden går runt rondellen och hit.
+ROADS.push({ id: 'entrance', name: 'Ishallens entré', surface: 'asphalt', width: 6, walk: true, paint: false,
+  pts: [ICE_RINK.at(ICE_RINK.face + 1, ICE_RINK.main), ROUNDABOUT.center], ptsRaw: [ICE_RINK.at(ICE_RINK.face + 1, ICE_RINK.main), ROUNDABOUT.center] });
+// Inne i hallen och tillbyggnaden (lokala x upp till fasaden) är aldrig gångbart.
+export function insideRink(x, z, pad = 0) {
+  const hr = ICE_RINK, dx = x - hr.x, dz = z - hr.z, c = Math.cos(hr.ry), s = Math.sin(hr.ry);
+  const lx = dx * c - dz * s, lz = dx * s + dz * c;
+  if (Math.abs(lx) <= hr.len / 2 + pad && Math.abs(lz) <= hr.wid / 2 + pad) return true;
+  return lx > hr.len / 2 - 1 && lx <= hr.face + pad && Math.abs(lz) <= hr.annex.width / 2 + pad;
+}
 // Stora parkeringen söder om rondellen (satellit-vid.jpg): fyra rader rutor, stolpar mellan raderna.
 export const PARKING = (() => {
   const poly = W([[330, 768], [688, 780], [688, 1040], [326, 1030]]);
@@ -392,7 +412,9 @@ export const SPAWNS = [
   { id: 'east2', name: 'Norra vägen', day: 2, at: w(1966, -10) },
   { id: 'forest', name: 'Skogsvägen', day: 3, at: w(1330, 1160) },
 ];
-export const BASE = { at: ROUNDABOUT.center };
+// Basen är ishallens entré (0.6.0): horden ska fram till dörrarna, inte till rondellen.
+// Rondellen blir sista försvarslinjen framför porten.
+export const BASE = { at: ICE_RINK.entrance };
 
 // ---------- rutnätet för horden ----------
 // 2 m-rutor. walk = 1 på gator och cykelvägar, 0 på tomter, i skogen och på rondellens gräsö.
@@ -406,14 +428,14 @@ export function buildGrid(cellSize = 2) {
     const x = cx(i), z = cz(j);
     let ok = walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25);
     if (!ok && distPoly(x, z, ROUNDABOUT.island) <= ROUNDABOUT.ring) ok = true;
-    if (inPoly(x, z, ROUNDABOUT.island)) ok = false;
+    if (inPoly(x, z, ROUNDABOUT.island) || insideRink(x, z, 0.4)) ok = false;
     walk[j * gw + i] = ok ? 1 : 0;
   }
   // varje väglinje ger en sammanhängande kedja av rutor, även smala cykelvägar på snedden
   const mark = (x, z) => {
     const i = Math.floor((x - x0) / cellSize), j = Math.floor((z - z0) / cellSize);
     if (i < 0 || j < 0 || i >= gw || j >= gh) return;
-    if (inPoly(cx(i), cz(j), ROUNDABOUT.island)) return;
+    if (inPoly(cx(i), cz(j), ROUNDABOUT.island) || insideRink(cx(i), cz(j), 0.4)) return;
     walk[j * gw + i] = 1;
   };
   for (const r of walkRoads) for (let k = 1; k < r.pts.length; k++) {
@@ -522,7 +544,8 @@ export const CARS = (() => {
       out.push({ x: cx, z: row.z + (r() - 0.5) * 0.4, ry: Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI) + (r() - 0.5) * 0.1, color: (r() * 8) | 0 });
     }
   }
-  const hr = ICE_RINK, lx = hr.len / 2 + 9, lz = 5.5;
+  // bilen vid ishallen står framför sidodörren, inte i entréns väg
+  const hr = ICE_RINK, lx = hr.len / 2 + 8.5, lz = 11.5;
   out.push({ x: hr.x + lx * Math.cos(hr.ry) + lz * Math.sin(hr.ry), z: hr.z - lx * Math.sin(hr.ry) + lz * Math.cos(hr.ry), ry: hr.ry + Math.PI / 2, color: (r() * 8) | 0 });
   return out;
 })();
@@ -553,6 +576,8 @@ function houseRects() {
   }
   const hr = ICE_RINK, sh = SPORTHALL;
   out.push(rect(hr.x, hr.z, hr.ry, hr.len, hr.wid));
+  const [ax, az] = hr.at(hr.len / 2 + hr.annex.depth / 2, 0);
+  out.push(rect(ax, az, hr.ry, hr.annex.depth, hr.annex.width));
   out.push(rect(sh.x, sh.z, sh.ry, sh.len, sh.wid));
   out.push(rect(sh.annex.x, sh.annex.z, sh.ry, sh.annex.len, sh.annex.wid));
   return out;
@@ -577,6 +602,7 @@ function denseForest(x, z) {
   if (Math.hypot(x - SPORTHALL.x, z - SPORTHALL.z) < SPORTHALL.len / 2 + 12) return false;
   return Math.min(...ROADS.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
 }
+const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDABOUT.flag, [cx + 1.3, cz - 0.4], [cx - 0.9, cz + 1.2]]; };
 export function buildPlacement(grid) {
   const houses = houseRects(), things = thingRects();
   return buildPlace({
@@ -585,7 +611,9 @@ export function buildPlacement(grid) {
     classify(x, z) {
       const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
       if (grid.walk[k]) return KIND.road;
-      if (inPoly(x, z, ROUNDABOUT.island)) return KIND.base;
+      // Rondellens ö är sista försvarslinjen framför entrén: där går det att bygga, utom vid
+      // flaggstången och elskåpen.
+      if (inPoly(x, z, ROUNDABOUT.island)) return islandThings().some(([px, pz]) => Math.hypot(x - px, z - pz) < 1.3) ? KIND.thing : KIND.open;
       if (houses.some(r => inRect(r, x, z))) return KIND.house;
       if (houses.some(r => inRect(r, x, z, HOUSE_PAD))) return KIND.house;
       if (things.some(r => inRect(r, x, z, THING_PAD))) return KIND.thing;
@@ -600,11 +628,11 @@ export function buildPlacement(grid) {
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 800, hp: 3.8, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+  { n: 1, startCash: 800, hp: 3.6, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
     waves: [ { groups: [g('walker', 30, 0.5, 0, 'east1')] },
              { groups: [g('walker', 50, 0.35, 0, 'east1')] },
              { groups: [g('walker', 70, 0.25, 0, 'east1'), g('runner', 30, 0.3, 6, 'east1')] } ] },
-  { n: 2, startCash: 900, hp: 4.6, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, startCash: 1100, hp: 5.0, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
     waves: [ { groups: [g('walker', 40, 0.4, 0, 'east1'), g('walker', 20, 0.5, 4, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 40, 0.3, 6, 'east2')] },
              { groups: [g('walker', 60, 0.25, 0, 'east1'), g('walker', 40, 0.3, 0, 'east2'), g('runner', 60, 0.2, 8, 'east1')] } ] },
@@ -634,8 +662,8 @@ export const gnesta = {
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
   baseHp: 20, days: DAYS,
-  // Basen (vägspärren med skylten) står på rondellens ö, vänd mot öster.
-  basePlace: { x: ROUNDABOUT.center[0] - 0.4, z: ROUNDABOUT.center[1] + 0.2, ry: 0, scale: 0.62 },
+  // Basen är ishallens entré: igenspikade dörrar som tar skada (render/models.js rinkEntranceModel).
+  baseModel: 'rink',
   // Banans upplåsningar (0.6.0): dag 1 lär ut barrikaden, så den finns här utan forskning.
   // På E4 kräver den forskningen som förut (Concrete barrier, efter Heavy wire I).
   unlocks: ['block'],

@@ -656,3 +656,129 @@ export function baseModel() {
 export function setBaseGlow(group, k) {
   for (const m of group.userData.mats) { m.emissive.setRGB(0.9 * k, 0.08 * k, 0.04 * k); }
 }
+
+// ---------- ishallens entré (Gnestas bas) ----------
+// Överlevarna är inne i ishallen och har spikat igen dörrarna. Origo = fasaden mitt för
+// huvudingången, +x ut mot rondellen, z längs fasaden. doors: dörrarnas lägen (z) i samma ram,
+// main: huvudingångens mitt. Skadan (setBaseDamage, 0 hel till 1 fallen) syns som plankor som
+// buktar in och lossnar, sprickor och blod på fasaden. Bestämd ur ett frö: samma skada ser
+// alltid likadan ut.
+const seeded = seed => {
+  let a = seed >>> 0;
+  const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  r.range = (x, y) => x + r() * (y - x);
+  return r;
+};
+const DECAL_W = 9, DECAL_H = 3.6, DECAL_STAGES = 5;
+function drawDecal(g, W, H, stage, z0) {
+  g.clearRect(0, 0, W, H);
+  const r = seeded(9031);
+  const X = z => (z - z0 + DECAL_W / 2) / DECAL_W * W, Y = y => H - y / DECAL_H * H;
+  // Sprickor: tunna mörka linjer som grenar sig, fler för varje steg.
+  const crack = (z, y, len, n) => {
+    const pts = [[X(z), Y(y)]];
+    for (let i = 0; i < n; i++) { const [px, py] = pts[pts.length - 1]; pts.push([px + r.range(-len, len), py + r.range(-len * 0.7, len * 0.9)]); }
+    // ljus spricka (bar trä under färgen) med mörk skugga bredvid
+    for (const [col, w, o] of [['rgba(14,8,6,0.85)', 3, 1.2], ['rgba(150,138,118,0.85)', 1.4, 0]]) {
+      g.strokeStyle = col; g.lineWidth = w; g.beginPath();
+      pts.forEach(([px, py], i) => (i ? g.lineTo(px + o, py + o) : g.moveTo(px + o, py + o))); g.stroke();
+    }
+  };
+  // Blod: utsmetade strimmor nedåt och handavtryck i zombiehöjd.
+  const smear = (z, y, w, h, a) => {
+    const x = X(z), yy = Y(y);
+    const gr = g.createLinearGradient(x, yy, x, yy + h);
+    gr.addColorStop(0, `rgba(100,13,8,${a})`); gr.addColorStop(1, 'rgba(90,10,6,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.ellipse(x, yy + h / 2, w, h / 2, r.range(-0.2, 0.2), 0, 7); g.fill();
+    for (let i = 0; i < 3; i++) { g.fillRect(x + r.range(-w, w), yy, r.range(1.5, 3.5), h * r.range(0.8, 1.6)); }
+  };
+  const hand = (z, y) => {
+    const x = X(z), yy = Y(y); g.fillStyle = 'rgba(104,14,9,0.9)';
+    g.beginPath(); g.ellipse(x, yy, 9, 11, 0, 0, 7); g.fill();
+    for (let f = 0; f < 4; f++) { g.beginPath(); g.ellipse(x - 9 + f * 6, yy - 15, 2.5, 7, (f - 1.5) * 0.15, 0, 7); g.fill(); }
+  };
+  for (let s = 1; s <= stage; s++) {
+    for (let i = 0; i < 2 + s * 2; i++) hand(z0 + r.range(-2.4, 2.4), r.range(0.9, 1.7));
+    for (let i = 0; i < s * 2; i++) smear(z0 + r.range(-2.2, 2.2), r.range(0.6, 1.8), r.range(6, 14), r.range(30, 70) * (0.6 + s * 0.2), 0.45 + s * 0.1);
+    for (let i = 0; i < s + 1; i++) crack(z0 + r.range(-4, 4), r.range(1.2, 3.2), 7 + s * 2, 3 + s);
+    if (s >= 3) { g.fillStyle = 'rgba(96,12,8,0.75)'; g.fillRect(X(z0 - 1.9), Y(0.6), X(z0 + 1.9) - X(z0 - 1.9), Y(0) - Y(0.6)); }
+  }
+}
+export function rinkEntranceModel({ doors, main = 0 }) {
+  const g = new THREE.Group();
+  const r = seeded(4423);
+  const plankCols = ['#7a6146', '#6b5540', '#86704f', '#5e4b38'];
+  const planks = [];
+  const nail = mat(P.gunMetal, METAL);
+  // Plankor tvärs över varje dörr; huvudingångens dubbeldörr får fler och ett snedstag.
+  for (const z of doors) {
+    const isMain = Math.abs(z - main) < 1.2;
+    if (isMain && z > main) continue;          // dubbeldörren: en uppsättning över båda
+    const zc = isMain ? main : z, w = isMain ? 3.6 : 1.9;
+    const rows = isMain ? [0.45, 0.95, 1.45, 1.95] : [0.5, 1.2, 1.85];
+    const add = (y, len, rx, ry2 = 0) => {
+      const p = new THREE.Group();
+      p.position.set(0.1, y, zc + r.range(-0.08, 0.08));
+      p.rotation.set(rx, ry2, 0);
+      const b = mesh(geo('box', 1, 1, 1), mat(plankCols[(r() * plankCols.length) | 0]), 0, 0, 0);
+      b.scale.set(0.06, r.range(0.18, 0.24), len); p.add(b);
+      for (const s of [-1, 1]) p.add(mesh(geo('box', 0.05, 0.05, 0.05), nail, 0.04, 0, s * (len / 2 - 0.12)));
+      g.add(p);
+      planks.push({ p, home: p.position.clone(), rot: p.rotation.clone(), len, k: r(), hang: r() < 0.5 ? -1 : 1, isMain });
+    };
+    for (const y of rows) add(y + r.range(-0.05, 0.05), w + r.range(0, 0.3), r.range(-0.12, 0.12));
+    if (isMain) add(1.2, 3.4, 0.6);            // snedstag
+  }
+  // Sandsäckar på båda sidor om huvudingången, och några lådor som stöttar.
+  sandbagWall(g, 0.55, main - 2.2, main - 4.4, 2);
+  sandbagWall(g, 0.55, main + 2.2, main + 4.4, 2);
+  // Sprickor och blod: en genomskinlig yta på fasaden, ritas om när skadan går upp ett steg.
+  const c = document.createElement('canvas'); c.width = 512; c.height = 205;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const decal = new THREE.Mesh(new THREE.PlaneGeometry(DECAL_W, DECAL_H), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  decal.rotation.y = Math.PI / 2; decal.position.set(0.05, DECAL_H / 2, main);
+  decal.renderOrder = 1; decal.castShadow = false; decal.receiveShadow = false;
+  g.add(decal);
+  // Egna material så att plankorna kan lysa rött när horden tar sig in.
+  const mats = [];
+  g.traverse(o => {
+    if (!o.isMesh || o === decal) return;
+    o.material = o.material.clone(); o.material.userData.own = true;
+    if (o.material.emissive) mats.push(o.material);
+  });
+  g.userData = { kind: 'base', mats, planks, decal: { c, tex, stage: -1, main }, damage: 0, shake: null };
+  setBaseDamage(g, 0);
+  return g;
+}
+// Skadan på entrén: 0 hel, 1 basen föll. Plankorna buktar in, vrider sig och lossnar en efter
+// en; sprickor och blod i fem steg. Billigt: bara när skadan ändras.
+export function setBaseDamage(group, frac) {
+  const u = group.userData;
+  if (!u.planks) return;
+  const f = Math.max(0, Math.min(1, frac));
+  u.damage = f;
+  for (const pl of u.planks) {
+    const { p, home, rot, k, hang, len } = pl;
+    // inåt (mot dörren, -x) och lite snett; de svagaste lossnar i ena änden och hänger
+    // (plankan får inte gå in i väggen: x hålls framför fasaden, bukten är en vridning)
+    const give = Math.max(0, f - k * 0.5);
+    p.position.set(Math.max(0.1, home.x - 0.04 * give), home.y, home.z);
+    p.rotation.set(rot.x + hang * 0.25 * give, rot.y + hang * 0.03 * give, rot.z);
+    const loose = f > 0.45 + k * 0.5;
+    if (loose) {
+      // hänger i en spik: vrids runt plankans ände
+      const a = hang * Math.min(1.2, (f - 0.45 - k * 0.5) * 4);
+      p.rotation.x = rot.x + a;
+      p.position.y = home.y - Math.abs(Math.sin(a)) * len * 0.25;
+    }
+    if (f >= 0.999 && k > 0.6) { p.position.set(home.x + 0.5 + k, 0.08, home.z + hang * 0.6); p.rotation.set(Math.PI / 2, 0, k * 2); }
+  }
+  const stage = Math.min(DECAL_STAGES - 1, Math.floor(f * DECAL_STAGES));
+  const d = u.decal;
+  if (stage !== d.stage) {
+    d.stage = stage;
+    drawDecal(d.c.getContext('2d'), d.c.width, d.c.height, stage, d.main);
+    d.tex.needsUpdate = true;
+  }
+}
