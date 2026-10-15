@@ -2,16 +2,25 @@
 //   greedy  : en människa som spenderar pengar när de kommer in, även mitt i vågen (koll varje sekund).
 //   strong  : som greedy, men ställer pjäserna där de täcker mest väg (C, B, D, A i stället för A, B, C, D).
 //   minimal : bara det dag 1 ber om, en M249 på en position, inget mer.
+// greedy och strong kallar nästa våg tidigt (bonus) när försvaret har det bekvämt: basen hel och
+// ingen levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit
+// och högst tre lever.
+// Annars väntar de ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
-import { createSim, startWave, step, build, upgrade, placeObstacle } from '../src/sim/sim.js';
-import { weaponUnlocked, obstacleUnlocked, upgradeCost } from '../src/sim/stats.js';
-import { WEAPONS } from '../src/data/weapons.js';
+import { createSim, startWave, step, build, upgrade, placeObstacle, buyKit, callNextWave, hasNextWave } from '../src/sim/sim.js';
+import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats } from '../src/sim/stats.js';
+import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch } from '../src/meta/progress.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
-const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'm249Rate', 'slot4'];
+// Nod-id; varje förekomst köper nästa nivå i noden.
+const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'slot4',
+  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'm249Rate', 'grenade', 'budget', 'block'];
+const KIT_ORDER = ['C', 'D', 'B', 'A'];   // lådan där pjäsen når mest väg
+const MAX_KITS = 1;
+const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever              // granatlådor per dag: ett stöd, inte huvudsaken
 const WIRE_CELLS = [0, 1, 2];
 const BLOCK_CELL = 0;
 const MAX_TICKS = 30 * 900;
@@ -27,7 +36,8 @@ function openSlots(sim, order) {
 //    vapen, sedan en taggtråd i första lediga ruta av 0, 1, 2.
 // 3. Fler vapen på första lediga position.
 // 4. Taggtråd i resten av rutorna 0, 1, 2 (även ny tråd när den gamla slitits sönder).
-// 5. Uppgraderingar, billigaste först.
+// 5. En granatlåda (om forskad) på den pjäs som når mest väg (C, D, B, A), om pengar finns kvar för en tråd.
+// 6. Uppgraderingar, billigaste först.
 function greedyBuild(sim, order = ORDER.greedy) {
   const wanted = () => {
     const opts = Object.values(WEAPONS).filter(w => weaponUnlocked(w.id, sim.research));
@@ -49,6 +59,10 @@ function greedyBuild(sim, order = ORDER.greedy) {
   if (!WIRE_CELLS.some(c => sim.obstacles[c]?.type === 'wire')) wire(WIRE_CELLS.filter(c => !sim.obstacles[c]).slice(0, 1));
   while (buildOne());
   wire(WIRE_CELLS);
+  if (grenadeStats(sim.research) && sim.slots.filter(s => s.weapon?.kit).length < MAX_KITS && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
+    const s = KIT_ORDER.map(id => sim.slots.find(x => x.id === id)).find(x => x?.weapon && !x.weapon.kit);
+    if (s) buyKit(sim, s.id);
+  }
   for (;;) {
     const ups = sim.slots.filter(s => s.weapon && upgradeCost(s.weapon.type, s.weapon.level) != null)
       .sort((a, b) => upgradeCost(a.weapon.type, a.weapon.level) - upgradeCost(b.weapon.type, b.weapon.level));
@@ -63,18 +77,33 @@ function minimalBuild(sim, slotId) {
 
 // Spelar en dag. Returnerar resultat plus kassa och bas efter varje våg, och hur basen föll:
 // firstHit = simtid då basen först tog skada, fallTime = tid från första skadan till 0.
-export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot = 'A', onSecond = null } = {}) {
+export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot = 'A', onSecond = null, early: allowEarly = true } = {}) {
   const cfg = startConfig(progress, day);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
   const think = ORDER[policy] ? () => greedyBuild(sim, ORDER[policy])
     : policy === 'minimal' ? () => minimalBuild(sim, slot)
     : (() => { throw new Error('okänd policy ' + policy); })();
+  const early = allowEarly && !!ORDER[policy];
+  const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || z.d < sim.len / 2);
+  let bonus = 0, thrown = 0, blastKills = 0, blastNow = false;
   const waves = [];
   let ticks = 0, firstHit = null, waveIdx = 0;
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < MAX_TICKS) {
-    if (sim.phase === 'build') { think(); startWave(sim); }
-    else if (ticks % THINK_EVERY === 0) think();
+    if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
+    else if (sim.phase === 'build') {
+      think();
+      if (early && comfortable()) bonus += callNextWave(sim).bonus;
+    } else if (ticks % THINK_EVERY === 0) {
+      think();
+      if (early && hasNextWave(sim) && !sim.spawnQueue.length && sim.zombies.filter(z => !z.dead).length <= EARLY_ALIVE && comfortable()) bonus += callNextWave(sim).bonus;
+    }
     step(sim, DT); ticks++;
+    if (sim.events.length) for (const ev of sim.events) {
+      if (ev.t === 'grenade') thrown++;
+      else if (ev.t === 'blast') blastNow = true;
+      else if (ev.t === 'kill' && blastNow) blastKills++;
+    }
+    blastNow = false;
     if (onSecond && ticks % 30 === 0) onSecond(sim);
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
     if (sim.waveIndex > waveIdx || sim.phase === 'lost' || sim.phase === 'won') {
@@ -84,7 +113,7 @@ export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot
   }
   return {
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex,
-    waveLog: waves, firstHit, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
+    waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
   };
 }
 
@@ -99,12 +128,17 @@ export function campaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0 } 
       const r = playDay(progress, day, policy, { seedOffset });
       progress = dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned });
       // Sparar till nästa i ordningen: stannar vid första som inte går att köpa än.
+      // Den n:te förekomsten av en nod i listan betyder nivå n.
+      const seen = {};
       for (const id of RESEARCH_ORDER) {
-        if (progress.research.includes(id)) continue;
-        if (!canBuyResearch(progress, id).ok) break;
+        const want = (seen[id] = (seen[id] || 0) + 1);
+        if (progress.research.includes(`${id}.${want}`)) continue;
+        const c = canBuyResearch(progress, id);
+        if (c.reason === 'redan') continue;
+        if (!c.ok) break;
         progress = buyResearch(progress, id);
       }
-      log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves,
+      log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves, bonus: r.bonus,
         waveLog: r.waveLog, fallTime: r.fallTime, had: research, research: [...progress.research] });
       if (r.won) { won = true; break; }
     }
@@ -114,11 +148,11 @@ export function campaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0 } 
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  console.log('dag försök vann bas forskning  bas/kassa efter våg 1, 2, 3       fall  hade');
+  console.log('dag försök vann bas forskning bonus  bas/kassa efter våg 1, 2, 3       fall  hade');
   for (const r of campaign('greedy', 6)) {
     const wl = r.waveLog.map(w => `${String(w.baseHp).padStart(2)}/${String(w.cash).padStart(4)}`).join('  ');
     const fall = r.fallTime == null ? '   -' : `${r.fallTime.toFixed(0).padStart(3)}s`;
-    console.log(`${r.day}   ${r.attempt}      ${r.won ? 'ja ' : 'nej'}  ${String(r.baseHp).padStart(2)}  ${String(r.intel).padStart(3)}        ${wl.padEnd(30)}  ${fall}  ${r.had.join(',') || '-'}`);
+    console.log(`${r.day}   ${r.attempt}      ${r.won ? 'ja ' : 'nej'}  ${String(r.baseHp).padStart(2)}  ${String(r.intel).padStart(3)}        ${String(r.bonus).padStart(4)}  ${wl.padEnd(30)}  ${fall}  ${r.had.join(',') || '-'}`);
   }
   const mins = ['A', 'B', 'C'].map(s => `${s} ${playDay(newProgress(), 1, 'minimal', { slot: s }).baseHp}`);
   console.log('minimal dag 1 (en M249), bas kvar per position: ' + mins.join(', '));

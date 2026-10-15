@@ -1,12 +1,12 @@
 // Paneler för en position (vapen) och en ruta på vägen (hinder).
 // Panelen byggs om när det som står på platsen ändras, och uppdaterar priser och
 // gråa knappar varje bildruta. actions kommer från main.js och returnerar simuleringens svar.
-import { WEAPONS } from '../data/weapons.js';
+import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
-import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, obstacleRefund, obstacleWhole } from '../sim/stats.js';
-import { RESEARCH } from '../data/research.js';
+import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, obstacleRefund, obstacleWhole, grenadeStats, tierOf } from '../sim/stats.js';
+import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
-import { canBuyResearch } from '../meta/progress.js';
+import { canBuyResearch, nextTier, hasTier } from '../meta/progress.js';
 import { ICONS } from './icons.js';
 import { money } from './format.js';
 
@@ -18,6 +18,7 @@ const REASONS = {
   'max': 'Already at max level.',
   'tom': 'No gun here.',
   'okänd': 'Can\'t do that.',
+  'redan': 'This position already has a kit.',
 };
 // kind: 'slot' eller 'cell', så att texten säger Positionen eller Rutan.
 export function reasonText(r, kind = 'slot') {
@@ -68,7 +69,7 @@ export function slotPanel(root, slotId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim;
   const slotOf = s => s.slots.find(x => x.id === slotId);
-  const keyOf = (s, slot) => slot.locked ? 'locked' : slot.weapon ? `w:${slot.weapon.type}:${slot.weapon.level}` : 'free:' + [...s.research].join(',');
+  const keyOf = (s, slot) => slot.locked ? 'locked' : slot.weapon ? `w:${slot.weapon.type}:${slot.weapon.level}:${!!slot.weapon.kit}:${tierOf(s.research, 'grenade')}` : 'free:' + [...s.research].join(',');
   const showRange = (slot, r) => actions.range({ x: slot.x, z: slot.z, r });
 
   function render(s, slot) {
@@ -95,13 +96,27 @@ export function slotPanel(root, slotId, sim, actions) {
       return;
     }
     const w = slot.weapon, def = WEAPONS[w.type];
-    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}</div>`;
+    const gs = grenadeStats(s.research);
+    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}</div>`;
+    // Granatlådan: en rad till när Grenades är forskat. Med låda står det vad den gör i stället.
+    const kitRow = !gs ? '' : w.kit
+      ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute.</p>`
+      : `<button type="button" class="act" data-a="kit"><span class="a">${GRENADE_KIT.name}</span><span class="p" data-p></span></button>`;
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
         <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
-      </div>`;
+      </div>${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
+    const kit = ui.body.querySelector('[data-a="kit"]');
+    if (kit) {
+      kit.addEventListener('click', () => {
+        const r = actions.kit(slotId);
+        if (!r.ok) ui.say(reasonText(r.reason));
+      });
+      kit.addEventListener('mouseenter', () => { const sl = slotOf(cur); if (sl && gs) showRange(sl, gs.range); });
+      kit.addEventListener('mouseleave', () => { const sl = slotOf(cur); if (sl?.weapon) showRange(sl, weaponStats(sl.weapon.type, sl.weapon.level, cur.research).range); });
+    }
     up.addEventListener('click', () => {
       const r = actions.upgrade(slotId);
       if (!r.ok) ui.say(reasonText(r.reason));
@@ -136,6 +151,14 @@ export function slotPanel(root, slotId, sim, actions) {
     const sellText = '+' + money(weaponRefund(w));
     const sellP = sell.querySelector('[data-p]');
     if (sellP.textContent !== sellText) sellP.textContent = sellText;
+    const kit = ui.body.querySelector('[data-a="kit"]');
+    if (kit) {
+      const poor = s.cash < GRENADE_KIT.cost;
+      const t = poor ? 'Need ' + money(GRENADE_KIT.cost) : money(GRENADE_KIT.cost);
+      const kp = kit.querySelector('[data-p]');
+      if (kp.textContent !== t) kp.textContent = t;
+      kit.classList.toggle('off', poor);
+    }
   }
 
   function update(s) {
@@ -256,31 +279,37 @@ export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills,
   return p;
 }
 
-// Djup i trädet: 0 för rötter, 1 för det som kräver en rot osv.
-function depthOf(item) {
-  if (!item.requires.length) return 0;
-  return 1 + Math.max(...item.requires.map(id => depthOf(RESEARCH.find(r => r.id === id))));
-}
-// Rader: varje rot med det som bygger på den till höger.
+// Kravets namn: 'm2.1' blir "M2 .50 cal I".
+const reqName = req => { const [id, t] = req.split('.'); return `${researchNode(id).name} ${ROMAN[Number(t || 1)]}`; };
+// Noder som kräver en annan nod (vilken nivå som helst) ligger till höger om den.
 function researchRows() {
-  const roots = RESEARCH.filter(r => depthOf(r) === 0);
-  const rows = roots.map(r => [r]);
-  for (const item of RESEARCH.filter(r => depthOf(r) > 0)) {
-    const row = rows.find(rw => rw.some(x => item.requires.includes(x.id)));
-    if (row) row.push(item); else rows.push([item]);
+  const deps = n => [...new Set(n.tiers.flatMap(t => t.requires).map(r => r.split('.')[0]).filter(id => id !== n.id))];
+  const roots = RESEARCH.filter(n => !n.tiers[0].requires.length);
+  const rows = roots.map(n => [n]);
+  for (const n of RESEARCH.filter(n => n.tiers[0].requires.length)) {
+    const row = rows.find(rw => rw.some(x => deps(n).includes(x.id)));
+    if (row) row.push(n); else rows.push([n]);
   }
-  // Grenar först så att träden syns överst.
   return rows.sort((a, b) => b.length - a.length);
 }
-function researchState(progress, item) {
-  if (progress.research.includes(item.id)) return { cls: 'bought', text: 'Bought' };
-  const c = canBuyResearch(progress, item.id);
-  if (c.ok) return { cls: 'buy', text: `Buy (${item.cost})` };
+function researchState(progress, node) {
+  const next = nextTier(progress, node.id);
+  if (!next) return { cls: 'bought', text: 'Done', effect: node.tiers[node.tiers.length - 1].effect };
+  const c = canBuyResearch(progress, node.id);
+  const effect = next.data.effect;
+  const label = node.tiers.length > 1 ? `${ROMAN[next.tier]}: ` : '';
+  if (c.ok) return { cls: 'buy', text: `${label}Buy (${next.data.cost})`, effect };
   if (c.reason === 'kräver') {
-    const need = item.requires.filter(id => !progress.research.includes(id)).map(id => RESEARCH.find(r => r.id === id).name);
-    return { cls: 'locked', text: 'Requires: ' + need.join(', ') };
+    const need = next.data.requires.filter(r => !hasTier(progress, r)).map(reqName);
+    return { cls: 'locked', text: 'Requires ' + need.join(', '), effect };
   }
-  return { cls: 'poor', text: `Need ${item.cost - progress.intel} more` };
+  return { cls: 'poor', text: `${label}${next.data.cost}, need ${next.data.cost - progress.intel} more`, effect };
+}
+// Nivåprickar: fyllda för köpta nivåer. Bara för noder med fler än en nivå.
+function pips(progress, node) {
+  if (node.tiers.length < 2) return '';
+  const t = tierOf(progress.research, node.id);
+  return `<span class="pips">${node.tiers.map((_, i) => `<i class="${i < t ? 'on' : ''}"></i>`).join('')}</span>`;
 }
 
 // onBuy(id) returnerar det nya framsteget. update(progress) ritar om.
@@ -293,10 +322,10 @@ export function researchPanel(root, progress, onBuy, onClose) {
   const tree = p.el.querySelector('[data-tree]'), have = p.el.querySelector('[data-have]');
   function render(pr) {
     have.textContent = `You have ${pr.intel} research points.`;
-    tree.innerHTML = researchRows().map(row => `<div class="row">${row.map((item, i) => {
-      const st = researchState(pr, item);
-      return `${i ? '<i class="arrow">→</i>' : ''}<button type="button" class="node ${st.cls}" data-id="${item.id}">
-        <div class="n">${item.name}</div><div class="d">${item.desc}</div><div class="s">${st.text}</div></button>`;
+    tree.innerHTML = researchRows().map(row => `<div class="row">${row.map((node, i) => {
+      const st = researchState(pr, node);
+      return `${i ? '<i class="arrow">→</i>' : ''}<button type="button" class="node ${st.cls}" data-id="${node.id}">
+        <div class="n">${node.name}${pips(pr, node)}</div><div class="d">${st.effect}</div><div class="s">${st.text}</div></button>`;
     }).join('')}</div>`).join('');
     for (const b of tree.querySelectorAll('.node.buy')) b.addEventListener('click', () => render(onBuy(b.dataset.id)));
   }

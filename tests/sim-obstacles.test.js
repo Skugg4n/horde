@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, placeObstacle, removeObstacle } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { OBSTACLES } from '../src/data/obstacles.js';
 
 const map = MAPS.riksvagen;
 const run = (sim, secs) => { for (let i = 0; i < secs * 30; i++) step(sim, 1 / 30); };
@@ -28,7 +29,7 @@ test('taggtråd slits och försvinner', () => {
 test('grövre taggtråd håller dubbelt', () => {
   const s = mk({ research: ['wireTough'] });
   placeObstacle(s, 0, 'wire');
-  assert.equal(s.obstacles[0].durability, 80);
+  assert.equal(s.obstacles[0].durability, OBSTACLES.wire.durability * 2);
 });
 test('betongblock kräver forskning och stoppar', () => {
   assert.equal(placeObstacle(mk(), 0, 'block').reason, 'ej upplåst');

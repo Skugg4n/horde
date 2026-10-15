@@ -52,6 +52,32 @@ Resultat (standardseed): dag 1 vinns (20), dag 2 vinns (7), dag 3 förloras två
 
 Tester: balance.test.js har nu fem seeds, dag 1 minimal skada 1 till 6 i snitt, dag 2 märkbar skada, M2 före dag 3, ras minst 25 s. Tidstester i sim-obstacles.test.js kortade (ruta 0 nås vid ca 20,6 s). cells.test.js räknar från vägens start i stället för fast 46.
 
+## 0.3.0: forskning i nivåer, granatlåda, next wave med bonus, starkare taggtråd
+
+Nya system:
+- Forskning i noder med nivåer (src/data/research.js). Pris stiger per nivå: M2 100/120/170, M249 rate 40/80/130, Heavy wire 50/90, Concrete barrier 60/70/120, Bigger budget 70/110/170, New position 80, Grenades 60/100/150. Krav pekar på en nivå: barriär kräver Heavy wire I, M249 rate III och Grenades III kräver M2 I, Budget III kräver New position. Skäl: alltid något nytt att forska, och de dyra topparna hamnar efter dag 3.
+- Effekter: M249 rate x1,25/1,45/1,65, M2 skada x1,2/1,4, tråd x2/x3, barriärens hp x1,5/x2, budget +150/+250/+350.
+- Granatlåda (Olas beslut): köps per position för $ 200 när Grenades är forskat. Kastar när minst 4 zombier, eller en bjässe, är inom 13 m. Flygtid 0,8 s, skadan avtar till 40 % vid kanten. Nivå I 75 skada, radie 3 m, 10 s mellan kasten. II 95 skada, 3,5 m. III två granater per kast med 80 skada. Lådan kostade först $ 300: policyn hann bara köpa den sent på dag 3 och fick 0 till 7 kast, ingen skillnad. Med $ 200 blir det 8 till 17 kast.
+- Next wave: 5 s nedräkning efter en klarad våg, sedan startar nästa själv. Tidigt kall ger $ 5 per sekund som sparas (under nedräkningen sekunderna kvar, mitt i en våg 5 s plus högst 5 s återstående spawn). Först $ 10 per sekund: girig policy fick $ 100 extra på dag 2 och 3 och dag 3 vanns på första försöket i 3 av 5 seeds. Med $ 5 håller kurvan.
+- Policyerna (greedy, strong) kallar tidigt när basen är hel och ingen levande zombie är förbi halva vägen, mitt i en våg bara när allt i vågen kommit och högst 3 lever. Utan gränsen på 3 levande förlorade girig dag 2 i 3 av 5 seeds (vågorna staplades). Lådan köps på den pjäs som når mest väg (C, D, B, A), högst en per dag.
+
+Starkare taggtråd (Olas önskan efter speltest):
+- Tråd: farten 0,5 till 0,4 (zombierna går i 40 % av sin fart), hållbarhet 40 till 60 s. Skäl: tråden märktes knappt på dag 1 och 2.
+- Det gjorde dag 2 och 3 för lätta (dag 2 bas 20 i alla seeds, dag 3 vanns på första försöket). Motvikt: dag 2 våg 2 löpare 12 till 18, våg 3 löpare 32 (0,45 s) till 48 (0,32 s), dag 3 våg 3 löpare 12 (0,8 s) till 24 (0,5 s), bjässens hp 500 till 560.
+
+Resultat (girig, fem seeds): dag 1 vinns med 20 kvar (minimal en M249: A 13, B 17, C 20). Dag 2 vinns på första försöket med 5, 17, 20, 20, 15 kvar (snitt 15,4). Dag 3 förloras på försök 1 och 2 och vinns på försök 3 i alla fem (och i alla åtta i balansskriptet). Ras på 41 till 45 s. Utan forskning förloras dag 3 i alla.
+
+Granater på dag 3, girig, med M2, Heavy wire, budget, barriär och M249 rate I (bas kvar över fem seeds):
+
+| Granater | Bas kvar | Kast per dag |
+|---|---|---|
+| ingen | 2 till 6 | 0 |
+| I | 5 till 8 | 8 till 9 |
+| II | 8 till 14 | 8 till 9 |
+| III | 9 till 18 | 15 till 17 |
+
+Ett stöd, inte huvudsaken: nivå I ger några liv, III gör dag 3 bekväm men aldrig orörd.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

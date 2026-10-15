@@ -3,6 +3,7 @@
 // vad vågen består av.
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
+import { earlyBonus, hasNextWave } from '../sim/sim.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
 const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'] };
@@ -18,17 +19,23 @@ export function waveText(dayCfg, index) {
   return `Wave ${index + 1}: ${parts.join(', ')}`;
 }
 
+// Under en våg: den senast startade vågen, och kvar/totalt för alla vågor som är igång
+// (flera när nästa kallats tidigt). Annars: nästa våg som startar.
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
-  const i = Math.min(sim.waveIndex, waves.length - 1);
-  const total = waves[i].groups.reduce((a, g) => a + g.count, 0);
-  let left = total;
-  if (sim.phase === 'wave' || sim.phase === 'lost') left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
-  else if (sim.phase === 'won') left = 0;
+  const size = k => waves[k].groups.reduce((a, g) => a + g.count, 0);
+  const running = sim.phase === 'wave' || sim.phase === 'lost';
+  const i = Math.min(running ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
+  let total = size(i), left = total;
+  if (running) {
+    total = 0;
+    for (let k = 0; k < sim.wavesStarted; k++) if (!sim.cleared[k]) total += size(k);
+    left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
+  } else if (sim.phase === 'won') left = 0;
   return { wave: i + 1, of: waves.length, total, left };
 }
 
-export function mountHud(root, { onStart, onSpeed } = {}) {
+export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   root.insertAdjacentHTML('beforeend', `
   <div id="day" class="plate">
     <div class="lbl">DAY</div>
@@ -41,8 +48,8 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
     <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
   <div id="hint" class="plate" hidden><ol><li data-h="0">Click a position.</li><li data-h="1">Build an M249.</li><li data-h="2">Start the wave.</li></ol></div>
-  <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd></button>
-  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="speed" data-k="speed" aria-pressed="false">Faster<kbd>F</kbd></button></div>
+  <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
+  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next">Next wave<kbd>Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
   <div id="banner" class="plate" hidden></div>
   <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
   // Röd puls i skärmkanten när basen tar skada. Ligger under gränssnittet.
@@ -50,12 +57,14 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
   hurt.className = 'hurt';
   root.prepend(hurt);
   const $ = k => root.querySelector(`[data-k="${k}"]`);
-  const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key') };
+  const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
   const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed');
   speedBtn.addEventListener('pointerdown', e => e.preventDefault());   // ta inte fokus från mellanslag
   speedBtn.addEventListener('click', () => onSpeed && onSpeed());
+  el.next.addEventListener('pointerdown', e => e.preventDefault());
+  el.next.addEventListener('click', () => onNext && onNext());
   const resPlate = root.querySelector('#res');
 
   let last = { cash: null, hp: null };
@@ -112,11 +121,32 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
     goBtn.hidden = !build;
     waveBar.hidden = !wave;
     set(wLeft, String(c.left));
+    // Nedräkning till nästa våg: "Next wave (Space) 4s · +$ 20". Före våg 1: "Start wave".
+    const counting = build && sim.nextWaveIn != null;
+    set(el.go, counting ? 'Next wave' : 'Start wave');
+    el.cd.hidden = !counting;
+    goBtn.classList.toggle('counting', counting);
+    if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
+    // Mitt i en våg går nästa att kalla tidigt så länge det finns en.
+    const canCall = wave && hasNextWave(sim);
+    el.next.hidden = !canCall;
+    if (canCall) set(el.nextCd, '+' + money(earlyBonus(sim)));
   }
 
-  function setSpeed(fast) {
-    speedBtn.setAttribute('aria-pressed', fast ? 'true' : 'false');
-    speedBtn.classList.toggle('on', fast);
+  // Bonus för tidigt kall: "+$ 20 early" under kassan.
+  function early(amount) {
+    if (!amount) return;
+    el.delta.textContent = '+' + money(amount) + ' early';
+    el.delta.className = 'delta show up';
+    clearTimeout(deltaTimer);
+    deltaTimer = setTimeout(() => { el.delta.className = 'delta'; }, 2200);
+  }
+
+  // Fart 1x, 2x eller 3x. Lyser rost när den är över 1x.
+  const speedX = $('speedx');
+  function setSpeed(x) {
+    set(speedX, x + 'x');
+    speedBtn.classList.toggle('on', x > 1);
   }
 
   // Basen tar skada: siffran blinkar rött och pulsar, plåten och skärmkanten lyser rött.
@@ -167,5 +197,5 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, bounty };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, early, bounty };
 }

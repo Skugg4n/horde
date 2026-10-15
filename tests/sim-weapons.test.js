@@ -46,7 +46,7 @@ test('ett försvar dödar vandrare och tjänar pengar', () => {
   const before = s.cash;
   startWave(s);
   run(s, 40);
-  assert.equal(s.phase, 'build');
+  assert.equal(s.waveIndex, 1);
   assert.ok(s.cash > before);
   assert.equal(s.baseHp, 20);
 });

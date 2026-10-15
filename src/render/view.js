@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -61,6 +61,7 @@ export function createView(scene, initialSim) {
   // ---------- zombier ----------
   function addZombie(z) {
     const parts = zombieModel(z.type);
+    seedZombie(parts, z.id);
     placeOnPath(P, sim.map.path, z.d, z.off);
     parts.root.position.set(P.x, 0, P.z);
     const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6) };
@@ -84,7 +85,15 @@ export function createView(scene, initialSim) {
       const parts = e.parts;
       placeOnPath(P, sim.map.path, z.d, z.off);
       e.x += (P.x - e.x) * k; e.z += (P.z - e.z) * k;
-      parts.root.position.set(e.x, 0, e.z);
+      if (e.fling) {
+        // Kastad av en smäll: glider ut, hoppar och landar. Bara bild, simuleringen rör sig inte.
+        const f = e.fling;
+        f.vy -= 22 * dt; f.oy = Math.max(0, f.oy + f.vy * dt);
+        if (f.oy > 0 || f.vy > 0) { f.ox += f.vx * dt; f.oz += f.vz * dt; f.spin += dt * f.vr; }
+        else { f.vy = 0; f.vx *= Math.exp(-dt * 8); f.vz *= Math.exp(-dt * 8); f.ox += f.vx * dt; f.oz += f.vz * dt; }
+        parts.root.position.set(e.x + f.ox, f.oy, e.z + f.oz);
+        parts.root.rotation.y = e.ry + f.spin;
+      } else parts.root.position.set(e.x, 0, e.z);
       if (z.dead) {
         // faller bakåt och ligger kvar
         if (e.fall < 1) {
@@ -110,9 +119,9 @@ export function createView(scene, initialSim) {
       if (z.attacking) {
         // slår med armarna mot hindret
         e.chop += dt * 11;
-        zombieAttack(parts, e.chop);
+        zombieAttack(parts, e.chop, clock);
       } else {
-        zombieWalk(parts, e.phase);
+        zombieWalk(parts, e.phase, clock);
       }
     }
     rings.end();
@@ -123,12 +132,12 @@ export function createView(scene, initialSim) {
   // ---------- positioner och vapen ----------
   // Varje positionsgrupp får userData.pick och en osynlig träffskiva, så att den går att klicka
   // på även när en liten pjäs står där. Byggs om när vapen eller nivå ändras.
-  function slotKey(s) { return s.weapon ? s.weapon.type + ':' + s.weapon.level : s.locked ? 'locked' : 'free'; }
+  function slotKey(s) { return s.weapon ? s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') : s.locked ? 'locked' : 'free'; }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
     let e;
     if (s.weapon) {
-      const model = weaponModel(s.weapon.type, s.weapon.level);
+      const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit });
       e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle, state: null };
       model.pivot.rotation.y = -e.angle;
       e.pivotHome = model.pivot.position.clone();
@@ -371,6 +380,15 @@ export function createView(scene, initialSim) {
           break;
         }
         case 'breach': fx.puff(ev.x, ev.z); baseHit(); break;
+        case 'grenade': {
+          const e = slots.get(ev.slotId); if (!e || !e.model) break;
+          e.model.gunner.root.getWorldPosition(from);
+          from.y += 1.5;
+          to.set(ev.x, 0.15, ev.z);
+          fx.grenade(from, to, ev.flight);
+          break;
+        }
+        case 'blast': fx.blast(ev.x, ev.z, ev.r); blasts.push(ev); break;
         case 'obstacleHit': {
           if (clock - (lastChip.get(ev.cell) ?? -1) < 0.3) break;
           lastChip.set(ev.cell, clock);
@@ -387,6 +405,26 @@ export function createView(scene, initialSim) {
         }
       }
     }
+    flingCorpses();
+  }
+
+  // Kroppar nära en smäll kastas lite (de som dog i den och de som redan låg där).
+  const blasts = [];
+  function flingCorpses() {
+    if (!blasts.length) return;
+    const dead = new Set();
+    for (const z of sim.zombies) if (z.dead && !z.breached) dead.add(z.id);
+    for (const b of blasts) {
+      for (const [id, e] of zombies) {
+        if (!dead.has(id)) continue;
+        const dx = e.x - b.x, dz = e.z - b.z, d = Math.hypot(dx, dz);
+        if (d > b.r * 1.3) continue;
+        const push = (1 - d / (b.r * 1.3)) * 4 + 1.5, nx = d > 0.01 ? dx / d : rnd(-1, 1), nz = d > 0.01 ? dz / d : rnd(-1, 1);
+        const f = e.fling || (e.fling = { ox: 0, oy: 0, oz: 0, vx: 0, vy: 0, vz: 0, spin: 0, vr: 0 });
+        f.vx = nx * push; f.vz = nz * push; f.vy = 2 + push * 0.8; f.vr = rnd(-6, 6) / e.parts.scale;
+      }
+    }
+    blasts.length = 0;
   }
 
   function sync(dt) {

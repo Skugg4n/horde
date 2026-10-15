@@ -98,7 +98,34 @@ function gunShield(pivot, { x, w, h, y }) {
   pivot.add(box(0.07, 0.06, w + 0.02, mat(P.gunDark), x, y + h / 2, 0)); // kantlist
 }
 
-export function weaponModel(type, level = 1) {
+// Granatlådan: öppen trälåda med gul rand och granater i facken. Står bredvid skytten. 12 meshar.
+function grenadeCrate(g, x, z, ry) {
+  const c = new THREE.Group();
+  c.add(box(0.7, 0.3, 0.46, mat(P.crate), 0, 0.15, 0));
+  c.add(box(0.72, 0.05, 0.08, mat(P.grenadeBand), 0, 0.22, 0.22));             // gul rand fram
+  const lid = box(0.72, 0.05, 0.46, mat(P.crateDark), 0, 0.36, -0.36);
+  lid.rotation.x = -1.1; c.add(lid);                                             // locket uppfällt
+  const gm = mat(P.grenade, { roughness: 0.7 });
+  for (let i = 0; i < 6; i++) {
+    const n = mesh(geo('sphere', 0.085, 7, 5), gm, -0.22 + (i % 3) * 0.22, 0.32, i < 3 ? -0.1 : 0.1);
+    n.scale.y = 1.25; c.add(n);
+  }
+  c.add(box(0.03, 0.06, 0.03, mat(P.gunDark), -0.22, 0.43, -0.1));              // tändrör på en
+  c.add(box(0.03, 0.06, 0.03, mat(P.gunDark), 0.22, 0.43, 0.1));
+  c.position.set(x, 0, z); c.rotation.y = ry; g.add(c);
+  return c;
+}
+// En granat i luften eller i lådan (lookbook och fx delar formen).
+export function grenadeModel() {
+  const g = new THREE.Group();
+  const body = mesh(geo('sphere', 0.11, 8, 6), mat(P.grenade, { roughness: 0.7 }));
+  body.scale.y = 1.25; g.add(body);
+  g.add(box(0.04, 0.07, 0.04, mat(P.gunDark), 0, 0.15, 0));
+  return g;
+}
+
+// kit: positionen har en granatlåda (ritas bredvid skytten).
+export function weaponModel(type, level = 1, { kit = false } = {}) {
   const heavy = type === 'm2';
   const group = new THREE.Group();
   const pivot = new THREE.Group();
@@ -161,7 +188,8 @@ export function weaponModel(type, level = 1) {
     crate(group, -cr + 0.2, 0, cr * 0.42 + 0.6, 0.5);
     crate(group, -cr + 0.1, 0, -cr * 0.5, -0.3);
   }
-  group.userData = { kind: 'weapon', type, level };
+  if (kit) grenadeCrate(group, heavy ? -0.85 : -0.6, heavy ? -1.6 : -1.35, 0.35);
+  group.userData = { kind: 'weapon', type, level, kit };
   return { group, pivot, muzzle, gunner };
 }
 
@@ -325,6 +353,43 @@ const GAIT = {
   brute:  { lean: [0.24, 0.34], amp: 0.32, knee: 0.5, sway: 0.12, arms: 0.1, bob: 0.04, hang: [0.1, 0.3] },
 };
 
+// Ryck: hur ofta och hur hårt, per typ. period = sekunder mellan möjliga ryck, chance = andel
+// perioder med ryck, head/shoulder = utslag i radianer, stutter = andel av ett steg som hakar upp
+// sig, lurch = hur långt kroppen kastas framåt, stomp = bjässens stöt i varje steg, shake = darr.
+const TWITCH = {
+  walker: { period: 1.7, chance: 0.75, head: 0.55, shoulder: 0.45, stutter: 0.9, lurch: 0.3, stomp: 0, shake: 0.02, snap: 0.5 },
+  runner: { period: 0.8, chance: 0.8, head: 0.45, shoulder: 0.5, stutter: 0.4, lurch: 0.25, stomp: 0, shake: 0.06, snap: 0.25 },
+  brute:  { period: 2.4, chance: 0.6, head: 0.35, shoulder: 0.3, stutter: 0.5, lurch: 0.15, stomp: 1, shake: 0.01, snap: 0.6 },
+};
+
+// Hash av två heltal till 0..1. Samma zombie-id ger alltid samma ryck (ingen Math.random).
+function hash(a, b) {
+  let h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+// Ett ryck: i vissa perioder (andel chance) en kort puls av längden len sekunder, snabb upp och
+// långsammare ner, med tecken. Annars 0. salt skiljer olika slags ryck åt.
+function jolt(seed, t, period, chance, len, salt) {
+  const k = t / period + hash(seed, salt) * 9;
+  const n = Math.floor(k);
+  if (hash(seed, n * 31 + salt) > chance) return 0;
+  const start = hash(seed, n * 17 + salt + 5) * (period - len);
+  const x = ((k - n) * period - start) / len;
+  if (x < 0 || x > 1) return 0;
+  const shape = x < 0.2 ? x / 0.2 : 1 - (x - 0.2) / 0.8;
+  return shape * shape * (hash(seed, n * 13 + salt + 9) < 0.5 ? -1 : 1);
+}
+// Sätter zombiens frö: fasförskjutning och olika utslag per ben och arm (asymmetri).
+export function seedZombie(z, id) {
+  z.seed = id | 0;
+  z.legLag = (hash(id, 1) - 0.5) * 0.9;           // ena benet släpar i fas
+  z.legAmp = [0.8 + hash(id, 2) * 0.4, 0.8 + hash(id, 3) * 0.4];
+  z.armLag = (hash(id, 4) - 0.5) * 1.6;
+  z.tw = TWITCH[z.type] ?? TWITCH.walker;
+}
+
 // Trasig fåll: smala trasor som hänger under tröjan, fram och bak. Platta, utan skugga.
 function hem(h, color, n) {
   const b = h.build;
@@ -383,34 +448,75 @@ export function zombieModel(type = 'walker') {
   const lean = rnd(gait.lean[0], gait.lean[1]);
   h.spine.rotation.x = lean;
   h.root.scale.setScalar(def.scale);
-  return { ...h, scale: def.scale, type, lean, gait,
-    arm0: [h.shL.rotation.x, h.shR.rotation.x], elbow0: [h.elL.rotation.x, h.elR.rotation.x] };
+  const z = { ...h, scale: def.scale, type, lean, gait,
+    arm0: [h.shL.rotation.x, h.shR.rotation.x], elbow0: [h.elL.rotation.x, h.elR.rotation.x],
+    armZ0: [h.shL.rotation.z, h.shR.rotation.z], head0: [h.head.rotation.x, h.head.rotation.y, h.head.rotation.z] };
+  seedZombie(z, (Math.random() * 1e6) | 0);   // vyn sätter om fröet till zombiens id
+  return z;
 }
 
 // Gångcykel. phase växer med sträckan (ungefär 2.6 per meter för en vandrare).
 // Knät böjs när benet svingar fram, ryggen gungar, armarna svänger från viloläget.
-export function zombieWalk(z, phase) {
-  const g = z.gait, s = Math.sin(phase), c = Math.cos(phase);
+// t: vyns klocka i sekunder, driver ryckningarna (twitch). Benen och armarna går lite i otakt.
+export function zombieWalk(z, phase, t = 0) {
+  const g = z.gait, tw = z.tw;
+  // Snubbelsteg: steget hakar upp sig en kort stund (fasen hålls tillbaka).
+  const stutter = Math.abs(jolt(z.seed, t, tw.period * 1.9, tw.chance * 0.6, 0.35, 21));
+  const ph = phase - stutter * tw.stutter;
+  const s = Math.sin(ph), c = Math.cos(ph);
+  const sR = Math.sin(ph + z.legLag), cR = Math.cos(ph + z.legLag);
   z.body.rotation.set(0, 0, s * g.sway);
   z.body.position.y = Math.abs(c) * g.bob - (g.sprint ? 0.05 : 0.02);
-  z.hipL.rotation.x = s * g.amp - (g.sprint ? 0.25 : 0.05);
-  z.hipR.rotation.x = -s * g.amp - (g.sprint ? 0.25 : 0.05);
+  z.body.position.z = 0;
+  z.hipL.rotation.x = s * g.amp * z.legAmp[0] - (g.sprint ? 0.25 : 0.05);
+  z.hipR.rotation.x = -sR * g.amp * z.legAmp[1] - (g.sprint ? 0.25 : 0.05);
   z.kneeL.rotation.x = 0.12 + g.knee * Math.max(0, -c);
-  z.kneeR.rotation.x = 0.12 + g.knee * Math.max(0, c);
+  z.kneeR.rotation.x = 0.12 + g.knee * Math.max(0, cR);
   z.spine.rotation.x = z.lean + Math.abs(s) * 0.03;
+  const sa = Math.sin(ph + z.armLag);
   if (g.sprint) {
     // armarna pumpar motsatt benen med armbågen böjd
-    z.shL.rotation.x = -0.35 - s * g.arms; z.shR.rotation.x = -0.35 + s * g.arms;
-    z.elL.rotation.x = -1.35 - Math.max(0, s) * 0.4; z.elR.rotation.x = -1.35 - Math.max(0, -s) * 0.4;
+    z.shL.rotation.x = -0.35 - s * g.arms; z.shR.rotation.x = -0.35 + sa * g.arms;
+    z.elL.rotation.x = -1.35 - Math.max(0, s) * 0.4; z.elR.rotation.x = -1.35 - Math.max(0, -sa) * 0.4;
   } else {
-    z.shL.rotation.x = z.arm0[0] - s * g.arms; z.shR.rotation.x = z.arm0[1] + s * g.arms;
+    z.shL.rotation.x = z.arm0[0] - s * g.arms; z.shR.rotation.x = z.arm0[1] + sa * g.arms;
     z.elL.rotation.x = z.elbow0[0]; z.elR.rotation.x = z.elbow0[1];
   }
+  // Bjässen: tung stöt i varje fotisättning (när benet når sitt ytterläge).
+  if (tw.stomp) {
+    const plant = Math.pow(Math.abs(s), 10) * tw.stomp;
+    z.body.position.y -= plant * 0.07;
+    z.spine.rotation.x += plant * 0.1;
+  }
+  // Ryck framåt: kroppen kastas fram en kort stund och fångas upp.
+  const lurch = Math.abs(jolt(z.seed, t, tw.period * 2.3, tw.chance * 0.5, 0.3, 33));
+  z.body.position.z = lurch * tw.lurch;
+  z.spine.rotation.x += lurch * 0.35;
+  twitchUpper(z, t);
+}
+
+// Huvud och axlar: oregelbundna ryck, darr, och ibland ett knyck upp mot basen som hålls kvar.
+function twitchUpper(z, t) {
+  const tw = z.tw, sd = z.seed;
+  const jh = jolt(sd, t, tw.period, tw.chance, 0.16, 1);
+  const jv = jolt(sd, t, tw.period * 1.3, tw.chance * 0.7, 0.14, 2);
+  const shake = tw.shake ? Math.sin(t * 37 + sd) * tw.shake : 0;
+  // Knycket mot basen: huvudet rycks upp och framåt och står still en stund.
+  const k = t / (tw.period * 3.1) + hash(sd, 7) * 5, n = Math.floor(k), f = k - n;
+  const snap = hash(sd, n * 7 + 3) < 0.5 && f > 0.4 && f < 0.62 ? Math.min(1, (f - 0.4) / 0.02) * tw.snap : 0;
+  z.head.rotation.set(
+    z.head0[0] + jv * tw.head * 0.6 + shake - snap * (z.head0[0] + 0.25),
+    z.head0[1] * (1 - snap) + jh * tw.head,
+    z.head0[2] * (1 - snap) + jh * tw.head * 0.7 + shake);
+  const js = jolt(sd, t, tw.period * 0.9, tw.chance * 0.8, 0.12, 4);
+  z.shL.rotation.z = z.armZ0[0] + js * tw.shoulder;
+  z.shR.rotation.z = z.armZ0[1] - jolt(sd, t, tw.period * 1.1, tw.chance * 0.8, 0.12, 5) * tw.shoulder;
+  z.spine.rotation.z = js * 0.12;
 }
 
 // Slår mot ett hinder: står still med böjda knän, armarna hackar växelvis över huvudet.
-export function zombieAttack(z, chop) {
-  zombieWalk(z, 0);
+export function zombieAttack(z, chop, t = 0) {
+  zombieWalk(z, 0, t);
   z.hipL.rotation.x = -0.35; z.kneeL.rotation.x = 0.5;
   z.hipR.rotation.x = 0.2; z.kneeR.rotation.x = 0.35;
   z.body.position.y = -0.05;
@@ -418,12 +524,14 @@ export function zombieAttack(z, chop) {
   const a = Math.sin(chop), b = Math.sin(chop + Math.PI);
   z.shL.rotation.x = -2.0 + a * 0.75; z.elL.rotation.x = -0.35 - Math.max(0, a) * 0.8;
   z.shR.rotation.x = -2.0 + b * 0.75; z.elR.rotation.x = -0.35 - Math.max(0, b) * 0.8;
+  z.body.position.z = 0;
 }
 
 // Faller bakåt. t 0..1 (redan kvadrerad av vyn). Knäna viker sig, ryggen rätas ut och armarna
 // slängs upp och ut. Ligger på rygg vid t = 1, lyft så att kroppen inte sjunker genom marken.
 export function zombieFall(z, t) {
   z.body.rotation.x = -Math.PI / 2 * t;
+  z.body.position.z *= 1 - t;
   z.body.rotation.z *= 0.8;
   z.body.position.y = 0.12 * t + (1 - t) * z.body.position.y;
   z.spine.rotation.x = z.lean * (1 - t) - 0.1 * t;
