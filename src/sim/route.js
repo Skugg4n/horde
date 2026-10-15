@@ -10,7 +10,8 @@
 //   arrived(z)                 true när zombien är framme vid basen
 //   place(z)                   { x, z, dirX, dirZ }: läge och riktning
 //   ahead(z, dist)             { x, z }: läget om dist meter (granatens ledning)
-//   progress(z)                större = närmare basen (siktet väljer störst)
+//   progress(z)                större = närmare basen (siktet väljer störst). Gnesta: minus
+//                              återstående gångsträcka, utan barrikadernas straff
 //   fraction(z)                0 vid spawn, 1 vid basen
 //   validCell(key)             går det att lägga hinder här
 //   obstacleKeys(obstacles)    hinderrutorna i fast ordning
@@ -26,6 +27,7 @@ import { pathLength, pointAt } from './path.js';
 import { cellAt as pathCellAt, CELL_LEN } from './cells.js';
 import { makeGrid } from './grid.js';
 import { makeFlow } from './flow.js';
+import { OBSTACLES } from '../data/obstacles.js';
 
 export const routeFor = map => (map.grid ? gridRoute(map) : pathRoute(map));
 
@@ -67,21 +69,32 @@ export function pathRoute(map) {
 }
 
 // ---------- Gnesta ----------
-// Zombien har x, z (meter), cell (rutans nyckel) och lat (fast sidoförskjutning i meter). Den
-// styr mot nästa rutas mitt plus lat, vinkelrätt mot steget. Med 4-grannar ligger nuvarande och
-// nästa ruta kant i kant, och två sådana rutor bildar en rektangel, så sträckan från zombien till
-// målpunkten går aldrig över en stängd ruta.
+// Zombien har x, z (meter), cell (rutans nyckel under den) och lat (fast sidoförskjutning i meter).
+// Den styr mot en punkt några rutor fram längs flödet (LOOK), så att horden går snett över en
+// korsning i stället för i trappsteg. Punkten väljs bara om hela sträckan dit, med lite marginal
+// åt sidorna, ligger på gångbara rutor utan barrikad; annars nästa ruta som förut (nuvarande och
+// nästa ruta delar kant, så den sträckan skär aldrig ett tomthörn). Siktpunkten räknas om när
+// zombien byter ruta eller hindren ändras, och sparas på zombien (aimX, aimZ, aimV) så att
+// förloppet är deterministiskt och ahead() kan räkna exakt samma väg.
 const SUB = 0.25;        // längsta delsteg i meter
 const LAT_MAX = 0.7;     // största sidoförskjutning inom rutan (rutan är 2 m, halva = 1)
 const NEAR = 0.6;        // så nära ett block räknas zombien stå vid det (som E4)
 const HOLD = 0.3;        // zombien ställs så långt från blockets kant
+const LOOK = 3;          // så många rutor fram kan siktpunkten ligga
+const CLEAR = 0.25;      // marginal åt sidorna när sträckan till siktpunkten provas
+const SAMPLE = 0.2;      // provsteg längs sträckan
+const SPAN_MAX = 4;      // en spärr tvärs över gatan når högst så många rutor åt varje håll
 
 export function gridRoute(map) {
   const grid = makeGrid(map.grid);
   const flow = makeFlow(grid);
-  const { size } = grid;
+  const { size, w } = grid;
   const half = size / 2;
   const spawnIds = grid.spawns.map(s => s.id);
+  let blocked = new Set();        // rutor med barrikad
+  let version = 0;                // ökar när hindren ändras (siktpunkterna räknas om)
+  // Gångsträcka i meter längs flödet till basen, utan barrikadernas straff. Siktet använder den.
+  const walk = new Float64Array(grid.n).fill(Infinity);
 
   const target = (z, nxt) => {
     const [ax, az] = grid.center(z.cell), [bx, bz] = grid.center(nxt);
@@ -94,24 +107,108 @@ export function gridRoute(map) {
     const [cx, cz] = grid.center(nxt);
     return Math.max(0, Math.abs(z.x - cx) - half, Math.abs(z.z - cz) - half);
   };
+  const open = k => k >= 0 && grid.walkable(k) && !blocked.has(k);
+  // Går det att gå rakt från (x0, z0) till (x1, z1) med marginal åt sidorna?
+  const clear = (x0, z0, x1, z1) => {
+    const dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz);
+    if (L < 1e-9) return true;
+    const nx = -dz / L * CLEAR, nz = dx / L * CLEAR, n = Math.ceil(L / SAMPLE);
+    for (let i = 0; i <= n; i++) {
+      const x = x0 + dx * i / n, z = z0 + dz * i / n;
+      if (!open(grid.keyAt(x, z)) || !open(grid.keyAt(x + nx, z + nz)) || !open(grid.keyAt(x - nx, z - nz))) return false;
+    }
+    return true;
+  };
+  // Siktpunkten för zombien där den står nu.
+  function aim(z) {
+    const n1 = flow.next[z.cell];
+    if (n1 < 0) return null;
+    const chain = [n1];
+    if (!blocked.has(n1)) {
+      for (let c = n1; chain.length < LOOK && !flow.isBase(c);) {
+        const n = flow.next[c];
+        if (n < 0 || blocked.has(n)) break;
+        chain.push(n); c = n;
+      }
+    }
+    const lat = Math.max(-LAT_MAX, Math.min(LAT_MAX, z.lat));
+    for (let i = chain.length - 1; i >= 1; i--) {
+      const [ax, az] = grid.center(chain[i - 1]), [bx, bz] = grid.center(chain[i]);
+      const dx = Math.sign(bx - ax), dz = Math.sign(bz - az);
+      const tx = bx - dz * lat, tz = bz + dx * lat;
+      if (clear(z.x, z.z, tx, tz)) return { x: tx, z: tz };
+    }
+    const t = target(z, n1);
+    return { x: t.x, z: t.z };
+  }
+  function aimOf(z) {
+    if (z.aimV !== version || z.aimC !== z.cell || z.aimX == null) {
+      const a = aim(z);
+      if (!a) return null;
+      z.aimX = a.x; z.aimZ = a.z; z.aimC = z.cell; z.aimV = version;
+    }
+    return z;
+  }
   const left = z => {
     const nxt = flow.next[z.cell];
     if (nxt < 0) return 0;
     const t = target(z, nxt);
-    return (flow.dist[nxt] / grid.UNIT) * size + Math.hypot(t.x - z.x, t.z - z.z);
+    return walk[nxt] + Math.hypot(t.x - z.x, t.z - z.z);
   };
   let total = 1;
+  const order = [];
   const rebuildAll = obstacles => {
-    flow.compute(grid.costs(obstacles));
-    const far = grid.spawns.map(s => (flow.dist[s.key] / grid.UNIT) * size).filter(Number.isFinite);
+    const costs = grid.costs(obstacles);
+    flow.compute(costs);
+    blocked = new Set();
+    for (const key of Object.keys(obstacles)) if (OBSTACLES[obstacles[key].type]?.kind === 'block') blocked.add(Number(key));
+    version++;
+    // gångsträckan: rutorna i ordning efter kostnad, så att nästa ruta alltid är räknad först
+    order.length = 0;
+    for (let k = 0; k < grid.n; k++) if (Number.isFinite(flow.dist[k])) order.push(k);
+    order.sort((a, b) => flow.dist[a] - flow.dist[b] || a - b);
+    walk.fill(Infinity);
+    for (const k of order) walk[k] = flow.isBase(k) ? 0 : walk[flow.next[k]] + size;
+    const far = grid.spawns.map(s => walk[s.key]).filter(Number.isFinite);
     total = Math.max(1, ...far);
   };
   rebuildAll({});
+
+  // Gatans riktning genom rutan: den längsta raden gångbara rutor (x eller z) genom den.
+  const run = (k, di, dj, max = 8) => {
+    let n = 0, i = k % w, j = (k - i) / w;
+    for (;;) {
+      i += di; j += dj;
+      if (n >= max || i < 0 || j < 0 || i >= w || j >= grid.h || !grid.walkable(j * w + i)) return n;
+      n++;
+    }
+  };
+  function axis(key) {
+    const ax = run(key, -1, 0) + run(key, 1, 0), az = run(key, 0, -1) + run(key, 0, 1);
+    if (ax !== az) return ax > az ? 'x' : 'z';
+    const nxt = flow.next[key];
+    return nxt >= 0 && Math.abs(nxt - key) === 1 ? 'x' : 'z';
+  }
+
+  // Flödet för en tänkt uppsättning hinder (förhandsvisningen), utan att röra horden.
+  const shadow = makeFlow(grid);
+  function trace(f, from) {
+    const cells = [from];
+    let through = null;
+    for (let c = from, n = 0; !f.isBase(c) && n < grid.n; n++) {
+      const nx = f.next[c];
+      if (nx < 0) return { cells, through, reaches: false };
+      if (through == null && blocked.has(nx)) through = nx;
+      cells.push(nx); c = nx;
+    }
+    return { cells, through, reaches: true };
+  }
 
   return {
     kind: 'grid', grid, flow,
     get len() { return total; },
     base: (() => { const [x, z] = grid.center(grid.base[0]); return { x, z }; })(),
+    spawns: grid.spawns.map(s => { const [x, z] = grid.center(s.key); return { id: s.id, key: s.key, x, z }; }),
     spawn(rng, spawnId) {
       const s = grid.spawns.find(q => q.id === (spawnId ?? spawnIds[0]));
       if (!s) throw new Error('okänd spawn ' + spawnId);
@@ -121,35 +218,45 @@ export function gridRoute(map) {
     },
     advance(z, dist) {
       let rest = dist;
-      while (rest > 1e-9) {
+      for (let guard = 0; rest > 1e-9 && guard < 4096; guard++) {
         if (flow.isBase(z.cell)) return;
-        const nxt = flow.next[z.cell];
-        if (nxt < 0) return;
-        const t = target(z, nxt);
-        const dx = t.x - z.x, dz = t.z - z.z, L = Math.hypot(dx, dz);
+        if (!aimOf(z)) return;
+        const dx = z.aimX - z.x, dz = z.aimZ - z.z, L = Math.hypot(dx, dz);
         const k = Math.min(rest, SUB, L);
         if (L > 1e-9) { z.x += dx / L * k; z.z += dz / L * k; }
         rest -= k;
-        if (L <= k + 1e-9 || grid.keyAt(z.x, z.z) === nxt) z.cell = nxt;
+        const at = grid.keyAt(z.x, z.z);
+        if (at !== z.cell && open(at)) z.cell = at;
+        else if (L <= k + 1e-9) {
+          // framme vid siktpunkten utan att ha bytt ruta (kan bara hända vid avrundning): ta nästa
+          const nxt = flow.next[z.cell];
+          if (nxt >= 0 && !blocked.has(nxt)) z.cell = nxt;
+          z.aimX = null;
+        }
         if (L <= 1e-9 && k === 0) return;
       }
     },
     arrived: z => flow.isBase(z.cell),
     place(z) {
-      const nxt = flow.next[z.cell];
-      if (nxt < 0) return { x: z.x, z: z.z, dirX: -1, dirZ: 0 };
-      const t = target(z, nxt);
-      const dx = t.x - z.x, dz = t.z - z.z, L = Math.hypot(dx, dz) || 1;
+      if (flow.next[z.cell] < 0 || !aimOf(z)) return { x: z.x, z: z.z, dirX: -1, dirZ: 0 };
+      const dx = z.aimX - z.x, dz = z.aimZ - z.z, L = Math.hypot(dx, dz);
+      if (L < 1e-6) {
+        const t = target(z, flow.next[z.cell]);
+        return { x: z.x, z: z.z, dirX: t.dirX || -1, dirZ: t.dirZ };
+      }
       return { x: z.x, z: z.z, dirX: dx / L, dirZ: dz / L };
     },
     ahead(z, dist) {
-      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat };
+      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat, aimX: z.aimX, aimZ: z.aimZ, aimC: z.aimC, aimV: z.aimV };
       this.advance(c, dist);
       return { x: c.x, z: c.z };
     },
+    // Siktet: minst kvar att GÅ till basen vinner. Barrikadens straff räknas inte, så en zombie
+    // som slår sig igenom en barrikad nära basen prioriteras som den närmaste den är.
     progress: z => -left(z),
     fraction: z => Math.max(0, Math.min(1, 1 - left(z) / total)),
     left,
+    walkLeft: k => walk[k],
     validCell: key => Number.isInteger(key) && key >= 0 && key < grid.n && grid.walkable(key) && !flow.isBase(key),
     obstacleKeys: obstacles => Object.keys(obstacles).map(Number),
     inCell: (z, key) => z.cell === key,
@@ -180,6 +287,43 @@ export function gridRoute(map) {
       if (nxt < 0) return { x, z, dirX: -1, dirZ: 0 };
       const [bx, bz] = grid.center(nxt);
       return { x, z, dirX: Math.sign(bx - x), dirZ: Math.sign(bz - z) };
+    },
+    // Gatans riktning genom rutan ('x' eller 'z').
+    axis,
+    // Rutorna tvärs över gatan genom rutan key, i ordning från ena kanten till den andra.
+    // Bara gångbara rutor som inte är bas, högst SPAN_MAX åt varje håll.
+    span(key) {
+      if (!Number.isInteger(key) || key < 0 || key >= grid.n || !grid.walkable(key)) return [];
+      const [di, dj] = axis(key) === 'x' ? [0, 1] : [1, 0];
+      const out = [key];
+      for (const s of [-1, 1]) {
+        let i = key % w, j = (key - (key % w)) / w;
+        for (let n = 0; n < SPAN_MAX; n++) {
+          i += di * s; j += dj * s;
+          if (i < 0 || j < 0 || i >= w || j >= grid.h) break;
+          const k = j * w + i;
+          if (!grid.walkable(k) || flow.isBase(k)) break;
+          if (s < 0) out.unshift(k); else out.push(k);
+        }
+      }
+      return out.filter(k => !flow.isBase(k));
+    },
+    // Hordens väg från varje spawn: rutorna längs flödet till basen. Med obstacles räknas ett
+    // tänkt flöde (förhandsvisning), annars det som gäller nu. through: första barrikaden på
+    // vägen (horden slår sig igenom där), eller null.
+    paths(ids = spawnIds, obstacles = null) {
+      let f = flow, saved = blocked;
+      if (obstacles) {
+        shadow.compute(grid.costs(obstacles));
+        f = shadow;
+        blocked = new Set(Object.keys(obstacles).filter(k => OBSTACLES[obstacles[k].type]?.kind === 'block').map(Number));
+      }
+      const out = ids.map(id => {
+        const s = grid.spawns.find(q => q.id === id);
+        return s ? { id, ...trace(f, s.key) } : null;
+      }).filter(Boolean);
+      blocked = saved;
+      return out;
     },
     rebuild: rebuildAll,
   };

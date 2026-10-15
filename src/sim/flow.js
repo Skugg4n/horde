@@ -7,7 +7,9 @@
 //
 // 4-grannar, i fast ordning: väster, öster, norr, söder (-x, +x, -z, +z). 4-grannar gör att
 // nuvarande och nästa ruta alltid delar en kant, så zombien kan inte skära genom ett tomthörn.
-// Lika dyra grannar: den första i ordningen vinner. Kön bryter lika avstånd på lägst nyckel.
+// Lika dyra grannar: den vars mitt ligger närmast basen (fågelvägen) vinner, och vid lika även
+// där den första i ordningen. Över en öppen plan blir vägen då en trappa längs diagonalen i
+// stället för ett L, och rutten jämnar ut trappan. Kön bryter lika avstånd på lägst nyckel.
 export const NEIGHBOURS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 export function makeFlow(grid) {
@@ -25,6 +27,9 @@ export function makeFlow(grid) {
     return out;
   };
   const nbs = Array.from({ length: n }, (_, k) => nb(k));
+  // fågelvägen (i kvadrat, rutor) från varje ruta till första basrutan
+  const b0 = grid.base[0] ?? 0, bi = b0 % w, bj = (b0 - bi) / w;
+  const bird = Float64Array.from({ length: n }, (_, k) => { const i = k % w, j = (k - i) / w; return (i - bi) ** 2 + (j - bj) ** 2; });
 
   function compute(costs) {
     dist.fill(Infinity); next.fill(-1);
@@ -43,11 +48,11 @@ export function makeFlow(grid) {
     }
     for (let k = 0; k < n; k++) {
       if (isBaseArr[k] || !costs[k] || dist[k] === Infinity) continue;
-      let best = Infinity, pick = -1;
+      let best = Infinity, pick = -1, pickD = Infinity;
       for (const m of nbs[k]) {
         if (!costs[m] || dist[m] === Infinity) continue;
         const c = dist[m] + costs[m];
-        if (c < best) { best = c; pick = m; }
+        if (c < best || (c === best && bird[m] < pickD)) { best = c; pick = m; pickD = bird[m]; }
       }
       next[k] = pick;
     }

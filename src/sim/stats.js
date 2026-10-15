@@ -24,8 +24,9 @@ export function tierData(research, node) {
 export function weaponUnlocked(type, research) {
   return type === 'm249' || tierOf(research, type) >= 1;
 }
-export function obstacleUnlocked(type, research) {
-  return type === 'wire' || tierOf(research, type) >= 1;
+// map.freeObstacles: hinder som banan ger utan forskning (Gnesta lär ut barrikader dag 1).
+export function obstacleUnlocked(type, research, map = null) {
+  return type === 'wire' || !!map?.freeObstacles?.includes(type) || tierOf(research, type) >= 1;
 }
 export function weaponStats(type, level, research) {
   const w = WEAPONS[type], l = level - 1;

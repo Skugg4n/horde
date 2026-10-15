@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, placeObstacle, removeObstacle } from '../src/sim/sim.js';
+import { createSim, startWave, step, placeObstacle, removeObstacle, placeAcross, acrossCells, build } from '../src/sim/sim.js';
+import { OBSTACLES } from '../src/data/obstacles.js';
 import { gridFromAscii, makeGrid, BARRICADE_COST } from '../src/sim/grid.js';
 import { makeFlow } from '../src/sim/flow.js';
 import { gridRoute } from '../src/sim/route.js';
@@ -192,4 +193,94 @@ test('gridRoute.ahead gissar samma läge som zombien sedan når', () => {
   const guess = r.ahead(z, 5);
   r.advance(z, 5);
   assert.ok(Math.hypot(guess.x - z.x, guess.z - z.z) < 1e-9);
+});
+
+test('siktet: minst kvar att gå vinner, barrikadens straff räknas inte', () => {
+  // a:s enda väg går genom en barrikad nära basen, b:s väg är öppen men längre.
+  const two = gridFromAscii([
+    'B.....a',
+    '.######',
+    '......b',
+  ]);
+  const map = { id: 't', grid: two, baseHp: 20, slots: [{ id: 'A', x: 7, z: 3 }],
+    days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }, { type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'b' }] }] }] };
+  const sim = createSim({ map, day: 1, cash: 5000, research: ['block'], seed: 1 });
+  const k = (i, j) => j * two.w + i;
+  assert.equal(placeObstacle(sim, k(2, 0), 'block').ok, true);
+  assert.equal(build(sim, 'A', 'm249').ok, true);
+  startWave(sim); step(sim, DT);
+  const za = sim.zombies.find(z => z.spawn === 'a'), zb = sim.zombies.find(z => z.spawn === 'b');
+  // a står framför barrikaden (3 rutor kvar att gå), b har 5 rutor kvar runt hörnet
+  Object.assign(za, { x: 7, z: 1, cell: k(3, 0), lat: 0, aimX: null });
+  Object.assign(zb, { x: 7, z: 5, cell: k(3, 2), lat: 0, aimX: null });
+  assert.ok(sim.route.flow.dist[k(3, 0)] > sim.route.flow.dist[k(3, 2)], 'kostnaden säger att a är längst bort');
+  assert.ok(sim.route.progress(za) > sim.route.progress(zb), 'gångsträckan säger att a är närmast');
+  step(sim, DT);
+  assert.equal(sim.slots[0].weapon.targetId, za.id, 'vapnet tar zombien vid barrikaden');
+});
+
+test('horden går snett över en öppen plan i stället för i trappsteg, och aldrig utanför', () => {
+  const square = gridFromAscii([
+    'B.......',
+    '........',
+    '........',
+    '........',
+    '........',
+    '.......a',
+  ]);
+  const map = { id: 't', grid: square, baseHp: 20, slots: [],
+    days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
+  const sim = createSim({ map, day: 1, cash: 0, seed: 4 });
+  const g = sim.route.grid;
+  startWave(sim); step(sim, DT);
+  const z = sim.zombies[0];
+  let both = 0, moves = 0, px = z.x, pz = z.z;
+  for (let t = 0; t < 60 * 30 && sim.phase === 'wave'; t++) {
+    step(sim, DT);
+    if (z.dead) break;
+    assert.ok(g.walkable(g.keyAt(z.x, z.z)));
+    const dx = Math.abs(z.x - px), dz = Math.abs(z.z - pz);
+    if (dx + dz > 1e-6) { moves++; if (dx > 0.01 && dz > 0.01) both++; }
+    px = z.x; pz = z.z;
+  }
+  assert.equal(sim.baseHp, 19);
+  assert.ok(both / moves > 0.6, `snett ${both} av ${moves} steg`);
+});
+
+test('spärr tvärs över gatan: hela bredden, betalt per ruta, rivs tillsammans', () => {
+  const wide = gridFromAscii([
+    '##########',
+    '.........a',
+    'B.........',
+    '..........',
+    '##########',
+  ]);
+  const map = { id: 't', grid: wide, baseHp: 20, slots: [], freeObstacles: ['block'],
+    days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
+  const sim = createSim({ map, day: 1, cash: 1000, seed: 1 });
+  const k = (i, j) => j * wide.w + i;
+  assert.equal(sim.route.axis(k(5, 2)), 'x');
+  assert.deepEqual(sim.route.span(k(5, 2)), [k(5, 1), k(5, 2), k(5, 3)]);
+  assert.deepEqual(acrossCells(sim, k(5, 2)), [k(5, 1), k(5, 2), k(5, 3)]);
+  const r = placeAcross(sim, k(5, 2), 'block');
+  assert.equal(r.ok, true, 'barrikaden är fri på banan utan forskning');
+  assert.equal(sim.cash, 1000 - 3 * OBSTACLES.block.cost);
+  assert.equal(new Set([1, 2, 3].map(j => sim.obstacles[k(5, j)].line)).size, 1);
+  const paths = sim.route.paths(['a']);
+  assert.equal(paths[0].through, k(5, 1), 'helt stängt: horden slår sig igenom spärren');
+  const rm = removeObstacle(sim, k(5, 3));
+  assert.equal(rm.refund, 3 * OBSTACLES.block.cost / 2);
+  assert.equal(Object.keys(sim.obstacles).length, 0);
+  assert.deepEqual(placeAcross({ ...sim, cash: 10 }, k(5, 2), 'block'), { ok: false, reason: 'pengar' });
+});
+
+test('förhandsvisningen räknar ett tänkt flöde utan att röra horden', () => {
+  const sim = mk(one());
+  const before = [...sim.route.flow.next];
+  const now = sim.route.paths(['a']);
+  assert.ok(now[0].reaches && now[0].cells.every(c => Math.floor(c / data.w) === 3), 'rakt längs huvudgatan');
+  const ghost = sim.route.paths(['a'], { [key(5, 3)]: { type: 'block' } });
+  assert.ok(ghost[0].cells.some(c => Math.floor(c / data.w) === 1), 'med barrikad: runt kvarteret');
+  assert.equal(ghost[0].through, null);
+  assert.deepEqual([...sim.route.flow.next], before, 'det riktiga flödet är orört');
 });
