@@ -189,6 +189,32 @@ Gnesta (fem seeds, efter E4 med girig policy):
 - Känslighet: dag 4 hp 5,9 ger snitt 11, 6,1 ger 9,6. Dag 5 hp 5,0 ger 7,8, 5,2 ger 3,6. Ingen klippa runt de valda värdena. (Med Ksp 58 före dag 4 var dag 3 en klippa: hp 5,1 gav snitt 14, 5,2 gav 6, 5,4 förlust i alla seeds.)
 - Kvittot i tests/route-gnesta.test.js byttes avsiktligt: 'cb76292', 38121 tecken.
 
+## 0.9.0: Hemvärnet
+
+Gruppen (src/data/weapons.js `hv`, src/sim/squad.js): fyra soldater med Ak 4 för $ 250, en position. Siffrorna gäller per soldat. Nivå 2 ($ 200) ger en femte soldat och mer liv, nivå 3 ($ 300) bättre gevär (skadan som andra vapen, 30 % per nivå). Finns från början, ingen forskning.
+
+| | Pris | Räckvidd | Eld/s | Skada | Träff | Per sekund | Liv per man |
+|---|---|---|---|---|---|---|---|
+| Hemvärnet nivå 1 (4 man) | 250 | 15 | 1,3 | 5 | 0,72 | 19 | 30 |
+| Hemvärnet nivå 3 (5 man), allt som lagts 750 | | 18 | 1,7 | 8 | 0,72 | 49 | 50 |
+| Ksp 90 nivå 1 | 250 | 16 | 8 | 4 | 0,70 | 22 | osårbar |
+| Ksp 90 nivå 3 med Faster III, 800 | | 19 | 17 | 6,4 | 0,70 | 77 | osårbar |
+
+- Svagare per krona än Ksp 90 och mycket svagare mot bjässarna, men fyra siktlinjer i stället för en: gruppen ser runt ett hus eller ett kvarter där en pjäs bara ser åt ett håll.
+- Zombier som står i en ruta intill en soldats ruta stannar och slår honom (zombiens hitDamage per sekund, vandraren 8, bjässen 30). Stupade skjuter inte. De ersätts i panelen för $ 60 per man och springer ut igen; nästa dag börjar alla om ändå (inget följer med mellan dagarna). Pjäserna är osårbara som förut: att göra dem sårbara skulle ändra alla dagar på båda banorna, och det är gruppens svaghet som gör skyddet värt att tänka på.
+- Skyddsvalet är deterministiskt (lägst rutnyckel vid lika) och ändrar ingen slump: en dag utan grupp ger exakt samma förlopp som i 0.8.0.
+
+Policyerna (scripts/balance.mjs, `HV_POLICY`):
+- E4: girig policy köper en grupp dag 1 direkt efter första Ksp 90, på nästa lediga plats i planen (billig täckning tidigt). Gruppen tar skydd vid bilen och vid pjäsens sandsäckar och ingen stupar. Utfallen är desamma som i 0.8.0 (dag 1 direkt med full bas i alla seeds, dag 2 och 3 som förut); kassan efter vågorna dag 1 ändras.
+- Gnesta: planen har egna platser för gruppen (`plan.squads`, där gevären med 15 m räckvidd ser mest av hordens väg). Från dag 2 köps en grupp när en position står tom efter första vågen och planen inte har fler platser för pjäser; policyn sparar då till gruppen före uppgraderingarna. I de fem seedsen händer det aldrig (planens platser räcker), så smart och naiv spelar som i 0.8.0.
+- Prövat och förkastat:
+  - E4, en grupp varje dag efter första pjäsen: dag 2 blev för svår, bas kvar snitt 3,2 (1, 6, 5, 1, 3), målet 4 till 17. Gruppen tar pengarna som annars blir taggtråd mot löparna.
+  - Gnesta, en grupp dag 1 efter barrikaden: smart bas kvar dag 1 3 till 15 (förut 13 till 20), naiv förlorar dag 1 i alla seeds (förut vann med 1 till 7). Gruppen tar pengarna till andra pjäsen.
+  - Gnesta, gruppen som tredje position dag 1: smart förlorar dag 1 två gånger i seed 0 och en gång i seed 1.
+  - Gnesta, en grupp i en lucka dag 2 till 5 före fler pjäser och uppgraderingar: gruppen köps (2 av 4 man stupar oftast, de närmast gatan), men dag 3 tar tre försök i tre seeds och granatlådorna slutar spela roll dag 4 (seed 3: med lådor 9, utan 11). Bara dag 2 och 3 eller 2, 3 och 5: dag 3 tar fler försök, policyn får mer forskning och dag 4 blir för lätt (bas kvar 12 till 13, målet högst 12).
+- Slutsatsen: på Gnesta är gruppen sämre än alla alternativ för policyerna. Zombiernas hp-faktor (3,6 till 6) och forskningen för Ksp 90 (Faster III ger 37 per sekund mot gruppens 19 för samma pris) gör att en position med gruppen kostar mer än den ger. Om Hemvärnet ska ha en roll på Gnesta behövs forskning för gruppen (bättre ammunition, större grupp från början) eller ett lägre pris; det är en fråga för speltest (todo.md H054), inte gissat här.
+- Kvittona byttes avsiktligt: E4 'f322422c' (7658 tecken), Gnesta '759821b7' (39386 tecken; planens nya fält ligger i naiv-körningarnas resultat).
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

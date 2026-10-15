@@ -15,7 +15,11 @@ import { logs, naives } from './gnesta-logs.js';
 // Ksp 58 och Ak 5 efter dag 4; smart och naiv bemannar ett tak per dag (två dag 5) med Psg 90 och
 // sparar till det, Ak 5 på nästa plats, Ksp 58 i stället för Ksp 90 när den finns. Dag 4 hp 5,6
 // till 6,0, dag 5 4,6 till 5,1. Skälen i docs/balance-log.md (0.8.0).
-const BEFORE = { hash: 'cb76292', length: 38121 };
+// 0.9.0: bytt avsiktligt. Gnestas plan har egna platser för Hemvärnet (plan.squads, gevärens
+// räckvidd) och policyn köper en grupp när en position står tom och planen saknar fler platser för
+// pjäser. I de fem seedsen händer det aldrig, så vinster, försök och bas kvar är som i 0.8.0;
+// kvittot ändras av planens nya fält och av E4-kampanjens kassa dag 1. Se docs/balance-log.md, 0.9.0.
+const BEFORE = { hash: '759821b7', length: 39386 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -25,6 +29,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.8.0', () => {
+test('Gnestas balanslogg är identisk med 0.9.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

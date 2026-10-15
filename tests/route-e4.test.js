@@ -14,7 +14,10 @@ import { makeRng } from '../src/sim/rng.js';
 // av vägen, fyra i stället för tre utan forskning), New position blev More positions I till III,
 // dag 2 och 3 fick hp-faktor 1,5 och 1,15, och policyn strong (fasta positioner C, B, D, A)
 // finns inte längre. Se docs/balance-log.md, 0.5.0.
-const BEFORE = { hash: '3a2cb567', length: 7663 };
+// 0.9.0: nytt kvitto, avsiktligt: girig policy köper en grupp ur Hemvärnet dag 1 direkt efter
+// första Ksp 90 (billig täckning tidigt). Utfallen (vinster, försök, bas kvar, bonus) är desamma
+// som i 0.8.0; det som ändras är kassan efter varje våg dag 1. Se docs/balance-log.md, 0.9.0.
+const BEFORE = { hash: 'f322422c', length: 7658 };
 
 function fingerprint() {
   const out = [];
@@ -26,7 +29,7 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('E4:s balanslogg är identisk med 0.5.0', () => {
+test('E4:s balanslogg är identisk med 0.9.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 
