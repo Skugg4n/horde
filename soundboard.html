@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horde sound board</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { overflow: auto; background: #1b1814; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-family: 'Saira Stencil One', sans-serif; font-size: 30px; margin: 0 0 4px; letter-spacing: 0.04em; }
+  .lead { color: var(--paper-dim); font-size: 13px; margin: 0 0 18px; }
+  section { padding: 12px 14px 14px; margin: 0 0 14px; }
+  h2 { font: 600 13px 'Oswald', sans-serif; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 10px; color: var(--paper-dim); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button { font: 600 12px 'Oswald', sans-serif; letter-spacing: 0.08em; color: var(--paper); background: rgba(233,223,201,0.08);
+    border: 1px solid var(--plate-edge); padding: 6px 12px; cursor: pointer; }
+  button:hover { background: rgba(181,83,42,0.25); }
+  button.on { background: rgba(181,83,42,0.45); }
+  label { font-size: 12px; color: var(--paper-dim); display: flex; gap: 8px; align-items: center; }
+  input[type=range] { width: 140px; }
+  #stats { font: 12px 'IBM Plex Mono', monospace; color: var(--paper-dim); white-space: pre-wrap; min-height: 3.2em; }
+  .hint { font-size: 12px; color: var(--paper-dim); margin-top: 8px; }
+</style>
+</head><body>
+<main>
+  <h1>SOUND BOARD</h1>
+  <p class="lead">Every sound and music state in Horde, synthesized live. Click anything to start the audio. <span id="ver"></span></p>
+
+  <section class="plate"><h2>Position</h2>
+    <div class="row" id="pos"></div>
+    <div class="hint">Where on the screen the sound comes from: panning and distance are subtle on purpose.</div>
+  </section>
+
+  <section class="plate"><h2>Weapons</h2><div class="row" id="weapons"></div></section>
+  <section class="plate"><h2>Grenades</h2><div class="row" id="grenades"></div></section>
+  <section class="plate"><h2>Zombies</h2><div class="row" id="zombies"></div></section>
+  <section class="plate"><h2>Hits and kills</h2><div class="row" id="hits"></div></section>
+  <section class="plate"><h2>Barricades, wire, base</h2><div class="row" id="base"></div></section>
+  <section class="plate"><h2>Interface</h2><div class="row" id="ui"></div></section>
+
+  <section class="plate"><h2>Music</h2>
+    <div class="row" id="music"></div>
+    <div class="row" id="mood" style="margin-top:8px"></div>
+    <div class="hint">Menu is quiet, Build is calm, Wave adds pulse and opens the filter, Danger is the last quarter of the base. Paused muffles everything.</div>
+  </section>
+
+  <section class="plate"><h2>Mix</h2>
+    <div class="row">
+      <label>Sound <input type="range" id="snd" min="0" max="100"></label>
+      <label>Music <input type="range" id="mus" min="0" max="100"></label>
+      <button id="pause">Pause menu</button>
+    </div>
+  </section>
+
+  <section class="plate"><h2>Stress</h2>
+    <div class="row"><button id="stress">250 zombies at 3x, 10 s</button><button id="stop">Stop</button></div>
+    <div id="stats"></div>
+  </section>
+</main>
+<script type="module">
+import { VERSION } from './src/version.js';
+import { createAudio } from './src/audio/audio.js';
+import { loadSettings, saveSettings, normalizeSettings } from './src/meta/settings.js';
+
+document.getElementById('ver').textContent = 'v' + VERSION;
+let settings = loadSettings();
+const audio = createAudio({ settings });
+audio.attach(window);
+window.__sound = audio;
+
+// ---------- läge på skärmen ----------
+const POS = { left: [0.1, 0.5], center: [0.5, 0.5], right: [0.9, 0.5], 'far off': [1.6, 0.2] };
+let pos = 'center';
+const at = () => ({ sx: POS[pos][0] * innerWidth, sy: POS[pos][1] * innerHeight });
+function buttons(id, list) {
+  const el = document.getElementById(id);
+  for (const [label, fn] of list) {
+    const b = document.createElement('button'); b.textContent = label;
+    b.addEventListener('click', () => { audio.unlock(); fn(b); });
+    el.appendChild(b);
+  }
+  return el;
+}
+const posEl = buttons('pos', Object.keys(POS).map(k => [k, b => { pos = k; mark(posEl, b); }]));
+const mark = (el, b) => { for (const x of el.children) x.classList.toggle('on', x === b); };
+mark(posEl, posEl.children[1]);
+
+const play = (name, o = {}) => audio.play(name, { ...at(), ...o });
+const burst = (name, n, gap, o) => { for (let i = 0; i < n; i++) setTimeout(() => play(name, o), i * gap); };
+buttons('weapons', [
+  ['M249 single', () => play('m249', { gain: 0.6 })],
+  ['M249 burst', () => burst('m249', 12, 125, { gain: 0.6 })],
+  ['M2 .50 single', () => play('m2', { gain: 0.9 })],
+  ['M2 .50 burst', () => burst('m2', 6, 250, { gain: 0.9 })],
+  ['Casing', () => play('casing')],
+]);
+buttons('grenades', [['Throw', () => play('throw')], ['Explosion', () => { play('blast'); audio.duckMusic(); }], ['Throw + explosion', () => { play('throw'); setTimeout(() => { play('blast'); audio.duckMusic(); }, 800); }]]);
+buttons('zombies', [
+  ['Walker groan', () => play('groan', { type: 'walker' })],
+  ['Runner shriek', () => play('groan', { type: 'runner' })],
+  ['Brute roar', () => play('groan', { type: 'brute' })],
+  ['Horde: none', () => { horde = 0; }], ['Horde: 30', () => { horde = 30; }], ['Horde: 120', () => { horde = 120; }], ['Horde: 250', () => { horde = 250; }],
+]);
+buttons('hits', [['Hit', () => play('hit')], ['Kill', () => play('kill')], ['Brute kill', () => play('kill', { type: 'brute' })], ['Many kills', () => burst('kill', 20, 30)]]);
+buttons('base', [
+  ['Barricade knock', () => play('knock')], ['Barricade breaks', () => play('crunch', { type: 'block' })],
+  ['Wire strain', () => play('strain')], ['Wire snaps', () => play('crunch', { type: 'wire' })],
+  ['Base breach', () => play('breach')], ['Low base alarm', () => play('alarm')],
+]);
+buttons('ui', [
+  ['Pick up', () => audio.ui('pick')], ['Place', () => audio.ui('place')], ['Click', () => audio.ui('click')], ['Can\'t afford', () => audio.ui('deny')],
+  ['Early bonus', () => play('bonus')], ['Wave start', () => play('horn')], ['Day won', () => play('stinger', { kind: 'won' })], ['Day lost', () => play('stinger', { kind: 'lost' })],
+]);
+
+// ---------- musik ----------
+const STATES = { Menu: 0, Build: 0.3, Wave: 0.7, Danger: 1 };
+const musicEl = buttons('music', Object.entries(STATES).map(([k, v]) => [k, b => { audio.music.force(v); mark(musicEl, b); }]));
+const moodEl = buttons('mood', [['E4 mood', b => { audio.music.mood('riksvagen'); mark(moodEl, b); }], ['Gnesta mood', b => { audio.music.mood('gnesta'); mark(moodEl, b); }]]);
+audio.music.force(0.3); mark(musicEl, musicEl.children[1]); mark(moodEl, moodEl.children[0]);
+
+// ---------- mix ----------
+const snd = document.getElementById('snd'), mus = document.getElementById('mus');
+snd.value = Math.round(settings.sound * 100); mus.value = Math.round(settings.music * 100);
+const set = (k, v) => { settings = normalizeSettings({ ...settings, [k]: v, [k + 'Muted']: false }); saveSettings(settings); audio.setSettings(settings); };
+snd.addEventListener('input', () => set('sound', snd.value / 100));
+mus.addEventListener('input', () => set('music', mus.value / 100));
+let paused = false;
+const pb = document.getElementById('pause');
+pb.addEventListener('click', () => { audio.unlock(); paused = !paused; pb.classList.toggle('on', paused); });
+
+// ---------- en falsk dag för horden och stresstestet ----------
+let horde = 0, stressUntil = 0, peak = 0, worst = 0;
+const fakeSim = { phase: 'wave', baseHp: 20, map: { baseHp: 20 }, zombies: [], obstacles: {},
+  guns: Array.from({ length: 10 }, (_, i) => ({ id: 'g' + i, x: (i - 5) * 3, z: (i % 2) * 4 - 2, weapon: { type: i % 3 ? 'm249' : 'm2' } })),
+  route: { cellCenter: () => ({ x: 0, z: 0 }) } };
+const types = ['walker', 'walker', 'walker', 'runner', 'brute'];
+const toScreen = (x, z) => ({ sx: innerWidth / 2 + x * 18, sy: innerHeight / 2 + z * 18 });
+document.getElementById('stress').addEventListener('click', () => { audio.unlock(); horde = 250; stressUntil = performance.now() + 10000; peak = 0; worst = 0; });
+document.getElementById('stop').addEventListener('click', () => { stressUntil = 0; horde = 0; });
+const stats = document.getElementById('stats');
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  while (fakeSim.zombies.length < horde) fakeSim.zombies.push({ x: Math.random() * 60 - 30, z: Math.random() * 30 - 15, type: types[fakeSim.zombies.length % 5], dead: false });
+  fakeSim.zombies.length = Math.min(fakeSim.zombies.length, horde);
+  const t0 = performance.now();
+  if (now < stressUntil) {
+    // 3x: 15 steg i bildrutan, varje med skott från alla pjäser, träffar och döda.
+    const evs = [];
+    for (let s = 0; s < 15; s++) for (const g of fakeSim.guns) {
+      if (Math.random() < (g.weapon.type === 'm2' ? 0.13 : 0.27)) {
+        const z = fakeSim.zombies[(Math.random() * fakeSim.zombies.length) | 0];
+        evs.push({ t: 'shot', gunId: g.id, hit: true, x: z.x, z: z.z }, { t: 'hit', x: z.x, z: z.z });
+        if (Math.random() < 0.1) evs.push({ t: 'kill', type: z.type, x: z.x, z: z.z });
+      }
+    }
+    if (Math.random() < 0.01) evs.push({ t: 'blast', x: 0, z: 0 });
+    audio.consume(evs, fakeSim, toScreen);
+  }
+  audio.update(dt, horde ? fakeSim : null, { paused, mode: horde ? 'play' : 'menu', speed: now < stressUntil ? 3 : 1, toScreen, zombiePos: z => z });
+  const cost = performance.now() - t0;
+  const st = audio.stats();
+  if (now < stressUntil) { peak = Math.max(peak, st.total); worst = Math.max(worst, cost); }
+  stats.textContent = `context ${st.state} · voices ${st.total} (peak ${peak}) · started ${st.started} · dropped ${st.dropped}\n`
+    + Object.entries(st.voices).map(([k, v]) => k + ' ' + v).join(' · ') + `\naudio cost this frame ${cost.toFixed(2)} ms (worst in stress ${worst.toFixed(2)} ms)`;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body></html>
