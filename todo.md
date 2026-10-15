@@ -42,3 +42,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H029 | ux | Speltesta att granatlådans pris ($ 200) och nedräkningens bonus ($ 5 per sekund) känns rätt i händerna.
 
 - [ ] H029 | verktyg | Ta bort horde/horde-gnesta ur nexus/.claude/launch.json när spelet körs från egna sessioner i ~/Projects/horde.
+- [ ] H030 | gnesta | Söder om rondellen är det en stor parkering (och Gnesta sporthall), inte skog. Se refs/gnesta/satellit-vid.jpg.
+- [ ] H031 | gnesta | Ytterkanterna: dimma med "skissiga" spökhus från den riktiga omgivningen så långt man kan scrolla; bara den aktiva kartan är skarp. Grund för att expandera kartan senare (Östra Storgatan, Vikingavägen, sporthallen).
