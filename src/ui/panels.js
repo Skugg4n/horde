@@ -4,12 +4,13 @@
 // gråa knappar varje bildruta. actions kommer från main.js och returnerar simuleringens svar.
 import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
-import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, lineRefund, grenadeStats, tierOf } from '../sim/stats.js';
+import { weaponStats, upgradeCost, MAX_LEVEL, weaponRefund, lineRefund, grenadeStats, tierOf } from '../sim/stats.js';
 import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
-import { acrossCells, checkObstacle } from '../sim/sim.js';
 import { ICONS } from './icons.js';
+import { SHOP, shopItem, hotkey } from '../data/shop.js';
+import { buyState } from '../sim/buy.js';
 import { money } from './format.js';
 
 const REASONS = {
@@ -32,6 +33,7 @@ const REASONS = {
   'okänd': 'Can\'t do that.',
   'redan': 'This position already has a kit.',
   'zombier': 'Zombies in the way',
+  'ingen gata': 'Only on the road',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -39,9 +41,6 @@ export function reasonText(r) {
 
 function statLine(st) {
   return `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span></div>`;
-}
-function card(id, icon, name, desc, extra) {
-  return `<button type="button" class="card" data-id="${id}">${icon || ''}<div class="n">${name}</div><div class="d">${desc}</div>${extra || ''}<div class="p" data-price></div></button>`;
 }
 
 // Gemensamt skal: plåt, rubrik, innehåll, meddelanderad.
@@ -66,19 +65,19 @@ function shell(root, actions) {
   return { el, head, body, say, hush, close };
 }
 
-// Sätter pris/grått på ett kort: pris eller "Behöver $X". Uppdateras varje bildruta,
-// så priset blir klickbart så fort pengarna räcker, även mitt i en våg.
-function patchCard(btn, cost, sim) {
-  const p = btn.querySelector('[data-price]');
-  const poor = sim.cash < cost;
-  const text = poor ? 'Need ' + money(cost) : money(cost);
-  if (p.textContent !== text) p.textContent = text;
-  btn.classList.toggle('off', poor);
-}
 
-// Vapenkorten nere till vänster: ett kort per upplåst vapen och hur många pjäser som står ute.
-// Ett klick på ett kort startar placeringen (actions.pick(typ)); samma kort igen avbryter.
-// update(sim, picking) håller priser, gråa kort och det valda kortet aktuella.
+// Köpraden nere till vänster: ett kort per sak som går att köpa (SHOP), i snabbvalens ordning.
+// Välj först vad du köper (klick eller siffertangent), ställ sedan ut det på kartan.
+// Kortet visar snabbval, ikon, namn och pris. För dyrt: gråat, priset i rött och "Need $ X more".
+// Låst: ett lås och "Research: <nod>". Fullt: "All positions taken". Läget räknas varje bildruta
+// men kortet skrivs bara om när läget eller beloppet ändras (raden byggs om bara när forskningen
+// ändras). pick(id) från main.js; shake(id) skakar ett kort som inte går att ta upp.
+const LOCK = '<svg class="lock" viewBox="0 0 16 16"><path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="7" width="10" height="7.5" rx="1" fill="currentColor"/></svg>';
+const itemName = (it) => (it.kind === 'gun' ? WEAPONS[it.id].name : OBSTACLES[it.id].name);
+const itemDesc = (it, sim) => {
+  if (it.kind === 'gun') { const st = weaponStats(it.id, 1, sim.research); return `${WEAPONS[it.id].desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
+  return OBSTACLES[it.id].desc + (sim.route.kind === 'grid' ? ' Spans the whole street.' : '');
+};
 export function buildBar(root, actions) {
   const el = document.createElement('div');
   el.id = 'buildbar';
@@ -87,26 +86,51 @@ export function buildBar(root, actions) {
   root.appendChild(el);
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
   let key = null;
+  const cards = new Map();      // id -> { btn, price, why, state }
   function render(sim) {
-    const types = Object.keys(WEAPONS).filter(t => weaponUnlocked(t, sim.research));
-    el.innerHTML = `<div class="k">GUNS <b data-n></b></div><div class="cards">${types.map((t, i) => card(t, ICONS[t], WEAPONS[t].name, WEAPONS[t].desc, statLine(weaponStats(t, 1, sim.research)) + `<kbd>${i + 1}</kbd>`)).join('')}</div>`;
-    for (const b of el.querySelectorAll('.card')) b.addEventListener('click', () => actions.pick(b.dataset.id));
-  }
-  function update(sim, picking, show) {
-    el.hidden = !show;
-    if (!show) return;
-    const k = [...sim.research].join(',');
-    if (k !== key) { key = k; render(sim); }
-    const n = el.querySelector('[data-n]'), t = `${sim.guns.length} / ${sim.maxGuns}`;
-    if (n.textContent !== t) n.textContent = t;
-    const full = sim.guns.length >= sim.maxGuns;
+    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="cards">${SHOP.map((it, i) => `
+      <button type="button" class="card buy" data-id="${it.id}" title="${itemDesc(it, sim)}">
+        <kbd>${hotkey(i)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemName(it)}</div>
+        <div class="p" data-price></div><div class="why" data-why></div></button>`).join('')}</div>`;
+    cards.clear();
     for (const b of el.querySelectorAll('.card')) {
-      patchCard(b, WEAPONS[b.dataset.id].cost, sim);
-      if (full) b.classList.add('off');
-      b.classList.toggle('on', picking === b.dataset.id);
+      cards.set(b.dataset.id, { btn: b, price: b.querySelector('[data-price]'), why: b.querySelector('[data-why]'), state: null });
+      b.addEventListener('click', () => actions.pick(b.dataset.id));
     }
   }
-  return { el, update, types: () => [...el.querySelectorAll('.card')].map(b => b.dataset.id) };
+  const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+  function update(sim, holding, show) {
+    el.hidden = !show;
+    if (!show) return;
+    const k = [...sim.research].join(',') + '|' + sim.map.id;
+    if (k !== key) { key = k; render(sim); }
+    set(el.querySelector('[data-n]'), `${sim.guns.length} / ${sim.maxGuns}`);
+    for (const [id, c] of cards) {
+      const st = buyState(sim, id);
+      const sk = st.state + ':' + st.need + ':' + (holding === id);
+      if (c.state === sk) continue;
+      c.state = sk;
+      const b = c.btn;
+      b.classList.toggle('on', holding === id);
+      b.classList.toggle('poor', st.state === 'poor');
+      b.classList.toggle('locked', st.state === 'locked');
+      b.classList.toggle('full', st.state === 'full');
+      b.classList.toggle('off', st.state !== 'ok');
+      if (st.state === 'locked') {
+        c.price.innerHTML = LOCK + ' Locked';
+        set(c.why, 'Research: ' + (researchNode(st.research)?.name ?? itemName(shopItem(id))));
+      } else {
+        set(c.price, money(st.cost));
+        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? 'All positions taken' : '');
+      }
+    }
+  }
+  function shake(id) {
+    const c = cards.get(id);
+    if (!c) return;
+    c.btn.classList.remove('shake'); void c.btn.offsetWidth; c.btn.classList.add('shake');
+  }
+  return { el, update, shake, types: () => SHOP.map(s => s.id) };
 }
 
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
@@ -192,59 +216,27 @@ export function gunPanel(root, gunId, sim, actions) {
   return { el: ui.el, update, close: ui.close, say: ui.say };
 }
 
-// På rutnätet (Gnesta) läggs hindret tvärs över gatan till ett fast pris per spärr, hur bred
-// gatan än är, och Remove river hela spärren.
+// Panelen för ett utlagt hinder: skick och Remove. På rutnätet (Gnesta) hör spärrens rutor ihop
+// och Remove river hela spärren. Hinder köps från köpraden, inte här (0.6.0).
 export function cellPanel(root, index, sim, actions) {
   const ui = shell(root, actions);
   let key = null;
-  const grid = sim.route.kind === 'grid';
-  const count = s => (grid ? Math.max(1, acrossCells(s, index).length) : 1);
-  const keyOf = s => { const ob = s.obstacles[index]; return ob ? 'ob:' + ob.type : 'empty:' + count(s) + ':' + [...s.research].join(','); };
   const frac = ob => (OBSTACLES[ob.type].kind === 'slow' ? ob.durability / ob.maxDurability : ob.hp / ob.maxHp);
   const lineOf = s => { const ob = s.obstacles[index]; return ob?.line != null ? Object.values(s.obstacles).filter(o => o.line === ob.line) : ob ? [ob] : []; };
 
   function render(s) {
     const ob = s.obstacles[index];
-    if (!ob) {
-      const n = count(s);
-      ui.head.innerHTML = grid ? `<div class="t">Street</div><div class="sub">One price for the whole width (${n} ${n === 1 ? 'tile' : 'tiles'})</div>` : `<div class="t">Road tile</div>`;
-      // Alla hinder visas; de som inte är forskade är låsta och säger vad som krävs.
-      const types = Object.keys(OBSTACLES);
-      ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], OBSTACLES[t].name, OBSTACLES[t].desc)).join('')}</div>`;
-      for (const b of ui.body.querySelectorAll('.card')) {
-        const locked = !obstacleUnlocked(b.dataset.id, s.research, s.map);
-        b.classList.toggle('locked', locked);
-        b.dataset.locked = locked ? '1' : '';
-        b.addEventListener('click', () => {
-          if (b.dataset.locked) { ui.say(`Research ${researchNode(b.dataset.id)?.name ?? OBSTACLES[b.dataset.id].name} first.`); return; }
-          const r = actions.place(index, b.dataset.id);
-          if (!r.ok) ui.say(reasonText(r.reason));
-        });
-        b.addEventListener('mouseenter', () => actions.preview?.(index, b.dataset.id));
-        b.addEventListener('mouseleave', () => actions.preview?.(index, null));
-      }
-      return;
-    }
     const n = lineOf(s).length;
     ui.head.innerHTML = `<div class="t">${OBSTACLES[ob.type].name}</div><div class="sub" data-cond></div>`;
     ui.body.innerHTML = `<div class="acts"><button type="button" class="act" data-a="rm"><span class="a">${n > 1 ? `Remove all ${n}` : 'Remove'}</span><span class="p" data-p></span></button></div>`;
     ui.body.querySelector('[data-a="rm"]').addEventListener('click', () => {
       const r = actions.remove(index);
       if (!r.ok) ui.say(reasonText('fel läge'));
+      else actions.close();
     });
   }
 
   function patch(s) {
-    const ob = s.obstacles[index];
-    if (!ob) {
-      for (const b of ui.body.querySelectorAll('.card')) {
-        const t = b.dataset.id, p = b.querySelector('[data-price]');
-        const why = b.dataset.locked ? 'Needs research' : checkObstacle(s, index, t).reason === 'zombier' ? reasonText('zombier') : null;
-        if (why) { if (p.textContent !== why) p.textContent = why; b.classList.add('off'); }
-        else patchCard(b, OBSTACLES[t].cost, s);
-      }
-      return;
-    }
     const line = lineOf(s);
     const f = Math.min(...line.map(frac));
     const cond = ui.head.querySelector('[data-cond]');
@@ -258,7 +250,9 @@ export function cellPanel(root, index, sim, actions) {
   }
 
   function update(s) {
-    const k = keyOf(s);
+    const ob = s.obstacles[index];
+    if (!ob) { actions.close(); return; }
+    const k = 'ob:' + ob.type + ':' + (ob.line ?? '');
     if (k !== key) { key = k; ui.hush(); render(s); }
     patch(s);
   }

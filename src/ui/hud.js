@@ -47,7 +47,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     <div class="cash-box"><div class="k">CASH</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
     <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
-  <div id="hint" class="plate" hidden><ol><li data-h="0">Pick the M249.</li><li data-h="1">Place it by the road.</li><li data-h="2">Start the wave.</li></ol></div>
+  <div id="hint" class="plate" hidden><ol></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
   <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
   <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
@@ -214,12 +214,19 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     entries.forEach((el, i) => { if (list[i]) place(el, list[i]); else el.hidden = true; });
   }
 
-  // Tre steg för första dagen. done: antal klara steg, null döljer rutan.
-  const hintEl = root.querySelector('#hint');
-  function hint(done) {
+  // Stegen för första dagen (banans egna rader). done: antal klara steg, null döljer rutan.
+  const hintEl = root.querySelector('#hint'), hintList = hintEl.querySelector('ol');
+  let hintKey = '';
+  function hint(done, lines = []) {
     hintEl.hidden = done == null;
     if (done == null) return;
-    for (const li of hintEl.querySelectorAll('li')) li.classList.toggle('done', Number(li.dataset.h) < done);
+    const k = lines.join('|');
+    if (k !== hintKey) { hintKey = k; hintList.innerHTML = lines.map((t, i) => `<li data-h="${i}"></li>`).join(''); hintList.querySelectorAll('li').forEach((li, i) => { li.textContent = lines[i]; }); }
+    for (const li of hintList.querySelectorAll('li')) {
+      const i = Number(li.dataset.h);
+      li.classList.toggle('done', i < done);
+      li.classList.toggle('now', i === done);
+    }
   }
 
   // Nollställ så att en ny dag inte visar en stor minus-ruta.

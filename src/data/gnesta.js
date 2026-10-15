@@ -628,7 +628,8 @@ export function buildPlacement(grid) {
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 800, hp: 3.6, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+  { n: 1, startCash: 800, hp: 3.6, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+    hints: { lines: ['Pick the barricade (3).', 'Block Sigtunavägen.', 'Watch them walk around the block.'], steps: ['pick:block', 'block', 'watch'] },
     waves: [ { groups: [g('walker', 30, 0.5, 0, 'east1')] },
              { groups: [g('walker', 50, 0.35, 0, 'east1')] },
              { groups: [g('walker', 70, 0.25, 0, 'east1'), g('runner', 30, 0.3, 6, 'east1')] } ] },
@@ -644,7 +645,7 @@ export const DAYS = [
     waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 3, 8, 'east1')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2.5, 10, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 2, 12, 'east1'), g('brute', 10, 2, 20, 'forest')] } ] },
-  { n: 5, startCash: 1200, hp: 4.6, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
+  { n: 5, startCash: 1200, hp: 4.6, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
     waves: [ { groups: [g('walker', 40, 0.35, 0, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2.5, 8, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 44, 0.3, 0, 'east2'), g('walker', 44, 0.3, 0, 'forest'),

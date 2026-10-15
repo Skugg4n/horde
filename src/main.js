@@ -11,7 +11,9 @@ import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
-import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap } from './meta/progress.js';
+import { shopItem } from './data/shop.js';
+import { buyState } from './sim/buy.js';
+import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
 import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
@@ -83,17 +85,21 @@ let panelRange = null;    // räckvidd som panelen vill visa (kort under musen)
 
 function closePanel() {
   if (panel) panel.close();
-  panel = null; selected = null; panelRange = null; previewCard = null;
+  panel = null; selected = null; panelRange = null;
 }
 
-// ---------- placering ----------
-// Ett vapenkort (eller 1, 2) startar placeringen: spöket följer pekaren i rutan under den, grönt
-// där pjäsen får stå och rött med skälet där den inte får. Räckvidden och de gatrutor pjäsen
-// skulle se syns. Klick ställer ut pjäsen; Esc, högerklick eller samma kort igen avbryter.
-let placing = null;          // { type } medan placeringen pågår
-let spot = null;             // rutan under pekaren: { key, x, z, ok, reason }
+// ---------- köp och placering (H037) ----------
+// Ett enda köpflöde: välj först VAD du köper (kort i köpraden eller siffertangent), sedan VAR.
+// Saken följer pekaren som ett spöke: vapen står på mark bredvid vägen (grönt där pjäsen får
+// stå, med sikten), hinder ligger på vägen (hela gatans bredd på Gnesta, med hordens nya väg).
+// Klick ställer ut; med Shift nedtryckt stannar saken i handen så att flera kan ställas ut.
+// Esc eller högerklick släpper den. Det som inte har råd eller är låst går inte att ta upp: kortet
+// skakar. Klick på något som redan står ute (pjäs, barrikad, tråd) öppnar dess panel.
+let placing = null;          // { type, kind: 'gun' | 'obstacle' } medan något är i handen
+let spot = null;             // under pekaren: { key, x, z, ok, reason }
 const sightCache = new Map();  // 'typ:ruta' -> synliga rutor (för spöket; byggs om per dag)
 const pointer = { x: 0, y: 0 };
+let shiftHeld = false;
 const ghostTip = document.createElement('div');
 ghostTip.id = 'ghosttip'; ghostTip.className = 'plate'; ghostTip.hidden = true;
 uiRoot.appendChild(ghostTip);
@@ -101,8 +107,9 @@ const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase
 function startPlacing(type) {
   if (!canPlaceNow()) return;
   if (placing?.type === type) { stopPlacing(); return; }
+  if (buyState(sim, type).state !== 'ok') { bar.shake(type); return; }
   closePanel();
-  placing = { type };
+  placing = { type, kind: shopItem(type).kind };
   spot = null;
   hovered = null;
 }
@@ -110,7 +117,13 @@ function stopPlacing() {
   placing = null; spot = null;
   ghostTip.hidden = true;
 }
+// Rutan under pekaren för det som är i handen. Vapen: placeringsrutnätet. Hinder: vägens rutor.
 function spotFor(key) {
+  if (placing?.kind === 'obstacle') {
+    if (key == null || key < 0) return { key: -1, ok: false, reason: 'ingen gata' };
+    const c = sim.route.cellCenter(key), check = checkObstacle(sim, key, placing.type);
+    return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
+  }
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
   const c = sim.place.center(key), check = checkSpot(sim, key);
   return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
@@ -118,17 +131,34 @@ function spotFor(key) {
 function placeHere(key) {
   const sp = spotFor(key);
   if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn'); return; }
-  const r = actions.build(key, placing.type);
+  const type = placing.type;
+  const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type);
   if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn'); return; }
-  stopPlacing();
+  // Shift: kvar i handen så länge det finns råd till en till.
+  if (!shiftHeld || buyState(sim, type).state !== 'ok') stopPlacing();
+  else spot = spotFor(key);
 }
 function sightOf(type, key) {
   const k = type + ':' + key;
   if (!sightCache.has(k)) sightCache.set(k, sightFor(sim, key, type));
   return sightCache.get(k);
 }
-// Spöket, räckvidden och sikten för placeringen, eller för pjäsen som är vald eller pekas på.
+// Hindrets rutor och vridning (som view.js ställer hindren): spöket i handen.
+function obstacleCells(key, type) {
+  const grid = sim.route.kind === 'grid';
+  const keys = grid ? sim.route.span(key).filter(k => !sim.obstacles[k]) : [key];
+  return keys.map(k => {
+    const c = sim.route.cellCenter(k);
+    return { x: c.x, z: c.z, ry: grid ? (sim.route.axis(k) === 'x' ? 0 : Math.PI / 2) : Math.atan2(c.dirZ, -c.dirX), key: k, type };
+  });
+}
+// Spöket, räckvidden och sikten för det som är i handen, eller för pjäsen som är vald eller pekas på.
 function placementUi() {
+  if (placing?.kind === 'obstacle') {
+    if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null, obGhost: null };
+    const cells = obstacleCells(spot.key, placing.type);
+    return { ghost: null, cover: null, range: null, obGhost: { type: placing.type, cells, ok: spot.ok }, tiles: { cells: cells.map(c => c.key), tone: spot.ok ? 'ok' : 'bad' } };
+  }
   if (placing) {
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
     const r = weaponStats(placing.type, 1, sim.research).range;
@@ -152,7 +182,8 @@ function updateGhostTip() {
   if (ghostTip.textContent !== t) ghostTip.textContent = t;
   ghostTip.style.left = pointer.x + 'px'; ghostTip.style.top = pointer.y + 'px';
 }
-renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
+renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
 renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet.
 const withCash = fn => (...args) => {
@@ -171,11 +202,8 @@ const actions = {
   place: withCash((cell, type) => placeAcross(sim, cell, type)),
   remove: withCash(cell => removeObstacle(sim, cell)),
   range: r => { panelRange = r; },
-  // Kortet under pekaren i rutans panel: förhandsvisa just det hindret.
-  preview: (cell, type) => { previewCard = type ? { cell, type } : null; },
   close: closePanel,
 };
-let previewCard = null;
 // Klick på en annan position eller ruta medan panelen är öppen byter direkt till den.
 function open(p) {
   if (selected && selected.kind === p.kind && selected.id === p.id) return;
@@ -185,11 +213,13 @@ function open(p) {
   placePanel();
 }
 
-// I placeringen svarar bara marken (rutan under pekaren), annars pjäserna, hindren och gatan.
+// Med något i handen svarar bara marken (rutan under pekaren). Annars pjäserna och hindren som
+// står ute; en tom gata öppnar ingenting (köp sker från köpraden).
 const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z) => {
+  if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i }; }
   if (placing) return { kind: 'spot', id: sim.place.keyAt(x, z) };
   const i = sim.route.cellAt(x, z);
-  return i == null || !sim.route.validCell(i) ? null : { kind: 'cell', id: i };
+  return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
 }, { ignoreClick: () => rig.takeDrag() });
 picker.onPick(p => {
   if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
@@ -235,7 +265,6 @@ function go({ stack = false } = {}) {
     if (!callNextWave(sim, { stack }).ok) return;
   }
   handleEvents();
-  if (hinting) { hinting = false; progress = { ...progress, seenHint: true }; save(); }
 }
 
 // ---------- fart ----------
@@ -366,10 +395,13 @@ function updateRoutes() {
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
   routeLines.set('now', nowPaths.map(p => p.cells.map(cellWorld)), nowKey);
-  const at = hovered?.kind === 'cell' ? hovered.id : selected?.kind === 'cell' ? selected.id : null;
-  if (at == null) { routeLines.set('preview', null); return null; }
-  const ob = sim.obstacles[at];
-  const type = previewCard?.cell === at ? previewCard.type : 'block';
+  // Förhandsvisningen: hindret i handen (så går de om du lägger det här), eller ett utlagt hinder
+  // som pekas på eller är valt (så går de om du river det).
+  const holding = placing?.kind === 'obstacle' && spot && spot.key >= 0;
+  const at = holding ? spot.key : hovered?.kind === 'cell' ? hovered.id : selected?.kind === 'cell' ? selected.id : null;
+  if (at == null || (!holding && !sim.obstacles[at])) { routeLines.set('preview', null); return null; }
+  const ob = holding ? null : sim.obstacles[at];
+  const type = holding ? placing.type : 'block';
   const obs = { ...sim.obstacles };
   let cells;
   if (ob) {
@@ -403,24 +435,26 @@ addEventListener('keydown', e => {
   }
   // Medan menyn är öppen gör spelets tangenter ingenting.
   if (menu.isOpen()) { if (e.code === 'Space') e.preventDefault(); return; }
-  if (mode === 'play' && /^Digit[1-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey) {
-    const t = bar.types()[Number(e.code.slice(5)) - 1];
+  if (mode === 'play' && /^Digit[0-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey) {
+    const n = Number(e.code.slice(5));
+    const t = bar.types()[n === 0 ? 9 : n - 1];
     if (t) startPlacing(t);
   }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
-  if (e.key === 'Shift') hud.shift(true);
+  if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
 }, true);
-addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') hud.shift(false); }, true);
-addEventListener('blur', () => hud.shift(false));
+addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') { hud.shift(false); shiftHeld = false; } }, true);
+addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
 
 // ---------- dagcykeln ----------
 let mode = 'menu';
 let sheet = null;            // skylten som visas (meny, intro, resultat, forskning)
 let lastResult = null;       // det som resultatskylten visar, för att komma tillbaka från forskning
 let researchFrom = 'menu';
-let hinting = false;         // de tre stegen för första dagen visas
+let hinting = false;         // stegen för första dagen visas
+let hintDone = 0;
 let warnedSave = false;
 
 function save() {
@@ -464,8 +498,25 @@ function startDay(n) {
   hud.reset();
   hud.setSpeed(speed);
   entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
-  hinting = n === 1 && !progress.seenHint;
+  hinting = n === 1 && !hintSeen(progress, map.id) && !!map.days[0].hints; hintDone = 0;
   setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
+}
+// Första dagens steg: bockas av i tur och ordning (ett senare steg som är gjort bockar av de
+// före). När alla är gjorda försvinner rutan och banan minns att tipsen är visade.
+function hintStepDone(st) {
+  if (st.startsWith('pick:')) return placing?.type === st.slice(5);
+  if (st === 'gun') return sim.guns.length > 0;
+  if (st === 'block') return Object.values(sim.obstacles).some(o => o.type === 'block');
+  if (st === 'wave') return sim.wavesStarted > 0;
+  if (st === 'watch') return sim.waveIndex > 0;
+  return false;
+}
+function updateHint() {
+  const h = hinting && mode === 'play' ? map.days[day - 1]?.hints : null;
+  if (!h) { hud.hint(null); return; }
+  for (let i = h.steps.length - 1; i >= hintDone; i--) if (hintStepDone(h.steps[i])) { hintDone = i + 1; break; }
+  if (hintDone >= h.steps.length) { hinting = false; progress = markHintSeen(progress, map.id); save(); hud.hint(null); return; }
+  hud.hint(hintDone, h.lines);
 }
 function finishDay() {
   const won = sim.phase === 'won';
@@ -603,10 +654,8 @@ function tick(now) {
   const paused = menu.isOpen();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
-  if (placing && !canPlaceNow()) stopPlacing();
-  if (hinting) {
-    hud.hint(mode === 'play' ? (sim.guns.length ? 2 : placing ? 1 : 0) : null);
-  } else hud.hint(null);
+  if (placing && (!canPlaceNow() || buyState(sim, placing.type).state === 'locked')) stopPlacing();
+  updateHint();
   bar.update(sim, placing?.type, canPlaceNow());
   updateGhostTip();
 
@@ -620,7 +669,9 @@ function tick(now) {
   const tiles = updateRoutes();
   routeLines.update(vdt);
   const pu = placementUi();
-  view.setUi({ selected, hover: placing ? null : hovered, range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: placing ? null : tiles, ghost: pu.ghost, cover: pu.cover });
+  view.setUi({ selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
+    range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
+    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle' });
   view.sync(vdt);
   updateWorld(frameDt, time);
   renderer.render(scene, camera);

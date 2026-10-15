@@ -388,11 +388,24 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar[hidden] { display: none; }
 #buildbar .k { font-size: 11px; letter-spacing: 0.22em; color: var(--paper-dim); margin: 0 0 6px 2px; }
 #buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
-#buildbar .cards { display: flex; gap: 8px; }
-#buildbar .card { width: 150px; text-align: left; display: block; color: var(--paper); position: relative; }
-#buildbar .card.off { opacity: 0.45; }
-#buildbar .card.off .p { color: var(--paper-dim); }
-#buildbar .card.on { border-color: var(--rust); background: rgba(181,83,42,0.22); opacity: 1; }
+#buildbar .k .guns { margin-left: 14px; }
+#buildbar .cards { display: flex; gap: 6px; }
+/* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
+#buildbar .card { width: 128px; padding: 7px 8px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+#buildbar .card svg:not(.lock) { height: 26px; margin: 2px 0 3px; }
+#buildbar .card .n { font-size: 12px; white-space: nowrap; letter-spacing: 0.02em; }
+#buildbar .card .p { font-size: 13px; }
+#buildbar .card .why { font-size: 11px; letter-spacing: 0.02em; color: var(--paper-dim); min-height: 28px; line-height: 14px; }
+#buildbar .card.off { opacity: 0.55; filter: grayscale(0.85); cursor: not-allowed; }
+#buildbar .card.poor { opacity: 0.7; }
+#buildbar .card.poor .p, #buildbar .card.poor .why { color: #e0563a; }
+#buildbar .card.locked { border-style: dashed; }
+#buildbar .card.locked .p { color: var(--paper-dim); display: flex; align-items: center; gap: 5px; }
+#buildbar .card .lock { width: 11px; height: 11px; display: inline-block; }
+#buildbar .card.on { border-color: var(--rust); background: rgba(181,83,42,0.22); opacity: 1; filter: none; box-shadow: 0 0 0 1px var(--rust) inset; }
+#buildbar .card.shake { animation: shake 0.32s; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+#hint li.now { color: var(--paper); font-weight: 600; }
 #buildbar .card kbd {
   position: absolute; top: 6px; right: 7px; font: 500 10px 'IBM Plex Mono', monospace;
   padding: 1px 5px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; color: var(--paper-dim);
@@ -406,7 +419,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ghosttip[hidden] { display: none; }
 @media (max-width: 760px) {
   #buildbar { left: 16px; bottom: 80px; }
-  #buildbar .card { width: 128px; }
+  #buildbar .card { width: 96px; }
   #hint { bottom: 230px; }
 }
 

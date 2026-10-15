@@ -5,7 +5,7 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -200,6 +200,26 @@ export function createView(scene, initialSim) {
     e.group.position.set(g.x, 0, g.z);
     setGhostTone(e.group, g.ok);
   }
+  // Hindret i handen: en spökmodell per ruta det skulle ta (en spärr över hela gatan på Gnesta).
+  const obGhosts = new Map();     // typ -> [grupper]
+  function syncObGhost() {
+    const g = ui.obGhost;
+    for (const [type, list] of obGhosts) list.forEach((e, i) => { e.visible = !!g && g.type === type && i < g.cells.length; });
+    if (!g) return;
+    let list = obGhosts.get(g.type);
+    if (!list) { list = []; obGhosts.set(g.type, list); }
+    const grid = sim.route.kind === 'grid';
+    while (list.length < g.cells.length) {
+      const e = obstacleGhost(g.type, grid ? { span: sim.route.grid.size } : undefined);
+      scene.add(e); list.push(e);
+    }
+    g.cells.forEach((c, i) => {
+      const e = list[i];
+      e.visible = true;
+      e.position.set(c.x, 0, c.z); e.rotation.y = c.ry;
+      setGhostTone(e, g.ok);
+    });
+  }
   const tm = new THREE.Matrix4();
   const COVER_MAX = 1600;
   // Rutorna pjäsen ser: kraftig fyllning i en kall färg (syns på både E4:s asfalt och Gnestas
@@ -279,11 +299,13 @@ export function createView(scene, initialSim) {
     // Rutorna syns hela dagen (det går att bygga även under vågen), lite svagare medan
     // zombierna går. Varje ruta har en svag fyllning så att den läses som en platta och
     // vägen mellan rutorna inte ser ut som en egen ruta.
-    const open = sim.phase === 'build' || sim.phase === 'wave';
+    // 0.6.0: rutorna syns bara när ett hinder är i handen (köpraden), annars bara den som pekas på
+    // eller är vald (ett utlagt hinder).
+    const open = (sim.phase === 'build' || sim.phase === 'wave') && ui.marks;
     const calm = sim.phase === 'build';
     for (let i = 0; i < cellMarks.length; i++) {
       const c = cellMarks[i];
-      const want = !open ? 'hidden' : isSel('cell', i) ? 'selected' : isHov('cell', i) ? 'hover' : calm ? 'idle' : 'quiet';
+      const want = isSel('cell', i) ? 'selected' : !open ? 'hidden' : isHov('cell', i) ? 'hover' : calm ? 'idle' : 'quiet';
       if (c.state === want) continue;
       c.state = want;
       for (const ch of c.group.children) ch.visible = want !== 'hidden';
@@ -298,6 +320,7 @@ export function createView(scene, initialSim) {
   // Rutan under pekaren och rutorna en spärr tvärs över gatan skulle ta, som ljusa plattor.
   // En InstancedMesh, högst 24 plattor.
   const TILE_MAX = 24;
+  const TILE_OK = '#7fd36b';
   const tileM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.3, depthWrite: false });
   const tileEdgeM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.75, depthWrite: false });
   const tileGeo = new THREE.PlaneGeometry(1, 1); tileGeo.rotateX(-Math.PI / 2);
@@ -321,13 +344,14 @@ export function createView(scene, initialSim) {
     }
     tiles.count = tileEdges.count = n;
     tiles.instanceMatrix.needsUpdate = tileEdges.instanceMatrix.needsUpdate = true;
-    const col = want?.tone === 'rust' ? PALETTE.rust : PALETTE.paper;
+    const tone = want?.tone;
+    const col = tone === 'rust' || tone === 'bad' ? PALETTE.rust : tone === 'ok' ? TILE_OK : PALETTE.paper;
     tileM.color.set(col); tileEdgeM.color.set(col);
-    tileM.opacity = want?.tone === 'rust' ? 0.32 : 0.2;
+    tileM.opacity = tone === 'rust' || tone === 'bad' ? 0.32 : tone === 'ok' ? 0.3 : 0.2;
   }
 
   // ---------- markering, pekare och räckvidd ----------
-  let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null };
+  let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false };
   const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
   const isHov = (kind, id) => ui.hover?.kind === kind && ui.hover.id === id;
   const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
@@ -355,7 +379,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -552,6 +576,7 @@ export function createView(scene, initialSim) {
     syncCellMarks();
     syncTiles();
     syncGhost();
+    syncObGhost();
     syncCover();
     syncUi();
     syncBase(dt);
@@ -570,7 +595,7 @@ export function createView(scene, initialSim) {
     if (remap) { buildCellMarks(); buildBase(); }
     baseHitT = 0; baseFrac = -1; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
-    ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null };
+    ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false };
     tileKey = '-'; coverKey = '-';
   }
 

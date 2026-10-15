@@ -25,6 +25,16 @@ export function mapUnlocked(progress, mapId, { debug = false } = {}) {
   if (!map.unlock || debug) return true;
   return mapState(progress, map.unlock.map).unlockedDay > map.unlock.day;
 }
+// Första dagens tips per bana (0.6.0). seenHints: banor där tipsen visats klart. Ett äldre
+// seenHint: true gällde bara E4 (det var den enda banan med tips). Fältet följer med i sparfilen
+// som de andra extra fälten.
+export function hintSeen(progress, mapId) {
+  return !!progress.seenHints?.includes(mapId) || (mapId === 'riksvagen' && progress.seenHint === true);
+}
+export function markHintSeen(progress, mapId) {
+  if (hintSeen(progress, mapId)) return progress;
+  return { ...progress, seenHints: [...(progress.seenHints ?? []), mapId] };
+}
 export function selectMap(progress, mapId) {
   if (!MAPS[mapId]) throw new Error('okänd bana ' + mapId);
   return { ...progress, mapId, maps: { ...progress.maps, [mapId]: mapState(progress, mapId) } };

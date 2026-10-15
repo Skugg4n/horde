@@ -566,6 +566,16 @@ export function weaponGhost(type) {
   model.group.renderOrder = 4;
   return model.group;
 }
+// Spöket för ett hinder i handen: hindrets modell i samma genomskinliga grönt eller rött.
+export function obstacleGhost(type, opts) {
+  const g = obstacleModel(type, opts);
+  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false });
+  m.userData.own = true;
+  g.traverse(o => { if (o.isMesh || o.isLine) { o.material = m; o.castShadow = false; o.receiveShadow = false; } });
+  g.userData.ghost = { m, ok: true };
+  g.renderOrder = 4;
+  return g;
+}
 export function setGhostTone(group, ok) {
   const u = group.userData.ghost;
   if (u.ok === ok) return;
