@@ -17,7 +17,7 @@ const WIDE = gridFromAscii([
 ]);
 const DT = 1 / 30;
 const N = 30;
-const map = { id: 't', grid: WIDE, baseHp: 1000, slots: [],
+const map = { id: 't', grid: WIDE, baseHp: 1000, 
   days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: N, interval: 0.6, delay: 0 }] }] }] };
 
 // Kör vågen; för varje zombie: tvärläget (z) när den passerar mitten av gatan, och hur mycket

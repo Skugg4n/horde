@@ -54,10 +54,10 @@ test('budget i nivåer ger mer pengar', () => {
 });
 test('gamla platta forsknings-id flyttas till nivå I', () => {
   assert.deepEqual(migrateResearch(['m2', 'm249Rate', 'wireTough', 'block', 'budget', 'slot4']),
-    ['m2.1', 'm249Rate.1', 'wireTough.1', 'block.1', 'budget.1', 'slot4.1']);
+    ['m2.1', 'm249Rate.1', 'wireTough.1', 'block.1', 'budget.1', 'positions.1']);
   assert.deepEqual(migrateResearch(['m2.2']), ['m2.1', 'm2.2']);
   assert.deepEqual(migrateResearch(['m2', 'm2.1', 'okänd']), ['m2.1', 'okänd']);
-  assert.deepEqual(migrateResearch(['slot4.3']), ['slot4.1']);
+  assert.deepEqual(migrateResearch(['slot4.3']), ['positions.1']);
 });
 test('gammal sparfil läses in med nivåer och kan forska vidare', () => {
   const st = mem();
@@ -159,13 +159,13 @@ test('migrateResearch behåller känd nod med trasig nivå', () => {
 });
 
 // ---------- sparfil v2: framsteg per bana ----------
-test('v1-sparfil flyttas till v2: framsteget under banan, forskningen delad, inget raderas', () => {
+test('v1-sparfil flyttas till v3: framsteget under banan, forskningen delad, inget raderas', () => {
   const st = mem();
   const old = v1({ unlockedDay: 4, intel: 120, research: ['m2', 'block.2'], attempts: { 1: 2, 3: 1 }, seenHint: true });
   const raw = JSON.stringify(old);
   st.setItem('horde.save', raw);
   const p = loadProgress(st);
-  assert.equal(p.v, 2);
+  assert.equal(p.v, 3);
   assert.equal(p.mapId, 'riksvagen');
   assert.deepEqual(p.maps.riksvagen, { unlockedDay: 4, attempts: { 1: 2, 3: 1 } });
   assert.equal(p.unlockedDay, undefined);
@@ -233,4 +233,46 @@ test('v2-sparfil med okänd bana i maps behålls; trasig bana gör filen trasig'
   assert.deepEqual(loadProgress(st), newProgress());
   assert.equal(st.getItem('horde.save'), bad);
   assert.equal(st.getItem('horde.save.broken'), bad);
+});
+
+// ---------- sparfil v3 (0.5.0): New position heter More positions ----------
+const v2 = (o = {}) => ({ v: 2, mapId: 'gnesta', intel: 40, research: ['m2.1', 'slot4.1', 'budget.1', 'budget.2', 'budget.3'], maps: { riksvagen: { unlockedDay: 4, attempts: { 3: 2 } }, gnesta: { unlockedDay: 2, attempts: { 1: 1 } } }, seenHint: true, ...o });
+test('v2-sparfil flyttas till v3: slot4 blir More positions I, allt annat följer med, inget raderas', () => {
+  const st = mem();
+  const raw = JSON.stringify(v2());
+  st.setItem('horde.save', raw);
+  const p = loadProgress(st);
+  assert.equal(p.v, 3);
+  assert.deepEqual(p.research, ['m2.1', 'positions.1', 'budget.1', 'budget.2', 'budget.3']);
+  assert.equal(p.intel, 40);
+  assert.equal(p.mapId, 'gnesta');
+  assert.deepEqual(p.maps.riksvagen, { unlockedDay: 4, attempts: { 3: 2 } });
+  assert.deepEqual(p.maps.gnesta, { unlockedDay: 2, attempts: { 1: 1 } });
+  assert.equal(p.seenHint, true);
+  assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över sparfilen');
+  assert.equal(st.getItem('horde.save.v2'), raw, 'kopia av den gamla sparfilen');
+  assert.equal(st.getItem('horde.save.broken'), null);
+  // nästa nivå går att forska, och den köpta nivån ger en pjäs till
+  assert.equal(nextTier(p, 'positions').tier, 2);
+  assert.equal(startConfig(p, 1).research.includes('positions.1'), true);
+  // sparas som v3 och läses tillbaka likadant; kopian ligger kvar och skrivs aldrig över
+  saveProgress(p, st);
+  assert.deepEqual(loadProgress(st), p);
+  assert.equal(st.getItem('horde.save.v2'), raw);
+  st.setItem('horde.save', JSON.stringify(v2({ intel: 7 })));
+  loadProgress(st);
+  assert.equal(st.getItem('horde.save.v2'), raw);
+  assert.equal(JSON.parse(st.getItem('horde.save.v2.1')).intel, 7);
+});
+test('v1-sparfil med gamla New position blir More positions I', () => {
+  const st = mem();
+  st.setItem('horde.save', JSON.stringify(v1({ unlockedDay: 3, research: ['m2', 'slot4'] })));
+  assert.deepEqual(loadProgress(st).research, ['m2.1', 'positions.1']);
+});
+test('More positions I till III: en pjäs till per nivå', async () => {
+  const { maxGuns } = await import('../src/sim/stats.js');
+  assert.equal(maxGuns([]), 4);
+  assert.equal(maxGuns(['positions.1']), 5);
+  assert.equal(maxGuns(['positions.1', 'positions.2', 'positions.3']), 7);
+  assert.equal(RESEARCH.find(n => n.id === 'positions').tiers.length, 3);
 });

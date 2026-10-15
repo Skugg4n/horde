@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, build, upgrade, sell } from '../src/sim/sim.js';
+import { createSim, startWave, step, build as buildAt, upgrade as upgradeAt, sell as sellAt, spotAt } from '../src/sim/sim.js';
 import { weaponStats } from '../src/sim/stats.js';
 import { MAPS } from '../src/data/maps.js';
 import { ZOMBIES } from '../src/data/zombies.js';
@@ -8,19 +8,36 @@ import { ZOMBIES } from '../src/data/zombies.js';
 const map = MAPS.riksvagen;
 const run = (sim, secs) => { for (let i = 0; i < secs * 30; i++) step(sim, 1 / 30); };
 const mk = (o = {}) => createSim({ map, day: 1, cash: 2000, research: [], seed: 3, ...o });
+// Platser vid vägen (0.5.0: fri placering). Namnen som de gamla positionerna, för läsbarhetens skull.
+const SPOTS = { A: [-8, 7], B: [-6, -8], C: [2, 8], D: [10, -9], E: [18, 8] };
+// build/upgrade/sell med platsnamn: vapnet på platsen heter dess id.
+const ids = new WeakMap();
+const idOf = (s, name) => ids.get(s)?.[name] ?? name;
+const build = (s, name, type) => {
+  const r = buildAt(s, SPOTS[name] ? spotAt(s, ...SPOTS[name]) : -1, type);
+  if (r.ok) { const m = ids.get(s) || {}; m[name] = r.id; ids.set(s, m); return { ok: true }; }
+  return r;
+};
+const upgrade = (s, name) => upgradeAt(s, idOf(s, name));
+const sell = (s, name) => sellAt(s, idOf(s, name));
 
 test('bygga drar pengar och fyller positionen', () => {
   const s = mk();
   assert.deepEqual(build(s, 'A', 'm249'), { ok: true });
   assert.equal(s.cash, 1750);
-  assert.equal(s.slots[0].weapon.type, 'm249');
+  assert.equal(s.guns[0].weapon.type, 'm249');
 });
-test('kan inte bygga på upptagen, låst eller utan pengar', () => {
+test('kan inte bygga för nära, på vägen, när det är fullt eller utan pengar', () => {
   const s = mk({ cash: 300 });
   build(s, 'A', 'm249');
-  assert.equal(build(s, 'A', 'm249').reason, 'upptagen');
-  assert.equal(build(s, 'D', 'm249').reason, 'låst');
+  assert.equal(build(s, 'A', 'm249').reason, 'nära');
+  assert.equal(buildAt(s, spotAt(s, 0, 1), 'm249').reason, 'gata');
   assert.equal(build(s, 'B', 'm249').reason, 'pengar');
+  const t = mk({ cash: 9000 });
+  for (const n of ['A', 'B', 'C', 'D']) assert.equal(build(t, n, 'm249').ok, true);
+  assert.equal(build(t, 'E', 'm249').reason, 'fullt');
+  const u = mk({ cash: 9000, research: ['positions.1'] });
+  for (const n of ['A', 'B', 'C', 'D', 'E']) assert.equal(build(u, n, 'm249').ok, true, n);
 });
 test('M2 kräver forskning', () => {
   assert.equal(build(mk(), 'A', 'm2').reason, 'ej upplåst');
@@ -38,7 +55,8 @@ test('sälja ger tillbaka 60 %', () => {
   const s = mk();
   build(s, 'A', 'm249');
   assert.equal(sell(s, 'A').refund, 150);
-  assert.equal(s.slots[0].weapon, null);
+  assert.equal(s.guns.length, 0);
+  assert.equal(build(s, 'A', 'm249').ok, true, 'platsen är ledig igen');
 });
 test('ett försvar dödar vandrare och tjänar pengar', () => {
   const s = mk();
@@ -85,7 +103,7 @@ test('genombruten zombie ger ingen bounty', () => {
 });
 test('okänd plats ger ok:false utan att kasta fel', () => {
   const s = mk();
-  assert.deepEqual(build(s, 'Z', 'm249'), { ok: false, reason: 'okänd' });
+  assert.deepEqual(buildAt(s, -1, 'm249'), { ok: false, reason: 'utanför' });
   assert.deepEqual(upgrade(s, 'Z'), { ok: false, reason: 'okänd' });
   assert.deepEqual(sell(s, 'Z'), { ok: false, refund: 0 });
 });

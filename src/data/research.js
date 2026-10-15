@@ -24,10 +24,13 @@ export const RESEARCH = [
   { id: 'budget', name: 'Bigger budget', tiers: [
     { cost: 70, requires: [], effect: '$ 150 more cash every day.', cash: 150 },
     { cost: 110, requires: [], effect: '$ 250 more cash every day.', cash: 250 },
-    { cost: 170, requires: ['slot4.1'], effect: '$ 350 more cash every day.', cash: 350 },
+    { cost: 170, requires: ['positions.1'], effect: '$ 350 more cash every day.', cash: 350 },
   ] },
-  { id: 'slot4', name: 'New position', tiers: [
-    { cost: 80, requires: ['m2.1'], effect: 'Opens more positions: D on E4, G and H in Gnesta.' },
+  // Hette 'slot4' (New position) före 0.5.0; en gammal sparfils slot4 blir positions.1.
+  { id: 'positions', name: 'More positions', tiers: [
+    { cost: 80, requires: ['m2.1'], effect: 'Room for one more gun: 5 in all.' },
+    { cost: 140, requires: [], effect: 'Room for one more gun: 6 in all.' },
+    { cost: 220, requires: [], effect: 'Room for one more gun: 7 in all.' },
   ] },
   { id: 'grenade', name: 'Grenades', tiers: [
     { cost: 60, requires: [], effect: 'Grenade kit for one position. It throws when they bunch up.', damage: 75, radius: 3, cooldown: 10, count: 1 },

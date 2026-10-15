@@ -20,7 +20,7 @@ const data = gridFromAscii(BLOCK);
 const key = (i, j) => j * data.w + i;
 const DT = 1 / 30;
 const mapWith = (groups, extra = {}) => ({
-  id: 'test', grid: data, baseHp: 20, slots: [], ...extra,
+  id: 'test', grid: data, baseHp: 20, ...extra,
   days: [{ n: 1, startCash: 0, waves: [{ groups }] }],
 });
 const one = (type = 'walker') => mapWith([{ type, count: 1, interval: 1, delay: 0 }]);
@@ -141,7 +141,7 @@ test('flera spawns: group.spawn väljer ingång', () => {
     '#.###.#',
     'B.....a',
   ]);
-  const map = { id: 't', grid: two, baseHp: 20, slots: [],
+  const map = { id: 't', grid: two, baseHp: 20, 
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'b' }, { type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
   const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
   startWave(sim); step(sim, DT);
@@ -159,7 +159,7 @@ test('sidoförskjutning: horden går inte på ett led, och står alltid på gån
     '.........',
     '#########',
   ], { baseRadius: 2, spawnRadius: 2 });
-  const map = { id: 't', grid: wide, baseHp: 99, slots: [],
+  const map = { id: 't', grid: wide, baseHp: 99, 
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 20, interval: 0.3, delay: 0 }] }] }] };
   const sim = createSim({ map, day: 1, cash: 0, seed: 3 });
   const g = sim.route.grid, zs = new Set();
@@ -202,12 +202,12 @@ test('siktet: minst kvar att gå vinner, barrikadens straff räknas inte', () =>
     '.######',
     '......b',
   ]);
-  const map = { id: 't', grid: two, baseHp: 20, slots: [{ id: 'A', x: 7, z: 3 }],
+  const map = { id: 't', grid: two, baseHp: 20,
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }, { type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'b' }] }] }] };
   const sim = createSim({ map, day: 1, cash: 5000, research: ['block'], seed: 1 });
   const k = (i, j) => j * two.w + i;
   assert.equal(placeObstacle(sim, k(2, 0), 'block').ok, true);
-  assert.equal(build(sim, 'A', 'm249').ok, true);
+  assert.equal(build(sim, k(3, 1), 'm249').ok, true);     // i husraden mellan gatorna
   startWave(sim); step(sim, DT);
   const za = sim.zombies.find(z => z.spawn === 'a'), zb = sim.zombies.find(z => z.spawn === 'b');
   // a står framför barrikaden (3 rutor kvar att gå), b har 5 rutor kvar runt hörnet
@@ -216,7 +216,7 @@ test('siktet: minst kvar att gå vinner, barrikadens straff räknas inte', () =>
   assert.ok(sim.route.flow.dist[k(3, 0)] > sim.route.flow.dist[k(3, 2)], 'kostnaden säger att a är längst bort');
   assert.ok(sim.route.progress(za) > sim.route.progress(zb), 'gångsträckan säger att a är närmast');
   step(sim, DT);
-  assert.equal(sim.slots[0].weapon.targetId, za.id, 'vapnet tar zombien vid barrikaden');
+  assert.equal(sim.guns[0].weapon.targetId, za.id, 'vapnet tar zombien vid barrikaden');
 });
 
 test('horden går snett över en öppen plan i stället för i trappsteg, och aldrig utanför', () => {
@@ -228,7 +228,7 @@ test('horden går snett över en öppen plan i stället för i trappsteg, och al
     '........',
     '.......a',
   ]);
-  const map = { id: 't', grid: square, baseHp: 20, slots: [],
+  const map = { id: 't', grid: square, baseHp: 20, 
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
   const sim = createSim({ map, day: 1, cash: 0, seed: 4 });
   const g = sim.route.grid;
@@ -255,7 +255,7 @@ test('spärr tvärs över gatan: hela bredden, betalt per ruta, rivs tillsammans
     '..........',
     '##########',
   ]);
-  const map = { id: 't', grid: wide, baseHp: 20, slots: [], freeObstacles: ['block'],
+  const map = { id: 't', grid: wide, baseHp: 20, freeObstacles: ['block'],
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] };
   const sim = createSim({ map, day: 1, cash: 1000, seed: 1 });
   const k = (i, j) => j * wide.w + i;

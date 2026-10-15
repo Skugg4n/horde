@@ -3,7 +3,8 @@ import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
-import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, tierOf, grenadeStats, wireDurability, blockHp } from './stats.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
+import { placementFor, sightFrom, KIND, KIND_REASON, MIN_SPACING } from './placement.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export { CELL_LEN } from './cells.js';
@@ -22,7 +23,8 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
     map, day, dayCfg, phase: 'build', waveIndex: 0, wavesStarted: 0, cleared: [], nextWaveIn: null, cash, intelEarned: 0, kills: 0,
     baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed),
     research: res, nextId: 1, spawnQueue: [], route, len: route.len,
-    slots: map.slots.map(s => ({ id: s.id, x: s.x, z: s.z, locked: !!(s.locked && tierOf(res, s.locked) < 1), weapon: null })),
+    // Utställda vapen: { id, x, z, cell, weapon, sight }. sight: synliga gångbara rutor (mask och lista).
+    place: placementFor(map), guns: [], nextGun: 1, maxGuns: maxGuns(res),
     obstacles: {}, grenades: [], nextLine: 1,
   };
 }
@@ -103,9 +105,10 @@ export function step(sim, dt) {
   sim.time += dt;
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
   moveZombies(sim, dt);
-  fireWeapons(sim, dt);
+  const cells = zombieCells(sim);
+  fireWeapons(sim, dt, cells);
   landGrenades(sim, dt);
-  throwGrenades(sim, dt);
+  throwGrenades(sim, dt, cells);
   ageCorpses(sim, dt);
   if (sim.baseHp <= 0) { sim.phase = 'lost'; sim.events.push({ t: 'lost' }); return; }
   checkCleared(sim);
@@ -148,46 +151,69 @@ function moveZombies(sim, dt) {
 // Bara när dagen är slut (vunnen eller förlorad) är det stängt.
 export const canAct = sim => sim.phase === 'build' || sim.phase === 'wave';
 
-export function build(sim, slotId, type) {
+// ---------- vapen ----------
+const gunOf = (sim, id) => sim.guns.find(g => g.id === id);
+
+// Går det att ställa ett vapen i rutan key? Skälen i ordning: dagen slut, fullt, utanför
+// kartan, rutans innehåll (gata, hus, skog ...), för nära ett annat vapen.
+export function checkSpot(sim, key) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
-  const s = sim.slots.find(x => x.id === slotId);
-  if (!s) return { ok: false, reason: 'okänd' };
-  if (s.locked) return { ok: false, reason: 'låst' };
-  if (s.weapon) return { ok: false, reason: 'upptagen' };
+  if (sim.guns.length >= sim.maxGuns) return { ok: false, reason: 'fullt' };
+  const p = sim.place;
+  if (!p.valid(key)) return { ok: false, reason: 'utanför' };
+  const kind = p.kind[key];
+  if (kind !== KIND.open) return { ok: false, reason: KIND_REASON[kind] || 'okänd' };
+  const c = p.center(key);
+  if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
+  return { ok: true };
+}
+// Rutan under en punkt på marken, eller -1 utanför kartan.
+export const spotAt = (sim, x, z) => sim.place.keyAt(x, z);
+// Sikten från en ruta för ett vapen av typen (största räckvidden, nivå 3).
+export const sightFor = (sim, key, type) => sightFrom(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
+
+// Ställ ut ett vapen i rutan key. Returnerar { ok, id }.
+export function build(sim, key, type) {
+  const check = checkSpot(sim, key);
+  if (!check.ok) return check;
+  if (!WEAPONS[type]) return { ok: false, reason: 'okänd' };
   if (!weaponUnlocked(type, sim.research)) return { ok: false, reason: 'ej upplåst' };
   const cost = WEAPONS[type].cost;
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
   sim.cash -= cost;
-  s.weapon = { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost };
-  return { ok: true };
+  const c = sim.place.center(key);
+  const id = 'g' + sim.nextGun++;
+  sim.guns.push({ id, x: c.x, z: c.z, cell: key, sight: sightFor(sim, key, type),
+    weapon: { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost } });
+  return { ok: true, id };
 }
-export function upgrade(sim, slotId) {
+export function upgrade(sim, id) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
-  const s = sim.slots.find(x => x.id === slotId);
-  if (!s) return { ok: false, reason: 'okänd' };
-  const w = s.weapon;
-  if (!w) return { ok: false, reason: 'tom' };
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'okänd' };
+  const w = g.weapon;
   const cost = upgradeCost(w.type, w.level);
   if (cost == null) return { ok: false, reason: 'max' };
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
   sim.cash -= cost; w.level++; w.spent += cost;
   return { ok: true };
 }
-export function sell(sim, slotId) {
+// Sälj: vapnet tas bort och platsen blir ledig.
+export function sell(sim, id) {
   if (!canAct(sim)) return { ok: false, refund: 0 };
-  const s = sim.slots.find(x => x.id === slotId);
-  if (!s || !s.weapon) return { ok: false, refund: 0 };
-  const refund = weaponRefund(s.weapon);
-  sim.cash += refund; s.weapon = null;
+  const i = sim.guns.findIndex(g => g.id === id);
+  if (i < 0) return { ok: false, refund: 0 };
+  const refund = weaponRefund(sim.guns[i].weapon);
+  sim.cash += refund;
+  sim.guns.splice(i, 1);
   return { ok: true, refund };
 }
-// Granatlåda till en byggd position. Kräver forskningen Grenades. Följer med i sälj (spent).
-export function buyKit(sim, slotId) {
+// Granatlåda till ett utställt vapen. Kräver forskningen Grenades. Följer med i sälj (spent).
+export function buyKit(sim, id) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
-  const s = sim.slots.find(x => x.id === slotId);
-  if (!s) return { ok: false, reason: 'okänd' };
-  const w = s.weapon;
-  if (!w) return { ok: false, reason: 'tom' };
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'okänd' };
+  const w = g.weapon;
   if (!grenadeStats(sim.research)) return { ok: false, reason: 'ej upplåst' };
   if (w.kit) return { ok: false, reason: 'redan' };
   if (sim.cash < GRENADE_KIT.cost) return { ok: false, reason: 'pengar' };
@@ -260,16 +286,23 @@ export function removeObstacle(sim, cell) {
   return { ok: true, refund };
 }
 
-function fireWeapons(sim, dt) {
-  for (const s of sim.slots) {
-    const w = s.weapon; if (!w) continue;
+// Siktet: bara zombier som står i en ruta vapnet ser, inom räckhåll. Av dem den som har minst
+// kvar att gå (barrikadens straff räknas inte). Zombiens ruta slås upp en gång per steg.
+function zombieCells(sim) {
+  const out = new Map();
+  for (const z of sim.zombies) if (!z.dead) { const p = zombiePos(sim, z); out.set(z, { p, k: sim.place.keyAt(p.x, p.z) }); }
+  return out;
+}
+function fireWeapons(sim, dt, cells) {
+  for (const s of sim.guns) {
+    const w = s.weapon, seen = s.sight.mask;
     const st = weaponStats(w.type, w.level, sim.research);
     let target = null, best = -Infinity;
-    for (const z of sim.zombies) {
-      if (z.dead) continue;
-      const p = zombiePos(sim, z);
+    for (const [z, { p, k }] of cells) {
+      if (z.dead || k < 0 || !seen[k]) continue;
+      if (Math.hypot(p.x - s.x, p.z - s.z) > st.range) continue;
       const pr = sim.route.progress(z);
-      if (Math.hypot(p.x - s.x, p.z - s.z) <= st.range && pr > best) { best = pr; target = z; }
+      if (pr > best) { best = pr; target = z; }
     }
     w.targetId = target ? target.id : null;
     w.cooldown -= dt;
@@ -279,27 +312,26 @@ function fireWeapons(sim, dt) {
     while (w.cooldown <= 0) {
       w.cooldown += 1 / st.rate;
       const hit = sim.rng() < st.accuracy;
-      sim.events.push({ t: 'shot', slotId: s.id, targetId: target.id, hit, x: p.x, z: p.z });
+      sim.events.push({ t: 'shot', gunId: s.id, targetId: target.id, hit, x: p.x, z: p.z });
       if (hit) damage(sim, target, st.damage, p);
       if (target.dead) break;
     }
   }
 }
-// Granater: en position med granatlåda kastar själv när minst minCount zombier, eller en
-// bjässe, är inom räckhåll. Siktet läggs där flest hamnar inom radien (bjässar väger tre),
+// Granater: ett vapen med granatlåda kastar själv när minst minCount zombier, eller en
+// bjässe, är inom räckhåll och syns (samma sikt som vapnet). Siktet läggs där flest hamnar inom radien (bjässar väger tre),
 // med zombiernas gång under flygtiden inräknad. Andra granaten (nivå III) tar nästa klunga.
-function throwGrenades(sim, dt) {
+function throwGrenades(sim, dt, cells) {
   const gs = grenadeStats(sim.research);
   if (!gs) return;
-  for (const s of sim.slots) {
+  for (const s of sim.guns) {
     const w = s.weapon;
-    if (!w || !w.kit) continue;
+    if (!w.kit) continue;
     w.gCooldown = Math.max(0, w.gCooldown - dt);
     if (w.gCooldown > 0) continue;
     const near = [];
-    for (const z of sim.zombies) {
-      if (z.dead) continue;
-      const p = zombiePos(sim, z);
+    for (const [z, { p, k }] of cells) {
+      if (z.dead || k < 0 || !s.sight.mask[k]) continue;
       if (Math.hypot(p.x - s.x, p.z - s.z) > gs.range) continue;
       const lead = z.attacking ? 0 : (z.v ?? ZOMBIES[z.type].speed) * gs.flight;
       near.push({ z, aim: sim.route.ahead(z, lead), pr: sim.route.progress(z), wt: z.type === 'brute' ? 3 : 1 });
@@ -316,8 +348,8 @@ function throwGrenades(sim, dt) {
       }
       if (!best) break;
       for (const m of near) if (Math.hypot(m.aim.x - best.aim.x, m.aim.z - best.aim.z) <= gs.radius) covered.add(m);
-      sim.grenades.push({ slotId: s.id, x: best.aim.x, z: best.aim.z, left: gs.flight, damage: gs.damage, r: gs.radius, falloff: gs.falloff });
-      sim.events.push({ t: 'grenade', slotId: s.id, x: best.aim.x, z: best.aim.z, flight: gs.flight });
+      sim.grenades.push({ gunId: s.id, x: best.aim.x, z: best.aim.z, left: gs.flight, damage: gs.damage, r: gs.radius, falloff: gs.falloff });
+      sim.events.push({ t: 'grenade', gunId: s.id, x: best.aim.x, z: best.aim.z, flight: gs.flight });
     }
     w.gCooldown = gs.cooldown;
   }

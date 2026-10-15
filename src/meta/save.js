@@ -1,11 +1,12 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress, migrateResearch, migrateV1, SAVE_VERSION } from './progress.js';
+import { newProgress, migrateResearch, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
 import { MAPS } from '../data/maps.js';
 
 const KEY = 'horde.save';
 const BROKEN = 'horde.save.broken';
 const V1_COPY = 'horde.save.v1';     // kopia av en v1-sparfil, sparas när den läses första gången
+const V2_COPY = 'horde.save.v2';     // kopia av en v2-sparfil (0.4.x), likadant
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -43,9 +44,9 @@ const common = p => isObject(p)
 function isValidV1(p) {
   return common(p) && p.v === 1 && validDay(p.unlockedDay) && validAttempts(p.attempts);
 }
-// v2: maps får innehålla banor som den här versionen inte känner (de behålls).
-function isValidV2(p) {
-  return common(p) && p.v === SAVE_VERSION && isObject(p.maps)
+// v2 och v3: maps får innehålla banor som den här versionen inte känner (de behålls).
+function isValidMaps(p, v) {
+  return common(p) && p.v === v && isObject(p.maps)
     && Object.values(p.maps).every(m => isObject(m) && validDay(m.unlockedDay) && validAttempts(m.attempts));
 }
 
@@ -65,9 +66,15 @@ export function loadProgress(storage) {
   } catch {
     parsed = null;
   }
-  if (isValidV2(parsed)) {
+  if (isValidMaps(parsed, SAVE_VERSION)) {
     const p = { ...newProgress(), ...parsed, research: migrateResearch(parsed.research) };
     return { ...p, maps: { ...newProgress().maps, ...p.maps } };
+  }
+  if (isValidMaps(parsed, 2)) {
+    // Gamla sparfilen behålls som den var under horde.save.v2 (skrivs aldrig över).
+    keepCopy(s, raw, V2_COPY);
+    const p = migrateV2(parsed);
+    return { ...newProgress(), ...p, maps: { ...newProgress().maps, ...p.maps } };
   }
   if (isValidV1(parsed)) {
     // Gamla sparfilen behålls som den var under horde.save.v1 (skrivs aldrig över).

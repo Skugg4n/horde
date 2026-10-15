@@ -21,6 +21,12 @@ export function tierData(research, node) {
   return t ? researchNode(node).tiers[t - 1] : null;
 }
 
+// Hur många vapen som får stå ute: fyra, plus en per nivå i More positions.
+export const BASE_GUNS = 4;
+export function maxGuns(research) {
+  return BASE_GUNS + tierOf(research, 'positions');
+}
+
 export function weaponUnlocked(type, research) {
   return type === 'm249' || tierOf(research, type) >= 1;
 }

@@ -4,9 +4,10 @@ import { researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { tierOf, tierData } from '../sim/stats.js';
 
-// Sparfil v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
+// Sparfil v3 (0.5.0): som v2, forskningen New position (slot4) heter More positions (positions).
+// v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
 // är per bana (maps). mapId är banan som spelas nu.
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export function newProgress() {
   return { v: SAVE_VERSION, mapId: 'riksvagen', intel: 0, research: [], maps: { riksvagen: newMapState() } };
 }
@@ -57,7 +58,7 @@ export function dayResult(progress, { day, won, intelEarned, mapId = progress.ma
   };
 }
 
-// Sparfil v1 (före 0.4.0): en bana, unlockedDay och attempts på toppen. Blir v2 med banans
+// Sparfil v1 (före 0.4.0): en bana, unlockedDay och attempts på toppen. Blir v3 med banans
 // framsteg under maps; övriga fält (seenHint m.m.) följer med.
 export function migrateV1(p) {
   const { unlockedDay, attempts, v, ...rest } = p;
@@ -65,12 +66,23 @@ export function migrateV1(p) {
   return { ...rest, v: SAVE_VERSION, research: migrateResearch(p.research), maps: { [p.mapId]: { unlockedDay, attempts: { ...attempts } } } };
 }
 
+// Sparfil v2 (0.4.x) blir v3: forskningen flyttas (slot4 blir positions.1), allt annat följer med.
+export function migrateV2(p) {
+  return { ...p, v: SAVE_VERSION, research: migrateResearch(p.research) };
+}
+
+// Noder som bytt namn. Gamla New position (slot4) hade en nivå och blir More positions I,
+// vilken nivå den gamla sparfilen än säger.
+const RENAMED = { slot4: 'positions' };
+
 // Gamla sparfiler (före 0.3.0) har platta id: 'm249Rate' blir 'm249Rate.1' osv. Nivåer under
 // den högsta fylls i ('m2.3' ger även 'm2.1' och 'm2.2'). Okända id behålls som de är.
 export function migrateResearch(list) {
   const out = [];
   const add = id => { if (!out.includes(id)) out.push(id); };
   for (const id of list) {
+    const renamed = RENAMED[id.split('.')[0]];
+    if (renamed) { add(`${renamed}.1`); continue; }
     const node = researchNode(id.split('.')[0]);
     if (!node) { add(id); continue; }
     const t0 = tierOf([id], node.id);

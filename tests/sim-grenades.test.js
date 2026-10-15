@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, build, buyKit, sell, zombiePos, placeObstacle } from '../src/sim/sim.js';
+import { createSim, startWave, step, build as buildAt, buyKit as buyKitAt, sell as sellAt, zombiePos, placeObstacle, spotAt } from '../src/sim/sim.js';
 import { grenadeStats } from '../src/sim/stats.js';
 import { MAPS } from '../src/data/maps.js';
 import { GRENADE_KIT } from '../src/data/weapons.js';
@@ -10,10 +10,16 @@ import { RESEARCH } from '../src/data/research.js';
 const map = MAPS.riksvagen;
 const DT = 1 / 30;
 const mk = (o = {}) => createSim({ map, day: 3, cash: 5000, research: [], seed: 4, ...o });
+// Platsen C (nära den gamla positionen vid 2, 8). Vapnet där heter 'g1' när det är byggt först.
+const C = [0, 8];
+const build = (s, _name, type) => buildAt(s, spotAt(s, ...C), type);
+const gunId = s => s.guns[0]?.id ?? 'saknas';
+const buyKit = s => buyKitAt(s, gunId(s));
+const sell = s => sellAt(s, gunId(s));
 
 test('granatlådan kräver forskning, en byggd pjäs och pengar', () => {
   const s = mk();
-  assert.equal(buyKit(s, 'C').reason, 'tom');
+  assert.equal(buyKit(s, 'C').reason, 'okänd');
   build(s, 'C', 'm249');
   assert.equal(buyKit(s, 'C').reason, 'ej upplåst');
   const t = mk({ research: ['grenade.1'], cash: 250 + GRENADE_KIT.cost - 1 });
@@ -53,11 +59,11 @@ test('bara positioner med låda kastar', () => {
   assert.ok(playWithKit(['grenade.1']).log.filter(e => e.t === 'grenade').length >= 1);
 });
 test('granaten flyger, landar som en smäll och skadar inom radien', () => {
-  const { log } = playWithKit(['grenade.1']);
+  const { s, log } = playWithKit(['grenade.1']);
   const g = log.find(e => e.t === 'grenade');
-  assert.equal(g.slotId, 'C');
+  assert.equal(g.gunId, 'g1');
   assert.equal(g.flight, GRENADE_KIT.flight);
-  const slot = map.slots.find(x => x.id === 'C');
+  const slot = s.guns[0];
   assert.ok(Math.hypot(g.x - slot.x, g.z - slot.z) <= GRENADE_KIT.range + 4);
   const b = log.find(e => e.t === 'blast');
   assert.ok(Math.abs(b.at - g.at - GRENADE_KIT.flight) < 0.05, 'landar efter flygtiden');
@@ -79,7 +85,7 @@ test('skadan avtar ut mot kanten', () => {
   const p0 = zombiePos(s, alive[0]);
   const gs = grenadeStats(['grenade.1']);
   const hp = new Map(alive.map(z => [z.id, z.hp]));
-  s.grenades.push({ slotId: 'C', x: p0.x, z: p0.z, left: DT / 2, damage: gs.damage, r: gs.radius, falloff: gs.falloff });
+  s.grenades.push({ gunId: 'g1', x: p0.x, z: p0.z, left: DT / 2, damage: gs.damage, r: gs.radius, falloff: gs.falloff });
   const before = new Map(s.zombies.map(z => [z.id, { p: zombiePos(s, z) }]));
   step(s, DT);
   assert.ok(s.events.some(e => e.t === 'blast'));
@@ -92,8 +98,10 @@ test('skadan avtar ut mot kanten', () => {
 });
 test('två granater per kast på nivå III', () => {
   const { log } = playWithKit(['grenade.1', 'grenade.2', 'grenade.3', 'm2.1']);
-  const first = log.find(e => e.t === 'grenade');
-  assert.equal(log.filter(e => e.t === 'grenade' && e.at === first.at).length, 2);
+  // Andra granaten tar nästa klunga; ett kast med bara en klunga inom räckhåll blir en granat.
+  const at = [...new Set(log.filter(e => e.t === 'grenade').map(e => e.at))];
+  const most = Math.max(...at.map(t => log.filter(e => e.t === 'grenade' && e.at === t).length));
+  assert.equal(most, 2);
 });
 test('ledningen räknar med verklig fart i taggtråd', () => {
   const s = mk({ research: ['grenade.1'] });

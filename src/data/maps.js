@@ -1,5 +1,36 @@
 // Banor som data. Gnesta bor i en egen fil (gnesta.js) och läggs till sist.
 import { gnesta } from './gnesta.js';
+import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
+import { ROAD_HALF } from '../sim/cells.js';
+
+// E4:s placeringsrutnät: 2 m-rutor över den öppna marken runt vägen. Asfalten (9 m bred, hela
+// vägen) är gata. Zombierna går bara på vägen mellan spawn (x 27) och basen (x -12), så de
+// rutorna är de gångbara som vapnen kan se. Ruinen är det enda huset och skymmer sikten.
+// Bilar, betongsuggor, tunnor och träd står i vägen för ett vapen men skymmer inget.
+const E4_PROP_PAD = 0.8;     // så nära ett föremål (meter från dess kant) får vapnets mitt inte stå
+function e4Place(props, path) {
+  const xs = path.map(p => p[0]);
+  const x0 = Math.min(...xs) - 0.5, x1 = Math.max(...xs) + 1;
+  const ruins = props.filter(p => p.kind === 'ruin').map(p => rect(p.x, p.z, p.ry, 8.4, 6.4));
+  const things = [];
+  for (const p of props) {
+    if (p.kind === 'car') things.push(rect(p.x, p.z, p.ry, 4.2, 1.9));
+    else if (p.kind === 'jersey') things.push(rect(p.x, p.z, p.ry, 1.1, 3));
+    else if (p.kind === 'barrel') things.push(rect(p.x, p.z, 0, 0.9, 0.9));
+    else if (p.kind === 'tree') things.push(rect(p.x, p.z, 0, 0.7, 0.7));
+  }
+  return buildPlace({
+    w: 54, h: 26, cellSize: 2, origin: [-48, -26],
+    classify(x, z) {
+      if (Math.abs(z) < ROAD_HALF) return KIND.road;
+      if (ruins.some(r => inRect(r, x, z))) return KIND.house;
+      if (ruins.some(r => inRect(r, x, z, 1))) return KIND.thing;
+      if (things.some(r => inRect(r, x, z, E4_PROP_PAD))) return KIND.thing;
+      return KIND.open;
+    },
+    walk: (x, z) => Math.abs(z) < ROAD_HALF && x >= x0 && x <= x1,
+  });
+}
 
 export const MAPS = {
   riksvagen: {
@@ -8,26 +39,19 @@ export const MAPS = {
     camera: { target: [-2, 0], view: 25 },
     path: [[27, 0], [-12, 0]],
     // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång, utan mellanrum.
-    // Ordnade från basen: ruta 0 täcker x -6..-9, ruta 5 x 9..6. Alla ligger inom räckhåll för
-    // en M249 på nivå 1 från position C, rutorna 0 till 2 även från A och B.
+    // Ordnade från basen: ruta 0 täcker x -6..-9, ruta 5 x 9..6.
     cells: [33, 30, 27, 24, 21, 18],
-    slots: [
-      { id: 'A', x: -14, z: 0 },
-      { id: 'B', x: -6, z: -8 },
-      { id: 'C', x: 2, z: 8 },
-      { id: 'D', x: 10, z: -9, locked: 'slot4' },
-    ],
     baseHp: 20,
     days: [
-      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Build an M249 on a position. It fires on its own.' },
+      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Place an M249 by the road. It fires on its own at what it can see.' },
         waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
-      { n: 2, startCash: 550, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Put barbed wire on the road to buy time to shoot.' },
+      { n: 2, startCash: 550, hp: 1.5, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Put barbed wire on the road to buy time to shoot.' },
         waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 18, interval: 1.0, delay: 4 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 48, interval: 0.32, delay: 3 }] } ] },
-      { n: 3, startCash: 1000, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. Heavy caliber works best.' },
+      { n: 3, startCash: 1000, hp: 1.15, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. Heavy caliber works best.' },
         waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 3, interval: 4, delay: 8 }] },
                  { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 24, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },
@@ -56,3 +80,4 @@ export const MAPS = {
   },
   gnesta,
 };
+MAPS.riksvagen.place = e4Place(MAPS.riksvagen.props, MAPS.riksvagen.path);

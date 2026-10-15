@@ -6,7 +6,7 @@ import { OBSTACLES } from '../src/data/obstacles.js';
 import { gnesta } from '../src/data/gnesta.js';
 
 // Gnesta efter E4: spelaren har forskningen som en girig E4-körning slutar med. Fem
-// seed-förskjutningar, smart policy (barrikad runt kvarteret) dag 1 till 5, och naiv policy
+// seed-förskjutningar, smart policy (barrikad vid rondellen, horden runt över fältet) dag 1 till 5, och naiv policy
 // (samma vapen, aldrig en barrikad) på dagens första försök med samma forskning.
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const logs = SEEDS.map(seedOffset => gnestaCampaign('smart', 6, { seedOffset }));
@@ -79,13 +79,15 @@ test('högst cirka 250 levande zombier samtidigt', () => {
   assert.ok(Math.max(...peaks) < 250, `flest levande ${Math.max(...peaks)}`);
 });
 
-test('smart planen lämnar en väg öppen och tvingar horden runt kvarteret', () => {
+test('smart planen lämnar en väg öppen och tvingar horden runt över fältet', () => {
   for (let d = 1; d <= 5; d++) {
     const ids = daySpawns(gnesta, d);
-    const smart = gnestaPlan(gnesta, ids, ['slot4.1']);
-    const plain = gnestaPlan(gnesta, ids, ['slot4.1'], { blocks: [] });
+    const smart = gnestaPlan(gnesta, ids, ['positions.1']);
+    const plain = gnestaPlan(gnesta, ids, ['positions.1'], { blocks: [] });
     assert.equal(smart.lines.length, 1);
     assert.ok(smart.len[0] > plain.len[0] + 20, `dag ${d}: Sigtunavägen ${smart.len[0]} mot ${plain.len[0]} rutor`);
+    // pjäserna ställs där de ser hordens väg: varje planerad plats ser minst sex rutor av den
+    assert.ok(smart.guns.length >= 5 && smart.cov.every(c => c >= 6), `dag ${d}: ${smart.cov.join(', ')}`);
   }
 });
 

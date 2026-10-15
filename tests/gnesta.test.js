@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gnesta, GNESTA_VERSION, LOTS, ROADS, distPolyline } from '../src/data/gnesta.js';
+import { placementFor, KIND } from '../src/sim/placement.js';
 
 const g = gnesta.grid;
 const idx = (i, j) => j * g.w + i;
@@ -54,15 +55,24 @@ test('inget hus står på en väg', () => {
   }
 });
 
-test('vapenpositionerna står på tomter, inte på gatan, och når en gata', () => {
-  for (const s of gnesta.slots) {
-    const i = Math.floor((s.x - g.origin[0]) / g.cellSize), j = Math.floor((s.z - g.origin[1]) / g.cellSize);
-    assert.equal(g.walk[idx(i, j)], 0, `${s.id} på gatan`);
-    const gap = Math.min(...ROADS.filter(r => r.walk).map(r => distPolyline(s.x, s.z, r.pts) - r.width / 2));
-    assert.ok(gap > 2.5 && gap < 10, `${s.id}: ${gap.toFixed(1)} m från gatan`);
+test('placeringen: gatan är gata, husen hus, ön bas, och det finns gott om öppen mark nära gatan', () => {
+  const p = placementFor(gnesta);
+  assert.equal(p.w, g.w); assert.equal(p.h, g.h);
+  for (let k = 0; k < p.n; k++) if (g.walk[k]) assert.equal(p.kind[k], KIND.road);
+  for (const h of LOTS.plots.filter(q => q.house).map(q => q.house)) {
+    const k = p.keyAt(h.x, h.z);
+    if (k >= 0) assert.equal(p.kind[k], KIND.house, `hus vid ${h.x.toFixed(1)},${h.z.toFixed(1)}`);
   }
-  assert.deepEqual(gnesta.slots.map(s => s.id), ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
-  assert.deepEqual(gnesta.slots.filter(s => s.locked).map(s => s.id), ['G', 'H']);
+  assert.equal(p.kind[p.keyAt(...gnesta.roundabout.center)], KIND.base);
+  // öppna rutor 2 till 10 m från en gångbar gata (vägkanten, tomter, parkeringen)
+  let near = 0;
+  for (let k = 0; k < p.n; k++) {
+    if (p.kind[k] !== KIND.open) continue;
+    const c = p.center(k);
+    const gap = Math.min(...ROADS.filter(r => r.walk).map(r => distPolyline(c.x, c.z, r.pts) - r.width / 2));
+    if (gap < 10) near++;
+  }
+  assert.ok(near > 300, `öppna rutor nära gatan ${near}`);
 });
 
 test('dagarna öppnar ingångarna i tur och ordning', () => {

@@ -7,13 +7,18 @@ import { pointAt } from '../src/sim/path.js';
 import { MAPS } from '../src/data/maps.js';
 import { makeRng } from '../src/sim/rng.js';
 
-// Kvittot på att route-abstraktionen inte ändrade E4: hela balansloggen (girig och stark policy
-// över fem seeds, plus minimal dag 1 på A, B, C) ger samma fingeravtryck som 0.3.1 före refaktorn.
-const BEFORE = { hash: '3fbfe043', length: 14714 };
+// Kvittot på E4:s balans: hela balansloggen (girig policy över fem seeds, plus minimal dag 1 på
+// A, B, C) ger samma fingeravtryck. Ett ändrat kvitto ska vara avsiktligt och förklarat.
+// 0.3.1 till 0.4.2: '3fbfe043' (14714 tecken, även policyn strong), oförändrat genom route-
+// refaktorn. 0.5.0: nytt kvitto, avsiktligt: fri placering med sikt (pjäserna står där de ser mest
+// av vägen, fyra i stället för tre utan forskning), New position blev More positions I till III,
+// dag 2 och 3 fick hp-faktor 1,5 och 1,15, och policyn strong (fasta positioner C, B, D, A)
+// finns inte längre. Se docs/balance-log.md, 0.5.0.
+const BEFORE = { hash: '3a2cb567', length: 7663 };
 
 function fingerprint() {
   const out = [];
-  for (const o of [0, 1, 2, 3, 4].map(x => x * 7919)) out.push(campaign('greedy', 6, { seedOffset: o }), campaign('strong', 6, { seedOffset: o }));
+  for (const o of [0, 1, 2, 3, 4].map(x => x * 7919)) out.push(campaign('greedy', 6, { seedOffset: o }));
   for (const s of ['A', 'B', 'C']) out.push(playDay(newProgress(), 1, 'minimal', { slot: s }));
   const str = JSON.stringify(out);
   let h = 0x811c9dc5;
@@ -21,7 +26,7 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('E4:s balanslogg är identisk med 0.3.1', () => {
+test('E4:s balanslogg är identisk med 0.5.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 

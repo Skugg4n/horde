@@ -4,6 +4,7 @@
 // i väster, horden kommer från öster.
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
+import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
 
 export const GNESTA_VERSION = '0.2.1';
 
@@ -506,42 +507,116 @@ export const SURROUNDINGS = {
   ],
 };
 
-// ---------- spelet ----------
-// Vapenpositioner A-F på tomter och vid husen (docs/gnesta-skiss.html), flyttade till närmaste
-// plats 3 till 6,5 m från gatukanten och fri från husen. G och H kräver forskningen New position.
-export const SLOTS = [
-  { id: 'A', x: -65.7, z: 29.7 },
-  { id: 'B', x: -47.1, z: 14.2 },
-  { id: 'C', x: -17.1, z: 14.3 },
-  { id: 'D', x: 10.3, z: 21.9 },
-  { id: 'E', x: -1.6, z: -9.2 },
-  { id: 'F', x: 44.1, z: 19.9 },
-  { id: 'G', x: 63.9, z: -7.2, locked: 'slot4' },
-  { id: 'H', x: -31.9, z: -15.9, locked: 'slot4' },
-];
+// ---------- parkerade bilar ----------
+// Bilarna på parkeringen (ungefär hälften av rutorna, tätast närmast hallarna) och en vid
+// ishallen. Data, så att placeringen vet var de står (ett vapen får inte stå på en bil).
+// color: index i bilfärgerna (renderingen väljer färgen).
+export const CARS = (() => {
+  const r = makeRng(5150);
+  const out = [];
+  for (const row of PARKING.bays) {
+    for (let i = 0; i < row.lines.length - 1; i++) {
+      const [ax] = row.lines[i], [bx] = row.lines[i + 1];
+      const cx = (ax + bx) / 2, near = 1 - (i / row.lines.length);
+      if (r() > 0.28 + 0.4 * near) continue;
+      out.push({ x: cx, z: row.z + (r() - 0.5) * 0.4, ry: Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI) + (r() - 0.5) * 0.1, color: (r() * 8) | 0 });
+    }
+  }
+  const hr = ICE_RINK, lx = hr.len / 2 + 9, lz = 5.5;
+  out.push({ x: hr.x + lx * Math.cos(hr.ry) + lz * Math.sin(hr.ry), z: hr.z - lx * Math.sin(hr.ry) + lz * Math.cos(hr.ry), ry: hr.ry + Math.PI / 2, color: (r() * 8) | 0 });
+  return out;
+})();
+
+// ---------- placering av vapen ----------
+// Samma 2 m-rutnät som horden. Gångbara rutor (gator, cykelvägar, rondellens ring) är gata.
+// Husen (villor med garage, ishallen, sporthallen) är hus och skymmer sikten; en meter runt
+// dem är också "hus" så att sandsäckarna inte går in i väggen. Rondellens ö är basen.
+// Skogen är tät (träd var 3,3 m, 9-16 m höga) och stängd där träden står: inne i skogen och
+// minst 3,5 m från gatukanten. Remsan mellan gatan och skogen går att bygga på.
+// Bilar, släpvagnar, studsmattor och trädgårdsträd står i vägen men skymmer inget.
+// Häckar, staket och brevlådor är låga: där går det att bygga, och de skymmer inte.
+const HOUSE_PAD = 1;
+const THING_PAD = 0.8;
+function houseRects() {
+  const out = [];
+  for (const p of LOTS.plots) {
+    const h = p.house;
+    if (!h) continue;
+    const w = h.kind === 'preschool' ? Math.max(h.w, 13) : h.w, d = h.kind === 'preschool' ? Math.max(h.d, 7.5) : h.d;
+    out.push(rect(h.x, h.z, h.ry, w, d));
+    if (h.garage) {
+      // garaget i husets förlängning (som villan i gnesta-kit.js ritar det)
+      const gd = Math.min(d * 0.95, 6.4), gx = h.garage * (w / 2 + 1.85), gz = d / 2 - gd / 2;
+      const c = Math.cos(h.ry), sn = Math.sin(h.ry);
+      out.push(rect(h.x + c * gx + sn * gz, h.z - sn * gx + c * gz, h.ry, 3.7, gd));
+    }
+  }
+  const hr = ICE_RINK, sh = SPORTHALL;
+  out.push(rect(hr.x, hr.z, hr.ry, hr.len, hr.wid));
+  out.push(rect(sh.x, sh.z, sh.ry, sh.len, sh.wid));
+  out.push(rect(sh.annex.x, sh.annex.z, sh.ry, sh.annex.len, sh.annex.wid));
+  return out;
+}
+function thingRects() {
+  const out = CARS.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
+  for (const p of LOTS.plots) for (const x of p.extras) {
+    if (x.kind === 'car') out.push(rect(x.x, x.z, x.ry, 4.3, 1.82));
+    else if (x.kind === 'trailer') out.push(rect(x.x, x.z, x.ry, 2.8, 1.7));
+    else if (x.kind === 'trampoline') out.push(rect(x.x, x.z, 0, 3.6, 3.6));
+    else if (x.kind === 'tree') out.push(rect(x.x, x.z, 0, 0.8, 0.8));
+  }
+  return out;
+}
+// Står det skog i punkten (samma regler som skogen ritas med, med marginal för trädens slump)?
+function denseForest(x, z) {
+  if (!GROUND.forest.some(poly => inPoly(x, z, poly))) return false;
+  if (ROADS.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)) return false;
+  if (LOTS.blocks.some(B => inPoly(x, z, B.outer)) || inPoly(x, z, PARKING.poly)) return false;
+  if (distPoly(x, z, ROUNDABOUT.island) < 9) return false;
+  if (Math.hypot(x - ICE_RINK.x, z - ICE_RINK.z) < ICE_RINK.len / 2 + 9) return false;
+  if (Math.hypot(x - SPORTHALL.x, z - SPORTHALL.z) < SPORTHALL.len / 2 + 12) return false;
+  return Math.min(...ROADS.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
+}
+export function buildPlacement(grid) {
+  const houses = houseRects(), things = thingRects();
+  return buildPlace({
+    w: grid.w, h: grid.h, cellSize: grid.cellSize, origin: grid.origin,
+    walk: (x, z, k) => grid.walk[k] === 1,
+    classify(x, z) {
+      const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
+      if (grid.walk[k]) return KIND.road;
+      if (inPoly(x, z, ROUNDABOUT.island)) return KIND.base;
+      if (houses.some(r => inRect(r, x, z))) return KIND.house;
+      if (houses.some(r => inRect(r, x, z, HOUSE_PAD))) return KIND.house;
+      if (things.some(r => inRect(r, x, z, THING_PAD))) return KIND.thing;
+      if (denseForest(x, z)) return KIND.forest;
+      return KIND.open;
+    },
+  });
+}
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
-// dag 5 allt). Balanserade i 0.4.2 (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
+// dag 5 allt). Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 800, hp: 2.8, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+  { n: 1, startCash: 800, hp: 3.8, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
     waves: [ { groups: [g('walker', 30, 0.5, 0, 'east1')] },
              { groups: [g('walker', 50, 0.35, 0, 'east1')] },
              { groups: [g('walker', 70, 0.25, 0, 'east1'), g('runner', 30, 0.3, 6, 'east1')] } ] },
-  { n: 2, startCash: 900, hp: 3.8, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, startCash: 900, hp: 4.6, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
     waves: [ { groups: [g('walker', 40, 0.4, 0, 'east1'), g('walker', 20, 0.5, 4, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 40, 0.3, 6, 'east2')] },
              { groups: [g('walker', 60, 0.25, 0, 'east1'), g('walker', 40, 0.3, 0, 'east2'), g('runner', 60, 0.2, 8, 'east1')] } ] },
-  { n: 3, startCash: 1000, hp: 4.2, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
+  { n: 3, startCash: 1000, hp: 4.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
     waves: [ { groups: [g('walker', 26, 0.5, 0, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, startCash: 1100, hp: 4.6, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+  { n: 4, startCash: 1100, hp: 5.6, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
     waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 3, 8, 'east1')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2.5, 10, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 2, 12, 'east1'), g('brute', 10, 2, 20, 'forest')] } ] },
-  { n: 5, startCash: 1200, hp: 4.0, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
+  { n: 5, startCash: 1200, hp: 4.6, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
     waves: [ { groups: [g('walker', 40, 0.35, 0, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2.5, 8, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 44, 0.3, 0, 'east2'), g('walker', 44, 0.3, 0, 'forest'),
@@ -555,9 +630,9 @@ export const gnesta = {
   // Skuggkameran täcker den skarpa ytan (med ishallen i väster och sporthallen i söder).
   shadowBounds: { x0: -118, x1: 84, z0: -50, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
-  lots: LOTS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
+  lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
-  slots: SLOTS, baseHp: 20, days: DAYS,
+  baseHp: 20, days: DAYS,
   // Basen (vägspärren med skylten) står på rondellens ö, vänd mot öster.
   basePlace: { x: ROUNDABOUT.center[0] - 0.4, z: ROUNDABOUT.center[1] + 0.2, ry: 0, scale: 0.62 },
   // Barrikaden (Concrete barrier) är Gnestas lektion och behöver ingen forskning här.
@@ -565,3 +640,4 @@ export const gnesta = {
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },
 };
+gnesta.place = buildPlacement(gnesta.grid);

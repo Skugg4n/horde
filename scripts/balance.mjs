@@ -1,57 +1,120 @@
 // Balanssimulering: spelar kampanjen headless med deterministiska policyer.
 //   greedy  : en människa som spenderar pengar när de kommer in, även mitt i vågen (koll varje sekund).
-//   strong  : som greedy, men ställer pjäserna där de täcker mest väg (C, B, D, A i stället för A, B, C, D).
-//   minimal : bara det dag 1 ber om, en M249 på en position, inget mer.
-// greedy och strong kallar nästa våg tidigt (bonus) när försvaret har det bekvämt: basen hel och
-// ingen levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit
-// och högst tre lever.
-// Annars väntar de ut nedräkningen. minimal väntar alltid ut den.
+//             Pjäserna ställs där de ser mest av hordens väg (coveragePlan).
+//   minimal : bara det dag 1 ber om, en M249 på en given plats, inget mer.
+// greedy kallar nästa våg tidigt (bonus) när försvaret har det bekvämt: basen hel och ingen
+// levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
+// högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
 import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave } from '../src/sim/sim.js';
-import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats } from '../src/sim/stats.js';
+import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
+import { placementFor, lineOfSight, KIND, MIN_SPACING } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch, selectMap } from '../src/meta/progress.js';
+import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
 // Nod-id; varje förekomst köper nästa nivå i noden.
-const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'slot4',
-  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'm249Rate', 'grenade', 'budget', 'block'];
-const KIT_ORDER = ['C', 'D', 'B', 'A'];   // lådan där pjäsen når mest väg
-const MAX_KITS = 1;
-const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever              // granatlådor per dag: ett stöd, inte huvudsaken
+const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'positions',
+  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'm249Rate', 'grenade', 'budget', 'block', 'positions'];
+const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
+const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever
 const WIRE_CELLS = [0, 1, 2];
 const BLOCK_CELL = 0;
 const MAX_TICKS = 30 * 900;
 
-const ORDER = { greedy: ['A', 'B', 'C', 'D'], strong: ['C', 'B', 'D', 'A'] };
-function openSlots(sim, order) {
-  return order.map(id => sim.slots.find(s => s.id === id)).filter(s => s && !s.locked && !s.weapon);
+// ---------- var pjäserna ställs: synlig täckning av hordens väg ----------
+// route: hordens väg som placeringsrutor (en ruta kan förekomma flera gånger: den vägs då
+// tyngre, t.ex. där två ingångars vägar går ihop). Varje öppen ruta får sin täckning: vägens
+// rutor inom range som syns därifrån. Pjäserna väljs en i taget: den ruta som lägger till mest,
+// där en vägruta som redan täcks av k valda pjäser väger 0,5^k (så att pjäserna sprids över
+// vägen i stället för att alla ser samma bit). Minst MIN_SPACING mellan pjäserna. Lika: lägst
+// rutnyckel. Deterministiskt. Returnerar rutnycklarna i ordning och varje rutas täckning.
+const coverCache = new Map();
+export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheKey = null } = {}) {
+  const key = cacheKey && JSON.stringify([map.id, cacheKey, range, count, decay]);
+  if (key && coverCache.has(key)) return coverCache.get(key);
+  const p = placementFor(map);
+  const weight = new Map();
+  for (const it of route) {
+    const [k, wt] = typeof it === 'number' ? [it, 1] : it;
+    weight.set(k, (weight.get(k) || 0) + wt);
+  }
+  const targets = [...weight.keys()].sort((a, b) => a - b);
+  const reach = range + p.size * 0.7072;
+  const cands = [];
+  for (let c = 0; c < p.n; c++) {
+    if (p.kind[c] !== KIND.open) continue;
+    const at = p.center(c), sees = [];
+    for (const t of targets) {
+      const q = p.center(t);
+      if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && lineOfSight(p, c, t)) sees.push(t);
+    }
+    if (sees.length) cands.push({ c, at, sees });
+  }
+  const times = new Map(), picked = [];
+  for (let n = 0; n < count; n++) {
+    let best = null, bestScore = 0;
+    for (const cd of cands) {
+      if (picked.some(q => Math.hypot(q.at.x - cd.at.x, q.at.z - cd.at.z) < MIN_SPACING - 1e-9)) continue;
+      let sc = 0;
+      for (const t of cd.sees) sc += weight.get(t) * decay ** (times.get(t) || 0);
+      if (sc > bestScore + 1e-9) { best = cd; bestScore = sc; }
+    }
+    if (!best) break;
+    picked.push(best);
+    for (const t of best.sees) times.set(t, (times.get(t) || 0) + 1);
+  }
+  const out = { spots: picked.map(q => q.c), cover: picked.map(q => q.sees.length), sees: picked.map(q => q.sees) };
+  if (key) coverCache.set(key, out);
+  return out;
 }
 
+// E4: hordens väg är alla gångbara rutor (vägen från spawn till basen). M249:ns räckvidd,
+// pjäsen policyn bygger först.
+const E4_RANGE = WEAPONS.m249.range;
+export const e4Plan = () => coveragePlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys, { range: E4_RANGE, cacheKey: 'e4' });
+
+// Bygger nästa planerade plats som är ledig. Returnerar true om något byggdes.
+function buildNext(sim, spots, type) {
+  if (sim.guns.length >= maxGuns(sim.research)) return false;
+  for (const k of spots) {
+    if (sim.guns.some(g => g.cell === k)) continue;
+    const r = build(sim, k, type);
+    if (r.ok) return true;
+    if (r.reason === 'pengar' || r.reason === 'fullt') return false;
+  }
+  return false;
+}
+const wantedWeapon = sim => {
+  const opts = Object.values(WEAPONS).filter(w => weaponUnlocked(w.id, sim.research));
+  const heavy = opts.find(w => w.id === 'm2');
+  if (heavy && sim.cash >= heavy.cost) return heavy.id;
+  return opts.sort((a, b) => a.cost - b.cost)[0].id;
+};
+const upgradeAll = sim => {
+  for (;;) {
+    const ups = sim.guns.filter(g => upgradeCost(g.weapon.type, g.weapon.level) != null)
+      .sort((a, b) => upgradeCost(a.weapon.type, a.weapon.level) - upgradeCost(b.weapon.type, b.weapon.level));
+    if (!ups.length || !upgrade(sim, ups[0].id).ok) break;
+  }
+};
+
 // Girig policy, i ordning:
-// 1. Minst ett vapen (billigaste upplåsta, M2 om den är upplåst och går att köpa).
-// 2. Betongblock i ruta 0 (närmast basen, där alla vapen når) om upplåst och råd kvar för ett
-//    vapen, sedan en taggtråd i första lediga ruta av 0, 1, 2.
-// 3. Fler vapen på första lediga position.
+// 1. Minst ett vapen (billigaste upplåsta, M2 om den är upplåst och går att köpa), på platsen
+//    som ser mest av vägen.
+// 2. Betongblock i ruta 0 (närmast basen) om upplåst och råd kvar för ett vapen, sedan en
+//    taggtråd i första lediga ruta av 0, 1, 2.
+// 3. Fler vapen på nästa plats i planen, så länge det finns plats (fyra plus forskningen).
 // 4. Taggtråd i resten av rutorna 0, 1, 2 (även ny tråd när den gamla slitits sönder).
-// 5. En granatlåda (om forskad) på den pjäs som når mest väg (C, D, B, A), om pengar finns kvar för en tråd.
+// 5. En granatlåda (om forskad) på den pjäs som ser mest väg, om pengar finns kvar för en tråd.
 // 6. Uppgraderingar, billigaste först.
-function greedyBuild(sim, order = ORDER.greedy) {
-  const wanted = () => {
-    const opts = Object.values(WEAPONS).filter(w => weaponUnlocked(w.id, sim.research));
-    const heavy = opts.find(w => w.id === 'm2');
-    if (heavy && sim.cash >= heavy.cost) return heavy.id;
-    return opts.sort((a, b) => a.cost - b.cost)[0].id;
-  };
-  const buildOne = () => {
-    const slot = openSlots(sim, order)[0];
-    if (!slot) return false;
-    return build(sim, slot.id, wanted()).ok;
-  };
-  if (!sim.slots.some(s => s.weapon)) buildOne();
+function greedyBuild(sim, spots) {
+  const buildOne = () => buildNext(sim, spots, wantedWeapon(sim));
+  if (!sim.guns.length) buildOne();
   if (obstacleUnlocked('block', sim.research) && !sim.obstacles[BLOCK_CELL] && sim.cash >= OBSTACLES.block.cost + 250) placeObstacle(sim, BLOCK_CELL, 'block');
   const wire = cells => {
     if (!obstacleUnlocked('wire', sim.research)) return;
@@ -60,31 +123,32 @@ function greedyBuild(sim, order = ORDER.greedy) {
   if (!WIRE_CELLS.some(c => sim.obstacles[c]?.type === 'wire')) wire(WIRE_CELLS.filter(c => !sim.obstacles[c]).slice(0, 1));
   while (buildOne());
   wire(WIRE_CELLS);
-  if (grenadeStats(sim.research) && sim.slots.filter(s => s.weapon?.kit).length < MAX_KITS && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
-    const s = KIT_ORDER.map(id => sim.slots.find(x => x.id === id)).find(x => x?.weapon && !x.weapon.kit);
-    if (s) buyKit(sim, s.id);
+  if (grenadeStats(sim.research) && sim.guns.filter(g => g.weapon.kit).length < MAX_KITS && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
+    const g = spots.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
+    if (g) buyKit(sim, g.id);
   }
-  for (;;) {
-    const ups = sim.slots.filter(s => s.weapon && upgradeCost(s.weapon.type, s.weapon.level) != null)
-      .sort((a, b) => upgradeCost(a.weapon.type, a.weapon.level) - upgradeCost(b.weapon.type, b.weapon.level));
-    if (!ups.length || !upgrade(sim, ups[0].id).ok) break;
-  }
+  upgradeAll(sim);
 }
 
-// Minimal policy: en M249 på given position, sedan ingenting.
-function minimalBuild(sim, slotId) {
-  if (!sim.slots.some(s => s.weapon)) build(sim, slotId, 'm249');
+// Minimal policy: en M249 i given ruta, sedan ingenting.
+function minimalBuild(sim, spot) {
+  if (!sim.guns.length) build(sim, spot, 'm249');
 }
+// Platser för minimal-policyn på E4 (världskoordinater): där en förstagångsspelare gärna ställer
+// sin första pjäs. A: tätt intill vägen mitt på sträckan, B: snett framför basen, C: långt från
+// vägen bakom basen. Ingen av dem är den bästa platsen.
+export const MINIMAL_SPOTS = { A: [4, 6], B: [-6, -8], C: [-16, 9] };
+const spotKey = (map, [x, z]) => placementFor(map).keyAt(x, z);
 
 // Spelar en dag. Returnerar resultat plus kassa och bas efter varje våg, och hur basen föll:
 // firstHit = simtid då basen först tog skada, fallTime = tid från första skadan till 0.
 export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot = 'A', onSecond = null, early: allowEarly = true } = {}) {
   const cfg = startConfig(progress, day);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
-  const think = ORDER[policy] ? () => greedyBuild(sim, ORDER[policy])
-    : policy === 'minimal' ? () => minimalBuild(sim, slot)
+  const think = policy === 'greedy' ? (spots => () => greedyBuild(sim, spots))(e4Plan().spots)
+    : policy === 'minimal' ? () => minimalBuild(sim, spotKey(cfg.map, MINIMAL_SPOTS[slot] ?? slot))
     : (() => { throw new Error('okänd policy ' + policy); })();
-  const early = allowEarly && !!ORDER[policy];
+  const early = allowEarly && policy === 'greedy';
   return runDay(sim, think, early, onSecond);
 }
 
@@ -169,46 +233,46 @@ export function runCampaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0
 }
 
 // ---------- Gnesta: styr horden med barrikader ----------
-// smart : en människa som läser kartan. Hon spärrar Sigtunavägen mellan första och andra
-//         stickgatan, så att horden går ett varv runt kvarteret: upp den andra stickgatan, längs
-//         cykelvägen och ner den första, förbi positionerna i kvarteret. Hela vägen hålls öppen
-//         runt spärren, så ingen barrikad behöver slås sönder. Vapen byggs där de når mest av
-//         hordens väg, taggtråd där flest pjäser når, granatlådor när grunden står.
+// smart : en människa som läser kartan. Hon spärrar Sigtunavägen strax öster om rondellen, så
+//         att horden måste upp första stickgatan, längs cykelvägen och ner över det öppna fältet
+//         till rondellen. Hela vägen hålls öppen runt spärren, så ingen barrikad behöver slås
+//         sönder. Vapen ställs där de ser mest av den vägen (coveragePlan: husen skymmer,
+//         fältet gör det inte), taggtråd där flest pjäser ser, granatlådor när grunden står.
 // naive : samma vapen (valda efter sin egen väg), tråd, lådor och uppgraderingar, men aldrig en
-//         barrikad. Horden går den kortaste vägen längs Sigtunavägen.
+//         barrikad. Horden går den kortaste vägen längs Sigtunavägen, och pjäserna ställs där de
+//         ser mest av den.
 // Vågkall och köp mitt i vågen som greedy på E4 (runDay). Forskning mellan dagarna som på E4.
 //
-// Under balanspasset jämfördes spärrar valda girigt efter täckning (bästa positionernas rutor inom
-// räckhåll) med den här enda spärren. Den giriga valde gärna spärrar längst österut och en på
-// norra stigen, som gav längre väg men sämre försvar i simuleringen (dag 2 och 3 förlorades
-// oftare). Varvet runt kvarteret närmast basen höll bäst över alla dagar, och det är också den
-// spärr designen beskriver.
-const SMART_BLOCKS = [[-3, 35]];   // Sigtunavägen mellan stickgata 1 och 2 (x, z i meter)
+// 0.5.0 (fri placering och sikt): förut spärrade smart mellan stickgata 1 och 2 (varvet runt
+// kvarteret förbi de fasta positionerna). Med fri placering ställer båda policyerna pjäserna där
+// de ser mest, och det varvet går mellan husen där sikten är kort: smart blev inte bättre än
+// naive (docs/balance-log.md, 0.5.0). Spärren vid rondellen leder horden över fältet, där
+// pjäserna ser 40 rutor av vägen i stället för 30. Det är kartläsningen spelet vill lära ut:
+// stäng gatan så att de måste gå där du ser dem.
+const SMART_BLOCKS = [[-45, 24]];  // Sigtunavägen strax öster om rondellen (x, z i meter)
 const PLAN_RANGE = 22;      // M2, pjäsen policyn helst bygger: täckning räknas för dess räckvidd
-const PLAN_GUNS = 4;        // taggtråden läggs där flest av de fyra första pjäserna når
+const PLAN_GUNS = 4;        // taggtråden läggs där flest av de fyra första pjäserna ser
 const PLAN_WIRE = 3;        // taggtrådsspärrar på hordens väg
-const MIN_COVER = 6;        // en position byggs bara om den når minst så många rutor av vägen
+const MIN_COVER = 6;        // en plats byggs bara om den ser minst så många rutor av vägen
 const GN_KITS = [0, 1, 1, 2, 3, 3];   // granatlådor per dag (index = dag)
+const GN_DECAY = 0.7;       // täckningens avtagande per pjäs som redan ser rutan (coveragePlan)
+const GN_NEAR = 1;          // vägrutan närmast basen väger 1 + GN_NEAR, den vid ingången 1
 const GN_KIT_FROM_WAVE = 1; // lådorna köps först när första vågen är klar ("senare")
 
 // Ingångarna som dagen använder, i den ordning de dyker upp.
 export const daySpawns = (map, day) => [...new Set(map.days[day - 1].waves.flatMap(w => w.groups.map(g => g.spawn)))];
 
 const planCache = new Map();
-// Planen för en dag: barrikadernas rutor, vapenpositioner i ordning (flest rutor av hordens väg
-// inom räckhåll först) och taggtrådens rutor. Beror bara på banan, ingångarna, upplåsta
-// positioner och spärrarna, så den räknas en gång och sparas.
+// Planen för en dag: barrikadernas rutor, vapenplatser i ordning (coveragePlan över hordens väg
+// med spärrarna på plats, M2:ns räckvidd) och taggtrådens rutor. Beror bara på banan,
+// ingångarna och spärrarna, så den räknas en gång och sparas. research används inte längre
+// (antalet pjäser styrs av sim.maxGuns), men argumentet finns kvar för anroparna.
 export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = {}) {
-  const key = JSON.stringify([map.id, ids, [...research].filter(r => r.startsWith('slot4')), blocks]);
+  void research;
+  const key = JSON.stringify([map.id, ids, blocks]);
   if (planCache.has(key)) return planCache.get(key);
-  const sim = createSim({ map, day: 1, cash: 0, seed: 1, research });
+  const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
   const route = sim.route, g = route.grid;
-  const slots = sim.slots.filter(s => !s.locked);
-  const near = new Map();
-  const cover = c => {
-    if (!near.has(c)) { const [x, z] = g.center(c); near.set(c, slots.filter(s => Math.hypot(x - s.x, z - s.z) <= PLAN_RANGE).map(s => s.id)); }
-    return near.get(c);
-  };
   const obs = {}, lines = [];
   for (const [x, z] of blocks) {
     const c = route.cellAt(x, z);
@@ -218,13 +282,16 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
   }
   const ps = route.paths(ids, obs);
   if (ps.some(p => !p.reaches || p.through != null)) throw new Error('planen stänger alla vägar');
-  const cov = Object.fromEntries(slots.map(s => [s.id, 0]));
-  for (const p of ps) for (const c of p.cells) for (const id of cover(c)) cov[id]++;
-  const guns = slots.map(s => s.id).filter(id => cov[id] >= MIN_COVER).sort((a, b) => cov[b] - cov[a] || a.localeCompare(b));
-  // Taggtråd: rutorna på vägen som flest planerade pjäser når (lika: närmast basen), en spärr per gata.
-  const top = new Set(guns.slice(0, PLAN_GUNS));
+  // Vägrutorna väger mer ju närmare basen de ligger (dit når alla som inte dött än).
+  const weighted = ps.flatMap(p => p.cells.map((c, i) => [c, 1 + GN_NEAR * i / Math.max(1, p.cells.length - 1)]));
+  const cp = coveragePlan(map, weighted, { range: PLAN_RANGE, count: 8, decay: GN_DECAY, cacheKey: key });
+  const keep = cp.spots.map((k, i) => i).filter(i => cp.cover[i] >= MIN_COVER);
+  const guns = keep.map(i => cp.spots[i]);
+  const seenBy = new Map();
+  keep.slice(0, PLAN_GUNS).forEach(i => { for (const c of cp.sees[i]) seenBy.set(c, (seenBy.get(c) || 0) + 1); });
+  // Taggtråd: rutorna på vägen som flest planerade pjäser ser (lika: närmast basen), en spärr per gata.
   const onPath = [...new Set(ps.flatMap(p => p.cells))].filter(c => route.validCell(c) && !obs[c]);
-  const score = c => cover(c).filter(id => top.has(id)).length;
+  const score = c => seenBy.get(c) || 0;
   onPath.sort((a, b) => score(b) - score(a) || route.walkLeft(a) - route.walkLeft(b) || a - b);
   const wire = [], taken = new Set();
   for (const c of onPath) {
@@ -235,7 +302,7 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
     // spärren och en ruta runt den hålls fri, så att trådarna inte klumpar ihop sig
     for (const k of span) for (const d of [0, 1, -1, g.w, -g.w]) taken.add(k + d);
   }
-  const plan = { lines, guns, wire, len: ps.map(p => p.cells.length), cov };
+  const plan = { lines, guns, wire, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]) };
   planCache.set(key, plan);
   return plan;
 }
@@ -244,17 +311,7 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
 // andra vapnet, en taggtråd, fler vapen, resten av tråden (även ny när den gamla slitits sönder),
 // en granatlåda när första vågen är klar, sedan uppgraderingar, billigaste först.
 function gnestaBuild(sim, plan, maxKits) {
-  const wanted = () => {
-    const opts = Object.values(WEAPONS).filter(w => weaponUnlocked(w.id, sim.research));
-    const heavy = opts.find(w => w.id === 'm2');
-    if (heavy && sim.cash >= heavy.cost) return heavy.id;
-    return opts.sort((a, b) => a.cost - b.cost)[0].id;
-  };
-  const free = id => { const s = sim.slots.find(x => x.id === id); return s && !s.locked && !s.weapon; };
-  const buildOne = () => {
-    const id = plan.guns.find(free);
-    return id ? build(sim, id, wanted()).ok : false;
-  };
+  const buildOne = () => buildNext(sim, plan.guns, wantedWeapon(sim));
   const lay = (cells, type) => {
     for (const c of cells) {
       if (sim.obstacles[c]) continue;
@@ -262,24 +319,19 @@ function gnestaBuild(sim, plan, maxKits) {
       placeAcross(sim, c, type);
     }
   };
-  const built = () => sim.slots.filter(s => s.weapon).length;
-  if (built() < 1) buildOne();
+  if (sim.guns.length < 1) buildOne();
   lay(plan.lines.slice(0, 1), 'block');
-  if (built() < 2) buildOne();
+  if (sim.guns.length < 2) buildOne();
   lay(plan.lines, 'block');
   lay(plan.wire.slice(0, 1), 'wire');
   while (buildOne());
   lay(plan.wire, 'wire');
-  const kits = sim.slots.filter(s => s.weapon?.kit).length;
+  const kits = sim.guns.filter(g => g.weapon.kit).length;
   if (grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
-    const s = plan.guns.map(id => sim.slots.find(x => x.id === id)).find(x => x?.weapon && !x.weapon.kit);
-    if (s) buyKit(sim, s.id);
+    const g = plan.guns.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
+    if (g) buyKit(sim, g.id);
   }
-  for (;;) {
-    const ups = sim.slots.filter(s => s.weapon && upgradeCost(s.weapon.type, s.weapon.level) != null)
-      .sort((a, b) => upgradeCost(a.weapon.type, a.weapon.level) - upgradeCost(b.weapon.type, b.weapon.level));
-    if (!ups.length || !upgrade(sim, ups[0].id).ok) break;
-  }
+  upgradeAll(sim);
 }
 
 // Spelar en Gnesta-dag med policyn smart eller naive. progress: framsteget med forskningen.
@@ -323,7 +375,7 @@ export function gnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset =
 // check: kontrollera varje steg att varje zombie står på en gångbar ruta.
 export function gnestaSmoke({ check = false, seed = 1 } = {}) {
   const groups = gnesta.spawns.map((s, i) => ({ type: 'walker', count: 3, interval: 2, delay: i * 0.5, spawn: s.id }));
-  const map = { ...gnesta, baseHp: 99, slots: [], days: [{ n: 1, startCash: 0, waves: [{ groups }] }] };
+  const map = { ...gnesta, baseHp: 99, days: [{ n: 1, startCash: 0, waves: [{ groups }] }] };
   const sim = createSim({ map, day: 1, cash: 0, seed });
   const g = sim.route.grid;
   const arrivals = Object.fromEntries(gnesta.spawns.map(s => [s.id, { count: 0, first: null, last: null }]));
@@ -343,6 +395,8 @@ export function gnestaSmoke({ check = false, seed = 1 } = {}) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const pl = placementFor(MAPS.riksvagen), ep = e4Plan();
+  console.log('E4-planen (ruta: mitt, synliga vägrutor): ' + ep.spots.map((k, i) => { const c = pl.center(k); return `${c.x},${c.z}:${ep.cover[i]}`; }).join('  '));
   console.log('dag försök vann bas forskning bonus  bas/kassa efter våg 1, 2, 3       fall  hade');
   for (const r of campaign('greedy', 6)) {
     const wl = r.waveLog.map(w => `${String(w.baseHp).padStart(2)}/${String(w.cash).padStart(4)}`).join('  ');
@@ -354,6 +408,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const seeds = [0, 1, 2, 3, 4, 5, 6, 7].map(o => campaign('greedy', 6, { seedOffset: o * 7919 }))
     .map(log => [1, 2, 3].map(d => { const t = log.filter(r => r.day === d); const i = t.findIndex(r => r.won); return i < 0 ? 'x' : i + 1; }).join('/'));
   console.log('seed-offsets, försök till vinst dag 1/2/3: ' + seeds.join('  '));
+  for (const d of [1, 2, 3]) {
+    const gp = gnestaPlan(gnesta, daySpawns(gnesta, d)), gpl = placementFor(gnesta);
+    console.log(`Gnesta dag ${d} smart plan: ` + gp.guns.map((k, i) => { const c = gpl.center(k); return `${c.x},${c.z}:${gp.cov[i]}`; }).join('  '));
+  }
   console.log('Gnesta efter E4 (smart: försök till vinst/bas kvar, flest levande; naive: dagens första försök med samma forskning)');
   for (const o of [0, 1, 2, 3, 4]) {
     const log = gnestaCampaign('smart', 6, { seedOffset: o * 7919 });

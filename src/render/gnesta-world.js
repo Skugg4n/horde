@@ -150,9 +150,6 @@ function paintGround(map) {
 // ---------- hela scenen ----------
 export function buildGnesta(scene, map) {
   const { x0, x1, z0, z1 } = map.ground.bounds;
-  // Vapenpositionerna ska stå fritt: inga träd, bilar eller trädgårdsmöbler närmare än så.
-  const slots = map.slots ?? [];
-  const nearSlot = (x, z, r = 3.4) => slots.some(sl => Math.hypot(sl.x - x, sl.z - z) < r);
 
   // mark
   const tex = paintGround(map);
@@ -245,7 +242,6 @@ export function buildGnesta(scene, map) {
       else villa(b, M, h);
     }
     for (const x of p.extras) {
-      if (x.kind !== 'mailbox' && nearSlot(x.x, x.z)) continue;
       const M = frame(null, x.x, 0, x.z, x.ry);
       if (x.kind === 'mailbox') mailbox(b, M, x.n, r);
       else if (x.kind === 'car') car(b, M, GP.car[x.color % GP.car.length]);
@@ -265,16 +261,9 @@ export function buildGnesta(scene, map) {
   const sign = rinkSign(); sign.position.set(hr.len / 2 + 0.08, hr.wallH + 1.25, 0); sign.rotation.y = Math.PI / 2;
   signG.add(sign); scene.add(signG);
   roundaboutIsland(scene, b, map.roundabout);
-  // parkeringen: bilar i ungefär hälften av rutorna, tätast närmast hallarna
-  for (const row of map.parking.bays) {
-    for (let i = 0; i < row.lines.length - 1; i++) {
-      const [ax] = row.lines[i], [bx] = row.lines[i + 1];
-      const cx = (ax + bx) / 2, near = 1 - (i / row.lines.length);
-      if (r() > 0.28 + 0.4 * near || nearSlot(cx, row.z, 4)) continue;
-      car(b, frame(null, cx, 0, row.z + r.range(-0.2, 0.2), Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI) + r.range(-0.05, 0.05)), r.pick(GP.car));
-    }
-  }
-  for (const [x, z] of map.parking.poles ?? []) if (!nearSlot(x, z, 3)) tallLamp(b, frame(null, x, 0, z, 0));
+  // parkerade bilar (parkeringen och vid ishallen): bandata, så att placeringen vet var de står
+  for (const c of map.cars ?? []) car(b, frame(null, c.x, 0, c.z, c.ry), GP.car[c.color % GP.car.length]);
+  for (const [x, z] of map.parking.poles ?? []) tallLamp(b, frame(null, x, 0, z, 0));
   // sporthallen
   if (map.sporthall) {
     const sh = map.sporthall, c2 = Math.cos(sh.ry), s2 = Math.sin(sh.ry);
@@ -282,19 +271,12 @@ export function buildGnesta(scene, map) {
     const annex = { ...sh.annex, local: [dx * c2 - dz * s2, dx * s2 + dz * c2] };
     sportHall(b, frame(null, sh.x, 0, sh.z, sh.ry), { ...sh, annex });
   }
-  // några bilar vid hallen
-  for (const [lx, lz] of [[hr.len / 2 + 9, 5.5]]) {
-    const cx = hr.x + lx * Math.cos(hr.ry) + lz * Math.sin(hr.ry), cz = hr.z - lx * Math.sin(hr.ry) + lz * Math.cos(hr.ry);
-    car(b, frame(null, cx, 0, cz, hr.ry + Math.PI / 2), r.pick(GP.car));
-  }
-
   // ---------- skog ----------
   const blocked = (x, z) => roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)
     || map.lots.blocks.some(B => inPoly(x, z, B.outer))
     || inPoly(x, z, map.parking.poly) || distPoly(x, z, map.roundabout.island) < 9
     || Math.hypot(x - hr.x, z - hr.z) < hr.len / 2 + 9
-    || (map.sporthall && Math.hypot(x - map.sporthall.x, z - map.sporthall.z) < map.sporthall.len / 2 + 12)
-    || nearSlot(x, z, 4);
+    || (map.sporthall && Math.hypot(x - map.sporthall.x, z - map.sporthall.z) < map.sporthall.len / 2 + 12);
   let trees = 0;
   const crisp = map.surroundings?.crisp;
   map.ground.forest.forEach((poly, fi) => {
@@ -324,7 +306,7 @@ export function buildGnesta(scene, map) {
   // lövträd vid fältet och i kanterna
   for (const [ppx, ppy, h] of [[495, 345, 8], [655, 300, 7], [662, 420, 6.5], [668, 520, 7], [650, 640, 6], [640, 700, 7.5], [580, 280, 6], [800, 770, 7], [1870, 330, 7], [1885, 470, 6], [1900, 640, 6.5], [1240, 880, 7]]) {
     const [x, z] = px2w(ppx, ppy);
-    if (roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 2.5) || distPoly(x, z, map.roundabout.island) < map.roundabout.ring + 2.5 || nearSlot(x, z, 4)) continue;
+    if (roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 2.5) || distPoly(x, z, map.roundabout.island) < map.roundabout.ring + 2.5) continue;
     gardenTree(b, frame(null, x, 0, z, r() * 6), h, 2, r); trees++;
   }
 
