@@ -8,7 +8,7 @@
 import { fileURLToPath } from 'node:url';
 import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
-import { placementFor, lineOfSight, KIND, MIN_SPACING } from '../src/sim/placement.js';
+import { placementFor, lineOfSight, distRect, KIND, MIN_SPACING, ROOF_DEAD } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch, selectMap } from '../src/meta/progress.js';
@@ -18,8 +18,13 @@ import { gnesta } from '../src/data/gnesta.js';
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
 // Nod-id; varje förekomst köper nästa nivå i noden.
+// 0.8.0: Psg 90 direkt efter Ksp 88 III (Psg 90 kräver Ksp 88 II), Ksp 58 och Ak 5 efter
+// Grenades III och Bigger budget III, sedan nivåerna. Policyn har Psg 90 från Gnesta dag 4 och
+// alla tre dag 5. E4-kampanjen stannar långt före, så E4:s kvitto är orört. (Ksp 58 före dag 4
+// gjorde granatlådan sämre än pengarna dag 4: se docs/balance-log.md.)
 const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'positions',
-  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'm249Rate', 'grenade', 'budget', 'block', 'positions'];
+  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'psg90', 'm249Rate', 'grenade', 'budget', 'ksp58', 'ak5', 'block', 'positions',
+  'ksp58', 'ak5', 'psg90', 'positions', 'ksp58', 'ak5', 'psg90'];
 const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
 const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever
 const WIRE_CELLS = [0, 1, 2];
@@ -89,10 +94,15 @@ function buildNext(sim, spots, type) {
   }
   return false;
 }
+// Vapnet på marken: Ksp 88 om den går att köpa, annars Ksp 58 om den är forskad (då sparar
+// policyn till den i stället för att köpa en Ksp 90), annars det billigaste. Ak 5 och Psg 90
+// köps för sig (gnestaBuild).
+const GROUND = ['m249', 'ksp58', 'm2'];
 const wantedWeapon = sim => {
-  const opts = Object.values(WEAPONS).filter(w => weaponUnlocked(w.id, sim.research));
+  const opts = GROUND.map(id => WEAPONS[id]).filter(w => weaponUnlocked(w.id, sim.research));
   const heavy = opts.find(w => w.id === 'm2');
   if (heavy && sim.cash >= heavy.cost) return heavy.id;
+  if (opts.some(w => w.id === 'ksp58')) return 'ksp58';
   return opts.sort((a, b) => a.cost - b.cost)[0].id;
 };
 const upgradeAll = sim => {
@@ -258,6 +268,10 @@ const GN_KITS = [0, 1, 1, 2, 3, 3];   // granatlådor per dag (index = dag)
 const GN_DECAY = 0.7;       // täckningens avtagande per pjäs som redan ser rutan (coveragePlan)
 const GN_NEAR = 1;          // vägrutan närmast basen väger 1 + GN_NEAR, den vid ingången 1
 const GN_KIT_FROM_WAVE = 1; // lådorna köps först när första vågen är klar ("senare")
+const GN_ROOFS = 2;         // Psg 90 på taken (0.8.0): planen har så många tak, där de ser mest av hordens väg
+const GN_ROOFS_DAY = [0, 1, 1, 1, 1, 2];   // ... och så många bemannas per dag (index = dag)
+const ROOF_RANGE = WEAPONS.psg90.range;
+const GN_AK5 = 1;           // Ak 5 med granattillsats: högst en, på nästa plats i planen
 
 // Ingångarna som dagen använder, i den ordning de dyker upp.
 export const daySpawns = (map, day) => [...new Set(map.days[day - 1].waves.flatMap(w => w.groups.map(g => g.spawn)))];
@@ -302,15 +316,51 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
     // spärren och en ruta runt den hålls fri, så att trådarna inte klumpar ihop sig
     for (const k of span) for (const d of [0, 1, -1, g.w, -g.w]) taken.add(k + d);
   }
-  const plan = { lines, guns, wire, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]) };
+  const roofs = roofPlan(map, weighted, { count: GN_ROOFS });
+  const plan = { lines, guns, wire, roofs: roofs.spots, roofCov: roofs.cover, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]) };
   planCache.set(key, plan);
   return plan;
+}
+
+// Taken för Psg 90 (0.8.0): som coveragePlan, men kandidaterna är takrutor och sikten är takets
+// (allt inom räckvidd utom närmast det egna huset, placement.js ROOF_DEAD). Minst MIN_SPACING
+// mellan skyttarna, lika: lägst rutnyckel. Deterministiskt.
+export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, decay = GN_DECAY } = {}) {
+  const p = placementFor(map);
+  if (!p.roof) return { spots: [], cover: [] };
+  const weight = new Map();
+  for (const it of route) { const [k, wt] = typeof it === 'number' ? [it, 1] : it; weight.set(k, (weight.get(k) || 0) + wt); }
+  const targets = [...weight.keys()].sort((a, b) => a - b);
+  const reach = range + p.size * 0.7072, cands = [];
+  for (let c = 0; c < p.n; c++) {
+    if (!(p.roof[c] > 0)) continue;
+    const at = p.center(c), own = p.buildings[p.bldg[c] - 1], sees = [];
+    for (const t of targets) {
+      const q = p.center(t);
+      if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && !own.some(r => distRect(r, q.x, q.z) < ROOF_DEAD)) sees.push(t);
+    }
+    if (sees.length) cands.push({ c, at, sees });
+  }
+  const times = new Map(), picked = [];
+  for (let n = 0; n < count; n++) {
+    let best = null, bestScore = 0;
+    for (const cd of cands) {
+      if (picked.some(q => Math.hypot(q.at.x - cd.at.x, q.at.z - cd.at.z) < MIN_SPACING - 1e-9)) continue;
+      let sc = 0;
+      for (const t of cd.sees) sc += weight.get(t) * decay ** (times.get(t) || 0);
+      if (sc > bestScore + 1e-9) { best = cd; bestScore = sc; }
+    }
+    if (!best) break;
+    picked.push(best);
+    for (const t of best.sees) times.set(t, (times.get(t) || 0) + 1);
+  }
+  return { spots: picked.map(q => q.c), cover: picked.map(q => q.sees.length) };
 }
 
 // Köpordning (en gång före varje våg och varje sekund under vågen): första vapnet, barrikaden,
 // andra vapnet, en taggtråd, fler vapen, resten av tråden (även ny när den gamla slitits sönder),
 // en granatlåda när första vågen är klar, sedan uppgraderingar, billigaste först.
-function gnestaBuild(sim, plan, maxKits) {
+function gnestaBuild(sim, plan, maxKits, maxRoofs = GN_ROOFS) {
   const buildOne = () => buildNext(sim, plan.guns, wantedWeapon(sim));
   const lay = (cells, type) => {
     for (const c of cells) {
@@ -324,10 +374,24 @@ function gnestaBuild(sim, plan, maxKits) {
   if (sim.guns.length < 2) buildOne();
   lay(plan.lines, 'block');
   lay(plan.wire.slice(0, 1), 'wire');
-  while (buildOne());
+  // 0.8.0: Psg 90 på taken som ser den tvingade vägen, sedan en Ak 5, sedan fler vapen på marken.
+  // Pengarna sparas till dem: inga fler pjäser på marken förrän taken är bemannade.
+  let saving = false;
+  if (weaponUnlocked('psg90', sim.research)) {
+    for (const k of plan.roofs.slice(0, maxRoofs)) {
+      if (sim.guns.some(g => g.cell === k)) continue;
+      const r = build(sim, k, 'psg90');
+      if (!r.ok) { saving = r.reason === 'pengar'; break; }
+    }
+  }
+  if (!saving && weaponUnlocked('ak5', sim.research) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) {
+    if (!buildNext(sim, plan.guns, 'ak5') && sim.cash < WEAPONS.ak5.cost && sim.guns.length < sim.maxGuns) saving = true;
+  }
+  if (!saving) while (buildOne());
   lay(plan.wire, 'wire');
+  // Granatlådorna väntar också medan policyn sparar till taken.
   const kits = sim.guns.filter(g => g.weapon.kit).length;
-  if (grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
+  if (!saving && grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
     const g = plan.guns.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
     if (g) buyKit(sim, g.id);
   }
@@ -340,7 +404,7 @@ export function playGnestaDay(progress, day, policy = 'smart', { seedOffset = 0,
   const cfg = startConfig(progress, day, 'gnesta');
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
   const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { blocks: policy === 'smart' ? SMART_BLOCKS : [] });
-  const r = runDay(sim, () => gnestaBuild(sim, plan, kits ? GN_KITS[day] : 0), true, onSecond);
+  const r = runDay(sim, () => gnestaBuild(sim, plan, kits ? GN_KITS[day] : 0, GN_ROOFS_DAY[day]), true, onSecond);
   const { sim: _s, ...rest } = r;
   return { ...rest, plan, barricades: Object.values(_s.obstacles).filter(o => o.type === 'block').length };
 }

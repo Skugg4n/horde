@@ -42,7 +42,7 @@ export const RESEARCH = [
   // 0.8.0: arsenalen. Tre nya vapen med tre nivåer var, och en fjärde nivå i More positions,
   // så att forskningen räcker förbi Gnesta dag 5 (H034).
   { id: 'ksp58', name: 'Ksp 58', tiers: [
-    { cost: 120, requires: ['m2.1'], effect: 'New gun: 7.62 mm machine gun, between Ksp 90 and Ksp 88.' },
+    { cost: 100, requires: ['m2.1'], effect: 'New gun: 7.62 mm machine gun, between Ksp 90 and Ksp 88.' },
     { cost: 150, requires: [], effect: 'Ksp 58 fires 25 % faster.', rate: 1.25 },
     { cost: 220, requires: [], effect: 'Ksp 58 fires 50 % faster.', rate: 1.5 },
   ] },
@@ -52,7 +52,7 @@ export const RESEARCH = [
     { cost: 320, requires: [], effect: 'Psg 90 pierces three in a line.', damage: 1.3, pierce: 3 },
   ] },
   { id: 'ak5', name: 'Ak 5 + granattillsats', tiers: [
-    { cost: 160, requires: ['grenade.1'], effect: 'New gun: assault rifle with a 40 mm grenade launcher.' },
+    { cost: 100, requires: ['grenade.1'], effect: 'New gun: assault rifle with a 40 mm grenade launcher.' },
     { cost: 200, requires: [], effect: 'Launcher grenades hit 30 % harder and wider.', gDamage: 1.3, gRadius: 1.15 },
     { cost: 260, requires: [], effect: 'Launcher reloads in 3 seconds.', gDamage: 1.3, gRadius: 1.15, gCooldown: 3 },
   ] },

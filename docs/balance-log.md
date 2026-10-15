@@ -157,6 +157,38 @@ Ny kostnad i forskningen: More positions I 80 (kräver M2 I, som förut), II 140
 - Kvittot i tests/route-gnesta.test.js byttes avsiktligt: '38b664c', 37245 tecken.
 - Betongbarriären finns på Gnesta från dag 1 utan forskning (banans upplåsningar, `unlocks`). Policyn hade redan block.1 från E4, så det ändrar inget i loggen.
 
+## 0.8.0: arsenalen (Ksp 90, Ksp 58, Ksp 88, Ak 5 + granattillsats, Psg 90)
+
+Vapnen (src/data/weapons.js), skada per sekund på nivå 1 utan forskning (eld x skada x träff):
+
+| Vapen | Pris | Räckvidd | Eld/s | Skada | Träff | Per sekund | Särskilt |
+|---|---|---|---|---|---|---|---|
+| Ksp 90 (förut M249) | 250 | 16 | 8 | 4 | 0,70 | 22 | oförändrad |
+| Ksp 58 | 400 | 19 | 7 | 10 | 0,72 | 50 | mitt emellan |
+| Ksp 88 (förut M2) | 600 | 22 | 4 | 22 | 0,75 | 66 | oförändrad |
+| Ak 5 + granattillsats | 450 | 17 | 2,5 | 7 | 0,85 | 15 | 40 mm-granat var 4,5 s, 55 skada, radie 2,6 m |
+| Psg 90 | 700 | 34 | 0,6 | 90 | 0,95 | 51 | går igenom två, får ligga på tak |
+
+- Ksp 90 och Ksp 88 har samma siffror och samma id (m249, m2) som förut, så E4:s kvitto (`3a2cb567`) är oförändrat. E4-kampanjen når aldrig de nya noderna.
+- Ksp 58 började på 6 x 9 (39 per sekund). En Ksp 90 med Faster III gör 37 för 250, så Ksp 58 var inte värd sina 400; nu 7 x 10.
+- Psg 90 började på 0,7 skott per sekund. Med två skyttar på taken blev Gnesta dag 5 lättare än dag 3 och 4; 0,6.
+
+Forskningen (H034): tre nya noder med tre nivåer (Ksp 58 kräver Ksp 88 I, Psg 90 kräver Ksp 88 II, Ak 5 kräver Grenades I) och More positions IV (320, kräver Psg 90 I). Totalt 4240 poäng mot 2130 förut. Den smarta policyn hade förut köpt nästan allt inför Gnesta dag 4; nu har den 2710 kvar att lägga vid dag 4 och 1780 efter dag 5.
+
+Policyerna (scripts/balance.mjs):
+- Ordningen: Psg 90 direkt efter Ksp 88 III, Ksp 58 och Ak 5 efter Grenades III och Bigger budget III, sedan nivåerna. Smart har Psg 90 från dag 4 och Ak 5 dag 5 i tre seeds av fem.
+- Taken: `roofPlan` väljer takrutor som ser mest av hordens väg med takets sikt (allt inom räckvidd utom inom 4 m från det egna huset). Med spärren vid rondellen blir det två villor vid rondellen, (-41, 3) och (-39, -5), som ser 80 och 81 rutor av vägen över fältet. Ett tak bemannas dag 1 till 4, två dag 5. Policyn sparar till skytten: inga fler pjäser på marken och inga granatlådor förrän taken är bemannade.
+- Ak 5: högst en, på nästa lediga plats i planen. Ksp 58 i stället för Ksp 90 på marken när den är forskad (Ksp 88 först om den går att köpa).
+- Prövat och förkastat: Ksp 58 före dag 4 (efter Grenades II). Granatlådorna blev då sämre än pengarna i alla fem seeds dag 4 (bas kvar med lådor 1 till 3 lägre än utan), vilket bryter målet att lådorna spelar roll. Att köpa lådan efter uppgraderingarna eller göra Grenades II starkare räckte inte.
+
+Gnesta (fem seeds, efter E4 med girig policy):
+- Dag 1 till 3 orörda (hp 3,6 / 5,0 / 4,8), resultaten likaså: dag 1 smart direkt med 13 till 20, dag 2 direkt med 5 till 20, dag 3 på försök 1 eller 2.
+- Dag 4 hp 5,6 till 6,0. Skäl: Psg 90 på taket gjorde dag 4 lättare (snitt 12,4, målet högst 12). Nu direkt med 8 till 11 (snitt 10). Granatlådorna: med 8 till 11, utan 7 till 10, lika eller bättre i varje seed. Med bara E4:s forskning förloras dagen.
+- Dag 5 hp 4,6 till 5,1. Skäl: två skyttar på taken gav snitt 10,6, högre än dag 3 och 4. Nu direkt med 4 till 7 (snitt 5,6), lägst av dagarna. Flest levande 241 (gräns 250).
+- Naiv: oförändrad bild, vinner dag 1 med 1 till 7, förlorar dag 2 till 5.
+- Känslighet: dag 4 hp 5,9 ger snitt 11, 6,1 ger 9,6. Dag 5 hp 5,0 ger 7,8, 5,2 ger 3,6. Ingen klippa runt de valda värdena. (Med Ksp 58 före dag 4 var dag 3 en klippa: hp 5,1 gav snitt 14, 5,2 gav 6, 5,4 förlust i alla seeds.)
+- Kvittot i tests/route-gnesta.test.js byttes avsiktligt: 'cb76292', 38121 tecken.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

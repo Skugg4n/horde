@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gnestaCampaign, playGnestaDay, gnestaPlan, daySpawns } from '../scripts/balance.mjs';
+import { gnestaCampaign, playGnestaDay, gnestaPlan, daySpawns, roofPlan } from '../scripts/balance.mjs';
+import { placementFor } from '../src/sim/placement.js';
+import { MAPS } from '../src/data/maps.js';
 import { createSim, placeAcross, removeObstacle, acrossCells } from '../src/sim/sim.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { gnesta } from '../src/data/gnesta.js';
@@ -97,4 +99,24 @@ test('barrikaden: ett fast pris per spärr, hur bred gatan än är', () => {
   assert.equal(wire.ok, true);
   assert.equal(sim.cash, 1000 - OBSTACLES.block.cost - OBSTACLES.wire.cost);
   assert.equal(removeObstacle(sim, cell).refund, Math.round(OBSTACLES.block.cost / 2), 'hel spärr: halva priset tillbaka');
+});
+
+test('Psg 90 på taken: planen väljer tak som ser den tvingade vägen, policyn bemannar dem dag 4 och 5', () => {
+  const p = placementFor(gnesta);
+  for (const d of [4, 5]) {
+    const plan = gnestaPlan(gnesta, daySpawns(gnesta, d));
+    assert.equal(plan.roofs.length, 2);
+    for (const [i, k] of plan.roofs.entries()) {
+      assert.ok(p.roof[k] > 0, 'ett tak');
+      assert.ok(plan.roofCov[i] >= 40, `dag ${d}: taket ser ${plan.roofCov[i]} rutor av vägen`);
+    }
+    const before = tries(logs[0], d)[0].before;
+    let guns = [];
+    const r = playGnestaDay(before, d, 'smart', { seedOffset: SEEDS[0], onSecond: s => { guns = s.guns.map(g => ({ type: g.weapon.type, roof: g.roof, cell: g.cell })); } });
+    const roofs = guns.filter(g => g.type === 'psg90' && g.roof);
+    assert.ok(roofs.length >= (d === 5 ? 2 : 1), `dag ${d}: ${roofs.length} Psg 90 på tak (vann ${r.won})`);
+    for (const g of roofs) assert.ok(plan.roofs.includes(g.cell));
+  }
+  // utan tak (E4) blir planen tom
+  assert.deepEqual(roofPlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys).spots, []);
 });
