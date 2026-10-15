@@ -63,6 +63,8 @@ export function placementFor(map) {
     // Hemvärnet (0.9.0): häckar och staket (hedge) och diken (ditch), 1 per ruta. Låga: skymmer
     // inte sikten, men ger soldaterna skydd (src/sim/squad.js).
     hedge: data.hedge ?? null, ditch: data.ditch ?? null,
+    // Gnesta Norr (1.0.0): radhusens låga tegelmurar, ett starkare skydd än häcken.
+    brick: data.brick ?? null,
     keyAt(x, z) {
       const i = Math.floor((x - x0) / size), j = Math.floor((z - z0) / size);
       return i < 0 || j < 0 || i >= w || j >= h ? -1 : j * w + i;

@@ -3,7 +3,7 @@
 //
 // Spelaren släpper en markering (en ring på ungefär 8 m) på öppen mark. Gruppen väljer sina
 // rutor inom ringen, en i taget (girigt), efter poäng:
-//   skydd    rutans skydd (COVER): husknut, bil, vägg, sandsäckar, häck eller staket, dike.
+//   skydd    rutans skydd (COVER): husknut, bil, vägg, tegelmur, sandsäckar, häck eller staket, dike.
 //   sikt     hur mycket av gatan rutan ser inom geväret räckvidd, där hordens väg väger dubbelt.
 //            Skalas mot den bästa kandidaten (0 till SIGHT_W), så att skyddet avgör mellan två
 //            rutor som båda ser gatan.
@@ -26,6 +26,7 @@
 // slåss; stupade ersätts från panelen. Gruppen väljer om när den köps eller uppgraderas.
 import { KIND, sightFrom } from './placement.js';
 import { WEAPONS } from '../data/weapons.js';
+import { tierData } from './stats.js';
 import { OBSTACLES } from '../data/obstacles.js';
 
 export const SQUAD = {
@@ -48,6 +49,8 @@ export const COVER = {
   corner: { score: 10, stance: 'crouch', name: 'house corner' },
   car: { score: 8, stance: 'crouch', name: 'car or tree' },
   wall: { score: 7, stance: 'crouch', name: 'wall' },
+  // Gnesta Norr (1.0.0): radhusens låga tegelmurar mellan förgårdarna. Bröstvärn i sten.
+  brick: { score: 8, stance: 'crouch', name: 'brick wall' },
   sandbag: { score: 7, stance: 'kneel', name: 'sandbags' },
   ditch: { score: 7, stance: 'prone', name: 'ditch' },
   hedge: { score: 6, stance: 'kneel', name: 'hedge' },
@@ -55,8 +58,10 @@ export const COVER = {
 };
 
 export const isSquad = type => !!WEAPONS[type]?.squad;
-export const squadSize = level => SQUAD.size[Math.min(level, SQUAD.size.length) - 1];
-export const soldierHp = level => SQUAD.hp[Math.min(level, SQUAD.hp.length) - 1];
+// Antal man och liv per man: nivån, plus forskningen (1.0.0, H054): Bigger squad ger en eller två
+// man till, Hemvärnet veterans mer liv. research: Set eller lista med köpta nivåer.
+export const squadSize = (level, research = []) => SQUAD.size[Math.min(level, SQUAD.size.length) - 1] + (tierData(research, 'hvSquad')?.men ?? 0);
+export const soldierHp = (level, research = []) => SQUAD.hp[Math.min(level, SQUAD.hp.length) - 1] * (tierData(research, 'hvVeterans')?.hp ?? 1);
 export const runTime = d => Math.min(SQUAD.runMax, Math.max(SQUAD.runMin, d / SQUAD.runSpeed));
 
 const N8 = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
@@ -76,6 +81,7 @@ export function coverOf(p, k, { guns = [], obstacles = {} } = {}) {
     const [ai, aj] = di ? [0, 1] : [1, 0];
     if (!house(di + ai, dj + aj) || !house(di - ai, dj - aj)) return 'corner';
   }
+  if (p.brick?.[k]) return 'brick';
   if (N8.slice(0, 4).some(([di, dj]) => house(di, dj))) return 'wall';
   if (N8.some(([di, dj]) => kind(di, dj) === KIND.thing)) return 'car';
   const c = p.center(k);
@@ -171,8 +177,8 @@ export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed =
 }
 
 // En soldat ur en vald ruta. from: markeringens mitt (han springer därifrån).
-export function makeSoldier(c, i, level, from) {
-  const hp = soldierHp(level);
+export function makeSoldier(c, i, level, from, research = []) {
+  const hp = soldierHp(level, research);
   return { i, cell: c.cell, x: c.x, z: c.z, cover: c.cover, stance: c.stance, face: c.face, sight: c.sight,
     hp, maxHp: hp, down: false, run: runTime(Math.hypot(c.x - from.x, c.z - from.z)), cooldown: 0.13 * i, angle: c.face, targetId: null };
 }

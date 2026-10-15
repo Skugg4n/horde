@@ -56,6 +56,23 @@ export const RESEARCH = [
     { cost: 200, requires: [], effect: 'Launcher grenades hit 30 % harder and wider.', gDamage: 1.3, gRadius: 1.15 },
     { cost: 260, requires: [], effect: 'Launcher reloads in 3 seconds.', gDamage: 1.3, gRadius: 1.15, gCooldown: 3 },
   ] },
+  // 1.0.0: Hemvärnet i forskningen (H054). Gruppen var för svag mot Gnestas hårdare vågor; nu
+  // växer den med spelaren: bättre gevär, fler man och veteraner. Inga krav på andra vapen, så
+  // den går att välja tidigt som billig täckning. Siffrorna läses av src/sim/stats.js (gevären)
+  // och src/sim/squad.js (antal man och liv).
+  { id: 'hvRifles', name: 'Better rifles', tiers: [
+    { cost: 80, requires: [], effect: 'Hemvärnet Ak 4: 20 % harder, 10 % faster.', damage: 1.2, rate: 1.1 },
+    { cost: 130, requires: [], effect: 'Hemvärnet Ak 4: 40 % harder, 20 % faster.', damage: 1.4, rate: 1.2 },
+    { cost: 190, requires: [], effect: 'Hemvärnet Ak 4: 60 % harder, 30 % faster.', damage: 1.6, rate: 1.3 },
+  ] },
+  { id: 'hvSquad', name: 'Bigger squad', tiers: [
+    { cost: 120, requires: ['hvRifles.1'], effect: 'One more rifleman in every Hemvärnet squad.', men: 1 },
+    { cost: 200, requires: [], effect: 'Two more riflemen in every Hemvärnet squad.', men: 2 },
+  ] },
+  { id: 'hvVeterans', name: 'Hemvärnet veterans', tiers: [
+    { cost: 100, requires: ['hvSquad.1'], effect: 'Riflemen take 50 % more before they go down.', hp: 1.5 },
+    { cost: 160, requires: [], effect: 'Riflemen take twice as much before they go down.', hp: 2 },
+  ] },
 ];
 
 export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];

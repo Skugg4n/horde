@@ -202,7 +202,7 @@ export function gunPanel(root, gunId, sim, actions) {
   const STANCE = { crouch: 'crouching', kneel: 'kneeling', prone: 'prone' };
   function renderSquad(s, g) {
     const w = g.weapon, st = weaponStats(w.type, w.level, s.research);
-    const next = w.level < MAX_LEVEL ? (squadSize(w.level + 1) > g.soldiers.length ? 'Upgrade: one more rifleman' : 'Upgrade: better rifles') : 'Upgrade';
+    const next = w.level < MAX_LEVEL ? (squadSize(w.level + 1, s.research) > g.soldiers.length ? 'Upgrade: one more rifleman' : 'Upgrade: better rifles') : 'Upgrade';
     const men = g.soldiers.map(m => `<li class="${m.down ? 'down' : ''}">${m.down ? 'Down' : `${COVER[m.cover].name}, ${STANCE[m.stance]}`}</li>`).join('');
     const standing = g.soldiers.filter(m => !m.down).length;
     ui.head.innerHTML = `<div class="t">${WEAPONS[w.type].name}</div><div class="sub">Squad · Level ${w.level} of ${MAX_LEVEL} · ${standing} of ${g.soldiers.length} standing</div>`;

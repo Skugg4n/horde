@@ -43,6 +43,8 @@ export function weaponStats(type, level, research) {
   if (type === 'm249') rate *= tierData(research, 'm249Rate')?.rate ?? 1;
   if (type === 'm2') damage *= tierData(research, 'm2')?.damage ?? 1;
   if (type === 'ksp58') rate *= tierData(research, 'ksp58')?.rate ?? 1;
+  // Hemvärnet (1.0.0): Better rifles höjer varje soldats Ak 4.
+  if (type === 'hv') { const t = tierData(research, 'hvRifles'); damage *= t?.damage ?? 1; rate *= t?.rate ?? 1; }
   let pierce = w.pierce ?? 1;
   if (type === 'psg90') { const t = tierData(research, 'psg90'); damage *= t?.damage ?? 1; pierce = t?.pierce ?? pierce; }
   return { range: w.range * (1 + 0.1 * l), rate, damage, accuracy: w.accuracy, pierce };

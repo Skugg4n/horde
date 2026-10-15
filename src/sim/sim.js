@@ -205,7 +205,7 @@ function hitSoldier(sim, g, s, amount, hurt) {
 function squadPlanAt(sim, key, type) {
   const sig = `${type}|${key}|${sim.guns.map(g => g.id + (g.squad ? ':' + g.soldiers.length : '')).join(',')}|${Object.keys(sim.obstacles).join(',')}`;
   if (sim.squadPlan?.sig === sig) return sim.squadPlan.plan;
-  const plan = planSquad(sim, key, { type, count: squadSize(1) });
+  const plan = planSquad(sim, key, { type, count: squadSize(1, sim.research) });
   sim.squadPlan = { sig, plan };
   return plan;
 }
@@ -275,7 +275,7 @@ export function build(sim, key, type) {
   if (isSquad(type)) {
     // Gruppen: markeringen står i key, soldaterna i sina valda rutor (squad.js).
     const plan = squadPlanAt(sim, key, type);
-    const soldiers = plan.map((pc, i) => makeSoldier(pc, i, 1, c));
+    const soldiers = plan.map((pc, i) => makeSoldier(pc, i, 1, c, sim.research));
     sim.guns.push({ id, x: c.x, z: c.z, y: 0, roof: false, cell: key, squad: true, soldiers, sight: unionSight(sim.place, soldiers),
       weapon: { type, level: 1, cooldown: 0, angle: soldiers[0]?.face ?? Math.PI, targetId: null, spent: cost } });
     return { ok: true, id };
@@ -299,16 +299,16 @@ export function upgrade(sim, id) {
 // Hemvärnet efter en uppgradering: mer liv till alla, och en soldat till om nivån ger det (han
 // väljer den bästa lediga rutan med de andra på plats; finns ingen blir gruppen som den var).
 function growSquad(sim, g) {
-  const hp = soldierHp(g.weapon.level);
+  const hp = soldierHp(g.weapon.level, sim.research);
   for (const s of g.soldiers) { const add = hp - s.maxHp; s.maxHp = hp; if (!s.down) s.hp += add; }
-  const want = squadSize(g.weapon.level) - g.soldiers.length;
+  const want = squadSize(g.weapon.level, sim.research) - g.soldiers.length;
   if (want <= 0) return;
   const mine = g.soldiers;
   // de egna soldaterna räknas som fasta (inte som andra gruppers), så att planen inte stängs ute
   g.soldiers = [];
   const add = planSquad(sim, g.cell, { type: g.weapon.type, count: want, fixed: mine });
   g.soldiers = mine;
-  for (const pc of add) mine.push(makeSoldier(pc, mine.length, g.weapon.level, g));
+  for (const pc of add) mine.push(makeSoldier(pc, mine.length, g.weapon.level, g, sim.research));
   g.sight = unionSight(sim.place, mine);
 }
 // Sälj: vapnet tas bort och platsen blir ledig.
