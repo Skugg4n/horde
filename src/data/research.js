@@ -27,7 +27,7 @@ export const RESEARCH = [
     { cost: 170, requires: ['slot4.1'], effect: '$ 350 more cash every day.', cash: 350 },
   ] },
   { id: 'slot4', name: 'New position', tiers: [
-    { cost: 80, requires: ['m2.1'], effect: 'Opens a fourth position.' },
+    { cost: 80, requires: ['m2.1'], effect: 'Opens more positions: D on E4, G and H in Gnesta.' },
   ] },
   { id: 'grenade', name: 'Grenades', tiers: [
     { cost: 60, requires: [], effect: 'Grenade kit for one position. It throws when they bunch up.', damage: 75, radius: 3, cooldown: 10, count: 1 },

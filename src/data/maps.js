@@ -1,4 +1,6 @@
-// Banor som data.
+// Banor som data. Gnesta bor i en egen fil (gnesta.js) och läggs till sist.
+import { gnesta } from './gnesta.js';
+
 export const MAPS = {
   riksvagen: {
     id: 'riksvagen',
@@ -52,4 +54,5 @@ export const MAPS = {
       { kind: 'ruin', x: -26, z: -15, ry: 0.2 },
     ],
   },
+  gnesta,
 };

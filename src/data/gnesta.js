@@ -5,7 +5,7 @@
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
 
-export const GNESTA_VERSION = '0.1.1';
+export const GNESTA_VERSION = '0.2.0';
 
 // ---------- skala ----------
 // 1 bildpixel = 0.095 m (ungefär halva verkliga skalan). Origo mitt i spelytan.
@@ -113,17 +113,39 @@ export const ICE_RINK = (() => {
   const [x, z] = w(165, 500);
   return { x, z, ry, len: 36, wid: 23, wallH: 7.2 };
 })();
-export const PARKING = { poly: W([[340, 775], [680, 778], [680, 1050], [340, 1045]]), rows: 3 };
+// Stora parkeringen söder om rondellen (satellit-vid.jpg): fyra rader rutor, stolpar mellan raderna.
+export const PARKING = (() => {
+  const poly = W([[330, 768], [688, 780], [688, 1040], [326, 1030]]);
+  const xs = poly.map(p => p[0]), zs = poly.map(p => p[1]);
+  const x0 = Math.min(...xs) + 1.2, x1 = Math.max(...xs) - 1.2, z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const bays = [0.14, 0.37, 0.63, 0.86].map(t => {
+    const z = z0 + (z1 - z0) * t, lines = [];
+    for (let x = x0; x <= x1; x += 2.7) lines.push([x, z]);
+    return { z, depth: 5, lines };
+  });
+  // stolparna står i mittremsan mellan raderna 1-2 och 3-4
+  const poles = [];
+  for (const t of [0.255, 0.745]) for (const u of [0.15, 0.5, 0.85]) poles.push([x0 + (x1 - x0) * u, z0 + (z1 - z0) * t]);
+  return { poly, rows: 4, bays, poles };
+})();
+
+// Gnesta sporthall söder om parkeringen: stor grå hall med mörkt tak och en lägre del med
+// blått tak (solceller) mot väster.
+export const SPORTHALL = (() => {
+  const [x, z] = w(552, 1188);
+  const [ax, az] = w(372, 1088);
+  return { x, z, ry: -0.2, len: 30, wid: 22, wallH: 8.5, annex: { x: ax, z: az, len: 8, wid: 11, h: 6 } };
+})();
 
 // ---------- mark ----------
 export const GROUND = {
   bounds: { x0: -142, x1: 96, z0: -62, z1: 92 },
   forest: [
-    W([[640, 905], [770, 790], [900, 815], [1110, 860], [1330, 878], [1560, 892], [1730, 905], [1835, 935], [1810, 990], [1745, 1010], [1500, 1015], [1430, 1045], [1300, 1140], [1300, 1500], [640, 1500], [700, 1060], [690, 940]]),
+    W([[700, 905], [770, 790], [900, 815], [1110, 860], [1330, 878], [1560, 892], [1730, 905], [1835, 935], [1810, 990], [1745, 1010], [1500, 1015], [1430, 1045], [1300, 1140], [1300, 1500], [700, 1500], [700, 1060], [700, 940]]),
     W([[1500, 1060], [1600, 1052], [1760, 1046], [1840, 1015], [1880, 960], [2160, 1010], [2160, 1500], [1360, 1500]]),
     W([[-330, -160], [905, -160], [895, 175], [700, 195], [560, 232], [455, 290], [400, 345], [330, 370], [-330, 380]]),
     W([[-330, 405], [420, 378], [455, 420], [100, 430], [-330, 440]]),
-    W([[-330, 980], [330, 990], [640, 1070], [620, 1500], [-330, 1500]]),
+    W([[-330, 1000], [290, 1010], [300, 1340], [700, 1370], [700, 1500], [-330, 1500]]),
     W([[1985, -160], [2160, -160], [2160, 900], [1990, 860], [1985, 400]]),
   ],
   field: W([[478, 258], [690, 210], [690, 760], [600, 722], [512, 640], [508, 520], [470, 360]]),
@@ -360,6 +382,7 @@ export const LABELS = [
   { text: 'Skogsvägen', at: w(1640, 1035) },
   { text: 'Gnesta ishall', at: [ICE_RINK.x, ICE_RINK.z - 4] },
   { text: 'Lekplats', at: w(1818, 345) },
+  { text: 'Gnesta sporthall', at: [SPORTHALL.x, SPORTHALL.z - 4] },
 ];
 
 // ---------- spawn och bas ----------
@@ -428,10 +451,112 @@ export function buildGrid(cellSize = 2) {
   };
 }
 
+// ---------- omgivningen: spöklagret ----------
+// Det som ligger utanför spelytan, ut till kamerans panoreringsgräns, ritat ur karta-vid.jpg och
+// satellit-vid.jpg (bildens pixlar, 2000 x 1236). Vid-bilden är satellit.jpg utzoomad: Gnesta IK
+// ligger i (689, 758) där och i (576, 706) här, och en vid-pixel är 1.817 satellitpixlar.
+// Lagret är data så att ett kvarter senare kan flyttas in i den riktiga kartan.
+// Byggnader: [x, y, längd, bredd, vinkel i grader (bildens medurs, 0 = öster), höjd, tak].
+const VX = 689, VY = 758, VK = 1.817;
+export const wv = (vx, vy) => w(576 + (vx - VX) * VK, 706 + (vy - VY) * VK);
+const VPX = PX * VK * 1.35;              // vid-pixlar till meter, med samma uppskalning som husen
+const ghostBuilding = ([vx, vy, len, wid, ang = 0, h = 4.6, roof = 'gable']) => {
+  const [x, z] = wv(vx, vy);
+  return { x, z, w: Math.max(6.5, len * VPX), d: Math.max(5.5, wid * VPX), ry: -ang * Math.PI / 180, h, roof };
+};
+const ghostRoad = (name, width, pts) => ({ name, width, pts: smooth(pts.map(([x, y]) => wv(x, y)), 3) });
+export const SURROUNDINGS = {
+  // Spelytan som är skarp. Utanför den tonar allt mot diset över fade meter.
+  crisp: { x0: -122, x1: 84, z0: -50, z1: 70 },
+  fade: 42,
+  districts: [
+    { id: 'ostra-storgatan', name: 'Östra Storgatan',
+      roads: [
+        ghostRoad('Östra Storgatan', 9, [[1690, 40], [1720, 180], [1760, 300], [1800, 420], [1840, 540], [1880, 660], [1915, 780], [1945, 900], [1975, 1020], [1990, 1160]]),
+        ghostRoad('Sigtunavägen', 6, [[1398, 860], [1470, 905], [1560, 945], [1650, 960], [1740, 944], [1800, 900], [1832, 830], [1834, 740], [1810, 650], [1790, 580], [1800, 520], [1835, 470]]),
+        ghostRoad('', 4, [[1855, 985], [1900, 1000], [1940, 990]]),
+      ],
+      buildings: [
+        [1662, 745, 34, 26, 8], [1700, 700, 30, 26, -10], [1690, 805, 34, 28, 5], [1722, 838, 26, 30, 0], [1668, 860, 30, 24, 12],
+        [1838, 292, 26, 24, -20, 4.2], [1878, 300, 30, 26, -35, 4.2], [1893, 352, 26, 24, -30, 4.2], [1870, 492, 24, 22, 0, 4.2],
+        [1855, 990, 28, 18, 30, 3.6, 'flat'],
+      ].map(ghostBuilding) },
+    { id: 'vikingavagen', name: 'Vikingavägen och Fornminnesvägen norr',
+      roads: [
+        ghostRoad('Fornminnesvägen', 4.5, [[1083, 405], [1086, 330], [1088, 270], [1090, 215]]),
+        ghostRoad('', 4.5, [[1085, 372], [1030, 360], [990, 365], [975, 385]]),
+        ghostRoad('Vikingavägen', 5, [[1188, 405], [1190, 330], [1197, 260], [1195, 200], [1182, 140], [1172, 80]]),
+        ghostRoad('', 4.5, [[1196, 240], [1250, 238], [1300, 240]]),
+        ghostRoad('', 5, [[1440, 360], [1428, 300], [1410, 235], [1385, 160], [1362, 90], [1350, 40]]),
+      ],
+      buildings: [
+        [1043, 242, 30, 34, 0], [1045, 300, 28, 32, 0], [1133, 224, 28, 32, 2], [1128, 293, 30, 34, 0], [1118, 345, 30, 26, 0],
+        [1248, 192, 40, 28, -5], [1306, 186, 32, 30, 0], [1238, 268, 30, 26, 0], [1296, 285, 36, 28, -8], [1323, 340, 30, 26, -6],
+        [1236, 330, 26, 22, 0], [1150, 165, 26, 30, 0], [1262, 120, 30, 26, 0],
+      ].map(ghostBuilding) },
+    { id: 'radhusen', name: 'Radhusen i nordost',
+      roads: [ghostRoad('', 4.5, [[1452, 330], [1530, 318], [1610, 296], [1690, 268]])],
+      buildings: [
+        [1475, 200, 84, 22, 72, 4.4], [1540, 205, 92, 22, 70, 4.4], [1600, 175, 70, 20, 68, 4.4], [1630, 250, 54, 20, 70, 4.4],
+        [1488, 346, 62, 20, -12, 4.2], [1560, 330, 70, 20, -14, 4.2], [1640, 305, 46, 18, -18, 4.2],
+      ].map(ghostBuilding) },
+    { id: 'sporthallen', name: 'Sporthallens omgivning',
+      roads: [ghostRoad('', 5, [[590, 1110], [560, 1150], [520, 1200]])],
+      buildings: [[640, 1135, 60, 30, -10, 5.5, 'flat'], [470, 1110, 30, 22, 0, 4]].map(ghostBuilding) },
+  ],
+};
+
+// ---------- spelet ----------
+// Vapenpositioner A-F på tomter och vid husen (docs/gnesta-skiss.html), flyttade till närmaste
+// plats 3 till 6,5 m från gatukanten och fri från husen. G och H kräver forskningen New position.
+export const SLOTS = [
+  { id: 'A', x: -65.7, z: 29.7 },
+  { id: 'B', x: -47.1, z: 14.2 },
+  { id: 'C', x: -17.1, z: 14.3 },
+  { id: 'D', x: 10.3, z: 21.9 },
+  { id: 'E', x: -1.6, z: -9.2 },
+  { id: 'F', x: 44.1, z: 19.9 },
+  { id: 'G', x: 63.9, z: -7.2, locked: 'slot4' },
+  { id: 'H', x: -31.9, z: -15.9, locked: 'slot4' },
+];
+
+// Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
+// dag 5 allt). Första siffror; balansen görs i ett eget pass.
+const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
+export const DAYS = [
+  { n: 1, startCash: 950, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns." },
+    waves: [ { groups: [g('walker', 20, 0.8, 0, 'east1')] },
+             { groups: [g('walker', 32, 0.6, 0, 'east1')] },
+             { groups: [g('walker', 52, 0.4, 0, 'east1')] } ] },
+  { n: 2, startCash: 1050, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    waves: [ { groups: [g('walker', 28, 0.6, 0, 'east1')] },
+             { groups: [g('walker', 24, 0.6, 0, 'east1'), g('runner', 24, 0.5, 6, 'east2')] },
+             { groups: [g('walker', 36, 0.45, 0, 'east1'), g('walker', 24, 0.5, 0, 'east2'), g('runner', 40, 0.3, 8, 'east1')] } ] },
+  { n: 3, startCash: 1200, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
+    waves: [ { groups: [g('walker', 28, 0.5, 0, 'east1'), g('walker', 16, 0.7, 4, 'forest')] },
+             { groups: [g('walker', 24, 0.5, 0, 'east2'), g('runner', 28, 0.4, 4, 'forest')] },
+             { groups: [g('walker', 40, 0.4, 0, 'forest'), g('runner', 40, 0.3, 5, 'east1'), g('walker', 24, 0.5, 10, 'east2')] } ] },
+  { n: 4, startCash: 1400, intro: { title: 'Day 4: Brutes', text: 'Brutes smash a barricade in seconds. A wall only buys time.' },
+    waves: [ { groups: [g('walker', 32, 0.45, 0, 'east1'), g('brute', 4, 3, 8, 'east1')] },
+             { groups: [g('walker', 24, 0.5, 0, 'east2'), g('runner', 28, 0.35, 4, 'forest'), g('brute', 6, 2.5, 10, 'east2')] },
+             { groups: [g('walker', 36, 0.4, 0, 'east1'), g('walker', 28, 0.45, 0, 'forest'), g('runner', 32, 0.3, 6, 'east2'), g('brute', 6, 2, 12, 'east1'), g('brute', 6, 2, 20, 'forest')] } ] },
+  { n: 5, startCash: 1600, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
+    waves: [ { groups: [g('walker', 36, 0.4, 0, 'east1'), g('walker', 28, 0.45, 2, 'east2'), g('runner', 24, 0.4, 4, 'forest')] },
+             { groups: [g('runner', 48, 0.25, 0, 'east1'), g('walker', 36, 0.4, 0, 'forest'), g('brute', 6, 2.5, 8, 'east2')] },
+             { groups: [g('walker', 48, 0.3, 0, 'east1'), g('walker', 40, 0.35, 0, 'east2'), g('walker', 40, 0.35, 0, 'forest'),
+               g('runner', 60, 0.2, 8, 'east1'), g('brute', 8, 2, 12, 'east2'), g('brute', 8, 2, 18, 'forest'), g('brute', 8, 2, 24, 'east1')] } ] },
+];
+
 export const gnesta = {
   id: 'gnesta', name: 'Gnesta', version: GNESTA_VERSION,
-  camera: { target: [-66, 6], view: 36 },
-  roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, ground: GROUND,
-  lots: LOTS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE,
+  // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
+  camera: { target: [-30, 14], view: 52, zoom: [24, 84], pan: { x0: -100, x1: 92, z0: -58, z1: 66 } },
+  roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
+  lots: LOTS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
+  slots: SLOTS, baseHp: 20, days: DAYS,
+  // Barrikaden (Concrete barrier) är Gnestas lektion och behöver ingen forskning här.
+  freeObstacles: ['block'],
+  // Låses upp när E4 dag 3 är klar.
+  unlock: { map: 'riksvagen', day: 3 },
 };
