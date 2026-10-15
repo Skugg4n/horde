@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horde · Gnesta</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<style>
+  #stage { cursor: grab; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .street { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 600 12px 'Oswald', sans-serif;
+            letter-spacing: 0.18em; text-transform: uppercase; color: rgba(240,232,212,0.62); text-shadow: 0 1px 3px rgba(20,14,8,0.7); }
+  #labels.off { display: none; }
+  #head { position: fixed; top: 14px; left: 14px; padding: 8px 14px 10px; }
+  #head .t { font-family: 'Saira Stencil One', sans-serif; font-size: 26px; line-height: 1.1; }
+  #head .s { font-size: 12px; color: var(--paper-dim); letter-spacing: 0.06em; margin-top: 2px; }
+  #head .k { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-top: 6px; line-height: 1.5; }
+  #info { position: fixed; right: 10px; bottom: 6px; font: 11px 'IBM Plex Mono', monospace; opacity: .5; text-align: right; }
+</style>
+</head><body>
+<div id="stage" class="grade"></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+<div id="labels"></div>
+<div id="head" class="plate">
+  <div class="t">GNESTA</div>
+  <div class="s">Sigtunavägen, a summer afternoon. Map preview, no gameplay.</div>
+  <div class="k">drag / WASD / arrows: pan · wheel: zoom<br>L: street names · G: walk grid · H: home</div>
+</div>
+<div id="ver"></div>
+<div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { VERSION } from './src/version.js';
+import { gnesta as map, GNESTA_VERSION } from './src/data/gnesta.js';
+import { createScene } from './src/render/scene.js';
+import { buildGnesta, gridOverlay } from './src/render/gnesta-world.js';
+
+document.getElementById('ver').textContent = `Gnesta ${GNESTA_VERSION} · v${VERSION}`;
+const { renderer, scene, camera, sun, fill } = createScene(document.getElementById('stage'), map);
+// Längre dis än E4: kameran står längre ut, så dimman börjar längre bort.
+scene.fog.near = 85; scene.fog.far = 165;
+camera.far = 500;
+sun.shadow.mapSize.set(4096, 4096);
+
+const world = buildGnesta(scene, map);
+const grid = gridOverlay(map.grid); grid.visible = false; scene.add(grid);
+
+// ---------- kamera: samma vinkel som E4, ett steg längre ut, går att panorera ----------
+const OFFSET = new THREE.Vector3(40, 46, 40);
+const SUN = new THREE.Vector3(-34, 30, 26);
+const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
+const HOME = new THREE.Vector3(map.camera.target[0], 0, map.camera.target[1]);
+const target = HOME.clone();
+const LIMIT = { x0: -100, x1: 70, z0: -42, z1: 56 };
+const ZMIN = 18, ZMAX = 72;
+let view = map.camera.view;
+function applyCamera() {
+  target.x = Math.min(LIMIT.x1, Math.max(LIMIT.x0, target.x));
+  target.z = Math.min(LIMIT.z1, Math.max(LIMIT.z0, target.z));
+  const a = innerWidth / innerHeight, v = a < 1 ? view * 1.5 : view;
+  camera.left = -v * a / 2; camera.right = v * a / 2; camera.top = v / 2; camera.bottom = -v / 2;
+  camera.position.copy(target).add(OFFSET); camera.lookAt(target);
+  camera.updateProjectionMatrix();
+  fill.position.copy(target).add(OFFSET); fill.target.position.copy(target);
+  // skuggkameran följer med och täcker det som syns
+  sun.position.copy(target).add(SUN); sun.target.position.copy(target);
+  const half = Math.min(95, Math.max(34, view * a * 0.95));
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 220 });
+  sun.shadow.camera.updateProjectionMatrix();
+}
+addEventListener('resize', applyCamera); applyCamera();
+
+let drag = null;
+const stage = document.getElementById('stage');
+const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; stage.style.cursor = 'grabbing'; });
+addEventListener('pointerup', () => { drag = null; stage.style.cursor = ''; });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = view / innerHeight;
+  target.addScaledVector(R, -(e.clientX - drag.x) * k).addScaledVector(D, -(e.clientY - drag.y) * k / PITCH);
+  drag = { x: e.clientX, y: e.clientY }; applyCamera();
+});
+stage.addEventListener('wheel', e => { e.preventDefault(); view = Math.min(ZMAX, Math.max(ZMIN, view * Math.exp(e.deltaY * 0.001))); applyCamera(); }, { passive: false });
+
+const keys = new Set();
+const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
+addEventListener('keydown', e => {
+  if (PAN[e.code]) { keys.add(e.code); e.preventDefault(); }
+  if (e.code === 'KeyL') labelsEl.classList.toggle('off');
+  if (e.code === 'KeyG') grid.visible = !grid.visible;
+  if (e.code === 'KeyH') { target.copy(HOME); view = map.camera.view; applyCamera(); }
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+// ---------- gatunamn ----------
+const labelsEl = document.getElementById('labels');
+const labels = map.labels.map(l => {
+  const el = document.createElement('div'); el.className = 'street'; el.textContent = l.text;
+  labelsEl.appendChild(el);
+  return { el, p: new THREE.Vector3(l.at[0], 0.3, l.at[1]) };
+});
+
+// ---------- loopen ----------
+const info = document.getElementById('info');
+const v3 = new THREE.Vector3();
+let last = performance.now(), time = 0, frames = 0, fpsT = 0, fps = 0;
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.05); last = now; time += dt;
+  if (keys.size) {
+    let ux = 0, uy = 0;
+    for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
+    const sp = view * 0.9 * dt;
+    target.addScaledVector(R, ux * sp).addScaledVector(D, uy * sp / PITCH);
+    applyCamera();
+  }
+  world.update(dt, time);
+  renderer.render(scene, camera);
+  for (const l of labels) {
+    v3.copy(l.p).project(camera);
+    l.el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px';
+    l.el.style.top = ((1 - v3.y) / 2 * innerHeight) + 'px';
+  }
+  frames++; fpsT += dt;
+  if (fpsT > 0.5) {
+    fps = Math.round(frames / fpsT); frames = 0; fpsT = 0;
+    const r = renderer.info.render;
+    info.textContent = `calls ${r.calls} · tris ${(r.triangles / 1000).toFixed(0)}k · ${fps} fps`;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+// för felsökning: window.__gnesta
+window.__gnesta = { renderer, scene, camera, map, world, target, setView(v) { view = v; applyCamera(); }, focus(x, z, v) { target.set(x, 0, z); if (v) view = v; applyCamera(); } };
+</script>
+</body></html>

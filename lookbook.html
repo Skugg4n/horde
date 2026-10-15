@@ -39,6 +39,7 @@ import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
 import { asphaltTexture } from './src/render/world.js';
+import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree } from './src/render/gnesta-kit.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
 const OVERVIEW = 44, GAME = 25;
@@ -150,6 +151,38 @@ const entryLb = document.createElement('div'); entryLb.className = 'lb';
 entryLb.innerHTML = 'Edge arrow <small>HUD, shown until the first zombie is on screen</small>';
 entryLb.style.left = 'calc(100% - 220px)'; entryLb.style.top = '170px';
 document.getElementById('labels').appendChild(entryLb);
+
+// rad 5: Gnesta (villor, häck, staket, gatlykta). Byggs i en batch, några anrop för hela raden.
+{
+  const GV = 48, b = createBatch(), r = seeded(3);
+  const yaw = Math.atan2(R.x, R.z);                                        // framsidan mot kameran
+  const villas = [
+    ['Villa', 'gable, 1 storey', { w: 9.5, d: 7, storeys: 1, roof: 'gable', facade: 'white', roofColor: 'black', chimney: true, seed: 11 }],
+    ['Villa', 'hip, garage', { w: 9, d: 7.2, storeys: 1, roof: 'hip', facade: 'brickGrey', roofColor: 'charcoal', garage: 1, seed: 5 }],
+    ['Villa', '1.5 storey, balcony', { w: 8.5, d: 8, storeys: 1.5, roof: 'gable', ridge: 'z', balcony: true, facade: 'grey', roofColor: 'black', chimney: true, seed: 7 }],
+    ['Villa', 'board, veranda, solar', { w: 9.5, d: 7, storeys: 1, roof: 'gable', facade: 'red', roofColor: 'tile', veranda: true, solar: true, chimney: true, seed: 9 }],
+  ];
+  villas.forEach(([t, sub, o], i) => {
+    const u = -24 + i * 15, p = at(u, GV);
+    villa(b, frame(null, p.x, 0, p.z, yaw - Math.PI / 2 + 0.35), o);
+    label(u, GV, t, sub, 7.5);
+  });
+  // häck, vitt spjälstaket, grått spjälstaket och gatlykta
+  const q = (u, v) => at(u, v);
+  let a = q(-26, GV + 13), c = q(-16, GV + 13); hedge(b, a.x, a.z, c.x, c.z, r, 1.8);
+  label(-21, GV + 13, 'Hedge', 'instanced boxes', 2.8);
+  a = q(-12, GV + 13); c = q(-2, GV + 13); fence(b, a.x, a.z, c.x, c.z, r, 'picket');
+  label(-7, GV + 13, 'Picket fence', '', 2.8);
+  a = q(2, GV + 13); c = q(12, GV + 13); fence(b, a.x, a.z, c.x, c.z, r, 'slat');
+  label(7, GV + 13, 'Slat fence', '', 2.8);
+  const lp = q(18, GV + 13); lamp(b, frame(null, lp.x, 0, lp.z, yaw));
+  label(18, GV + 13, 'Street lamp', '', 2.8);
+  const mp = q(23, GV + 13); mailbox(b, frame(null, mp.x, 0, mp.z, yaw), 2, r);
+  label(23, GV + 13, 'Mailboxes', '', 2.8);
+  const gt = q(28, GV + 13); gardenTree(b, frame(null, gt.x, 0, gt.z, 0), 5.5, 2, r);
+  label(28, GV + 13, 'Garden tree', '', 2.8);
+  b.flush(scene);
+}
 
 // dra och zooma
 let drag = null;

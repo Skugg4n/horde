@@ -119,3 +119,18 @@ Regler:
 - Många likadana småsaker (grus, hylsor, blodstänk, köttbitar) ritas som `InstancedMesh`, aldrig som enskilda meshar.
 - Liggande kroppar kastar ingen skugga, och högst 24 ligger kvar i bild.
 - Nästa steg när budgeten trängs: slå ihop pjäsernas sandsäckar till en geometri per pjäs (de står still), så kommer nivå 3 ner mot 60.
+
+## Gnesta
+
+Bana 2, Sigtunavägen i Gnesta (från Gnesta 0.1.0). Förhandsvisning i `gnesta.html`, byggsatsen i `src/render/gnesta-kit.js`, kartan som data i `src/data/gnesta.js`.
+
+- Samma sol, dis, fyllnadsljus, gradering, vinjett och korn som E4. Dimman börjar längre bort (85 till 165 m) eftersom kameran står ett steg längre ut (synfält 36 m).
+- Gnestas färger ligger i `GP` i `gnesta-kit.js`, inte i `PALETTE`. Samma ton: dammig sommareftermiddag, avmättat.
+- **Husen är generiska.** De står där kartan har hus och har ungefär samma storlek och riktning, men de är inte kopior av riktiga hem. Inga husnummer, inga namn, inga detaljer som går att känna igen från ett visst hus. Gatunamnen och ishallen används.
+- Villor: moderna och hela, en vanlig sommardag. Mörka sadeltak eller valmade tak (svart, grafit, skiffer, ibland tegelrött). Ljusa fasader: vit eller grå panel med vita hörnbrädor, ljust grått tegel, gul, någon falu röd eller brun. Vita fönsterramar, dörr med trappsten, ofta skärmtak och skorsten.
+- Varianter: 1 plan, 1,5 plan med brantare tak och balkong på gaveln mot gatan, garage i husets förlängning, inglasat uterum på baksidan, solceller på något tak.
+- Tomterna är stängda: häck (hög, kantig, grön), vitt spjälstaket eller grått tätt spjälstaket, ibland staket utanför häcken. Uppfart med grus eller plattor och en lucka i häcken. Brevlåda vid uppfarten.
+- Trädgård: runda lövträd, någon studsmatta, utemöbler, parkerad bil, ibland släpkärra.
+- Gata: asfalt med kantsten och gräsremsa, gatlyktor på en sida. Cykelvägen är grus och ljusare. Skogsvägen är jord.
+- Skog: gran (två koner), tall (hög stam, platt krona) och björk (vit stam). Lägre träd närmast gatorna så att skogen inte döljer vägen från kameran.
+- Budget: allt utom marken ritas som `InstancedMesh` med färg per instans, en per geometri och materialsort (createBatch). Hela banan är ungefär 25 anrop och 220 000 trianglar (0.1.0).
