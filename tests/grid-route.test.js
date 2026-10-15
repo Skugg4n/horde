@@ -264,14 +264,14 @@ test('spärr tvärs över gatan: hela bredden, betalt per ruta, rivs tillsammans
   assert.deepEqual(acrossCells(sim, k(5, 2)), [k(5, 1), k(5, 2), k(5, 3)]);
   const r = placeAcross(sim, k(5, 2), 'block');
   assert.equal(r.ok, true, 'barrikaden är fri på banan utan forskning');
-  assert.equal(sim.cash, 1000 - 3 * OBSTACLES.block.cost);
+  assert.equal(sim.cash, 1000 - OBSTACLES.block.cost, 'ett fast pris per spärr, hur bred gatan än är');
   assert.equal(new Set([1, 2, 3].map(j => sim.obstacles[k(5, j)].line)).size, 1);
   const paths = sim.route.paths(['a']);
   assert.equal(paths[0].through, k(5, 1), 'helt stängt: horden slår sig igenom spärren');
   const rm = removeObstacle(sim, k(5, 3));
-  assert.equal(rm.refund, 3 * OBSTACLES.block.cost / 2);
+  assert.equal(rm.refund, OBSTACLES.block.cost / 2, 'hel spärr: halva priset tillbaka');
   assert.equal(Object.keys(sim.obstacles).length, 0);
-  assert.deepEqual(placeAcross({ ...sim, cash: 10 }, k(5, 2), 'block'), { ok: false, reason: 'pengar' });
+  assert.deepEqual(placeAcross({ ...sim, cash: OBSTACLES.block.cost - 1 }, k(5, 2), 'block'), { ok: false, reason: 'pengar' });
 });
 
 test('förhandsvisningen räknar ett tänkt flöde utan att röra horden', () => {

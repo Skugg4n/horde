@@ -3,7 +3,7 @@
 // gråa knappar varje bildruta. actions kommer från main.js och returnerar simuleringens svar.
 import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
-import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, obstacleRefund, grenadeStats, tierOf } from '../sim/stats.js';
+import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, lineRefund, grenadeStats, tierOf } from '../sim/stats.js';
 import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
@@ -174,8 +174,8 @@ export function slotPanel(root, slotId, sim, actions) {
   return { el: ui.el, update, close: ui.close, say: ui.say };
 }
 
-// På rutnätet (Gnesta) läggs hindret tvärs över gatan: priset gäller alla rutor i spärren,
-// och Remove river hela spärren.
+// På rutnätet (Gnesta) läggs hindret tvärs över gatan till ett fast pris per spärr, hur bred
+// gatan än är, och Remove river hela spärren.
 export function cellPanel(root, index, sim, actions) {
   const ui = shell(root, actions);
   let key = null;
@@ -189,7 +189,7 @@ export function cellPanel(root, index, sim, actions) {
     const ob = s.obstacles[index];
     if (!ob) {
       const n = count(s);
-      ui.head.innerHTML = grid ? `<div class="t">Street</div><div class="sub">Across the street: ${n} ${n === 1 ? 'tile' : 'tiles'}</div>` : `<div class="t">Road tile</div>`;
+      ui.head.innerHTML = grid ? `<div class="t">Street</div><div class="sub">One price for the whole width (${n} ${n === 1 ? 'tile' : 'tiles'})</div>` : `<div class="t">Road tile</div>`;
       const types = Object.keys(OBSTACLES).filter(t => obstacleUnlocked(t, s.research, s.map));
       ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], OBSTACLES[t].name, OBSTACLES[t].desc)).join('')}</div>`;
       for (const b of ui.body.querySelectorAll('.card')) {
@@ -213,14 +213,14 @@ export function cellPanel(root, index, sim, actions) {
 
   function patch(s) {
     const ob = s.obstacles[index];
-    if (!ob) { const n = count(s); for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost * n, s); return; }
+    if (!ob) { for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost, s); return; }
     const line = lineOf(s);
     const f = Math.min(...line.map(frac));
     const cond = ui.head.querySelector('[data-cond]');
     const condText = `Condition ${Math.max(0, Math.round(f * 100))} %${line.length > 1 ? ` · ${line.length} tiles` : ''}`;
     if (cond.textContent !== condText) cond.textContent = condText;
     const rm = ui.body.querySelector('[data-a="rm"]');
-    const refund = line.reduce((a, o) => a + obstacleRefund(o), 0);
+    const refund = lineRefund(line);
     const t = refund ? '+' + money(refund) : 'No refund';
     const p = rm.querySelector('[data-p]');
     if (p.textContent !== t) p.textContent = t;

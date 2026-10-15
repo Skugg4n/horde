@@ -5,7 +5,7 @@
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
 
-export const GNESTA_VERSION = '0.2.0';
+export const GNESTA_VERSION = '0.2.1';
 
 // ---------- skala ----------
 // 1 bildpixel = 0.095 m (ungefär halva verkliga skalan). Origo mitt i spelytan.
@@ -521,30 +521,31 @@ export const SLOTS = [
 ];
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
-// dag 5 allt). Första siffror; balansen görs i ett eget pass.
+// dag 5 allt). Balanserade i 0.4.2 (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
+// spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 950, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns." },
-    waves: [ { groups: [g('walker', 20, 0.8, 0, 'east1')] },
-             { groups: [g('walker', 32, 0.6, 0, 'east1')] },
-             { groups: [g('walker', 52, 0.4, 0, 'east1')] } ] },
-  { n: 2, startCash: 1050, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
-    waves: [ { groups: [g('walker', 28, 0.6, 0, 'east1')] },
-             { groups: [g('walker', 24, 0.6, 0, 'east1'), g('runner', 24, 0.5, 6, 'east2')] },
-             { groups: [g('walker', 36, 0.45, 0, 'east1'), g('walker', 24, 0.5, 0, 'east2'), g('runner', 40, 0.3, 8, 'east1')] } ] },
-  { n: 3, startCash: 1200, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
-    waves: [ { groups: [g('walker', 28, 0.5, 0, 'east1'), g('walker', 16, 0.7, 4, 'forest')] },
-             { groups: [g('walker', 24, 0.5, 0, 'east2'), g('runner', 28, 0.4, 4, 'forest')] },
-             { groups: [g('walker', 40, 0.4, 0, 'forest'), g('runner', 40, 0.3, 5, 'east1'), g('walker', 24, 0.5, 10, 'east2')] } ] },
-  { n: 4, startCash: 1400, intro: { title: 'Day 4: Brutes', text: 'Brutes smash a barricade in seconds. A wall only buys time.' },
-    waves: [ { groups: [g('walker', 32, 0.45, 0, 'east1'), g('brute', 4, 3, 8, 'east1')] },
-             { groups: [g('walker', 24, 0.5, 0, 'east2'), g('runner', 28, 0.35, 4, 'forest'), g('brute', 6, 2.5, 10, 'east2')] },
-             { groups: [g('walker', 36, 0.4, 0, 'east1'), g('walker', 28, 0.45, 0, 'forest'), g('runner', 32, 0.3, 6, 'east2'), g('brute', 6, 2, 12, 'east1'), g('brute', 6, 2, 20, 'forest')] } ] },
-  { n: 5, startCash: 1600, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
-    waves: [ { groups: [g('walker', 36, 0.4, 0, 'east1'), g('walker', 28, 0.45, 2, 'east2'), g('runner', 24, 0.4, 4, 'forest')] },
-             { groups: [g('runner', 48, 0.25, 0, 'east1'), g('walker', 36, 0.4, 0, 'forest'), g('brute', 6, 2.5, 8, 'east2')] },
-             { groups: [g('walker', 48, 0.3, 0, 'east1'), g('walker', 40, 0.35, 0, 'east2'), g('walker', 40, 0.35, 0, 'forest'),
-               g('runner', 60, 0.2, 8, 'east1'), g('brute', 8, 2, 12, 'east2'), g('brute', 8, 2, 18, 'forest'), g('brute', 8, 2, 24, 'east1')] } ] },
+  { n: 1, startCash: 800, hp: 2.8, intro: { title: 'Day 1: Barricades', text: "They come down Sigtunavägen from the east. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+    waves: [ { groups: [g('walker', 30, 0.5, 0, 'east1')] },
+             { groups: [g('walker', 50, 0.35, 0, 'east1')] },
+             { groups: [g('walker', 70, 0.25, 0, 'east1'), g('runner', 30, 0.3, 6, 'east1')] } ] },
+  { n: 2, startCash: 900, hp: 3.8, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    waves: [ { groups: [g('walker', 40, 0.4, 0, 'east1'), g('walker', 20, 0.5, 4, 'east2')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 40, 0.3, 6, 'east2')] },
+             { groups: [g('walker', 60, 0.25, 0, 'east1'), g('walker', 40, 0.3, 0, 'east2'), g('runner', 60, 0.2, 8, 'east1')] } ] },
+  { n: 3, startCash: 1000, hp: 4.2, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
+    waves: [ { groups: [g('walker', 26, 0.5, 0, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
+             { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
+  { n: 4, startCash: 1100, hp: 4.6, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+    waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 3, 8, 'east1')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2.5, 10, 'east2')] },
+             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 2, 12, 'east1'), g('brute', 10, 2, 20, 'forest')] } ] },
+  { n: 5, startCash: 1200, hp: 4.0, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout.' },
+    waves: [ { groups: [g('walker', 40, 0.35, 0, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
+             { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2.5, 8, 'east2')] },
+             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 44, 0.3, 0, 'east2'), g('walker', 44, 0.3, 0, 'forest'),
+               g('runner', 70, 0.15, 8, 'east1'), g('brute', 12, 2, 12, 'east2'), g('brute', 12, 2, 18, 'forest'), g('brute', 12, 2, 24, 'east1')] } ] },
 ];
 
 export const gnesta = {

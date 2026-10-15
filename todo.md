@@ -45,8 +45,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 ## Efter Gnesta 0.4.0
 
-- [ ] H030 | balans | Gnesta dag 1 till 5: balanspass med skriptet (policy som spärrar gator, flera ingångar). Siffrorna i 0.4.0 är första gissningar.
+- [x] H030 | balans | Gnesta dag 1 till 5: balanspass med skriptet (policy som spärrar gator, flera ingångar). Siffrorna i 0.4.0 är första gissningar.
 - [x] H031 | prestanda | Gnesta dag 5 har vågor på 200 zombier: instansera zombiernas kroppsdelar innan balansen (16 meshar per zombie i dag).
 - [x] H032 | grafik | Horden går gärna i ett led längs ena trottoaren på Gnesta. Sprida ut den över gatans bredd.
-- [ ] H033 | ux | En spärr tvärs över Sigtunavägen kostar 4 x $ 150. Speltesta om det känns rätt på dag 1.
+- [x] H033 | ux | En spärr tvärs över Sigtunavägen kostar 4 x $ 150. Nu ett fast pris per spärr ($ 150), 0.4.2.
+- [ ] H034 | balans | Gnesta: speltesta dag 5 (smal, 2 till 5 kvar för policyn) och om hp-faktorn känns rätt i händerna. Forskningen tar slut runt dag 4, så omförsök hjälper lite.
 

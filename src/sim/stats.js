@@ -58,5 +58,10 @@ export function obstacleWhole(ob) {
   return OBSTACLES[ob.type].kind === 'slow' ? ob.durability >= ob.maxDurability : ob.hp >= ob.maxHp;
 }
 export function obstacleRefund(ob) {
-  return obstacleWhole(ob) ? Math.round(OBSTACLES[ob.type].cost * OBSTACLE_REFUND) : 0;
+  return obstacleWhole(ob) ? Math.round((ob.paid ?? OBSTACLES[ob.type].cost) * OBSTACLE_REFUND) : 0;
+}
+// En hel spärr (alla rutor hela) ger halva det som betalades för den, annars inget.
+export function lineRefund(obs) {
+  if (!obs.length || !obs.every(obstacleWhole)) return 0;
+  return Math.round(obs.reduce((a, ob) => a + (ob.paid ?? OBSTACLES[ob.type].cost), 0) * OBSTACLE_REFUND);
 }

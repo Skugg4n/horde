@@ -78,6 +78,42 @@ Granater på dag 3, girig, med M2, Heavy wire, budget, barriär och M249 rate I 
 
 Ett stöd, inte huvudsaken: nivå I ger några liv, III gör dag 3 bekväm men aldrig orörd.
 
+## 0.4.2: Gnesta dag 1 till 5, barrikadpris
+
+Mätt med `npm run balance` (sista delen) och `tests/balance-gnesta.test.js`, fem seed-förskjutningar. Spelaren kommer från E4 med forskningen en girig E4-körning slutar med (M2 II, M249 rate II, Heavy wire I, budget I, barriär I, granater I, New position) och köper forskning mellan Gnesta-dagarna i samma ordning som på E4.
+
+Policyer (scripts/balance.mjs):
+- `smart`: spärrar Sigtunavägen mellan första och andra stickgatan, så att horden går runt kvarteret (upp en stickgata, längs cykelvägen, ner den första) förbi positionerna i kvarteret. En väg hålls alltid öppen, så ingen barrikad behöver slås sönder. Vapen byggs på de positioner som når flest rutor av hordens väg (räknat med M2:s räckvidd), taggtråd där flest av de fyra första pjäserna når, granatlådor när första vågen är klar (1, 1, 2, 3, 3 per dag), sedan uppgraderingar. Köpordning: vapen, barrikad, vapen, tråd, fler vapen, resten av tråden.
+- `naive`: samma vapenval (efter sin egen väg), tråd, lådor och uppgraderingar, aldrig en barrikad.
+- Vågkall och köp mitt i vågen som `greedy` på E4 (samma kod, `runDay`).
+- Först valde smart sina spärrar girigt efter täckning (bästa fyra positionernas rutor inom räckhåll). Den valde gärna en spärr längst österut och en på norra stigen: längre väg, men i simuleringen förlorade den dag 2 och 3 oftare än varvet runt kvarteret närmast basen. Skäl: längre väg betyder att första pengarna kommer senare, och pjäserna hamnar utspridda. Varvet runt kvarteret höll bäst alla dagar, och det är den spärr designen beskriver.
+
+Barrikadpris (Olas H033): en spärr tvärs över gatan kostade per ruta, så Sigtunavägen (4 rutor) kostade $ 600 för en barrikad och $ 320 för en taggtråd. Nu kostar en spärr hindrets pris en gång, hur bred gatan än är: barrikad $ 150, taggtråd $ 80, samma som en ruta på E4. Hel spärr ger halva priset tillbaka. Skäl: ett vapen kostar $ 250 till $ 600, så en spärr för $ 150 är ett riktigt val (ungefär en halv M249) men går att ha råd med dag 1. Per ruta straffade det breda gator, som är de man helst vill spärra. E4 påverkas inte (en ruta = en spärr). Panelen visar priset på kortet och "One price for the whole width".
+
+Ny regel i data: `day.hp` i banans dagar (hp-faktor för alla zombier den dagen, standard 1, läses när en zombie skapas). Skäl: spelaren kommer med E4:s forskning, och första försöken visade att inga zombiemängder under ca 250 levande ens skadade basen, inte ens för en naiv spelare med två pjäser (två M2 dödade 170 vandrare per dag utan läckor). Fler zombier ryms inte i prestandabudgeten, så de måste tåla mer. Bounty är oförändrad, så pengarna växer inte med svårigheten. E4 har ingen faktor och kvittot är oförändrat.
+
+Dagarna (src/data/gnesta.js, kartdata 0.2.1):
+- Dag 1: start $ 800 (950 till 800), hp 2,8. Vågor 30, 50 och 70 vandrare plus 30 löpare (förut 20, 32, 52 vandrare). Skäl: smart ska vinna direkt och naiv ta klart mer skada. hp 2,6 gav ingen skada för någon, 3,0 fick naiv att förlora.
+- Dag 2: start $ 900 (1050), hp 3,8. Vågor 60, 80 och 160 (norra vägen från våg 1). Skäl: vid 3,5 förlorade naiv 4 av 5, vid 3,8 alla, smart vinner direkt med 14 till 20 kvar.
+- Dag 3: start $ 1000 (1200), hp 4,2. Våg 1 lätt (46 vandrare), våg 3 tung (70 vandrare, 70 löpare, 50 vandrare). Skäl: en tung första våg straffade den som byggt barrikad (pengarna kommer senare på den längre vägen) och naiv klarade sig bättre än smart. Med en sågtand i dagen vinner smart med 8 till 20 kvar och naiv förlorar.
+- Dag 4: start $ 1100 (1400), hp 4,6, fler bjässar (6, 8, 20). Skäl: 4,4 till 4,75 ger 4 till 10 kvar, 5,0 ger 2 till 4 och 5,4 förlorar alltid (bjässarna tål då 3 000). Utan forskningen efter E4 förloras dagen i alla seeds; granatlådorna ger 1 till 3 liv.
+- Dag 5: start $ 1200 (1600), hp 4,0, något färre zombier än första gissningen (flest levande 255 blev 231). Skäl: dagen ska vara svårast (2 till 5 kvar) men gå att vinna; 4,2 gav förlust i två av tre försök och omförsöken hjälper knappt eftersom forskningen nästan är slut vid dag 5.
+- Introtexter: dag 1 säger att zombierna här tål mer, dag 4 att bjässarna slår sönder en barrikad på sekunder bara om alla vägar är stängda (horden slår bara på barrikader då).
+
+Resultat (smart: försök till vinst / bas kvar, naiv första försöket):
+
+| Dag | Smart | Naiv | Flest levande |
+|---|---|---|---|
+| 1 | 1 / 15 till 20 | vinner med 1 till 12 | 95 |
+| 2 | 1 / 14 till 20 | förlorar i alla fem | 160 |
+| 3 | 1 / 8 till 20 | förlorar i alla fem | 190 |
+| 4 | 1 / 5 till 9 | förlorar | 154 |
+| 5 | 1 / 2 till 5 | förlorar | 231 |
+
+Förluster rasar gradvis: 87 till 470 s från första skadan till noll (naiv, och smart dag 5 med bara E4:s forskning).
+
+Att speltesta: smart vinner alla dagar på första försöket, så "kan förlora dag 5 första gången" sker bara med svagare spel än policyn. Dag 5 är smal (2 till 5 kvar): en sämre spelare förlorar, och omförsök ger lite eftersom forskningen tar slut runt dag 4. Granatlådorna är fortfarande ett stöd (1 till 3 liv), inte huvudsaken.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

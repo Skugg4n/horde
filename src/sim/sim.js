@@ -3,7 +3,7 @@ import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
-import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, obstacleRefund, tierOf, grenadeStats, wireDurability, blockHp } from './stats.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, tierOf, grenadeStats, wireDurability, blockHp } from './stats.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 export { CELL_LEN } from './cells.js';
@@ -72,10 +72,13 @@ export function callNextWave(sim) {
   return { ok: true, bonus, index };
 }
 
-// group.spawn väljer ingång på banor med flera (standard: den första).
+// group.spawn väljer ingång på banor med flera (standard: den första). dayCfg.hp: dagens
+// hp-faktor för alla zombier (banans data, standard 1), så att en senare bana kan möta en spelare
+// med mer forskning utan fler zombier i bild.
 function spawn(sim, { type, wave, spawn: spawnId }) {
   const id = sim.nextId++;
-  const z = { id, type, wave, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+  const hp = ZOMBIES[type].hp * (sim.dayCfg.hp ?? 1);
+  const z = { id, type, wave, hp, maxHp: hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   sim.zombies.push(z);
   sim.events.push({ t: 'spawn', id: z.id });
 }
@@ -207,10 +210,12 @@ function canPlace(sim, cell, type, n = 1) {
   if (n === 1 && sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
   if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research, sim.map)) return { ok: false, reason: 'ej upplåst' };
   if (n < 1) return { ok: false, reason: 'upptagen' };
-  if (sim.cash < OBSTACLES[type].cost * n) return { ok: false, reason: 'pengar' };
+  if (sim.cash < OBSTACLES[type].cost) return { ok: false, reason: 'pengar' };
   return { ok: true };
 }
-function putObstacle(sim, cell, type, line = null) {
+// paid: rutans del av priset (en spärr delar sitt pris lika på sina rutor), så att återbetalningen
+// blir halva det man betalade för hela spärren.
+function putObstacle(sim, cell, type, line = null, paid = OBSTACLES[type].cost) {
   const o = OBSTACLES[type];
   if (o.kind === 'slow') {
     const dur = wireDurability(sim.research);
@@ -219,7 +224,7 @@ function putObstacle(sim, cell, type, line = null) {
     const hp = blockHp(sim.research);
     sim.obstacles[cell] = { type, hp, maxHp: hp };
   }
-  if (line != null) sim.obstacles[cell].line = line;
+  if (line != null) { sim.obstacles[cell].line = line; sim.obstacles[cell].paid = paid; }
 }
 
 // Rutorna som en spärr tvärs över gatan genom cell skulle ta (lediga, giltiga). På E4 (ingen
@@ -228,26 +233,28 @@ export function acrossCells(sim, cell) {
   if (!sim.route.span) return sim.route.validCell(cell) && !sim.obstacles[cell] ? [cell] : [];
   return sim.route.span(cell).filter(k => sim.route.validCell(k) && !sim.obstacles[k]);
 }
-// Spärr tvärs över gatan: samma hinder i varje ledig ruta över gatans bredd, betalt per ruta,
-// allt eller inget. Rutorna hör ihop (line) och rivs tillsammans.
+// Spärr tvärs över gatan: samma hinder i varje ledig ruta över gatans bredd, till ett fast pris
+// per spärr (hindrets pris, hur bred gatan än är), allt eller inget. Rutorna hör ihop (line) och
+// rivs tillsammans.
 export function placeAcross(sim, cell, type) {
   if (!sim.route.span) return placeObstacle(sim, cell, type);
   const keys = acrossCells(sim, cell);
   const check = canPlace(sim, cell, type, keys.length);
   if (!check.ok) return check;
-  const line = sim.nextLine++;
-  for (const k of keys) { sim.cash -= OBSTACLES[type].cost; putObstacle(sim, k, type, line); }
+  const line = sim.nextLine++, cost = OBSTACLES[type].cost;
+  sim.cash -= cost;
+  for (const k of keys) putObstacle(sim, k, type, line, cost / keys.length);
   sim.route.rebuild(sim.obstacles);
-  return { ok: true, cells: keys };
+  return { ok: true, cells: keys, cost };
 }
-// Riva: hela spärren om hindret hör till en (line), annars bara rutan. Helt hinder ger halva priset.
+// Riva: hela spärren om hindret hör till en (line), annars bara rutan. Hel spärr ger halva priset.
 export function removeObstacle(sim, cell) {
   if (!sim.route.validCell(cell)) return { ok: false, refund: 0 };
   const ob = sim.obstacles[cell];
   if (!canAct(sim) || !ob) return { ok: false, refund: 0 };
   const keys = ob.line != null ? Object.keys(sim.obstacles).filter(k => sim.obstacles[k].line === ob.line) : [String(cell)];
-  let refund = 0;
-  for (const k of keys) { refund += obstacleRefund(sim.obstacles[k]); delete sim.obstacles[k]; }
+  const refund = lineRefund(keys.map(k => sim.obstacles[k]));
+  for (const k of keys) delete sim.obstacles[k];
   sim.cash += refund;
   sim.route.rebuild(sim.obstacles);
   return { ok: true, refund };

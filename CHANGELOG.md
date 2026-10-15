@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.4.2 (2026-10-15)
+
+Gnesta balanserad dag 1 till 5, och barrikaden kostar ett fast pris per spärr.
+
+- En spärr tvärs över gatan kostar hindrets pris en gång, hur bred gatan än är: barrikad $ 150, taggtråd $ 80 (förut per ruta, $ 600 för en barrikad över Sigtunavägen). Hel spärr ger halva priset tillbaka. Panelen visar priset och "One price for the whole width".
+- Gnestas dagar har en hp-faktor (`hp` i dagens data, 2,8 till 4,6), nya vågor och lägre startpengar. Detaljer och skäl i `docs/balance-log.md`.
+- Balansskriptet har två Gnesta-policyer: `smart` spärrar Sigtunavägen så att horden går runt kvarteret förbi pjäserna, `naive` bygger samma vapen men aldrig en barrikad. Tio tester i `tests/balance-gnesta.test.js`: dag 1 vinns direkt och naiv tar mer skada, naiv förlorar dag 2, forskning och granatlådor spelar roll dag 4, dag 5 är svårast, förluster rasar gradvis, högst ca 250 levande.
+- Introtexterna för dag 1 och 4 säger vad som är nytt.
+- E4 spelar som förut: balanskvittot är oförändrat.
+
 ## 0.4.1 (2026-10-15)
 
 Horden går att rita i hundratal, och den sprider sig över gatan på Gnesta.
