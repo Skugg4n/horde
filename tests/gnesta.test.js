@@ -92,3 +92,13 @@ test('spöklagret ligger utanför den skarpa spelytan', () => {
   assert.ok(n >= 25);
   assert.deepEqual(districts.map(d => d.id), ['ostra-storgatan', 'vikingavagen', 'radhusen', 'sporthallen']);
 });
+
+test('inget spökhus står på en gata i spelytan', () => {
+  for (const d of gnesta.surroundings.districts) for (const b of d.buildings) {
+    const c = Math.cos(b.ry), s = Math.sin(b.ry);
+    const pts = [[0, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [b.x + u * b.w / 2 * c + v * b.d / 2 * s, b.z - u * b.w / 2 * s + v * b.d / 2 * c]);
+    for (const r of ROADS.filter(r => r.walk)) for (const [x, z] of pts) {
+      assert.ok(distPolyline(x, z, r.pts) > r.width / 2 + 0.5, `${d.id} ${b.x.toFixed(0)},${b.z.toFixed(0)} på ${r.id}`);
+    }
+  }
+});
