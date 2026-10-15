@@ -3,10 +3,11 @@
 // gråa knappar varje bildruta. actions kommer från main.js och returnerar simuleringens svar.
 import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
-import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, obstacleRefund, obstacleWhole, grenadeStats, tierOf } from '../sim/stats.js';
+import { weaponStats, weaponUnlocked, obstacleUnlocked, upgradeCost, MAX_LEVEL, weaponRefund, obstacleRefund, grenadeStats, tierOf } from '../sim/stats.js';
 import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
-import { canBuyResearch, nextTier, hasTier } from '../meta/progress.js';
+import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
+import { acrossCells } from '../sim/sim.js';
 import { ICONS } from './icons.js';
 import { money } from './format.js';
 
@@ -173,28 +174,37 @@ export function slotPanel(root, slotId, sim, actions) {
   return { el: ui.el, update, close: ui.close, say: ui.say };
 }
 
+// På rutnätet (Gnesta) läggs hindret tvärs över gatan: priset gäller alla rutor i spärren,
+// och Remove river hela spärren.
 export function cellPanel(root, index, sim, actions) {
   const ui = shell(root, actions);
   let key = null;
-  const keyOf = s => { const ob = s.obstacles[index]; return ob ? 'ob:' + ob.type : 'empty:' + [...s.research].join(','); };
+  const grid = sim.route.kind === 'grid';
+  const count = s => (grid ? Math.max(1, acrossCells(s, index).length) : 1);
+  const keyOf = s => { const ob = s.obstacles[index]; return ob ? 'ob:' + ob.type : 'empty:' + count(s) + ':' + [...s.research].join(','); };
   const frac = ob => (OBSTACLES[ob.type].kind === 'slow' ? ob.durability / ob.maxDurability : ob.hp / ob.maxHp);
+  const lineOf = s => { const ob = s.obstacles[index]; return ob?.line != null ? Object.values(s.obstacles).filter(o => o.line === ob.line) : ob ? [ob] : []; };
 
   function render(s) {
     const ob = s.obstacles[index];
     if (!ob) {
-      ui.head.innerHTML = `<div class="t">Road tile</div>`;
-      const types = Object.keys(OBSTACLES).filter(t => obstacleUnlocked(t, s.research));
+      const n = count(s);
+      ui.head.innerHTML = grid ? `<div class="t">Street</div><div class="sub">Across the street: ${n} ${n === 1 ? 'tile' : 'tiles'}</div>` : `<div class="t">Road tile</div>`;
+      const types = Object.keys(OBSTACLES).filter(t => obstacleUnlocked(t, s.research, s.map));
       ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], OBSTACLES[t].name, OBSTACLES[t].desc)).join('')}</div>`;
       for (const b of ui.body.querySelectorAll('.card')) {
         b.addEventListener('click', () => {
           const r = actions.place(index, b.dataset.id);
           if (!r.ok) ui.say(reasonText(r.reason, 'cell'));
         });
+        b.addEventListener('mouseenter', () => actions.preview?.(index, b.dataset.id));
+        b.addEventListener('mouseleave', () => actions.preview?.(index, null));
       }
       return;
     }
+    const n = lineOf(s).length;
     ui.head.innerHTML = `<div class="t">${OBSTACLES[ob.type].name}</div><div class="sub" data-cond></div>`;
-    ui.body.innerHTML = `<div class="acts"><button type="button" class="act" data-a="rm"><span class="a">Remove</span><span class="p" data-p></span></button></div>`;
+    ui.body.innerHTML = `<div class="acts"><button type="button" class="act" data-a="rm"><span class="a">${n > 1 ? `Remove all ${n}` : 'Remove'}</span><span class="p" data-p></span></button></div>`;
     ui.body.querySelector('[data-a="rm"]').addEventListener('click', () => {
       const r = actions.remove(index);
       if (!r.ok) ui.say(reasonText('fel läge'));
@@ -203,13 +213,15 @@ export function cellPanel(root, index, sim, actions) {
 
   function patch(s) {
     const ob = s.obstacles[index];
-    if (!ob) { for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost, s); return; }
-    const f = frac(ob), whole = obstacleWhole(ob);
+    if (!ob) { const n = count(s); for (const b of ui.body.querySelectorAll('.card')) patchCard(b, OBSTACLES[b.dataset.id].cost * n, s); return; }
+    const line = lineOf(s);
+    const f = Math.min(...line.map(frac));
     const cond = ui.head.querySelector('[data-cond]');
-    const condText = `Condition ${Math.max(0, Math.round(f * 100))} %`;
+    const condText = `Condition ${Math.max(0, Math.round(f * 100))} %${line.length > 1 ? ` · ${line.length} tiles` : ''}`;
     if (cond.textContent !== condText) cond.textContent = condText;
     const rm = ui.body.querySelector('[data-a="rm"]');
-    const t = whole ? '+' + money(obstacleRefund(ob)) : 'No refund';
+    const refund = line.reduce((a, o) => a + obstacleRefund(o), 0);
+    const t = refund ? '+' + money(refund) : 'No refund';
     const p = rm.querySelector('[data-p]');
     if (p.textContent !== t) p.textContent = t;
   }
@@ -334,25 +346,35 @@ export function researchPanel(root, progress, onBuy, onClose) {
   return { ...p, update: render };
 }
 
-export function mainMenu(root, progress, { onDay, onResearch, version }) {
+// Menyn: banorna överst (E4 och Gnesta, Gnesta låst tills E4 dag 3 är klar), sedan banans dagar.
+// debug: alla banor går att välja (?debug).
+export function mainMenu(root, progress, { onDay, onResearch, onMap, version, debug = false }) {
   const map = MAPS[progress.mapId];
+  const st = mapState(progress);
+  const maps = Object.values(MAPS).map(m => {
+    const open = mapUnlocked(progress, m.id, { debug }), on = m.id === map.id;
+    const sub = open ? `Days 1-${m.days.length}` : `Clear ${MAPS[m.unlock.map].name} day ${m.unlock.day} first`;
+    return `<button type="button" class="maptab ${on ? 'on' : ''} ${open ? '' : 'locked'}" data-map="${m.id}" ${open ? '' : 'disabled'}>
+      <div class="n">${m.name}</div><div class="s">${sub}</div></button>`;
+  }).join('');
   const days = map.days.map(d => {
     const n = d.n;
-    const open = n <= progress.unlockedDay, done = n < progress.unlockedDay;
+    const open = n <= st.unlockedDay, done = n < st.unlockedDay;
     const state = !open ? `Clear day ${n - 1} first` : done ? 'Cleared' : 'Play';
     const name = d.intro.title.includes(':') ? d.intro.title.split(':')[1].trim() : '';
     return `<button type="button" class="day ${open ? '' : 'locked'} ${done ? 'done' : ''}" data-day="${n}" ${open ? '' : 'disabled'}>
       <div class="lbl">DAY</div><div class="dn">${String(n).padStart(2, '0')}</div><div class="nm">${name}</div><div class="s">${state}</div></button>`;
   }).join('');
-  const allDone = progress.unlockedDay > map.days.length;
+  const allDone = st.unlockedDay > map.days.length;
   const p = plate(root, 'menu', `
     <div class="logo">HORDE</div>
-    <div class="map">${map.name}</div>
-    <div class="days">${days}</div>
+    <div class="maps">${maps}</div>
+    <div class="days ${map.days.length > 3 ? 'five' : ''}">${days}</div>
     ${allDone ? `<p class="lead strong">${map.name} cleared. More maps coming.</p>` : ''}
     <div class="acts"><button type="button" class="act" data-a="research"><span class="a">Research</span><span class="p">You have ${progress.intel}</span></button></div>
     <div class="v">v${version}</div>`);
   for (const b of p.el.querySelectorAll('.day:not(.locked)')) b.addEventListener('click', () => onDay(Number(b.dataset.day)));
+  for (const b of p.el.querySelectorAll('.maptab:not(.locked)')) b.addEventListener('click', () => { if (b.dataset.map !== map.id) onMap?.(b.dataset.map); });
   on(p.el, '[data-a="research"]', onResearch);
   return p;
 }

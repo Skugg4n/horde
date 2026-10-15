@@ -6,7 +6,10 @@ import * as THREE from 'three';
 
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-export function createPicker(camera, dom, getTargets, groundPick = () => null) {
+// camera: kameran eller en funktion som ger den (kameran byts när banan byts).
+// opts.ignoreClick(): true när släppet avslutade en panorering och inte ska räknas som klick.
+export function createPicker(camera, dom, getTargets, groundPick = () => null, opts = {}) {
+  const cam = typeof camera === 'function' ? camera : () => camera;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const onGround = new THREE.Vector3();
@@ -16,7 +19,7 @@ export function createPicker(camera, dom, getTargets, groundPick = () => null) {
   function hitAt(clientX, clientY) {
     const r = dom.getBoundingClientRect();
     ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
+    ray.setFromCamera(ndc, cam());
     const objects = getTargets().map(t => t.object).filter(Boolean);
     for (const h of ray.intersectObjects(objects, true)) {
       for (let o = h.object; o; o = o.parent) {
@@ -45,6 +48,7 @@ export function createPicker(camera, dom, getTargets, groundPick = () => null) {
     if (hoverKey !== null) { hoverKey = null; for (const cb of hoverCbs) cb(null); }
   });
   dom.addEventListener('click', ev => {
+    if (opts.ignoreClick?.()) return;
     const p = hitAt(ev.clientX, ev.clientY);
     for (const cb of pickCbs) cb(p);
   });

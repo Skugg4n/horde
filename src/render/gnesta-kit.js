@@ -28,6 +28,8 @@ export const GP = {
   // gata
   curb: '#a8a395', lamp: '#6f716e', lampHead: '#4a4c4a', lampGlow: '#efe3c0', sign: '#2f5d8a', signWhite: '#e8e4d8',
   cabinet: '#7c8670', flag: '#d8d4c8',
+  // sporthallen
+  hallWall: '#9c9c95', hallWallDark: '#6e6f6b', hallRoof: '#3a3c3e', hallSolar: '#2c3e5a', hallBlue: '#40618a',
   // ishallen
   rinkRed: '#7a2e24', rinkRedDark: '#5e2219', rinkWhite: '#dcd8cc', rinkRoof: '#3d3f40', annexRoof: '#5a3a2b', signGreen: '#2f6b48',
   // lekplats
@@ -500,5 +502,37 @@ export function tallLamp(b, M) {
   for (const sx of [-1, 1]) {
     b.box(M, sx * 0.5, 8.9, 0, 1.0, 0.07, 0.07, GP.lamp, 'metal');
     b.box(M, sx * 1.0, 8.92, 0, 0.55, 0.14, 0.25, GP.lampHead, 'metal');
+  }
+}
+
+// Gnesta sporthall: stor grå låda med mörkt, nästan platt tak, ljusband upptill, solceller på
+// taket och en lägre del med blått tak mot väster. o = SPORTHALL (len längs lokal x).
+export function sportHall(b, M, o) {
+  const { len, wid, wallH } = o;
+  b.box(M, 0, 0.2, 0, len + 0.4, 0.4, wid + 0.4, GP.plinth);
+  b.box(M, 0, wallH / 2, 0, len, wallH, wid, GP.hallWall);
+  // mörk sockel och ljusband
+  for (const sz of [-1, 1]) {
+    b.box(M, 0, 1.3, sz * (wid / 2 + 0.03), len + 0.05, 2.6, 0.06, GP.hallWallDark);
+    b.box(M, 0, wallH - 1.2, sz * (wid / 2 + 0.04), len - 1.2, 0.9, 0.05, GP.glassSky, 'glass');
+  }
+  for (const sx of [-1, 1]) b.box(M, sx * (len / 2 + 0.03), 1.3, 0, 0.06, 2.6, wid + 0.05, GP.hallWallDark);
+  // pilastrar
+  for (let x = -len / 2 + 3; x < len / 2 - 1; x += 3.6) for (const sz of [-1, 1]) b.box(M, x, wallH / 2, sz * (wid / 2 + 0.06), 0.35, wallH, 0.12, GP.hallWallDark);
+  // tak: låg sadel, mörkt, med solcellsfält på södra sidan
+  const rh = 1.1;
+  b.put(UNIT.prism, M, 0, wallH, 0, len + 0.6, rh, wid + 0.6, GP.hallRoof);
+  for (let x = -len / 2 + 2.5; x < len / 2 - 2; x += 5) b.box(M, x, wallH + rh * 0.45, wid * 0.24, 4.2, 0.08, wid * 0.36, GP.hallSolar, 'glass', 0, -Math.atan2(rh, wid / 2));
+  for (const x of [-len * 0.25, len * 0.25]) b.box(M, x, wallH + rh + 0.35, 0, 2, 0.7, 1.4, GP.metal, 'metal');
+  // entré mot parkeringen
+  b.box(M, -len * 0.15, 1.6, -wid / 2 - 1.4, 7, 0.25, 2.8, GP.hallRoof);
+  b.box(M, -len * 0.15, 1.2, -wid / 2 - 0.05, 3.2, 2.4, 0.08, GP.glass, 'glass');
+  // lägre del med blått tak
+  const A = o.annex;
+  if (A) {
+    const L = A.local;
+    b.box(M, L[0], A.h / 2, L[1], A.len, A.h, A.wid, GP.hallWall);
+    b.box(M, L[0], 1.3, L[1], A.len + 0.06, 2.6, A.wid + 0.06, GP.hallWallDark);
+    b.put(UNIT.prism, M, L[0], A.h, L[1], A.len + 0.5, 0.9, A.wid + 0.5, GP.hallBlue);
   }
 }

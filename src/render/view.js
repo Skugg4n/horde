@@ -17,20 +17,10 @@ const STEP_PHASE = 2.6;          // gångfas per meter
 const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
-// Punkt längs vägen med sidoförskjutning, utan att skapa nya objekt.
-function placeOnPath(out, path, d, off) {
-  let rest = Math.max(0, d);
-  for (let i = 1; i < path.length; i++) {
-    const ax = path[i - 1][0], az = path[i - 1][1], bx = path[i][0], bz = path[i][1];
-    const seg = Math.hypot(bx - ax, bz - az);
-    const dx = (bx - ax) / seg, dz = (bz - az) / seg;
-    if (rest <= seg || i === path.length - 1) {
-      const k = Math.min(rest, seg);
-      out.x = ax + dx * k - dz * off; out.z = az + dz * k + dx * off; out.dirX = dx; out.dirZ = dz;
-      return out;
-    }
-    rest -= seg;
-  }
+// Zombiens läge och riktning frågas av rutten (E4: väglinjen, Gnesta: rutnätet).
+function place(out, sim, z) {
+  const p = sim.route.place(z);
+  out.x = p.x; out.z = p.z; out.dirX = p.dirX; out.dirZ = p.dirZ;
   return out;
 }
 
@@ -62,7 +52,7 @@ export function createView(scene, initialSim) {
   function addZombie(z) {
     const parts = zombieModel(z.type);
     seedZombie(parts, z.id);
-    placeOnPath(P, sim.map.path, z.d, z.off);
+    place(P, sim, z);
     parts.root.position.set(P.x, 0, P.z);
     const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6) };
     parts.root.rotation.y = e.ry;
@@ -83,7 +73,7 @@ export function createView(scene, initialSim) {
       if (!e) { if (z.dead) continue; e = addZombie(z); }
       e.seen = frame;
       const parts = e.parts;
-      placeOnPath(P, sim.map.path, z.d, z.off);
+      if (!z.dead) place(P, sim, z); else { P.x = e.x; P.z = e.z; }
       e.x += (P.x - e.x) * k; e.z += (P.z - e.z) * k;
       if (e.fling) {
         // Kastad av en smäll: glider ut, hoppar och landar. Bara bild, simuleringen rör sig inte.
@@ -113,7 +103,8 @@ export function createView(scene, initialSim) {
       }
       // hälsoringen syns först när zombien tagit skada
       if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale));
-      e.ry = Math.atan2(P.dirX, P.dirZ);
+      // vrider sig mjukt mot gångriktningen (rutnätets svängar blir inte ryck)
+      e.ry += angleDiff(e.ry, Math.atan2(P.dirX, P.dirZ)) * Math.min(1, dt * 9);
       parts.root.rotation.y = e.ry;
       e.phase += (z.wob * STEP_PHASE - e.phase) * k;
       if (z.attacking) {
@@ -196,6 +187,7 @@ export function createView(scene, initialSim) {
   function buildCellMarks() {
     for (const c of cellMarks) disposeModel(c.group);
     cellMarks.length = 0;
+    if (sim.route.kind !== 'path') return;     // rutnätet har för många rutor: se tiles nedan
     const W = 8.6, L = CELL_LEN - 0.3;
     for (let i = 0; i < sim.map.cells.length; i++) {
       const group = new THREE.Group();
@@ -238,8 +230,41 @@ export function createView(scene, initialSim) {
     }
   }
 
+  // ---------- rutor på rutnätet (Gnesta) ----------
+  // Rutan under pekaren och rutorna en spärr tvärs över gatan skulle ta, som ljusa plattor.
+  // En InstancedMesh, högst 24 plattor.
+  const TILE_MAX = 24;
+  const tileM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.3, depthWrite: false });
+  const tileEdgeM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.75, depthWrite: false });
+  const tileGeo = new THREE.PlaneGeometry(1, 1); tileGeo.rotateX(-Math.PI / 2);
+  const tileEdgeGeo = new THREE.RingGeometry(0.62, 0.7, 4, 1, Math.PI / 4); tileEdgeGeo.rotateX(-Math.PI / 2);
+  const tiles = new THREE.InstancedMesh(tileGeo, tileM, TILE_MAX), tileEdges = new THREE.InstancedMesh(tileEdgeGeo, tileEdgeM, TILE_MAX);
+  for (const t of [tiles, tileEdges]) { t.count = 0; t.frustumCulled = false; t.renderOrder = 3; t.castShadow = false; scene.add(t); }
+  const tm = new THREE.Matrix4();
+  let tileKey = '';
+  function syncTiles() {
+    const want = ui.tiles && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave') ? ui.tiles : null;
+    const key = want ? want.cells.join(',') + '|' + want.tone : '';
+    if (key === tileKey) return;
+    tileKey = key;
+    const n = want ? Math.min(TILE_MAX, want.cells.length) : 0;
+    const size = sim.route.grid?.size ?? 2;
+    for (let i = 0; i < n; i++) {
+      const c = sim.route.cellCenter(want.cells[i]);
+      tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(c.x, 0.07, c.z);
+      tiles.setMatrixAt(i, tm);
+      tm.makeScale(size * 1.36, 1, size * 1.36); tm.setPosition(c.x, 0.075, c.z);
+      tileEdges.setMatrixAt(i, tm);
+    }
+    tiles.count = tileEdges.count = n;
+    tiles.instanceMatrix.needsUpdate = tileEdges.instanceMatrix.needsUpdate = true;
+    const col = want?.tone === 'rust' ? PALETTE.rust : PALETTE.paper;
+    tileM.color.set(col); tileEdgeM.color.set(col);
+    tileM.opacity = want?.tone === 'rust' ? 0.32 : 0.2;
+  }
+
   // ---------- markering, pekare och räckvidd ----------
-  let ui = { selected: null, hover: null, range: null };
+  let ui = { selected: null, hover: null, range: null, tiles: null };
   const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
   const isHov = (kind, id) => ui.hover?.kind === kind && ui.hover.id === id;
   const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
@@ -267,7 +292,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'slot', id, object: e.group });
@@ -286,7 +311,7 @@ export function createView(scene, initialSim) {
 
   // ---------- hinder ----------
   function cellCenter(i) {
-    return placeOnPath(P, sim.map.path, sim.map.cells[i] + CELL_LEN / 2, 0);
+    return sim.route.cellCenter(i);
   }
   function removeCell(i) {
     const e = cells.get(i); if (!e) return;
@@ -294,16 +319,18 @@ export function createView(scene, initialSim) {
     cells.delete(i); cellObjects.delete(i);
   }
   function syncCells() {
-    for (let i = 0; i < sim.map.cells.length; i++) {
-      const ob = sim.obstacles[i];
+    for (const i of [...cells.keys()]) if (!sim.obstacles[i]) removeCell(i);
+    for (const key of Object.keys(sim.obstacles)) {
+      const i = Number(key), ob = sim.obstacles[key];
       let e = cells.get(i);
-      if (!ob) { if (e) removeCell(i); continue; }
       if (!e || e.type !== ob.type) {
         if (e) removeCell(i);
-        const group = obstacleModel(ob.type);
+        const grid = sim.route.kind === 'grid';
+        const group = obstacleModel(ob.type, grid ? { span: sim.route.grid.size } : undefined);
         const c = cellCenter(i);
         group.position.set(c.x, 0, c.z);
-        group.rotation.y = Math.atan2(c.dirZ, -c.dirX);   // modellens +x mot horden
+        // E4: modellens +x mot horden. Rutnätet: spärren ligger tvärs över gatan.
+        group.rotation.y = grid ? (sim.route.axis(i) === 'x' ? 0 : Math.PI / 2) : Math.atan2(c.dirZ, -c.dirX);
         group.userData.pick = { kind: 'cell', index: i };
         scene.add(group);
         e = { type: ob.type, group, frac: 1 };
@@ -320,14 +347,22 @@ export function createView(scene, initialSim) {
   const BASE_HIT = 0.7;
   function buildBase() {
     if (base) disposeModel(base);
-    const path = sim.map.path, n = path.length;
-    const [ex, ez] = path[n - 1], [px, pz] = path[n - 2];
-    const len = Math.hypot(ex - px, ez - pz), dx = (ex - px) / len, dz = (ez - pz) / len;
     base = baseModel();
-    // Grindlinjen 0,6 m före vägens slut, modellens +x mot horden.
-    baseHome.set(ex - dx * 0.6, 0, ez - dz * 0.6);
+    if (sim.map.basePlace) {
+      // Banan säger var basen står (Gnesta: på rondellens ö, mot öster).
+      const b = sim.map.basePlace;
+      baseHome.set(b.x, 0, b.z);
+      base.rotation.y = b.ry ?? 0;
+      if (b.scale) base.scale.setScalar(b.scale);
+    } else {
+      const path = sim.map.path, n = path.length;
+      const [ex, ez] = path[n - 1], [px, pz] = path[n - 2];
+      const len = Math.hypot(ex - px, ez - pz), dx = (ex - px) / len, dz = (ez - pz) / len;
+      // Grindlinjen 0,6 m före vägens slut, modellens +x mot horden.
+      baseHome.set(ex - dx * 0.6, 0, ez - dz * 0.6);
+      base.rotation.y = Math.atan2(dz, -dx);
+    }
     base.position.copy(baseHome);
-    base.rotation.y = Math.atan2(dz, -dx);
     scene.add(base);
   }
   function baseHit() { baseHitT = BASE_HIT; }
@@ -392,14 +427,14 @@ export function createView(scene, initialSim) {
         case 'obstacleHit': {
           if (clock - (lastChip.get(ev.cell) ?? -1) < 0.3) break;
           lastChip.set(ev.cell, clock);
-          const c = cellCenter(ev.cell);
-          fx.chips(c.x - c.dirX * 0.7, rnd(0.5, 1), c.z + rnd(-3.5, 3.5), 3);
+          const c = cellCenter(ev.cell), sp = sim.route.kind === 'grid' ? 0.8 : 3.5;
+          fx.chips(c.x - c.dirX * 0.7, rnd(0.5, 1), c.z + rnd(-sp, sp), 3);
           break;
         }
         case 'obstacleBroken': {
-          const c = cellCenter(ev.cell);
-          for (let k = 0; k < 4; k++) fx.puff(c.x, c.z + rnd(-3.5, 3.5), 4);
-          if (ev.type === 'block') for (let k = 0; k < 5; k++) fx.chips(c.x, 0.8, c.z + rnd(-4, 4), 4);
+          const c = cellCenter(ev.cell), sp = sim.route.kind === 'grid' ? 0.9 : 3.5;
+          for (let k = 0; k < (sp < 1 ? 2 : 4); k++) fx.puff(c.x, c.z + rnd(-sp, sp), 4);
+          if (ev.type === 'block') for (let k = 0; k < (sp < 1 ? 3 : 5); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
           removeCell(ev.cell);
           break;
         }
@@ -433,6 +468,7 @@ export function createView(scene, initialSim) {
     syncSlots(dt);
     syncCells();
     syncCellMarks();
+    syncTiles();
     syncUi();
     syncBase(dt);
     fx.update(dt);
@@ -450,10 +486,13 @@ export function createView(scene, initialSim) {
     if (remap) { buildCellMarks(); buildBase(); }
     baseHitT = 0; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
-    ui = { selected: null, hover: null, range: null };
+    ui = { selected: null, hover: null, range: null, tiles: null };
+    tileKey = '-';
   }
 
   buildCellMarks();
   buildBase();
-  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx };
+  // Display-läget för en zombie (för skott och siffror), eller null.
+  const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
+  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings };
 }

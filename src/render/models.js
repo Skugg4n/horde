@@ -195,13 +195,15 @@ export function weaponModel(type, level = 1, { kit = false } = {}) {
 
 // ---------- hinder ----------
 // Origo i rutans mitt. Rutan är 3 m längs x och täcker hela vägbredden (9 m) längs z.
+// span: bredden längs z (Gnestas rutor är 2 m; en spärr över gatan är flera rutor bredvid varandra).
 
-function wireObstacle() {
+function wireObstacle(span = 9) {
   const g = new THREE.Group();
   const steel = mat(P.wireSteel, { metalness: 0.6, roughness: 0.5 });
   const coils = [], posts = [];
-  for (const x of [-0.8, 0.8]) {
-    for (let z = -4.2; z <= 4.3; z += 0.55) {
+  const hz = span / 2 - 0.3, narrow = span < 4;
+  for (const x of narrow ? [-0.45, 0.45] : [-0.8, 0.8]) {
+    for (let z = -hz; z <= hz + 0.1; z += 0.55) {
       const t = mesh(geo('torus', 0.55, 0.025, 4, 18), steel, x + rnd(-0.1, 0.1), 0.55, z + rnd(-0.05, 0.05));
       t.rotation.set(rnd(-0.2, 0.2), Math.PI / 2 + rnd(-0.3, 0.3), 0);
       t.userData = { y: t.position.y, rx: t.rotation.x, cut: rnd(0.05, 0.85), fall: rnd(-1, 1) };
@@ -209,8 +211,8 @@ function wireObstacle() {
     }
   }
   const wood = mat(P.post);
-  for (let z = -4.2; z <= 4.3; z += 2.1) {
-    for (const x of [-0.8, 0.8]) {
+  for (let z = -hz; z <= hz + 0.1; z += narrow ? hz * 2 : 2.1) {
+    for (const x of narrow ? [-0.45, 0.45] : [-0.8, 0.8]) {
       const p = box(0.1, 1.3, 0.1, wood, x + rnd(-0.08, 0.08), 0.65, z + rnd(-0.15, 0.15));
       p.rotation.z = rnd(-0.15, 0.15);
       p.userData = { rz: p.rotation.z, fall: Math.random() < 0.5 ? -1 : 1 };
@@ -218,9 +220,9 @@ function wireObstacle() {
     }
   }
   // spänd tråd mellan stolparna
-  for (const x of [-0.8, 0.8]) {
+  for (const x of narrow ? [-0.45, 0.45] : [-0.8, 0.8]) {
     for (const y of [0.45, 1.05]) {
-      const s = mesh(geo('cylinder', 0.012, 0.012, 8.6, 3), steel, x, y, 0);
+      const s = mesh(geo('cylinder', 0.012, 0.012, span - 0.4, 3), steel, x, y, 0);
       s.rotation.x = Math.PI / 2; s.castShadow = false;
       s.userData = { y, cut: rnd(0.3, 0.7) };
       g.add(s); coils.push(s);
@@ -242,15 +244,16 @@ function jerseyGeometry(len) {
   return g;
 }
 
-function blockObstacle() {
+function blockObstacle(span = 9) {
   const g = new THREE.Group();
   // egen materialkopia så att slitage kan mörka just det här hindret
   const concrete = new THREE.MeshStandardMaterial({ color: P.concrete, roughness: 0.95, metalness: 0, flatShading: true });
   const grime = new THREE.MeshStandardMaterial({ color: P.grime, roughness: 1, metalness: 0, flatShading: true });
   concrete.userData.own = true; grime.userData.own = true;
   const crackM = mat(P.crack);
-  const len = 2.8, blocks = [], cracks = [], debris = [];
-  for (const z of [-3, 0, 3]) {
+  const narrow = span < 4;
+  const len = narrow ? span - 0.08 : 2.8, blocks = [], cracks = [], debris = [];
+  for (const z of narrow ? [0] : [-3, 0, 3]) {
     const b = new THREE.Group();
     b.add(mesh(jerseyGeometry(len), concrete));
     b.add(box(1.12, 0.12, len + 0.01, grime, 0, 0.06, 0));               // smutsrand nertill
@@ -262,7 +265,7 @@ function blockObstacle() {
       const top = i === 4;
       const c = top
         ? sbox(0.2, 0.02, rnd(0.6, 1.2), crackM, rnd(-0.05, 0.05), 1.06, rnd(-0.9, 0.9))
-        : sbox(0.02, rnd(0.3, 0.7), 0.05, crackM, 0.29 - 0.0, rnd(0.45, 0.8), rnd(-1.2, 1.2));
+        : sbox(0.02, rnd(0.3, 0.7), 0.05, crackM, 0.29 - 0.0, rnd(0.45, 0.8), rnd(-len * 0.43, len * 0.43));
       if (!top) { c.rotation.z = -0.17; c.rotation.x = rnd(-0.6, 0.6); c.position.x = 0.25; }
       c.userData = { at: rnd(0.45, 0.9) }; c.visible = false; c.castShadow = false;
       b.add(c); cracks.push(c);
@@ -273,7 +276,7 @@ function blockObstacle() {
     g.add(b); blocks.push(b);
   }
   for (let i = 0; i < 12; i++) {                                          // lossade bitar framför blocken
-    const d = mesh(geo('dodeca', 1, 0), concrete, rnd(0.6, 1.3), 0.08, rnd(-4.2, 4.2));
+    const d = mesh(geo('dodeca', 1, 0), concrete, rnd(0.6, 1.3), 0.08, rnd(-span / 2 + 0.3, span / 2 - 0.3));
     d.scale.setScalar(rnd(0.08, 0.2)); d.rotation.set(rnd(0, 3), rnd(0, 3), 0); d.castShadow = false;
     d.userData = { at: rnd(0.3, 0.75) }; d.visible = false;
     g.add(d); debris.push(d);
@@ -282,8 +285,8 @@ function blockObstacle() {
   return g;
 }
 
-export function obstacleModel(type) {
-  const g = type === 'block' ? blockObstacle() : wireObstacle();
+export function obstacleModel(type, { span = 9 } = {}) {
+  const g = type === 'block' ? blockObstacle(span) : wireObstacle(span);
   setObstacleWear(g, 1);
   return g;
 }

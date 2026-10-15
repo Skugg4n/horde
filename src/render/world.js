@@ -1,6 +1,7 @@
 // Mark, väg, grus, rekvisita och damm. Rekvisita byggs ur map.props.
 import * as THREE from 'three';
 import { rnd, pick, mat, mesh, box, geo, canvasTex, speckle, PALETTE as P } from './kit.js';
+import { buildGnesta } from './gnesta-world.js';
 
 let updateFn = () => {};
 export function updateWorld(dt, time) { updateFn(dt, time); }
@@ -129,7 +130,13 @@ export function asphaltTexture() {
   });
 }
 
+// Banor med tomter och gator (Gnesta) byggs av Gnesta-byggsatsen, E4 nedan.
 export function buildWorld(scene, map) {
+  if (map.lots) {
+    const w = buildGnesta(scene, map);
+    updateFn = w.update;
+    return w;
+  }
   // ---------- mark ----------
   const dirt = dirtTexture();
   const ground = mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map: dirt, roughness: 1 }));

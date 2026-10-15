@@ -1,0 +1,123 @@
+// Spelkameran: samma vinkel på alla banor. Banor med map.camera.pan går att panorera (dra,
+// WASD, piltangenter) och zooma (hjulet) inom gränser; E4 står still som förut.
+// Skakningen (basen tar skada, granater) läggs ovanpå som en förskjutning.
+import * as THREE from 'three';
+
+export const OFFSET = new THREE.Vector3(40, 46, 40);
+const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
+const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
+const DRAG_START = 6;          // px innan en nedtryckning räknas som panorering (annars klick)
+const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
+
+export function createRig({ camera, map, fill, dom }) {
+  const cam = map.camera;
+  const canPan = !!cam.pan;
+  const home = new THREE.Vector3(cam.target[0], 0, cam.target[1]);
+  const target = home.clone();
+  let view = cam.view;
+  const [zMin, zMax] = cam.zoom ?? [view, view];
+  const shake = new THREE.Vector3();
+
+  function apply() {
+    if (canPan) {
+      target.x = Math.min(cam.pan.x1, Math.max(cam.pan.x0, target.x));
+      target.z = Math.min(cam.pan.z1, Math.max(cam.pan.z0, target.z));
+    }
+    const a = innerWidth / innerHeight, v = a < 1 ? view * 1.5 : view;
+    camera.left = -v * a / 2; camera.right = v * a / 2; camera.top = v / 2; camera.bottom = -v / 2;
+    camera.position.copy(target).add(OFFSET).add(shake);
+    camera.lookAt(target.x + shake.x, shake.y, target.z + shake.z);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    if (fill) { fill.position.copy(target).add(OFFSET); fill.target.position.copy(target); }
+  }
+
+  // ---------- inmatning (bara banor som går att panorera) ----------
+  let drag = null, dragged = false, active = true;
+  const keys = new Set();
+  const onDown = e => { if (!canPan || !active || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; dragged = false; };
+  const onUp = () => { if (drag?.moved) dom.style.cursor = ''; drag = null; };
+  const onMove = e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < DRAG_START) return;
+    if (!drag.moved) { drag.moved = true; dragged = true; dom.style.cursor = 'grabbing'; }
+    const k = view / innerHeight;
+    target.addScaledVector(R, -dx * k).addScaledVector(D, -dy * k / PITCH);
+    drag.x = e.clientX; drag.y = e.clientY;
+    apply();
+  };
+  const onWheel = e => {
+    if (!canPan || !active) return;
+    e.preventDefault();
+    view = Math.min(zMax, Math.max(zMin, view * Math.exp(e.deltaY * 0.001)));
+    apply();
+  };
+  const onKey = e => {
+    if (!canPan || !PAN[e.code] || e.metaKey || e.ctrlKey) return;
+    if (e.type === 'keydown') { if (!active) return; keys.add(e.code); e.preventDefault(); } else keys.delete(e.code);
+  };
+  const onBlur = () => keys.clear();
+  dom.addEventListener('pointerdown', onDown);
+  addEventListener('pointerup', onUp);
+  addEventListener('pointermove', onMove);
+  dom.addEventListener('wheel', onWheel, { passive: false });
+  addEventListener('keydown', onKey);
+  addEventListener('keyup', onKey);
+  addEventListener('blur', onBlur);
+  addEventListener('resize', apply);
+
+  function update(dt) {
+    if (!keys.size) return;
+    let ux = 0, uy = 0;
+    for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
+    const sp = view * 0.9 * dt;
+    target.addScaledVector(R, ux * sp).addScaledVector(D, uy * sp / PITCH);
+    apply();
+  }
+  function setShake(x, z) { shake.set(x, 0, z); apply(); }
+  function goHome() { target.copy(home); view = cam.view; apply(); }
+  function dispose() {
+    dom.removeEventListener('pointerdown', onDown);
+    removeEventListener('pointerup', onUp);
+    removeEventListener('pointermove', onMove);
+    dom.removeEventListener('wheel', onWheel);
+    removeEventListener('keydown', onKey);
+    removeEventListener('keyup', onKey);
+    removeEventListener('blur', onBlur);
+    removeEventListener('resize', apply);
+  }
+  apply();
+  return {
+    update, setShake, goHome, dispose, apply, canPan,
+    // true en gång efter en panorering, så att släppet inte räknas som ett klick
+    takeDrag() { const d = dragged; dragged = false; return d; },
+    set active(v) { active = v; if (!v) { keys.clear(); drag = null; } },
+    get target() { return target; },
+    get view() { return view; },
+    focus(x, z, v) { target.set(x, 0, z); if (v) view = Math.min(zMax, Math.max(zMin, v)); apply(); },
+  };
+}
+
+// Skuggkameran täcker hela spelytan (map.shadowBounds eller rutnätet) i ljusets riktning.
+export function fitShadow(sun, bounds, height = 16) {
+  const { x0, x1, z0, z1 } = bounds;
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const dir = sun.position.clone().sub(sun.target.position).normalize();
+  sun.target.position.set(cx, 0, cz);
+  sun.position.set(cx, 0, cz).addScaledVector(dir, 120);
+  sun.target.updateMatrixWorld();
+  sun.updateMatrixWorld();
+  const view = new THREE.Matrix4().lookAt(sun.position, sun.target.position, new THREE.Vector3(0, 1, 0));
+  view.setPosition(sun.position);
+  const inv = view.clone().invert();
+  let l = Infinity, r = -Infinity, b = Infinity, t = -Infinity, n = Infinity, f = -Infinity;
+  const p = new THREE.Vector3();
+  for (const x of [x0, x1]) for (const z of [z0, z1]) for (const y of [0, height]) {
+    p.set(x, y, z).applyMatrix4(inv);
+    l = Math.min(l, p.x); r = Math.max(r, p.x); b = Math.min(b, p.y); t = Math.max(t, p.y);
+    n = Math.min(n, -p.z); f = Math.max(f, -p.z);
+  }
+  Object.assign(sun.shadow.camera, { left: l, right: r, bottom: b, top: t, near: Math.max(0.5, n - 5), far: f + 5 });
+  sun.shadow.camera.updateProjectionMatrix();
+}

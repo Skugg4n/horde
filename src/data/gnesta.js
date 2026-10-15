@@ -551,10 +551,14 @@ export const gnesta = {
   id: 'gnesta', name: 'Gnesta', version: GNESTA_VERSION,
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
   camera: { target: [-30, 14], view: 52, zoom: [24, 84], pan: { x0: -100, x1: 92, z0: -58, z1: 66 } },
+  // Skuggkameran täcker den skarpa ytan (med ishallen i väster och sporthallen i söder).
+  shadowBounds: { x0: -118, x1: 84, z0: -50, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
   slots: SLOTS, baseHp: 20, days: DAYS,
+  // Basen (vägspärren med skylten) står på rondellens ö, vänd mot öster.
+  basePlace: { x: ROUNDABOUT.center[0] - 0.4, z: ROUNDABOUT.center[1] + 0.2, ry: 0, scale: 0.62 },
   // Barrikaden (Concrete barrier) är Gnestas lektion och behöver ingen forskning här.
   freeObstacles: ['block'],
   // Låses upp när E4 dag 3 är klar.

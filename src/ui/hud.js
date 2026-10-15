@@ -52,7 +52,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next">Next wave<kbd>Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
   <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
   <div id="banner" class="plate" hidden></div>
-  <div id="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
+  <div id="entry" class="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
   // Röd puls i skärmkanten när basen tar skada. Ligger under gränssnittet.
   const hurt = document.createElement('div');
   hurt.className = 'hurt';
@@ -175,16 +175,29 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     bannerTimer = setTimeout(() => { bannerEl.hidden = true; }, secs * 1000);
   }
 
-  // Pil vid skärmkanten där vägen kommer in. at: { x, y, angle } i px och radianer, eller null.
-  const entryEl = root.querySelector('#entry'), chev = entryEl.querySelector('.chev');
-  function entry(at) {
-    entryEl.hidden = !at;
-    if (!at) return;
+  // Pil vid skärmkanten där horden kommer in. at: { x, y, angle, text? } i px och radianer, en
+  // lista av sådana (en per ingång), eller null.
+  const entryEl = root.querySelector('#entry');
+  const entries = [entryEl];
+  function place(el, at) {
+    el.hidden = false;
+    const txt = at.text ?? 'Horde incoming';
+    const t = el.querySelector('.txt');
+    if (t.textContent !== txt) t.textContent = txt;
     // Hela pilen och texten ska rymmas i bild, med 12 px marginal.
-    const w = entryEl.offsetWidth / 2 + 12, h = entryEl.offsetHeight / 2 + 12;
-    entryEl.style.left = Math.min(innerWidth - w, Math.max(w, at.x)) + 'px';
-    entryEl.style.top = Math.min(innerHeight - h, Math.max(h, at.y)) + 'px';
-    chev.style.transform = `rotate(${at.angle}rad)`;
+    const w = el.offsetWidth / 2 + 12, h = el.offsetHeight / 2 + 12;
+    el.style.left = Math.min(innerWidth - w, Math.max(w, at.x)) + 'px';
+    el.style.top = Math.min(innerHeight - h, Math.max(h, at.y)) + 'px';
+    el.querySelector('.chev').style.transform = `rotate(${at.angle}rad)`;
+  }
+  function entry(at) {
+    const list = !at ? [] : Array.isArray(at) ? at : [at];
+    while (entries.length < list.length) {
+      const el = entryEl.cloneNode(true);
+      el.removeAttribute('id'); el.classList.add('entry');
+      entryEl.after(el); entries.push(el);
+    }
+    entries.forEach((el, i) => { if (list[i]) place(el, list[i]); else el.hidden = true; });
   }
 
   // Tre steg för första dagen. done: antal klara steg, null döljer rutan.

@@ -1,20 +1,21 @@
-// Spelet: meny, dagar på E4 och forskning mellan dagarna.
+// Spelet: meny med banval, dagar på E4 och Gnesta, och forskning mellan dagarna.
 // Lägen: menu -> intro -> play -> result -> (intro samma dag | intro nästa dag | research).
 // Simuleringen stegas bara i play; scenen ritas alltid (dammet rör sig bakom skyltarna).
 import { VERSION } from './version.js';
 import { MAPS } from './data/maps.js';
-import { createScene } from './render/scene.js';
+import { createRenderer, createScene } from './render/scene.js';
 import { buildWorld, updateWorld } from './render/world.js';
 import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
+import { createRig } from './render/camera-rig.js';
+import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { slotPanel, cellPanel, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
-import { newProgress, startConfig, dayResult, buyResearch } from './meta/progress.js';
+import { newProgress, startConfig, dayResult, buyResearch, mapState, mapUnlocked, selectMap } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeObstacle, removeObstacle, zombiePos, buyKit, callNextWave } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
-import { cellAt } from './sim/cells.js';
 import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
@@ -24,18 +25,47 @@ const MAX_STEPS_PER_SPEED = 5;
 const BASE_TOAST_GAP = 4;          // sekunder mellan två "Basen tar skada!"
 const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
+// ?debug: alla banor går att välja och window.__horde finns i konsolen.
+const DEBUG = new URLSearchParams(location.search).has('debug');
 let progress = loadProgress();
-const map = MAPS[progress.mapId] ?? MAPS.riksvagen;
-const { renderer, scene, camera } = createScene(document.getElementById('stage'), map);
-buildWorld(scene, map);
+if (!mapUnlocked(progress, progress.mapId, { debug: DEBUG })) progress = selectMap(progress, 'riksvagen');
+const renderer = createRenderer(document.getElementById('stage'));
 document.getElementById('ver').textContent = 'v' + VERSION;
 const uiRoot = document.getElementById('ui');
 
-let day = Math.min(progress.unlockedDay, map.days.length);
-// Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
-// Simuleringen ersätts ändå när spelaren väljer dag i menyn.
-let sim = createSim(startConfig(progress, day) ?? startConfig(newProgress(), 1));
-const view = createView(scene, sim);
+// Banan: scen, kamera, värld, vy och hordens vägar. Byggs om när spelaren byter bana i menyn.
+let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null;
+let day = 1, sim = null;
+function disposeScene() {
+  stage.dispose(); rig.dispose();
+  scene.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
+      for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
+      m.dispose();
+    }
+  });
+  renderer.renderLists.dispose();
+}
+function loadMap(id) {
+  if (map && map.id === id) return;
+  if (scene) disposeScene();
+  map = MAPS[id] ?? MAPS.riksvagen;
+  stage = createScene(null, map, { renderer });
+  ({ scene, camera } = stage);
+  buildWorld(scene, map);
+  rig = createRig({ camera, map, fill: stage.fill, dom: renderer.domElement });
+  day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
+  // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
+  // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
+  sim = createSim(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1));
+  view = createView(scene, sim);
+  routeLines = createRouteLines(scene);
+  routeKeys.now = routeKeys.preview = null;
+}
+const routeKeys = { now: null, preview: null };
+loadMap(progress.mapId);
+
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go() });
 const dim = document.createElement('div');
 dim.className = 'dim';
@@ -49,7 +79,7 @@ let panelRange = null;    // räckvidd som panelen vill visa (kort under musen)
 
 function closePanel() {
   if (panel) panel.close();
-  panel = null; selected = null; panelRange = null;
+  panel = null; selected = null; panelRange = null; previewCard = null;
 }
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet.
 const withCash = fn => (...args) => {
@@ -63,11 +93,15 @@ const actions = {
   upgrade: withCash(id => upgrade(sim, id)),
   sell: withCash(id => sell(sim, id)),
   kit: withCash(id => buyKit(sim, id)),
-  place: withCash((cell, type) => placeObstacle(sim, cell, type)),
+  // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
+  place: withCash((cell, type) => placeAcross(sim, cell, type)),
   remove: withCash(cell => removeObstacle(sim, cell)),
   range: r => { panelRange = r; },
+  // Kortet under pekaren i rutans panel: förhandsvisa just det hindret.
+  preview: (cell, type) => { previewCard = type ? { cell, type } : null; },
   close: closePanel,
 };
+let previewCard = null;
 // Klick på en annan position eller ruta medan panelen är öppen byter direkt till den.
 function open(p) {
   if (selected && selected.kind === p.kind && selected.id === p.id) return;
@@ -77,10 +111,10 @@ function open(p) {
   placePanel();
 }
 
-const picker = createPicker(camera, renderer.domElement, () => view.rayTargets(), (x, z) => {
-  const i = cellAt(sim.map, x, z);
-  return i == null ? null : { kind: 'cell', id: i };
-});
+const picker = createPicker(() => camera, renderer.domElement, () => view.rayTargets(), (x, z) => {
+  const i = sim.route.cellAt(x, z);
+  return i == null || !sim.route.validCell(i) ? null : { kind: 'cell', id: i };
+}, { ignoreClick: () => rig.takeDrag() });
 picker.onPick(p => { if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return; if (p) open(p); else closePanel(); });
 picker.onHover(p => { hovered = mode === 'play' ? p : null; });
 // Klick utanför panelen (men inte i scenen, den sköts av plockaren) stänger den.
@@ -130,7 +164,6 @@ function toggleSpeed() {
 
 // ---------- basen tar skada ----------
 let lastBaseToast = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
-const camHome = camera.position.clone();
 function onBreach() {
   hud.baseHit();
   shake(SHAKE_TIME, SHAKE_AMP);
@@ -145,8 +178,8 @@ function shakeCamera(dt) {
   if (shakeT <= 0) return;
   shakeT = Math.max(0, shakeT - dt);
   const a = shakeAmp * (shakeT / shakeLen);
-  camera.position.set(camHome.x + (Math.random() - 0.5) * 2 * a, camHome.y, camHome.z + (Math.random() - 0.5) * 2 * a);
-  if (shakeT === 0) camera.position.copy(camHome);
+  if (shakeT === 0) rig.setShake(0, 0);
+  else rig.setShake((Math.random() - 0.5) * 2 * a, (Math.random() - 0.5) * 2 * a);
 }
 
 // ---------- horden på väg in ----------
@@ -173,13 +206,94 @@ function findEntry() {
 }
 addEventListener('resize', () => { entryAt = null; });
 function updateEntry() {
-  if (mode !== 'play' || sim.phase !== 'wave') { hud.entry(null); return; }
+  if (mode !== 'play') { hud.entry(null); return; }
+  if (sim.route.kind === 'grid') { hud.entry(gridEntries()); return; }
+  if (sim.phase !== 'wave') { hud.entry(null); return; }
   const alive = sim.zombies.filter(z => !z.dead);
   if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
   const seen = alive.some(z => { const p = zombiePos(sim, z); return onScreen(p.x, p.z, 10).in; });
   if (seen) { hud.entry(null); return; }
   entryAt = entryAt || findEntry();
   hud.entry(entryAt);
+}
+
+// Ingångarna som dagens vågor använder (standard: banans första).
+function daySpawns() {
+  const first = sim.route.spawns?.[0]?.id;
+  return [...new Set(sim.dayCfg.waves.flatMap(w => w.groups.map(g => g.spawn ?? first)))];
+}
+// Gnesta: en pil per ingång. Under vågen där zombier från den är på väg men inte syns
+// ("Horde incoming"); före vågen vid kanten för ingångar som ligger utanför bild.
+function gridEntries() {
+  const out = [], wave = sim.phase === 'wave', build = sim.phase === 'build';
+  if (!wave && !build) return out;
+  const first = sim.route.spawns[0].id, active = daySpawns();
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  for (const sp of sim.route.spawns) {
+    if (!active.includes(sp.id)) continue;
+    let text = 'Horde incoming';
+    if (wave) {
+      const pending = sim.spawnQueue.some(q => (q.spawn ?? first) === sp.id);
+      const alive = sim.zombies.filter(z => !z.dead && z.spawn === sp.id);
+      if (!pending && !alive.length) continue;
+      if (alive.some(z => onScreen(z.x, z.z, 10).in)) continue;
+    } else text = 'They come from here';
+    const s = onScreen(sp.x, sp.z, EDGE);
+    if (s.in) {
+      if (!wave) continue;
+      // ingången syns: pilen vid den, i riktning längs vägen in
+      const path = sim.route.paths([sp.id])[0];
+      const c = path && sim.route.cellCenter(path.cells[Math.min(3, path.cells.length - 1)]);
+      const t = c ? onScreen(c.x, c.z) : { sx: cx, sy: cy };
+      out.push({ x: s.sx, y: s.sy, angle: Math.atan2(t.sy - s.sy, t.sx - s.sx) + Math.PI, text });
+      continue;
+    }
+    // utanför bild: vid kanten på linjen från mitten mot ingången, fri från plåtarna uppe och
+    // knappen nere (större marginal där)
+    const dx = s.sx - cx, dy = s.sy - cy;
+    const half = dy < 0 ? cy - 110 : cy - 120;
+    const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
+    let x = cx + dx * k, y = cy + dy * k;
+    if (y > innerHeight - 160 && Math.abs(x - cx) < 380) x = cx + (x < cx ? -380 : 380);
+    out.push({ x, y, angle: Math.atan2(-dy, -dx) + Math.PI, text });
+  }
+  return out;
+}
+
+// Hordens väg på Gnesta: svagt band för vägen som gäller nu, rost för förhandsvisningen när
+// pekaren står på en gata (eller en ruta är vald): så går de om du spärrar här.
+const cellWorld = k => { const c = sim.route.cellCenter(k); return [c.x, c.z]; };
+let nowPaths = null;
+function updateRoutes() {
+  const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
+  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); return null; }
+  const ids = daySpawns();
+  const obsKey = Object.keys(sim.obstacles).join(',');
+  const nowKey = obsKey + '|' + ids.join(',');
+  if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
+  routeLines.set('now', nowPaths.map(p => p.cells.map(cellWorld)), nowKey);
+  const at = hovered?.kind === 'cell' ? hovered.id : selected?.kind === 'cell' ? selected.id : null;
+  if (at == null) { routeLines.set('preview', null); return null; }
+  const ob = sim.obstacles[at];
+  const type = previewCard?.cell === at ? previewCard.type : 'block';
+  const obs = { ...sim.obstacles };
+  let cells;
+  if (ob) {
+    cells = Object.keys(sim.obstacles).filter(k => k === String(at) || (ob.line != null && sim.obstacles[k].line === ob.line)).map(Number);
+    for (const k of cells) delete obs[k];
+  } else {
+    cells = acrossCells(sim, at);
+    for (const k of cells) obs[k] = { type };
+  }
+  const pKey = `${at}|${type}|${nowKey}`;
+  if (routeKeys.preview !== pKey) {
+    routeKeys.preview = pKey;
+    const paths = sim.route.paths(ids, obs);
+    const same = paths.every((p, i) => p.cells.join() === nowPaths[i]?.cells.join());
+    routeKeys.previewPaths = same ? null : paths.map(p => p.cells.map(cellWorld));
+  }
+  routeLines.set('preview', routeKeys.previewPaths, pKey);
+  return { cells, tone: ob ? 'paper' : 'rust' };
 }
 addEventListener('keydown', e => {
   // Esc tar bort både valet och pekarens markering, så att ingen ram eller räckvidd ligger kvar.
@@ -222,8 +336,10 @@ function sheetAction(a) {
 function showMenu() {
   setMode('menu', () => mainMenu(uiRoot, progress, {
     version: VERSION,
+    debug: DEBUG,
     onDay: n => startDay(n),
     onResearch: () => showResearch('menu'),
+    onMap: id => { progress = selectMap(progress, id); save(); loadMap(id); hud.reset(); showMenu(); },
   }));
 }
 function startDay(n) {
@@ -234,13 +350,13 @@ function startDay(n) {
   view.setSim(sim);
   hud.reset();
   speed = 1; hud.setSpeed(1);
-  entryAt = null; shakeT = 0; camera.position.copy(camHome);
+  entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
   hinting = n === 1 && !progress.seenHint;
   setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
 }
 function finishDay() {
   const won = sim.phase === 'won';
-  progress = dayResult(progress, { day, won, intelEarned: sim.intelEarned });
+  progress = dayResult(progress, { day, won, intelEarned: sim.intelEarned, mapId: map.id });
   save();
   lastResult = {
     won, day, intelEarned: sim.intelEarned, kills: sim.kills,
@@ -340,7 +456,9 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (new URLSearchParams(location.search).has('debug')) window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, view, renderer, scene, camera };
+if (DEBUG) window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+  // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
+  advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 showMenu();
 
 let last = performance.now(), time = 0, acc = 0;
@@ -370,8 +488,12 @@ function tick(now) {
   if (panel) panel.update(sim);
   hud.update(sim);
   updateEntry();
+  rig.active = mode === 'play';
+  rig.update(frameDt);
   shakeCamera(frameDt);
-  view.setUi({ selected, hover: hovered, range: panelRange || rangeFor(hovered) || rangeFor(selected) });
+  const tiles = updateRoutes();
+  routeLines.update(frameDt);
+  view.setUi({ selected, hover: hovered, range: panelRange || rangeFor(hovered) || rangeFor(selected), tiles });
   view.sync(frameDt);
   updateWorld(frameDt, time);
   renderer.render(scene, camera);
