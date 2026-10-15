@@ -38,7 +38,7 @@ export function inPoly(px, pz, poly) {
 export const distPoly = (px, pz, poly) => distPolyline(px, pz, [...poly, poly[0]]);
 
 // Mjuk kurva genom punkterna (Catmull-Rom), ungefär en punkt per 1.5 m.
-function smooth(pts, step = 1.5) {
+export function smooth(pts, step = 1.5) {
   if (pts.length < 3) return pts.map(p => [...p]);
   const out = [];
   for (let i = 0; i < pts.length - 1; i++) {
@@ -418,11 +418,13 @@ export const BASE = { at: ICE_RINK.entrance };
 
 // ---------- rutnätet för horden ----------
 // 2 m-rutor. walk = 1 på gator och cykelvägar, 0 på tomter, i skogen och på rondellens gräsö.
-export function buildGrid(cellSize = 2) {
-  const x0 = -82, z0 = -48, x1 = 80, z1 = 64;
+// townGrid tar en stads data (T: roads, spawns, base, bounds), så att Gnesta Norr (gnesta-norr.js)
+// kan bygga sitt större rutnät med samma regler. Rondellen och ishallen är desamma.
+export function townGrid(T, cellSize = 2) {
+  const { x0, z0, x1, z1 } = T.bounds;
   const gw = Math.round((x1 - x0) / cellSize), gh = Math.round((z1 - z0) / cellSize);
   const walk = new Uint8Array(gw * gh);
-  const walkRoads = ROADS.filter(r => r.walk);
+  const walkRoads = T.roads.filter(r => r.walk);
   const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const x = cx(i), z = cz(j);
@@ -463,16 +465,18 @@ export function buildGrid(cellSize = 2) {
   // basens ruta: närmaste gångbara ruta vid ön
   let best = null, bd = Infinity;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (walk[j * gw + i]) {
-    const d = Math.hypot(cx(i) - BASE.at[0], cz(j) - BASE.at[1]);
+    const d = Math.hypot(cx(i) - T.base.at[0], cz(j) - T.base.at[1]);
     if (d < bd) { bd = d; best = [i, j]; }
   }
   return {
     w: gw, h: gh, cellSize, origin: [x0, z0], walk, terrain,
-    spawns: SPAWNS.map(s => ({ id: s.id, cell: cellOf(s.at) })),
+    spawns: T.spawns.map(s => ({ id: s.id, cell: cellOf(s.at) })),
     base: best,
     cellOf, center: (i, j) => [cx(i), cz(j)],
   };
 }
+// Gnestas rutnät (x -82 till 80, z -48 till 64).
+export const buildGrid = (cellSize = 2) => townGrid(gnestaTown(), cellSize);
 
 // ---------- omgivningen: spöklagret ----------
 // Det som ligger utanför spelytan, ut till kamerans panoreringsgräns, ritat ur karta-vid.jpg och
@@ -560,9 +564,14 @@ export const CARS = (() => {
 // Häckar, staket och brevlådor är låga: där går det att bygga, och de skymmer inte.
 const HOUSE_PAD = 1;
 const THING_PAD = 0.8;
-function houseRects() {
+// T: stadens data. lots (tomterna), cars, roads, ground och tillägg från en större karta (Gnesta
+// Norr): extraHouses (rektanglar som är hus: radhuslängorna), extraThings (bilar på
+// radhusparkeringarna m.m.), extraRoofs (byggnader med tak, efter villorna), clearings
+// (polygoner utan skog: tomter och gårdar), hedgeSegs (staket utöver tomternas), brickSegs
+// (låga tegelmurar: skydd för Hemvärnet) och ditchRoads (vägar med dike).
+function houseRects(T) {
   const out = [];
-  for (const p of LOTS.plots) {
+  for (const p of T.lots.plots) {
     const h = p.house;
     if (!h) continue;
     const w = h.kind === 'preschool' ? Math.max(h.w, 13) : h.w, d = h.kind === 'preschool' ? Math.max(h.d, 7.5) : h.d;
@@ -580,34 +589,37 @@ function houseRects() {
   out.push(rect(ax, az, hr.ry, hr.annex.depth, hr.annex.width));
   out.push(rect(sh.x, sh.z, sh.ry, sh.len, sh.wid));
   out.push(rect(sh.annex.x, sh.annex.z, sh.ry, sh.annex.len, sh.annex.wid));
+  out.push(...(T.extraHouses ?? []));
   return out;
 }
-function thingRects() {
-  const out = CARS.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
-  for (const p of LOTS.plots) for (const x of p.extras) {
+function thingRects(T) {
+  const out = T.cars.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
+  for (const p of T.lots.plots) for (const x of p.extras) {
     if (x.kind === 'car') out.push(rect(x.x, x.z, x.ry, 4.3, 1.82));
     else if (x.kind === 'trailer') out.push(rect(x.x, x.z, x.ry, 2.8, 1.7));
     else if (x.kind === 'trampoline') out.push(rect(x.x, x.z, 0, 3.6, 3.6));
     else if (x.kind === 'tree') out.push(rect(x.x, x.z, 0, 0.8, 0.8));
   }
+  out.push(...(T.extraThings ?? []));
   return out;
 }
 // Står det skog i punkten (samma regler som skogen ritas med, med marginal för trädens slump)?
-function denseForest(x, z) {
-  if (!GROUND.forest.some(poly => inPoly(x, z, poly))) return false;
-  if (ROADS.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)) return false;
-  if (LOTS.blocks.some(B => inPoly(x, z, B.outer)) || inPoly(x, z, PARKING.poly)) return false;
+export function denseForestIn(T, x, z) {
+  if (!T.ground.forest.some(poly => inPoly(x, z, poly))) return false;
+  if (T.roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)) return false;
+  if (T.lots.blocks.some(B => inPoly(x, z, B.outer)) || inPoly(x, z, PARKING.poly)) return false;
+  if (T.clearings && T.clearings.some(poly => inPoly(x, z, poly))) return false;
   if (distPoly(x, z, ROUNDABOUT.island) < 9) return false;
   if (Math.hypot(x - ICE_RINK.x, z - ICE_RINK.z) < ICE_RINK.len / 2 + 9) return false;
   if (Math.hypot(x - SPORTHALL.x, z - SPORTHALL.z) < SPORTHALL.len / 2 + 12) return false;
-  return Math.min(...ROADS.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
+  return Math.min(...T.roads.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
 }
 const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDABOUT.flag, [cx + 1.3, cz - 0.4], [cx - 0.9, cz + 1.2]]; };
 // Taken (0.8.0): villorna, förskolan, affären och garagen går att ligga på (Psg 90). Ishallen är
 // basen och sporthallen ligger utanför striden, så de har inga tak att ställa något på.
 // Takens höjd följer hur gnesta-kit.js ritar husen (sockel 0,32 m, vägg 2,75 eller 3,3 m,
 // taklutningen per hustyp); håll dem i takt om husen ritas om.
-const PLINTH = 0.32;
+export const PLINTH = 0.32;
 function roofShape(h) {
   const pre = h.kind === 'preschool', shop = h.kind === 'shop';
   const W = pre ? Math.max(h.w, 13) : h.w, D = pre ? Math.max(h.d, 7.5) : h.d;
@@ -628,9 +640,10 @@ function roofHeight(sh, lx, lz) {
 }
 const GARAGE_TOP = 2.8;
 // Byggnaderna med tak: { rects: [huset, garaget], height(x, z) } där height ger 0 utanför taket.
-export function roofBuildings() {
+// Villorna först (i tomternas ordning), sedan T.extraRoofs (radhuslängorna i Gnesta Norr).
+export function townRoofs(T) {
   const out = [];
-  for (const p of LOTS.plots) {
+  for (const p of T.lots.plots) {
     const h = p.house;
     if (!h) continue;
     const sh = roofShape(h), c = Math.cos(h.ry), sn = Math.sin(h.ry);
@@ -649,12 +662,14 @@ export function roofBuildings() {
       return garage && inRect(garage, x, z) ? GARAGE_TOP : 0;
     } });
   }
+  out.push(...(T.extraRoofs ?? []));
   return out;
 }
+export const roofBuildings = () => townRoofs(gnestaTown());
 
 const ROOF_SAMPLES = [[0, 0], ...Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * 0.8, Math.sin(i * Math.PI / 4) * 0.8])];
-export function buildPlacement(grid) {
-  const houses = houseRects(), things = thingRects();
+export function townPlacement(T, grid) {
+  const houses = houseRects(T), things = thingRects(T);
   const place = buildPlace({
     w: grid.w, h: grid.h, cellSize: grid.cellSize, origin: grid.origin,
     walk: (x, z, k) => grid.walk[k] === 1,
@@ -667,12 +682,12 @@ export function buildPlacement(grid) {
       if (houses.some(r => inRect(r, x, z))) return KIND.house;
       if (houses.some(r => inRect(r, x, z, HOUSE_PAD))) return KIND.house;
       if (things.some(r => inRect(r, x, z, THING_PAD))) return KIND.thing;
-      if (denseForest(x, z)) return KIND.forest;
+      if (denseForestIn(T, x, z)) return KIND.forest;
       return KIND.open;
     },
   });
   // Taken: rutor vars mitt ligger på ett tak (inte i marginalen runt huset).
-  const blds = roofBuildings(), n = grid.w * grid.h;
+  const blds = townRoofs(T), n = grid.w * grid.h;
   const roof = new Float32Array(n), bldg = new Int32Array(n);
   for (let k = 0; k < n; k++) {
     if (place.kind[k] !== KIND.house) continue;
@@ -689,22 +704,33 @@ export function buildPlacement(grid) {
   // och diket längs skogsvägen. Bara öppna rutor; luckan vid uppfarten är ingen häck.
   const hedge = new Uint8Array(n), ditch = new Uint8Array(n);
   const segs = [];
-  for (const e of LOTS.edges) {
+  for (const e of T.lots.edges) {
     if (e.kind === 'none') continue;
     if (!e.gap) { segs.push([e.a, e.b]); continue; }
     const at = t => [e.a[0] + (e.b[0] - e.a[0]) * t, e.a[1] + (e.b[1] - e.a[1]) * t];
     const L = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) || 1, h = e.gap.len / 2 / L;
     segs.push([e.a, at(Math.max(0, e.gap.t - h))], [at(Math.min(1, e.gap.t + h)), e.b]);
   }
-  const forest = ROADS.find(r => r.id === 'forest');
+  segs.push(...(T.hedgeSegs ?? []));
+  const ditchRoads = (T.ditchRoads ?? ['forest']).map(id => T.roads.find(r => r.id === id)).filter(Boolean);
+  // Gnesta Norr (1.0): radhusens låga tegelmurar, ett eget skydd (src/sim/squad.js 'brick').
+  const brickSegs = T.brickSegs ?? null, brick = brickSegs ? new Uint8Array(n) : null;
   for (let k = 0; k < n; k++) {
     if (place.kind[k] !== KIND.open || place.walk[k]) continue;
     const x = grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, z = grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize;
     if (segs.some(sg => distPolyline(x, z, sg) < 1.3)) hedge[k] = 1;
-    if (forest && distPolyline(x, z, forest.pts) - forest.width / 2 < 2.4) ditch[k] = 1;
+    if (ditchRoads.some(rd => distPolyline(x, z, rd.pts) - rd.width / 2 < 2.4)) ditch[k] = 1;
+    if (brick && brickSegs.some(sg => distPolyline(x, z, sg) < 1.3)) brick[k] = 1;
   }
-  return { ...place, roof, bldg, buildings: blds.map(b => b.rects), hedge, ditch };
+  return { ...place, roof, bldg, buildings: blds.map(b => b.rects), hedge, ditch, ...(brick ? { brick } : {}) };
 }
+// Gnestas egen stad: allt ovan med Gnestas data.
+let gnestaT = null;
+export function gnestaTown() {
+  return gnestaT ??= { roads: ROADS, lots: LOTS, cars: CARS, ground: GROUND, spawns: SPAWNS, base: BASE,
+    bounds: { x0: -82, z0: -48, x1: 80, z1: 64 } };
+}
+export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
 // dag 5 allt). Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
