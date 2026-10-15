@@ -40,6 +40,7 @@ function disposeScene() {
   stage.dispose(); rig.dispose();
   scene.traverse(o => {
     if (o.geometry) o.geometry.dispose();
+    if (o.isInstancedMesh) o.dispose();
     for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
       for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
       m.dispose();

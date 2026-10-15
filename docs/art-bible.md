@@ -106,7 +106,7 @@ Antalet meshar avgör om stilen håller när fler typer och större vågor komme
 
 | Modell | Högst | Idag (0.2.0) |
 |---|---|---|
-| Zombie | 16 | 0.2.2: kropp 13, plus högst 3 trasor och fläckar |
+| Zombie | 16 delar | 0.2.2: kropp 13, plus högst 3 trasor och fläckar. Från 0.4.1 instanser: hela horden är 25 anrop plus 25 för kropparna, oavsett antal |
 | Soldat | 16 | 0.2.2: 16 |
 | Pjäs nivå 1 till 2 | 65 | M249 46 och 50, M2 59 och 63 |
 | Pjäs nivå 3 | 120, mål 60 | M249 102, M2 120 |
@@ -118,6 +118,7 @@ Hela bilden på dag 3 våg 3: högst 1 200 anrop. Uppmätt 1 124 i 0.2.0 (se `do
 Regler:
 - Många likadana småsaker (grus, hylsor, blodstänk, köttbitar) ritas som `InstancedMesh`, aldrig som enskilda meshar.
 - Liggande kroppar kastar ingen skugga, och högst 24 ligger kvar i bild.
+- Zombierna ritas som instanser (`src/render/horde.js`): en `InstancedMesh` per delgeometri med färg per instans, matriserna räknas ur varje zombies skelett på processorn. Nya delar på zombierna ska använda byggsatsens delade geometrier (`geo`, `box`, `sbox`) och vanliga `mat()`-material, annars blir varje ny storlek ett eget anrop.
 - Nästa steg när budgeten trängs: slå ihop pjäsernas sandsäckar till en geometri per pjäs (de står still), så kommer nivå 3 ner mot 60.
 
 ## Gnesta

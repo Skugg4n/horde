@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
+import { createHorde } from './horde.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
@@ -38,6 +39,8 @@ export function createView(scene, initialSim) {
   let sim = initialSim;
   const fx = createFx(scene);
   const rings = createHealthRings(scene);
+  // Zombierna ritas som instanser (horde.js): skelettet per zombie ligger utanför scenen.
+  const horde = createHorde(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // id → { key, group, model, angle }
@@ -56,17 +59,19 @@ export function createView(scene, initialSim) {
     parts.root.position.set(P.x, 0, P.z);
     const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6) };
     parts.root.rotation.y = e.ry;
-    scene.add(parts.root);
+    horde.attach(parts);
     zombies.set(z.id, e);
     return e;
   }
   function removeZombie(id, e) {
+    horde.release(e.parts);
     disposeModel(e.parts.root);
     zombies.delete(id);
   }
   function syncZombies(dt) {
     const k = 1 - Math.exp(-dt * 22);
     rings.begin();
+    horde.begin();
     for (const z of sim.zombies) {
       if (z.breached) continue;
       let e = zombies.get(z.id);
@@ -88,16 +93,21 @@ export function createView(scene, initialSim) {
         // faller bakåt och ligger kvar
         if (e.fall < 1) {
           e.fall = Math.min(1, e.fall + dt / FALL_TIME);
+          zombieFall(parts, e.fall * e.fall);
           if (e.fall === 1) {
-            // ligger still: ingen skugga behövs (halverar kostnaden i skuggpasset)
-            parts.root.traverse(o => { o.castShadow = false; });
+            // ligger still: frysta matriser i kroppsuppsättningen, utan skugga
+            horde.freeze(parts);
             corpses.push(z.id);
             while (corpses.length > MAX_CORPSES) {
               const old = corpses.shift(), oe = zombies.get(old);
               if (oe) removeZombie(old, oe);
             }
-          }
-          zombieFall(parts, e.fall * e.fall);
+          } else horde.draw(parts);
+        } else if (e.fling && !e.fling.rest) {
+          // en liggande kropp som kastas: frys om i varje bildruta tills den ligger still
+          const f = e.fling;
+          if (f.oy <= 0 && f.vy <= 0 && Math.abs(f.vx) + Math.abs(f.vz) < 0.02) f.rest = true;
+          horde.freeze(parts);
         }
         continue;
       }
@@ -114,10 +124,12 @@ export function createView(scene, initialSim) {
       } else {
         zombieWalk(parts, e.phase, clock);
       }
+      horde.draw(parts);
     }
     rings.end();
     for (const [id, e] of zombies) if (e.seen !== frame) removeZombie(id, e);
     if (corpses.length && corpses.some(id => !zombies.has(id))) corpses = corpses.filter(id => zombies.has(id));
+    horde.end();
   }
 
   // ---------- positioner och vapen ----------
@@ -456,6 +468,7 @@ export function createView(scene, initialSim) {
         if (d > b.r * 1.3) continue;
         const push = (1 - d / (b.r * 1.3)) * 4 + 1.5, nx = d > 0.01 ? dx / d : rnd(-1, 1), nz = d > 0.01 ? dz / d : rnd(-1, 1);
         const f = e.fling || (e.fling = { ox: 0, oy: 0, oz: 0, vx: 0, vy: 0, vz: 0, spin: 0, vr: 0 });
+        f.rest = false;
         f.vx = nx * push; f.vz = nz * push; f.vy = 2 + push * 0.8; f.vr = rnd(-6, 6) / e.parts.scale;
       }
     }
@@ -494,5 +507,5 @@ export function createView(scene, initialSim) {
   buildBase();
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
-  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings };
+  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde };
 }

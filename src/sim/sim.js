@@ -74,7 +74,8 @@ export function callNextWave(sim) {
 
 // group.spawn väljer ingång på banor med flera (standard: den första).
 function spawn(sim, { type, wave, spawn: spawnId }) {
-  const z = { id: sim.nextId++, type, wave, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, ...sim.route.spawn(sim.rng, spawnId), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+  const id = sim.nextId++;
+  const z = { id, type, wave, hp: ZOMBIES[type].hp, maxHp: ZOMBIES[type].hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   sim.zombies.push(z);
   sim.events.push({ t: 'spawn', id: z.id });
 }

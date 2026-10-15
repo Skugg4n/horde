@@ -1,5 +1,13 @@
 # Ändringslogg
 
+## 0.4.1 (2026-10-15)
+
+Horden går att rita i hundratal, och den sprider sig över gatan på Gnesta.
+
+- Zombierna ritas som instanser: en `InstancedMesh` per kroppsdel och typ, med färgen per zombie och samma proportioner, gång, ryck, slag- och fallposer som förut. Liggande kroppar fryses i en egen uppsättning utan skugga, högst 24 som förut. 250 zombier på Gnesta: 365 anrop i stället för 2 553, och med processorn strypt 4 gånger 96 fps i stället för 27 (`docs/balance-log.md`, Prestanda). Visningssidan använder fortfarande vanliga meshar.
+- Varje zombie på Gnesta har en fast fil tvärs över gatan och håller den hela vägen, över gatans hela bredd (0,6 m från kanten). Filerna delas ut i följd efter zombiens nummer så att zombier som kommer efter varandra hamnar isär. Nära basen och vid barrikader styr de som förut. Deterministiskt, test i `tests/lanes.test.js`.
+- E4 går som förut: balanskvittot är oförändrat.
+
 ## 0.4.0 (2026-10-15)
 
 Bana 2, Gnesta, går att spela i spelet (inte bara på visningssidan).

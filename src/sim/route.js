@@ -69,7 +69,8 @@ export function pathRoute(map) {
 }
 
 // ---------- Gnesta ----------
-// Zombien har x, z (meter), cell (rutans nyckel under den) och lat (fast sidoförskjutning i meter).
+// Zombien har x, z (meter), cell (rutans nyckel under den), lane (fast fil, -1 till 1, över hela
+// gatans bredd) och lat (sidoförskjutning i meter inom rutan, reserv nära basen och vid block).
 // Den styr mot en punkt några rutor fram längs flödet (LOOK), så att horden går snett över en
 // korsning i stället för i trappsteg. Punkten väljs bara om hela sträckan dit, med lite marginal
 // åt sidorna, ligger på gångbara rutor utan barrikad; annars nästa ruta som förut (nuvarande och
@@ -84,6 +85,21 @@ const LOOK = 3;          // så många rutor fram kan siktpunkten ligga
 const CLEAR = 0.25;      // marginal åt sidorna när sträckan till siktpunkten provas
 const SAMPLE = 0.2;      // provsteg längs sträckan
 const SPAN_MAX = 4;      // en spärr tvärs över gatan når högst så många rutor åt varje håll
+// Filen: zombien håller en fast plats tvärs över gatan (lane, -1 = ena kanten, 1 = andra, sett i
+// gångriktningen). Gatans bredd mäts vinkelrätt mot gångriktningen vid siktpunkten, högst
+// LANE_REACH meter åt varje håll, och LANE_EDGE meter hålls fri från kanten. Filerna delas ut
+// ur den gyllene snittets följd per zombie-id (plus lite brus), så att zombier i följd hamnar
+// långt isär över bredden i stället för att staplas: en mild, deterministisk separation.
+const LANE_REACH = 8;
+const LANE_EDGE = 0.6;
+const LANE_STEP = 0.25;
+const PHI = 0.6180339887498949;
+const LANE_JITTER = 0.12;
+// Fil för zombie nummer index (id) och ett slumptal 0..1. Ren funktion, samma in ger samma ut.
+export function laneFor(index, r) {
+  const u = (index * PHI + (r - 0.5) * LANE_JITTER) % 1;
+  return (u < 0 ? u + 1 : u) * 2 - 1;
+}
 
 export function gridRoute(map) {
   const grid = makeGrid(map.grid);
@@ -132,14 +148,38 @@ export function gridRoute(map) {
       }
     }
     const lat = Math.max(-LAT_MAX, Math.min(LAT_MAX, z.lat));
-    for (let i = chain.length - 1; i >= 1; i--) {
-      const [ax, az] = grid.center(chain[i - 1]), [bx, bz] = grid.center(chain[i]);
-      const dx = Math.sign(bx - ax), dz = Math.sign(bz - az);
-      const tx = bx - dz * lat, tz = bz + dx * lat;
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const c = chain[i];
+      let tx, tz;
+      if (z.lane != null && !flow.isBase(c)) {
+        // Filen: gångriktningen längs kedjan, gatans bredd vinkelrätt mot den vid rutan c.
+        const [ox, oz] = grid.center(i > 0 ? chain[0] : z.cell), [bx, bz] = grid.center(c);
+        let dx = bx - ox, dz = bz - oz;
+        const L = Math.hypot(dx, dz);
+        if (L < 1e-9) continue;
+        dx /= L; dz /= L;
+        const nx = -dz, nz = dx;
+        const a = free(bx, bz, nx, nz), b = free(bx, bz, -nx, -nz);
+        const mid = (a - b) / 2, room = Math.max(0, (a + b) / 2 - LANE_EDGE);
+        const off = mid + z.lane * room;
+        tx = bx + nx * off; tz = bz + nz * off;
+      } else {
+        if (i === 0) continue;
+        const [ax, az] = grid.center(chain[i - 1]), [bx, bz] = grid.center(c);
+        const dx = Math.sign(bx - ax), dz = Math.sign(bz - az);
+        tx = bx - dz * lat; tz = bz + dx * lat;
+      }
       if (clear(z.x, z.z, tx, tz)) return { x: tx, z: tz };
     }
     const t = target(z, n1);
     return { x: t.x, z: t.z };
+  }
+  // Fri sträcka i meter från (x, z) i riktningen (nx, nz) på öppna rutor, högst LANE_REACH.
+  // Räknas från rutans kant (rutans halva bredd ingår alltid).
+  function free(x, z, nx, nz) {
+    let d = 0;
+    while (d < LANE_REACH && open(grid.keyAt(x + nx * (d + LANE_STEP), z + nz * (d + LANE_STEP)))) d += LANE_STEP;
+    return Math.max(d, Math.min(half, LANE_REACH));
   }
   function aimOf(z) {
     if (z.aimV !== version || z.aimC !== z.cell || z.aimX == null) {
@@ -209,12 +249,14 @@ export function gridRoute(map) {
     get len() { return total; },
     base: (() => { const [x, z] = grid.center(grid.base[0]); return { x, z }; })(),
     spawns: grid.spawns.map(s => { const [x, z] = grid.center(s.key); return { id: s.id, key: s.key, x, z }; }),
-    spawn(rng, spawnId) {
+    // index: zombiens nummer (simuleringen skickar id), väljer filen över gatan.
+    spawn(rng, spawnId, index = 0) {
       const s = grid.spawns.find(q => q.id === (spawnId ?? spawnIds[0]));
       if (!s) throw new Error('okänd spawn ' + spawnId);
       const cell = s.starts[Math.floor(rng() * s.starts.length)];
       const [x, z] = grid.center(cell);
-      return { x, z, cell, lat: (rng() - 0.5) * 2 * LAT_MAX, spawn: s.id };
+      const lane = laneFor(index, rng());
+      return { x, z, cell, lane, lat: lane * LAT_MAX, spawn: s.id };
     },
     advance(z, dist) {
       let rest = dist;
@@ -247,7 +289,7 @@ export function gridRoute(map) {
       return { x: z.x, z: z.z, dirX: dx / L, dirZ: dz / L };
     },
     ahead(z, dist) {
-      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat, aimX: z.aimX, aimZ: z.aimZ, aimC: z.aimC, aimV: z.aimV };
+      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat, lane: z.lane, aimX: z.aimX, aimZ: z.aimZ, aimC: z.aimC, aimV: z.aimV };
       this.advance(c, dist);
       return { x: c.x, z: c.z };
     },

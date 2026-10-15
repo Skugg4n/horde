@@ -99,3 +99,23 @@ Två uppställningar:
 - Högst 24 liggande kroppar i bild, de äldsta tas bort först (simuleringen behåller sina döda i 20 s som förut).
 
 Slutsats: långt över 50 fps här, så nästa åtgärd i granskningen (sandsäckar som en sammanslagen geometri per pjäs) väntar. Den största kvarvarande posten är pjäserna: en M2 på nivå 3 är 120 meshar, och fyra sådana står för drygt 40 % av anropen (ca 400 av 920 i vågens början), eftersom varje säck är en egen mesh och ritas två gånger. Siffran är från en snabb dator med pixeltäthet 1; på en Retina-skärm (täthet 2) eller en äldre dator med integrerad grafik kan det bli lägre och bör mätas där.
+
+### 0.4.1: instansierade zombier (Gnesta, 250 zombier)
+
+Mätt 2026-10-15 headless (Chrome for Testing via Playwright, `headless: true`, Metal, 1440 x 900, pixeltäthet 1, inget fönster). Skript: Gnesta dag 5 med `?debug`, 280 zombier i kön (vandrare, löpare och bjässar i förhållandet 3:2:1, jämnt över de tre ingångarna), 45 s framåt så att horden fyller gatorna, sedan 30 dödade (24 kroppar ligger kvar) och var tredje skadad (hälsoringar). Kameran utzoomad över hela östra delen (vy 84 m). Mätt 6 s: anrop = `renderer.info.render.calls` (skuggpass och huvudpass), arbete = tiden i spelets bildrutefunktion (CPU), plus en körning med processorn strypt 4 gånger (CDP `Emulation.setCPUThrottlingRate`) som ersättning för en långsammare laptop. Headless-läget går i 120 Hz, så 120 fps är taket.
+
+| 233 levande, 30 döda | Före (0.4.0) | Efter (0.4.1) |
+|---|---|---|
+| Anrop medel / högsta | 2 553 / 2 604 | 365 / 365 |
+| Trianglar | 202 000 | 223 000 |
+| Arbete per bildruta medel / 95 % / högsta | 3,5 / 7,4 / 8,5 ms | 1,2 / 2,6 / 3,1 ms |
+| fps (tak 120) / längsta bildruta | 120 / 9,6 ms | 120 / 10,6 ms |
+| CPU strypt 4x: fps | 27 | 96 |
+| CPU strypt 4x: arbete medel / högsta | 17,9 / 39,5 ms | 4,6 / 12,4 ms |
+
+Ändrat i 0.4.1:
+- Varje zombie behåller sitt skelett (leder och delar från `zombieModel`) men det ligger utanför scenen. Vyn ställer posen som förut, `src/render/horde.js` räknar varje dels världsmatris på processorn och skriver den till en `InstancedMesh` per delgeometri, med zombiens färg per instans. Zombierna är nu 25 anrop (8 delar per typ och en delad enhetskub för trasor och fläckar) plus skuggpasset, hur många de än är. Före var det upp till 16 meshar per zombie, två gånger.
+- Liggande kroppar har en egen uppsättning utan skugga (25 till). Matriserna fryses när fallet är klart och skrivs om bara när en kropp läggs till, tas bort eller kastas av en smäll. Taket 24 kroppar och städningen är som förut.
+- Trianglarna ökar lite, eftersom instanserna inte sorteras bort utanför bild (frustum culling är av för hordens anrop). Det kostar mindre än de sparade anropen.
+
+Slutsats: anropen är nu oberoende av hordens storlek, och med strypt processor håller 250 zombier över 60 fps (96 mot 27). Kvar att mäta: Retina (täthet 2) på en riktig laptop med integrerad grafik.
