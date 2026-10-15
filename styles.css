@@ -459,3 +459,19 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   #res { right: 72px; }
   .mrow.choice, .mrow.volume { flex-wrap: wrap; }
 }
+
+/* Laddningsskylten (0.6.0): banan byggs i steg och shaders kompileras i förväg */
+#loading { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 200; padding: 16px 22px 18px; min-width: 300px; text-align: center; }
+#loading[hidden] { display: none; }
+#loading .t { font-family: 'Saira Stencil One', sans-serif; font-size: 26px; letter-spacing: 0.04em; }
+#loading .bar { height: 5px; background: rgba(233,223,201,0.15); margin: 10px 0 8px; }
+#loading .bar i { display: block; height: 100%; width: 0; background: var(--rust); transition: width 0.25s; }
+#loading .s { font-size: 13px; letter-spacing: 0.06em; color: var(--paper-dim); }
+
+/* Köpraden nere till vänster tar plats (0.6.0): vågens knapp och rad flyttas åt höger när
+   fönstret inte är brett nog för att de ska stå fritt i mitten. */
+@media (min-width: 761px) {
+  #go { left: max(50%, 720px); }
+  #wavebar { left: max(50%, 880px); white-space: nowrap; }
+  #speedcd { left: calc(max(50%, 720px) + 250px); }
+}

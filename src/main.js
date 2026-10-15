@@ -37,40 +37,85 @@ if (!mapUnlocked(progress, progress.mapId, { debug: DEBUG })) progress = selectM
 const renderer = createRenderer(document.getElementById('stage'));
 document.getElementById('ver').textContent = 'v' + VERSION;
 const uiRoot = document.getElementById('ui');
+uiRoot.dataset.mode = 'menu';   // tills första banan är laddad: ingen HUD
 
-// Banan: scen, kamera, värld, vy och hordens vägar. Byggs om när spelaren byter bana i menyn.
+// Banan: scen, kamera, värld, vy och hordens vägar. Varje bana byggs en gång och sparas
+// (worlds): att byta tillbaka är då omedelbart, och shaderprogrammen ligger kvar.
+// Bygget görs i steg bakom en laddningsskylt, och shaders kompileras i förväg
+// (renderer.compileAsync), så att sidan inte fryser och första bildrutan inte hackar.
+// Mätt 0.6.0 (docs/balance-log.md, Laddning): kartans CPU-del är under 0,15 s; nästan hela
+// väntan var GPU:ns första bildruta (shaderprogram), som med mjukvaru-GL tar 20-30 s.
 let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null;
 let day = 1, sim = null;
-function disposeScene() {
-  stage.dispose(); rig.dispose();
-  scene.traverse(o => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.isInstancedMesh) o.dispose();
-    for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
-      for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
-      m.dispose();
-    }
-  });
-  renderer.renderLists.dispose();
+const worlds = new Map();
+const loading = document.createElement('div');
+loading.id = 'loading'; loading.className = 'plate'; loading.hidden = true;
+loading.innerHTML = '<div class="t">Loading</div><div class="bar"><i></i></div><div class="s"></div>';
+uiRoot.appendChild(loading);
+const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+function showLoading(name, step, frac) {
+  loading.hidden = false;
+  loading.querySelector('.t').textContent = 'Loading ' + name;
+  loading.querySelector('.s').textContent = step;
+  loading.querySelector('.bar i').style.width = Math.round(frac * 100) + '%';
 }
-function loadMap(id) {
-  if (map && map.id === id) return;
-  if (scene) disposeScene();
-  map = MAPS[id] ?? MAPS.riksvagen;
-  stage = createScene(null, map, { renderer });
-  ({ scene, camera } = stage);
-  buildWorld(scene, map);
-  rig = createRig({ camera, map, fill: stage.fill, dom: renderer.domElement });
-  day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
+let loadingMap = null;
+async function buildMapWorld(m) {
+  showLoading(m.name, 'Laying out the streets', 0.1);
+  await nextFrame(); await nextFrame();
+  const t0 = performance.now();
+  const st = createScene(null, m, { renderer });
+  const w = { map: m, stage: st, scene: st.scene, camera: st.camera };
+  buildWorld(w.scene, m);
+  showLoading(m.name, 'Raising the houses', 0.45);
+  await nextFrame();
+  w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement });
+  w.rig.active = false;
+  const d = Math.min(mapState(progress, m.id).unlockedDay, m.days.length);
   // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
   // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
-  sim = createSim(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1));
-  view = createView(scene, sim);
-  routeLines = createRouteLines(scene);
-  routeKeys.now = routeKeys.preview = null;
+  w.sim = createSim(startConfig(progress, d, m.id) ?? startConfig(newProgress(), 1));
+  w.day = d;
+  w.view = createView(w.scene, w.sim);
+  w.routeLines = createRouteLines(w.scene);
+  const tBuild = performance.now() - t0;
+  showLoading(m.name, 'Mixing the paint', 0.7);
+  await nextFrame();
+  const t1 = performance.now();
+  // Shaderprogrammen kompileras parallellt (KHR_parallel_shader_compile) medan skylten står.
+  try { await renderer.compileAsync(w.scene, w.camera); } catch { renderer.compile(w.scene, w.camera); }
+  for (const tex of texturesOf(w.scene)) renderer.initTexture(tex);
+  w.timing = { build: Math.round(tBuild), compile: Math.round(performance.now() - t1) };
+  showLoading(m.name, 'Ready', 1);
+  return w;
+}
+function texturesOf(sc) {
+  const out = new Set();
+  sc.traverse(o => { for (const mt of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) for (const v of Object.values(mt)) if (v && v.isTexture) out.add(v); });
+  return out;
+}
+async function loadMap(id) {
+  const m = MAPS[id] ?? MAPS.riksvagen;
+  if (map && map.id === m.id) return;
+  if (loadingMap) return loadingMap;
+  loadingMap = (async () => {
+    let w = worlds.get(m.id);
+    if (!w) { w = await buildMapWorld(m); worlds.set(m.id, w); }
+    if (rig) rig.active = false;
+    map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines;
+    day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
+    sim = createSim(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1));
+    view.setSim(sim);
+    stage.resize(); rig.apply(); rig.goHome();
+    routeKeys.now = routeKeys.preview = null;
+    sightCache.clear();
+    // en bildruta med den nya banan innan skylten tas bort
+    await nextFrame();
+    loading.hidden = true;
+  })();
+  try { await loadingMap; } finally { loadingMap = null; }
 }
 const routeKeys = { now: null, preview: null };
-loadMap(progress.mapId);
 
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go({ stack: true }) });
 const dim = document.createElement('div');
@@ -485,7 +530,7 @@ function showMenu() {
     debug: DEBUG,
     onDay: n => startDay(n),
     onResearch: () => showResearch('menu'),
-    onMap: id => { progress = selectMap(progress, id); save(); loadMap(id); hud.reset(); showMenu(); },
+    onMap: id => { progress = selectMap(progress, id); save(); loadMap(id).then(() => { hud.reset(); showMenu(); }); },
   }));
 }
 function startDay(n) {
@@ -574,7 +619,7 @@ function screenRect(object) {
 }
 function hudRects() {
   const out = [];
-  for (const sel of ['#day', '#res', '#hint', '#buildbar']) {
+  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();
@@ -620,7 +665,7 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { get worlds() { return worlds; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 
@@ -641,13 +686,14 @@ const menu = mountMenu(uiRoot, {
   onOpen: () => { stopPlacing(); closePanel(); hovered = null; },
   onClose: () => {},
 });
-showMenu();
+loadMap(progress.mapId).then(() => showMenu());
 
 let last = performance.now(), time = 0;
 const clock = { acc: 0 };
 function tick(now) {
   const frameDt = Math.min((now - last) / 1000, 0.1);
   last = now; time += frameDt;
+  if (!scene || !sim) { requestAnimationFrame(tick); return; }   // första banan laddas
 
   // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
   const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
