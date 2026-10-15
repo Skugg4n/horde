@@ -59,29 +59,49 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
   const resPlate = root.querySelector('#res');
 
   let last = { cash: null, hp: null };
-  let deltaSum = 0, deltaTimer = 0;
+  let deltaTimer = 0;
   const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
 
-  function showDelta(d) {
-    deltaSum += d;
-    el.delta.textContent = (deltaSum > 0 ? '+' : '−') + money(Math.abs(deltaSum));
-    el.delta.className = 'delta show ' + (deltaSum > 0 ? 'up' : 'down');
-    el.cash.classList.remove('up', 'down');
-    void el.cash.offsetWidth;            // starta om animationen
-    el.cash.classList.add(d > 0 ? 'up' : 'down');
+  // Ändring av pengarna från en handling (köp, uppgradering, sälj, ta bort). Visar exakt
+  // den handlingens belopp; nästa handling ersätter siffran i stället för att lägga ihop.
+  function cashDelta(d) {
+    if (!d) return;
+    el.delta.textContent = (d > 0 ? '+' : '−') + money(Math.abs(d));
+    el.delta.className = 'delta show ' + (d > 0 ? 'up' : 'down');
     clearTimeout(deltaTimer);
-    deltaTimer = setTimeout(() => { el.delta.className = 'delta'; deltaSum = 0; }, 1100);
+    deltaTimer = setTimeout(() => { el.delta.className = 'delta'; }, 1400);
   }
+
+  // Pengar från dödade zombier: liten "+$ N" som stiger där zombien föll. Flera döda nära
+  // varandra inom en kort stund slås ihop till en siffra, så att horden inte blir en textvägg.
+  const floats = [];
+  const FLOAT_LIFE = 900, FLOAT_MERGE = 250, FLOAT_NEAR = 70, FLOAT_MAX = 14;
+  function bounty(x, y, amount) {
+    if (!amount) return;
+    const now = performance.now();
+    for (let i = floats.length - 1; i >= 0; i--) if (now - floats[i].t0 > FLOAT_LIFE) floats.splice(i, 1);
+    const near = floats.find(f => now - f.t0 < FLOAT_MERGE && Math.hypot(f.x - x, f.y - y) < FLOAT_NEAR);
+    if (near) { near.sum += amount; near.node.textContent = '+' + money(near.sum); return; }
+    if (floats.length >= FLOAT_MAX) return;
+    const node = document.createElement('div');
+    node.className = 'bounty';
+    node.textContent = '+' + money(amount);
+    node.style.left = x + 'px'; node.style.top = y + 'px';
+    root.appendChild(node);
+    floats.push({ node, x, y, t0: now, sum: amount });
+    setTimeout(() => node.remove(), FLOAT_LIFE);
+  }
+  function clearFloats() { for (const f of floats) f.node.remove(); floats.length = 0; }
 
   function update(sim) {
     const c = waveCounts(sim);
     set(el.day, String(sim.day).padStart(2, '0'));
     set(el.wave, `Våg ${c.wave} av ${c.of}`);
-    set(el.left, `${c.left} kvar`);
+    // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
+    set(el.left, sim.phase === 'lost' ? '' : `${c.left} kvar`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);
-    if (last.cash !== null && cash !== last.cash) showDelta(cash - last.cash);
     if (cash !== last.cash) { set(el.cash, money(cash)); last.cash = cash; }
 
     const hp = Math.max(0, sim.baseHp);
@@ -141,11 +161,11 @@ export function mountHud(root, { onStart, onSpeed } = {}) {
 
   // Nollställ så att en ny dag inte visar en stor minus-ruta.
   function reset() {
-    last = { cash: null, hp: null }; deltaSum = 0; el.delta.className = 'delta';
+    last = { cash: null, hp: null }; el.delta.className = 'delta';
     clearTimeout(deltaTimer);
-    el.cash.classList.remove('up', 'down');
+    clearFloats();
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, bounty };
 }

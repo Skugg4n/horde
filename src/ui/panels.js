@@ -216,17 +216,20 @@ function on(el, sel, fn) {
   if (b) b.addEventListener('click', fn);
 }
 
-export function dayIntro(root, dayCfg, onGo) {
+// cash: pengarna dagen börjar med (dagens kassa plus forskningen Större budget).
+export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
     <p class="lead">${dayCfg.intro.text}</p>
+    <p class="note-line">Ny dag: du börjar med ${money(cash)} och tomma positioner. Forskningen följer med.</p>
     <button type="button" class="act main" data-a="go"><span class="a">Till försvaret</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;
 }
 
 // lastDay: sista dagen på banan; då leder vinsten till menyn.
-export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay }, { onRetry, onNext, onResearch, onMenu }) {
+// cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
+export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0 }, { onRetry, onNext, onResearch, onMenu }) {
   const head = won ? `Dag ${day} klarad.` : 'Basen föll.';
   const lead = won ? `Du fick ${intelEarned} forskning.` : `Du behåller ${intelEarned} forskning.`;
   const done = won && lastDay ? `<p class="lead strong">Riksvägen klarad. Fler banor kommer.</p>` : '';
@@ -238,6 +241,7 @@ export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills,
     <div class="h">${head}</div>
     <p class="lead">${lead}</p>
     ${done}
+    ${won && !lastDay && cashLeft > 0 ? `<p class="note-line">Kvar i kassan: ${money(cashLeft)}, försvinner till nästa dag.</p>` : ''}
     <div class="facts">
       <div><span>Döda zombier</span><b>${kills}</b></div>
       <div><span>Vågor klarade</span><b>${wavesCleared} av ${waves}</b></div>

@@ -15,7 +15,7 @@ import { createSim, startWave, step, build, upgrade, sell, placeObstacle, remove
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { cellAt } from './sim/cells.js';
-import { Vector3 } from 'three';
+import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
 // Snabbare spelar dubbelt så många fasta steg per bildruta; taket följer med.
@@ -49,15 +49,23 @@ function closePanel() {
   if (panel) panel.close();
   panel = null; selected = null; panelRange = null;
 }
+// Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet.
+const withCash = fn => (...args) => {
+  const before = sim.cash;
+  const r = fn(...args);
+  if (r.ok && sim.cash !== before) hud.cashDelta(Math.round(sim.cash) - Math.round(before));
+  return r;
+};
 const actions = {
-  build: (id, type) => build(sim, id, type),
-  upgrade: id => upgrade(sim, id),
-  sell: id => sell(sim, id),
-  place: (cell, type) => placeObstacle(sim, cell, type),
-  remove: cell => removeObstacle(sim, cell),
+  build: withCash((id, type) => build(sim, id, type)),
+  upgrade: withCash(id => upgrade(sim, id)),
+  sell: withCash(id => sell(sim, id)),
+  place: withCash((cell, type) => placeObstacle(sim, cell, type)),
+  remove: withCash(cell => removeObstacle(sim, cell)),
   range: r => { panelRange = r; },
   close: closePanel,
 };
+// Klick på en annan position eller ruta medan panelen är öppen byter direkt till den.
 function open(p) {
   if (selected && selected.kind === p.kind && selected.id === p.id) return;
   closePanel();
@@ -143,7 +151,8 @@ function updateEntry() {
   hud.entry(entryAt);
 }
 addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else closePanel(); }
+  // Esc tar bort både valet och pekarens markering, så att ingen ram eller räckvidd ligger kvar.
+  if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else { closePanel(); hovered = null; } }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go(); }
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
@@ -166,6 +175,8 @@ function save() {
 function setMode(m, makeSheet) {
   if (sheet) sheet.close();
   closePanel();
+  // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna.
+  for (const n of uiRoot.querySelectorAll('.note.warn')) n.remove();
   hovered = null;
   mode = m;
   uiRoot.dataset.mode = m;
@@ -194,7 +205,7 @@ function startDay(n) {
   speed = 1; hud.setSpeed(false);
   entryAt = null; shakeT = 0; camera.position.copy(camHome);
   hinting = n === 1 && !progress.seenHint;
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], () => setMode('play')));
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
 }
 function finishDay() {
   const won = sim.phase === 'won';
@@ -204,6 +215,7 @@ function finishDay() {
     won, day, intelEarned: sim.intelEarned, kills: sim.kills,
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length,
     lastDay: day >= map.days.length,
+    cashLeft: won ? Math.round(sim.cash) : 0,
   };
   showResult();
 }
@@ -231,16 +243,69 @@ function rangeFor(p) {
   return { x: s.x, z: s.z, r: weaponStats(s.weapon.type, s.weapon.level, sim.research).range };
 }
 
-// Panelen ligger nere i mitten, men läggs upptill om den skulle täcka det valda.
-// Bestäms när panelen öppnas så att den inte hoppar.
-const tmpV = new Vector3();
+// Panelen läggs där den inte täcker någon position eller ruta på vägen, och inte heller
+// dagens plåtar eller knappen nere i mitten. Samma plats behålls så länge den är fri, så att
+// panelen inte hoppar när man klickar från position till position.
+const tmpV = new Vector3(), tmpBox = new Box3();
+const PAD = 10, GRID = 16, MARGIN = 16;
+let panelSpot = null;
+addEventListener('resize', () => { panelSpot = null; if (panel) placePanel(); });
+function screenRect(object) {
+  tmpBox.setFromObject(object);
+  if (tmpBox.isEmpty()) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < 8; i++) {
+    tmpV.set(i & 1 ? tmpBox.max.x : tmpBox.min.x, i & 2 ? tmpBox.max.y : tmpBox.min.y, i & 4 ? tmpBox.max.z : tmpBox.min.z).project(camera);
+    const x = (tmpV.x + 1) / 2 * innerWidth, y = (1 - tmpV.y) / 2 * innerHeight;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  return { x0: x0 - PAD, y0: y0 - PAD, x1: x1 + PAD, y1: y1 + PAD };
+}
+function hudRects() {
+  const out = [];
+  for (const sel of ['#day', '#res', '#hint']) {
+    const n = uiRoot.querySelector(sel);
+    if (!n || n.hidden) continue;
+    const r = n.getBoundingClientRect();
+    if (r.width) out.push({ x0: r.left - PAD, y0: r.top - PAD, x1: r.right + PAD, y1: r.bottom + PAD });
+  }
+  // Knappen och raden nere i mitten byter med fasen; hela den ytan hålls fri.
+  out.push({ x0: innerWidth / 2 - 230, y0: innerHeight - 90, x1: innerWidth / 2 + 230, y1: innerHeight });
+  // Vågens rad uppe i mitten.
+  out.push({ x0: innerWidth / 2 - 260, y0: 0, x1: innerWidth / 2 + 260, y1: 64 });
+  return out;
+}
+const overlap = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
 function placePanel() {
-  if (!panel || !selected) return;
-  const t = view.pickTargets().find(x => x.kind === selected.kind && x.id === selected.id);
-  if (!t) return;
-  t.object.getWorldPosition(tmpV).project(camera);
-  const y = (1 - tmpV.y) / 2 * innerHeight;
-  panel.el.classList.toggle('top', y > panel.el.getBoundingClientRect().top - 50);
+  if (!panel) return;
+  const el = panel.el;
+  el.classList.add('placed');
+  const w = el.offsetWidth, h = el.offsetHeight;
+  const markers = view.pickTargets().map(t => screenRect(t.object)).filter(Boolean);
+  const huds = hudRects();
+  const maxX = Math.max(MARGIN, innerWidth - w - MARGIN), maxY = Math.max(MARGIN, innerHeight - h - MARGIN);
+  // Förstahandsval utan tidigare plats: nere till vänster.
+  const want = panelSpot || { x: MARGIN, y: maxY };
+  let best = null;
+  for (let y = MARGIN; y <= maxY + 0.5; y += GRID) {
+    for (let x = MARGIN; x <= maxX + 0.5; x += GRID) {
+      const r = { x0: x, y0: y, x1: x + w, y1: y + h };
+      let cost = 0;
+      for (const m of markers) cost += overlap(r, m) * 10;
+      for (const u of huds) cost += overlap(r, u) * 4;
+      cost += Math.hypot(x - want.x, y - want.y) * 0.05;
+      if (!best || cost < best.cost) best = { x, y, cost };
+    }
+  }
+  // Den gamla platsen vinner om den fortfarande är fri (då står panelen still).
+  if (panelSpot) {
+    const x = Math.min(panelSpot.x, maxX), y = Math.min(panelSpot.y, maxY);
+    const r = { x0: x, y0: y, x1: x + w, y1: y + h };
+    if (markers.every(m => !overlap(r, m)) && huds.every(u => !overlap(r, u))) best = { x, y };
+  }
+  panelSpot = { x: best.x, y: best.y };
+  el.style.left = best.x + 'px';
+  el.style.top = best.y + 'px';
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
@@ -259,6 +324,10 @@ function tick(now) {
   while (acc >= DT && steps < maxSteps) {
     step(sim, DT); view.consume(sim.events);
     if (sim.events.some(e => e.t === 'breach')) onBreach();
+    for (const ev of sim.events) if (ev.t === 'kill' && ev.bounty) {
+      tmpV.set(ev.x, 2, ev.z).project(camera);
+      hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
+    }
     acc -= DT; steps++;
   }
   if (steps === maxSteps) acc = Math.min(acc, DT);

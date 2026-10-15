@@ -3,13 +3,22 @@
 import * as THREE from 'three';
 import { rnd, pick, canvasTex, PALETTE as P } from './kit.js';
 
-const TRACER_CAP = 48, CASING_CAP = 140, BIT_CAP = 260, SPLAT_CAP = 150, FLASH_N = 4;
-const TRACER_SPEED = 90;
+const TRACER_CAP = 48, HEAVY_CAP = 24, CASING_CAP = 140, BIT_CAP = 260, SPLAT_CAP = 150, FLASH_N = 4;
+// Två sorters spårljus: lätt (M249, tunt och snabbt) och tungt (M2, tjockt och ljust).
+const TRACER_KIND = {
+  light: { speed: 110, len: 1.2, w: 0.045, color: P.tracer, cap: TRACER_CAP },
+  heavy: { speed: 80, len: 2.6, w: 0.17, color: '#fff2c8', cap: HEAVY_CAP },
+};
+// Mynningsflammans storlek, styrka och hur fort den slocknar, per vapen.
+const FLASH_KIND = {
+  light: { size: 0.75, light: 45, fade: 80 },
+  heavy: { size: 2.1, light: 140, fade: 40 },
+};
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 // Färger på småbitar: blod, betong, damm.
-const BIT_COLORS = { blood: new THREE.Color(P.gib), concrete: new THREE.Color(P.concreteDark), dust: new THREE.Color(P.dust) };
+const BIT_COLORS = { blood: new THREE.Color(P.gib), concrete: new THREE.Color(P.concreteDark), dust: new THREE.Color(P.dust), smoke: new THREE.Color('#5d5a52') };
 
 export function createFx(scene) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler();
@@ -25,11 +34,14 @@ export function createFx(scene) {
   }
 
   // ---------- spårljus ----------
-  const tracerIM = instanced(new THREE.BoxGeometry(1.6, 0.06, 0.06), new THREE.MeshBasicMaterial({ color: P.tracer }), TRACER_CAP);
-  const tracers = Array.from({ length: TRACER_CAP }, () => ({ on: false, from: new THREE.Vector3(), to: new THREE.Vector3(), q: new THREE.Quaternion(), t: 0, len: 1 }));
-  let tracerNext = 0;
-  function tracer(from, to) {
-    const t = tracers[tracerNext]; tracerNext = (tracerNext + 1) % TRACER_CAP;
+  const pools = {};
+  for (const [k, def] of Object.entries(TRACER_KIND)) {
+    const im = instanced(new THREE.BoxGeometry(def.len, def.w, def.w), new THREE.MeshBasicMaterial({ color: def.color }), def.cap);
+    pools[k] = { def, im, next: 0, list: Array.from({ length: def.cap }, () => ({ on: false, from: new THREE.Vector3(), to: new THREE.Vector3(), q: new THREE.Quaternion(), t: 0, len: 1 })) };
+  }
+  function tracer(from, to, kind = 'light') {
+    const pool = pools[kind] || pools.light;
+    const t = pool.list[pool.next]; pool.next = (pool.next + 1) % pool.def.cap;
     t.on = true; t.from.copy(from); t.to.copy(to); t.t = 0;
     t.len = Math.max(0.01, from.distanceTo(to));
     t.q.setFromUnitVectors(X_AXIS, v.subVectors(to, from).normalize());
@@ -45,19 +57,21 @@ export function createFx(scene) {
     const plane = new THREE.Mesh(flashGeo, mat);
     plane.visible = false;
     scene.add(light, plane);
-    flashes.push({ light, plane, mat, k: 0 });
+    flashes.push({ light, plane, mat, k: 0, kind: FLASH_KIND.light });
   }
   // Ljuset hör till positionen (slotId), inte till modellen: en uppgradering bygger en ny
   // modell med ny mynning, men samma pjäs ska fortsätta lysa med sitt eget ljus.
   let flashOwner = new Map(), flashNext = 0;
-  function flash(muzzle, key) {
+  function flash(muzzle, key, kind = 'light') {
     let i = flashOwner.get(key);
     if (i === undefined) { i = flashNext; flashNext = (flashNext + 1) % FLASH_N; flashOwner.set(key, i); }
     const f = flashes[i];
+    f.kind = FLASH_KIND[kind] || FLASH_KIND.light;
     muzzle.getWorldPosition(f.light.position);
     muzzle.getWorldQuaternion(f.plane.quaternion);
-    muzzle.localToWorld(f.plane.position.set(0.5, 0, 0));
+    muzzle.localToWorld(f.plane.position.set(0.42 * f.kind.size, 0, 0));
     f.plane.rotateX(rnd(0, 3));
+    f.plane.scale.set(f.kind.size * rnd(0.85, 1.15), f.kind.size * rnd(0.8, 1.2), 1);
     f.k = 1;
   }
 
@@ -97,6 +111,14 @@ export function createFx(scene) {
     }
   }
 
+  // Krutrök vid mynningen på en tung pjäs: två små grå moln som stiger.
+  function muzzleSmoke(at) {
+    for (let i = 0; i < 2; i++) {
+      const d = bit(at.x + rnd(-0.15, 0.15), at.y + 0.1, at.z + rnd(-0.15, 0.15), BIT_COLORS.smoke, rnd(0.1, 0.16), rnd(0.4, 0.6), -0.8);
+      d.v.set(rnd(-0.3, 0.3), rnd(0.6, 1.2), rnd(-0.3, 0.3)); d.grow = 0.6;
+    }
+  }
+
   // ---------- blodstänk på marken ----------
   const splatTex = canvasTex(128, (g, sz) => {
     g.translate(sz / 2, sz / 2);
@@ -126,23 +148,24 @@ export function createFx(scene) {
 
   // ---------- bildruta ----------
   function update(dt) {
-    const fade = Math.pow(0.5, dt * 60);
     for (const f of flashes) {
       if (f.k <= 0) continue;
-      f.light.intensity = 60 * f.k; f.mat.opacity = f.k; f.plane.visible = true;
-      f.k *= fade;
+      f.light.intensity = f.kind.light * f.k; f.mat.opacity = f.k; f.plane.visible = true;
+      f.k *= Math.pow(0.5, dt * f.kind.fade);
       if (f.k < 0.02) { f.k = 0; f.light.intensity = 0; f.plane.visible = false; }
     }
 
-    for (let i = 0; i < TRACER_CAP; i++) {
-      const t = tracers[i]; if (!t.on) continue;
-      t.t += dt * TRACER_SPEED;
-      const k = Math.min(1, t.t / t.len);
-      if (k >= 1) { t.on = false; tracerIM.setMatrixAt(i, ZERO); continue; }
-      m4.compose(v.lerpVectors(t.from, t.to, k), t.q, s.set(1, 1, 1));
-      tracerIM.setMatrixAt(i, m4);
+    for (const pool of Object.values(pools)) {
+      for (let i = 0; i < pool.def.cap; i++) {
+        const t = pool.list[i]; if (!t.on) continue;
+        t.t += dt * pool.def.speed;
+        const k = Math.min(1, t.t / t.len);
+        if (k >= 1) { t.on = false; pool.im.setMatrixAt(i, ZERO); continue; }
+        m4.compose(v.lerpVectors(t.from, t.to, k), t.q, s.set(1, 1, 1));
+        pool.im.setMatrixAt(i, m4);
+      }
+      pool.im.instanceMatrix.needsUpdate = true;
     }
-    tracerIM.instanceMatrix.needsUpdate = true;
 
     for (let i = 0; i < CASING_CAP; i++) {
       const c = casings[i]; if (!c.on) continue;
@@ -178,14 +201,17 @@ export function createFx(scene) {
   }
 
   function clear() {
-    for (let i = 0; i < TRACER_CAP; i++) { tracers[i].on = false; tracerIM.setMatrixAt(i, ZERO); }
+    for (const pool of Object.values(pools)) {
+      for (let i = 0; i < pool.def.cap; i++) { pool.list[i].on = false; pool.im.setMatrixAt(i, ZERO); }
+      pool.im.instanceMatrix.needsUpdate = true;
+    }
     for (let i = 0; i < CASING_CAP; i++) { casings[i].on = false; casingIM.setMatrixAt(i, ZERO); }
     for (let i = 0; i < BIT_CAP; i++) { bits[i].on = false; bitIM.setMatrixAt(i, ZERO); }
     for (let i = 0; i < SPLAT_CAP; i++) splatIM.setMatrixAt(i, ZERO);
-    for (const im of [tracerIM, casingIM, bitIM, splatIM]) im.instanceMatrix.needsUpdate = true;
+    for (const im of [casingIM, bitIM, splatIM]) im.instanceMatrix.needsUpdate = true;
     for (const f of flashes) { f.k = 0; f.light.intensity = 0; f.plane.visible = false; }
     flashOwner = new Map(); flashNext = 0;
   }
 
-  return { tracer, flash, casing, gibs, chips, puff, splat, update, clear };
+  return { tracer, flash, muzzleSmoke, casing, gibs, chips, puff, splat, update, clear };
 }

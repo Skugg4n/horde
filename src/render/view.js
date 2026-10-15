@@ -35,6 +35,14 @@ function placeOnPath(out, path, d, off) {
 
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
+// Hur skotten ser ut per vapen. Bara bild: eldhastigheten kommer från simuleringen.
+// kick: rekyl bakåt i meter, rise: mynningen lyfts (radianer), back: hur fort pjäsen går tillbaka,
+// rattle: skakning mellan skotten (lätt kulspruta).
+const SHOT_LOOK = {
+  m2: { tracer: 'heavy', flash: 'heavy', kick: 0.24, rise: 0.12, back: 9, rattle: 0, smoke: true },
+  m249: { tracer: 'light', flash: 'light', kick: 0.05, rise: 0.025, back: 22, rattle: 0.012, smoke: false },
+};
+
 export function createView(scene, initialSim) {
   let sim = initialSim;
   const fx = createFx(scene);
@@ -126,6 +134,9 @@ export function createView(scene, initialSim) {
       const model = weaponModel(s.weapon.type, s.weapon.level);
       e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle, state: null };
       model.pivot.rotation.y = -e.angle;
+      e.pivotHome = model.pivot.position.clone();
+      e.recoil = 0;
+      e.look = SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249;
     } else {
       const group = slotMarker(s.locked ? 'locked' : 'free');
       e = { key: slotKey(s), group, model: null, angle: old?.angle ?? 0, state: s.locked ? 'locked' : 'free' };
@@ -159,7 +170,17 @@ export function createView(scene, initialSim) {
       }
       const w = s.weapon;
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
-      e.model.pivot.rotation.y = -e.angle;
+      const pv = e.model.pivot;
+      pv.rotation.y = -e.angle;
+      // Rekyl: pjäsen stöts bakåt längs pipan och mynningen lyfts, sedan tillbaka.
+      if (dt > 0) e.recoil *= Math.exp(-dt * e.look.back);
+      const r = e.recoil < 0.01 ? 0 : e.recoil;
+      const back = r * e.look.kick, jit = r ? e.look.rattle : 0;
+      pv.position.set(
+        e.pivotHome.x - Math.cos(e.angle) * back + rnd(-jit, jit),
+        e.pivotHome.y + rnd(-jit, jit),
+        e.pivotHome.z - Math.sin(e.angle) * back + rnd(-jit, jit));
+      pv.rotation.z = r * e.look.rise;
     }
     for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);
   }
@@ -333,9 +354,11 @@ export function createView(scene, initialSim) {
           const spread = ev.hit ? 0.3 : 1.4;
           to.set(ev.x + rnd(-spread, spread), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-spread, spread));
           if (!ev.hit) to.sub(from).multiplyScalar(1.4).add(from);   // missar flyger förbi
-          fx.tracer(from, to);
-          fx.flash(e.model.muzzle, ev.slotId);
+          fx.tracer(from, to, e.look.tracer);
+          fx.flash(e.model.muzzle, ev.slotId, e.look.flash);
           fx.casing(e.model.muzzle);
+          e.recoil = 1;
+          if (e.look.smoke) fx.muzzleSmoke(from);
           break;
         }
         case 'hit': {
