@@ -17,10 +17,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 ## Olas feedback efter genomspelning 2026-10-15
 
 - [ ] H012 | grafik | Hälsoring under varje zombie (töms när den tar skada).
-- [ ] H013 | språk | Spelet på engelska.
+- [ ] H013 | språk | Spelet på engelska, bara ett språk. Bana 1 heter E4 (Olas beslut 2026-10-15).
 - [ ] H014 | grafik | Mindre tecknat: zombier med verkliga proportioner.
 - [ ] H015 | forskning | Mer forskning i nivåer (t.ex. M249 I-II-III), så det alltid finns något nytt att ta fram.
-- [ ] H016 | vapen | Handgranater från värnen när zombier kommer nära, kanske som engångsköp.
+- [ ] H016 | vapen | Handgranater: värnen kastar automatiskt när zombier kommer nära (uppgradering/forskning, Olas beslut).
 - [ ] H017 | banor | Från bana/dag 4: kameran zoomar ut ett steg, längre väg in, fler positioner.
 - [ ] H018 | banor | Zombier från flera håll och längs olika vägar.
 - [ ] H019 | banor | Barrikadera för att styra horden (rutnät + vägsökning, alltid minst en väg öppen).
+- [ ] H020 | banor | Bana 2 = Gnesta, Sigtunavägen: vi står vid rondellen utanför ishallen, horden kommer från öster, husen tvingar dem längs gatorna, barrikader styr. Moderna hela hus, inte postapokalyptiskt ännu.
+- [ ] H021 | banor | Senare: binda ihop banorna (E4 och Gnesta) när kameran zoomat ut mer.
