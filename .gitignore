@@ -1,3 +1,6 @@
 .DS_Store
 node_modules/
 /*.png
+
+# Referensbilder från Google Maps publiceras inte
+docs/refs/

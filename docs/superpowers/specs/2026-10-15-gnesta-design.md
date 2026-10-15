@@ -1,6 +1,6 @@
 # Bana 2: Gnesta, Sigtunavägen (design)
 
-Version 0.2 · 2026-10-15 · status: godkänd i chatten ("Go!"), byggs efter 0.3. Skiss: `docs/gnesta-skiss.html`. Referensbilder: `docs/refs/gnesta/`.
+Version 0.2 · 2026-10-15 · status: godkänd i chatten ("Go!"), byggs efter 0.3. Skiss och referensbilder ligger lokalt utanför repot (Google Maps-bilder, publiceras inte): `~/Projects/horde-refs/`.
 
 ## Idé
 

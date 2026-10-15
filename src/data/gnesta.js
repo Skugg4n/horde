@@ -1,5 +1,5 @@
 // Bana 2: Gnesta, Sigtunavägen. Kartan som data, utan three.js (testbar i node).
-// Allt är ritat ur docs/refs/gnesta/karta.jpg och satellit.jpg i bildens pixlar (2000 x 1150)
+// Allt är ritat ur referensbilderna karta.jpg och satellit.jpg (lokalt i ~/Projects/horde-refs/gnesta, inte i repot) i bildens pixlar (2000 x 1150)
 // och räknas om till meter i halv skala: x = öster, z = söder, y upp. Basen (rondellen) ligger
 // i väster, horden kommer från öster.
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
