@@ -2,7 +2,7 @@
 
 Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr på E4 i dagsljus: ställ ut kulsprutor där de ser vägen (hus skymmer), lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
 
-Version 0.5.2: två banor, E4 (dag 1 till 3) och Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar), fri placering med siktlinjer, två vapen (M249 och M2 .50 cal), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
+Version 0.6.0: två banor, E4 (dag 1 till 3) och Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar; basen är ishallens entré), ett köpflöde (välj i köpraden, ställ ut på kartan), befästa positioner, fri placering med siktlinjer, två vapen (M249 och M2 .50 cal), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
 
 Player text in English (owner decision 2026-10-15). Docs stay Swedish.
 
@@ -14,7 +14,7 @@ python3 -m http.server 8141 --directory ~/Projects/horde
 
 Öppna sedan http://localhost:8141/. Inget byggsteg: vanliga ES-moduler, Three.js 0.160 hämtas via importmap.
 
-Tangenter: Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, Esc stänger panelen.
+Tangenter: 1-0 tar upp en sak ur köpraden (klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, Esc stänger panelen.
 
 Felsökning: med http://localhost:8141/?debug finns `window.__horde` i konsolen (simuleringen, renderaren med `renderer.info`, scenen och kameran).
 

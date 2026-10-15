@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.6.0 (2026-10-15)
+
+Ett köpflöde, befästa positioner och ishallen som bas.
+
+- Ett köpflöde (H037): köpraden nere till vänster visar allt som går att köpa i en rad (M249, M2 .50 cal, betongbarriär, taggtråd) med snabbval 1-0, ikon och pris. Välj först vad du köper (siffra eller klick), sedan var: vapen står på mark bredvid vägen med sikten som förut, barrikader och taggtråd ligger på vägen över hela gatans bredd, med hordens nya väg i förhandsvisningen. Klick ställer ut, Shift nedtryckt behåller saken i handen för flera, Esc eller högerklick släpper den. Klick på en gata öppnar ingen köppanel längre; klick på en pjäs, barrikad eller tråd öppnar dess panel (uppgradera, granatlåda, sälj, riv). Barrikaden syns nu i köpraden från början (speltestet hittade den inte).
+- Tydligt vad du har råd med (H038): kort du inte har råd med är gråade med priset i rött och "Need $ X more", låsta kort har ett lås och "Research: <nod>", och alla positioner upptagna säger "All positions taken". Läget följer pengarna direkt utan att raden ritas om. Ett kort som inte går att ta upp skakar.
+- Tipsen första dagen är per bana. Gnesta dag 1: "Pick the barricade (3). Block Sigtunavägen. Watch them walk around the block." E4 dag 1: "Pick the M249 (1). Place it by the road. Start the wave." Steget som gäller nu är fetat.
+- Befästa positioner (H036): där en pjäs ställs ut röjs omgivningen inom ungefär 4 m, bara i bilden. Häckar huggs ner till stubbar, staket rivs eller trycks omkull, trädgårdsträd fälls (stubbe och liggande stam), bilar knuffas undan och blir vrak (mörkare, lutande, utan rutor), brevlådor och möbler välts, och sandsäckar och bråte ligger i en bruten vall. Samma positioner ger alltid samma bild; en såld pjäs lämnar skadan. Gjort på batchens instanser (fyra nya anrop för bråten). Lookbooken visar före och efter.
+- Basen är ishallens entré på Gnesta (H039): överlevarna är inne i Gnesta ishall och horden ska fram till huvudingången, inte till rondellen. Dörrarna är igenspikade; när basen tar skada buktar plankorna och lossnar, och sprickor och blod på fasaden växer i fem steg. Rondellens ö går att bygga på (sista försvarslinjen framför porten). Den norra gruppen tar nu cykelvägen till entrén, så dag 2 har två riktiga ingångar.
+- Balans för den nya vägen: Gnesta dag 1 hp-faktor 3,6 (var 3,8), dag 2 startkassa $ 1100 (var $ 900) och hp 5,0 (var 4,6). Nytt kvitto för Gnesta, skälen i docs/balance-log.md.
+- Betongbarriären finns på Gnesta från dag 1 utan forskning (banans upplåsningar), eftersom dag 1 lär ut barrikader. På E4 kräver den forskningen som förut. Testat.
+- Laddning: mätt var tiden går när Gnesta byggs. Kartans CPU-del (rutnät, placering, mark, instanser) är 0,06 till 0,13 s; resten var GPU:ns första bildruta, där shaderprogrammen länkas (20 till 30 s med mjukvaru-GL, 0,1 till 0,3 s med GPU). Banorna byggs nu en gång och sparas, shaders kompileras i förväg medan en laddningsskylt visar stegen, och sidan fryser inte under bygget. Gnesta tar 0,16 s första gången och 0,08 s tillbaka med GPU.
+- Vågens knapp och rad flyttas åt höger när fönstret inte räcker, så att köpraden inte täcks.
+
 ## 0.5.2 (2026-10-15)
 
 Rättningar efter granskningen av 0.5 och speltestet av 0.5.1.

@@ -198,3 +198,20 @@ Mätt 2026-10-15 headless (Chrome for Testing via Playwright, `headless: true`, 
 - Trianglarna ökar lite, eftersom instanserna inte sorteras bort utanför bild (frustum culling är av för hordens anrop). Det kostar mindre än de sparade anropen.
 
 Slutsats: anropen är nu oberoende av hordens storlek, och med strypt processor håller 250 zombier över 60 fps (96 mot 27). Kvar att mäta: Retina (täthet 2) på en riktig laptop med integrerad grafik.
+
+### 0.6.0: laddningstid för Gnesta
+
+Mätt 2026-10-15 headless (Chrome for Testing via Playwright, 1440 x 900, inget fönster), två renderare: Metal (Apple M4 Max) och mjukvaru-GL (SwiftShader, som en dator utan GPU). Mått: klick på Gnesta i menyn till två ritade bildrutor med den nya banan, och tillbaka till Gnesta efter ett besök på E4. Delarna mätta med CPU-profil (CDP) och genom att rita delar av scenen för sig.
+
+| | Före (0.5.2) | Efter (0.6.0) |
+|---|---|---|
+| CPU: banans bygge (rutnät, placering, mark, instanser) | 0,06-0,13 s | samma |
+| Metal: Gnesta första gången | 0,29-0,31 s | 0,16-0,27 s, ingen bildruta över 60 ms |
+| Metal, CPU strypt 4x: Gnesta första gången | 0,51 s | 0,45 s |
+| Metal: tillbaka till Gnesta | 0,23-0,25 s | 0,08 s |
+| SwiftShader: Gnesta första gången | 17,8 s (25-38 s i tidigare körningar) | 16,2 s |
+| SwiftShader: tillbaka till Gnesta | 17,0 s | 0,6 s |
+
+- Tiden gick inte till en CPU-slinga. Markens canvas (3332 x 2156) målas på 23 ms, rutnätet och placeringen räknas på cirka 70 ms vid import, batchen på cirka 70 ms. Med mjukvaru-GL gick nästan allt till första bildrutan: 26 shaderprogram länkas när de först används, ungefär 0,5 s styck. Mindre skuggkarta (1024 i stället för 4096) och inga skuggor ändrade inget.
+- Ändrat: varje bana byggs en gång och sparas (programmen ligger kvar, så ett återbesök är omedelbart). Bygget görs i steg bakom en laddningsskylt, och `renderer.compileAsync` kompilerar programmen parallellt (KHR_parallel_shader_compile) innan banan visas, så sidan fryser inte och första spelbildrutan hackar inte.
+- Kvar: mjukvaru-GL har inte KHR_parallel_shader_compile, så första besöket där tar fortfarande cirka 16 s (en bildruta). Att få ner det kräver färre shadervarianter (Gnesta lägger till cirka 11 program utöver E4:s 15). Målet under 2 s på en vanlig laptop med GPU nås med god marginal i mätningarna, men en riktig laptop med integrerad grafik är inte mätt.
