@@ -13,3 +13,14 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare.
 - [ ] H010 | ljud | Ingen ljudsättning ännu.
 - [ ] H011 | publicering | Inget GitHub-repo. Fråga Ola innan något läggs ut.
+
+## Olas feedback efter genomspelning 2026-10-15
+
+- [ ] H012 | grafik | Hälsoring under varje zombie (töms när den tar skada).
+- [ ] H013 | språk | Spelet på engelska.
+- [ ] H014 | grafik | Mindre tecknat: zombier med verkliga proportioner.
+- [ ] H015 | forskning | Mer forskning i nivåer (t.ex. M249 I-II-III), så det alltid finns något nytt att ta fram.
+- [ ] H016 | vapen | Handgranater från värnen när zombier kommer nära, kanske som engångsköp.
+- [ ] H017 | banor | Från bana/dag 4: kameran zoomar ut ett steg, längre väg in, fler positioner.
+- [ ] H018 | banor | Zombier från flera håll och längs olika vägar.
+- [ ] H019 | banor | Barrikadera för att styra horden (rutnät + vägsökning, alltid minst en väg öppen).
