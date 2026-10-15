@@ -16,6 +16,9 @@ import { loadProgress, saveProgress } from './meta/save.js';
 import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
+import { loadSettings, saveSettings, normalizeSettings } from './meta/settings.js';
+import { advance, escapeAction } from './sim/clock.js';
+import { mountMenu } from './ui/menu.js';
 import { Vector3, Box3 } from 'three';
 
 const DT = 1 / 30;
@@ -237,10 +240,15 @@ function go() {
 // ---------- fart ----------
 let speed = 1;
 // F och knappen stegar 1x, 2x, 3x och runt. Gäller under vågen och nedräkningen.
-function toggleSpeed() {
-  if (mode !== 'play' || !(sim.phase === 'wave' || sim.phase === 'build')) return;
-  speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+const canSpeed = () => mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build');
+function setSpeed(n) {
+  if (!canSpeed() || !SPEEDS.includes(n)) return;
+  speed = n;
   hud.setSpeed(speed);
+}
+function toggleSpeed() {
+  if (menu.isOpen()) return;
+  setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]);
 }
 
 // ---------- basen tar skada ----------
@@ -377,8 +385,19 @@ function updateRoutes() {
   return { cells, tone: ob ? 'paper' : 'rust' };
 }
 addEventListener('keydown', e => {
-  // Esc tar bort både valet och pekarens markering, så att ingen ram eller räckvidd ligger kvar.
-  if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else if (placing) stopPlacing(); else { closePanel(); hovered = null; } }
+  if (e.key === 'Escape') {
+    // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
+    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel });
+    if (what === 'menu-back') menu.back();
+    else if (what === 'close-research') sheetAction('close');
+    else if (what === 'cancel-placing') stopPlacing();
+    else if (what === 'close-panel') { closePanel(); hovered = null; }
+    else if (what === 'open-menu') menu.show();
+    else { closePanel(); hovered = null; }
+    return;
+  }
+  // Medan menyn är öppen gör spelets tangenter ingenting.
+  if (menu.isOpen()) { if (e.code === 'Space') e.preventDefault(); return; }
   if (mode === 'play' && /^Digit[1-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey) {
     const t = bar.types()[Number(e.code.slice(5)) - 1];
     if (t) startPlacing(t);
@@ -546,26 +565,31 @@ function placePanel() {
 if (DEBUG) window.__horde = { get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
+
+// ---------- spelmenyn och paus ----------
+// Medan menyn är öppen går ingen tid i spelet (se tick). Scenen ritas ändå, så dammet rör sig.
+let settings = loadSettings();
+const menu = mountMenu(uiRoot, {
+  mode: () => mode, day: () => day, speed: () => speed, canSpeed, setSpeed,
+  resume: () => {}, restart: () => startDay(day), toMain: () => showMenu(),
+  settings: () => settings,
+  setSetting: (k, v) => { settings = normalizeSettings({ ...settings, [k]: v }); saveSettings(settings); },
+  // Öppnandet avbryter placering och panel: inget ska hänga kvar när spelet fortsätter.
+  onOpen: () => { stopPlacing(); closePanel(); hovered = null; },
+  onClose: () => {},
+});
 showMenu();
 
-let last = performance.now(), time = 0, acc = 0;
+let last = performance.now(), time = 0;
+const clock = { acc: 0 };
 function tick(now) {
   const frameDt = Math.min((now - last) / 1000, 0.1);
   last = now; time += frameDt;
 
   // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
   const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
-  const mul = running ? speed : 1;
-  const maxSteps = MAX_STEPS_PER_SPEED * mul;
-  if (mode === 'play') acc += frameDt * mul;
-  let steps = 0;
-  while (acc >= DT && steps < maxSteps) {
-    step(sim, DT);
-    handleEvents();
-    acc -= DT; steps++;
-  }
-  if (steps === maxSteps) acc = Math.min(acc, DT);
-  if (mode !== 'play') acc = 0;
+  const paused = menu.isOpen();
+  advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
   if (placing && !canPlaceNow()) stopPlacing();
   if (hinting) {
@@ -577,14 +601,15 @@ function tick(now) {
   if (panel) panel.update(sim);
   hud.update(sim);
   updateEntry();
-  rig.active = mode === 'play';
-  rig.update(frameDt);
-  shakeCamera(frameDt);
+  rig.active = mode === 'play' && !paused;
+  const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
+  rig.update(vdt);
+  shakeCamera(vdt);
   const tiles = updateRoutes();
-  routeLines.update(frameDt);
+  routeLines.update(vdt);
   const pu = placementUi();
   view.setUi({ selected, hover: placing ? null : hovered, range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: placing ? null : tiles, ghost: pu.ghost, cover: pu.cover });
-  view.sync(frameDt);
+  view.sync(vdt);
   updateWorld(frameDt, time);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

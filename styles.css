@@ -402,3 +402,40 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   #buildbar .card { width: 128px; }
   #hint { bottom: 230px; }
 }
+
+/* ---------- spelmenyn ---------- */
+#menubtn {
+  position: fixed; top: 18px; right: 18px; width: 44px; height: 44px; z-index: 10;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; cursor: pointer;
+}
+#menubtn i { display: block; width: 20px; height: 2px; background: var(--paper); }
+#menubtn:hover { background: rgba(233,223,201,0.16); }
+/* Plåten med pengar och bas flyttas ett steg åt vänster så att knappen får hörnet. */
+#res { right: 72px; }
+#ui[data-mode="menu"] #menubtn { display: none; }
+#pausemenu { position: fixed; inset: 0; z-index: 100; pointer-events: auto; background: rgba(16, 12, 8, 0.6); }
+.pausesheet { min-width: min(380px, calc(100vw - 32px)); }
+.pausesheet .rows { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.pausesheet .mrow.button .act { width: 100%; flex: none; flex-direction: row; justify-content: center; gap: 12px; }
+.pausesheet .mrow.button .act.off { opacity: 0.4; cursor: default; }
+.mrow.choice, .mrow.volume { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.mrow .lab { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.mrow .lab small { font-size: 12px; font-weight: 400; letter-spacing: 0.04em; text-transform: none; color: var(--paper-dim); }
+.mrow .lab kbd { margin-left: 8px; font: 500 11px 'IBM Plex Mono', monospace; padding: 1px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85; }
+.mrow.off { opacity: 0.4; }
+.mrow .seg { display: flex; gap: 4px; }
+.mrow .seg button, .mrow .mute {
+  padding: 5px 12px; border: 1px solid var(--plate-edge); border-radius: 2px; cursor: pointer;
+  background: rgba(233,223,201,0.07); font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.mrow .seg button:hover, .mrow .mute:hover { background: rgba(233,223,201,0.14); }
+.mrow .seg button.on, .mrow .mute.on { background: var(--rust); border-color: rgba(233,223,201,0.3); }
+.mrow .vol { display: flex; align-items: center; gap: 10px; }
+.mrow .vol b { font: 600 14px 'IBM Plex Mono', monospace; min-width: 3ch; text-align: right; }
+.mrow.muted input { opacity: 0.4; }
+.mrow input[type="range"] { width: 130px; accent-color: var(--rust); cursor: pointer; }
+.pausesheet.ask { max-width: min(420px, calc(100vw - 32px)); }
+@media (max-width: 760px) {
+  #res { right: 72px; }
+  .mrow.choice, .mrow.volume { flex-wrap: wrap; }
+}

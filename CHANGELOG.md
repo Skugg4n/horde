@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.5.1 (2026-10-15)
+
+Meny med paus.
+
+- Menyknappen (tre streck) ligger uppe till höger; pengar- och basplåten har flyttats ett steg åt vänster. Esc öppnar menyn också, men först avbryts placeringen eller stängs en öppen panel. Knappen syns inte på huvudmenyn.
+- Medan menyn är öppen står spelet helt still: inga simuleringssteg, ingen nedräkning till nästa våg, inga spawn-timers, inga tangenter. Scenen ritas ändå (dammet rör sig). Fungerar i alla lägen: intro, spel, resultat och forskning.
+- Rader: Resume, Game speed (1x, 2x, 3x, samma som F), Sound, Music, Restart day (frågar först, samma väg som Try again så forskningen behålls) och Main menu (frågar om en dag pågår). Raderna är en lista av definitioner i `src/ui/menu.js`.
+- Sound och Music är riktiga inställningar med reglage och Mute, sparade i `horde.settings` (skilt från sparfilen). Spelet har inget ljud än, så raderna visar "(no audio yet)" tills `AUDIO_READY` sätts.
+- Ny logik som går att testa utan webbläsare: `src/sim/clock.js` (tidsstegning med paus, Esc-prioritet) och `src/meta/settings.js`.
+
 ## 0.5.0 (2026-10-15)
 
 Fri placering och siktlinjer, på båda banorna.

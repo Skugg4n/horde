@@ -1,0 +1,57 @@
+// Inställningar (ljud och musik) i localStorage, skilda från sparfilen med framsteg.
+// Läsning och skrivning kastar aldrig: utan lagring gäller standardvärdena.
+const KEY = 'horde.settings';
+
+// Spelet har inget ljud än. När det finns: sätt till true så försvinner tipset i menyn.
+export const AUDIO_READY = false;
+
+export const DEFAULT_SETTINGS = Object.freeze({ sound: 0.8, music: 0.6, soundMuted: false, musicMuted: false });
+
+const level = (x, fallback) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : fallback);
+
+// Okända eller trasiga fält ersätts av standardvärden; nivåerna hålls mellan 0 och 1.
+export function normalizeSettings(raw) {
+  const r = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  return {
+    sound: level(r.sound, DEFAULT_SETTINGS.sound),
+    music: level(r.music, DEFAULT_SETTINGS.music),
+    soundMuted: r.soundMuted === true,
+    musicMuted: r.musicMuted === true,
+  };
+}
+
+function resolve(storage) {
+  if (storage) return storage;
+  try {
+    const ls = globalThis.localStorage;
+    if (ls && typeof ls.getItem === 'function' && typeof ls.setItem === 'function') return ls;
+  } catch {
+    // Åtkomst nekad: behandlas som saknad lagring.
+  }
+  return null;
+}
+
+export function loadSettings(storage) {
+  try {
+    const s = resolve(storage);
+    const raw = s ? s.getItem(KEY) : null;
+    return normalizeSettings(raw == null ? null : JSON.parse(raw));
+  } catch {
+    return normalizeSettings(null);
+  }
+}
+
+// Returnerar false om inställningarna inte gick att spara.
+export function saveSettings(settings, storage) {
+  try {
+    const s = resolve(storage);
+    if (!s) return false;
+    s.setItem(KEY, JSON.stringify(normalizeSettings(settings)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Verklig nivå som ljudet ska spela med (0 när det är avstängt).
+export const effectiveVolume = (settings, channel) => (settings[channel + 'Muted'] ? 0 : settings[channel]);
