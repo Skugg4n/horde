@@ -66,7 +66,7 @@ export function createFx(scene) {
     scene.add(light, plane);
     flashes.push({ light, plane, mat, k: 0, kind: FLASH_KIND.light });
   }
-  // Ljuset hör till positionen (slotId), inte till modellen: en uppgradering bygger en ny
+  // Ljuset hör till pjäsen (gunId), inte till modellen: en uppgradering bygger en ny
   // modell med ny mynning, men samma pjäs ska fortsätta lysa med sitt eget ljus.
   let flashOwner = new Map(), flashNext = 0;
   function flash(muzzle, key, kind = 'light') {

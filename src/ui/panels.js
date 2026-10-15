@@ -1,4 +1,5 @@
-// Paneler för en position (vapen) och en ruta på vägen (hinder).
+// Paneler för en utställd pjäs och en ruta på vägen (hinder), och vapenkorten som startar
+// placeringen.
 // Panelen byggs om när det som står på platsen ändras, och uppdaterar priser och
 // gråa knappar varje bildruta. actions kommer från main.js och returnerar simuleringens svar.
 import { WEAPONS, GRENADE_KIT } from '../data/weapons.js';
@@ -13,17 +14,25 @@ import { money } from './format.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
-  'låst': 'Position locked.',
+  // placeringen (korta, de står vid pekaren)
+  'gata': 'On the road',
+  'hus': 'Inside a house',
+  'nära': 'Too close to another gun',
+  'fullt': 'Max guns reached (research more)',
+  'skog': 'In the forest',
+  'vatten': 'In the water',
+  'hinder': 'Something in the way',
+  'bas': 'On the base',
+  'utanför': 'Outside the map',
   'ej upplåst': 'Not researched yet.',
   'fel läge': 'The day is over.',
   'max': 'Already at max level.',
   'tom': 'No gun here.',
+  'upptagen': 'Tile already taken.',
   'okänd': 'Can\'t do that.',
   'redan': 'This position already has a kit.',
 };
-// kind: 'slot' eller 'cell', så att texten säger Positionen eller Rutan.
-export function reasonText(r, kind = 'slot') {
-  if (r === 'upptagen') return kind === 'cell' ? 'Tile already taken.' : 'Position already taken.';
+export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
 }
 
@@ -66,42 +75,54 @@ function patchCard(btn, cost, sim) {
   btn.classList.toggle('off', poor);
 }
 
-export function slotPanel(root, slotId, sim, actions) {
+// Vapenkorten nere till vänster: ett kort per upplåst vapen och hur många pjäser som står ute.
+// Ett klick på ett kort startar placeringen (actions.pick(typ)); samma kort igen avbryter.
+// update(sim, picking) håller priser, gråa kort och det valda kortet aktuella.
+export function buildBar(root, actions) {
+  const el = document.createElement('div');
+  el.id = 'buildbar';
+  el.className = 'plate';
+  el.hidden = true;
+  root.appendChild(el);
+  el.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
+  let key = null;
+  function render(sim) {
+    const types = Object.keys(WEAPONS).filter(t => weaponUnlocked(t, sim.research));
+    el.innerHTML = `<div class="k">GUNS <b data-n></b></div><div class="cards">${types.map((t, i) => card(t, ICONS[t], WEAPONS[t].name, WEAPONS[t].desc, statLine(weaponStats(t, 1, sim.research)) + `<kbd>${i + 1}</kbd>`)).join('')}</div>`;
+    for (const b of el.querySelectorAll('.card')) b.addEventListener('click', () => actions.pick(b.dataset.id));
+  }
+  function update(sim, picking, show) {
+    el.hidden = !show;
+    if (!show) return;
+    const k = [...sim.research].join(',');
+    if (k !== key) { key = k; render(sim); }
+    const n = el.querySelector('[data-n]'), t = `${sim.guns.length} / ${sim.maxGuns}`;
+    if (n.textContent !== t) n.textContent = t;
+    const full = sim.guns.length >= sim.maxGuns;
+    for (const b of el.querySelectorAll('.card')) {
+      patchCard(b, WEAPONS[b.dataset.id].cost, sim);
+      if (full) b.classList.add('off');
+      b.classList.toggle('on', picking === b.dataset.id);
+    }
+  }
+  return { el, update, types: () => [...el.querySelectorAll('.card')].map(b => b.dataset.id) };
+}
+
+// Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
+export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim;
-  const slotOf = s => s.slots.find(x => x.id === slotId);
-  const keyOf = (s, slot) => slot.locked ? 'locked' : slot.weapon ? `w:${slot.weapon.type}:${slot.weapon.level}:${!!slot.weapon.kit}:${tierOf(s.research, 'grenade')}` : 'free:' + [...s.research].join(',');
-  const showRange = (slot, r) => actions.range({ x: slot.x, z: slot.z, r });
+  const gunOf = s => s.guns.find(x => x.id === gunId);
+  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}`;
+  const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
-  function render(s, slot) {
-    if (slot.locked) {
-      ui.head.innerHTML = '';
-      ui.body.innerHTML = `<p class="info">Locked. Research more positions.</p>`;
-      actions.range(null);
-      return;
-    }
-    if (!slot.weapon) {
-      ui.head.innerHTML = `<div class="t">Empty position</div>`;
-      const types = Object.keys(WEAPONS).filter(t => weaponUnlocked(t, s.research));
-      ui.body.innerHTML = `<div class="cards">${types.map(t => card(t, ICONS[t], WEAPONS[t].name, WEAPONS[t].desc, statLine(weaponStats(t, 1, s.research)))).join('')}</div>`;
-      for (const b of ui.body.querySelectorAll('.card')) {
-        const t = b.dataset.id;
-        b.addEventListener('click', () => {
-          const r = actions.build(slotId, t);
-          if (!r.ok) ui.say(reasonText(r.reason, 'slot'));
-        });
-        b.addEventListener('mouseenter', () => showRange(slotOf(cur), weaponStats(t, 1, cur.research).range));
-        b.addEventListener('mouseleave', () => actions.range(null));
-      }
-      actions.range(null);
-      return;
-    }
-    const w = slot.weapon, def = WEAPONS[w.type];
+  function render(s, g) {
+    const w = g.weapon, def = WEAPONS[w.type];
     const gs = grenadeStats(s.research);
     ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}</div>`;
     // Granatlådan: en rad till när Grenades är forskat. Med låda står det vad den gör i stället.
     const kitRow = !gs ? '' : w.kit
-      ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute.</p>`
+      ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute, where it can see.</p>`
       : `<button type="button" class="act" data-a="kit"><span class="a">${GRENADE_KIT.name}</span><span class="p" data-p></span></button>`;
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
@@ -110,38 +131,34 @@ export function slotPanel(root, slotId, sim, actions) {
       </div>${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const kit = ui.body.querySelector('[data-a="kit"]');
+    const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
     if (kit) {
       kit.addEventListener('click', () => {
-        const r = actions.kit(slotId);
+        const r = actions.kit(gunId);
         if (!r.ok) ui.say(reasonText(r.reason));
       });
-      kit.addEventListener('mouseenter', () => { const sl = slotOf(cur); if (sl && gs) showRange(sl, gs.range); });
-      kit.addEventListener('mouseleave', () => { const sl = slotOf(cur); if (sl?.weapon) showRange(sl, weaponStats(sl.weapon.type, sl.weapon.level, cur.research).range); });
+      kit.addEventListener('mouseenter', () => { const gg = gunOf(cur); if (gg && gs) showRange(gg, gs.range); });
+      kit.addEventListener('mouseleave', own);
     }
     up.addEventListener('click', () => {
-      const r = actions.upgrade(slotId);
+      const r = actions.upgrade(gunId);
       if (!r.ok) ui.say(reasonText(r.reason));
     });
     sell.addEventListener('click', () => {
-      const r = actions.sell(slotId);
+      const r = actions.sell(gunId);
       if (!r.ok) ui.say(reasonText(cur.phase === 'won' || cur.phase === 'lost' ? 'fel läge' : 'tom'));
+      else actions.close();
     });
-    const own = () => { const sl = slotOf(cur); if (sl?.weapon) showRange(sl, weaponStats(sl.weapon.type, sl.weapon.level, cur.research).range); };
     up.addEventListener('mouseenter', () => {
-      const sl = slotOf(cur);
-      if (sl?.weapon && sl.weapon.level < MAX_LEVEL) showRange(sl, weaponStats(sl.weapon.type, sl.weapon.level + 1, cur.research).range);
+      const gg = gunOf(cur);
+      if (gg && gg.weapon.level < MAX_LEVEL) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level + 1, cur.research).range);
     });
     up.addEventListener('mouseleave', own);
     own();
   }
 
-  function patch(s, slot) {
-    if (slot.locked) return;
-    if (!slot.weapon) {
-      for (const b of ui.body.querySelectorAll('.card')) patchCard(b, WEAPONS[b.dataset.id].cost, s);
-      return;
-    }
-    const w = slot.weapon;
+  function patch(s, g) {
+    const w = g.weapon;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const cost = upgradeCost(w.type, w.level);
     const upText = cost == null ? 'Max level' : s.cash < cost ? 'Need ' + money(cost) : money(cost);
@@ -164,11 +181,11 @@ export function slotPanel(root, slotId, sim, actions) {
 
   function update(s) {
     cur = s;
-    const slot = slotOf(s);
-    if (!slot) return;
-    const k = keyOf(s, slot);
-    if (k !== key) { key = k; ui.hush(); render(s, slot); }
-    patch(s, slot);
+    const g = gunOf(s);
+    if (!g) { actions.close(); return; }
+    const k = keyOf(s, g);
+    if (k !== key) { key = k; ui.hush(); render(s, g); }
+    patch(s, g);
   }
   update(sim);
   return { el: ui.el, update, close: ui.close, say: ui.say };
@@ -195,7 +212,7 @@ export function cellPanel(root, index, sim, actions) {
       for (const b of ui.body.querySelectorAll('.card')) {
         b.addEventListener('click', () => {
           const r = actions.place(index, b.dataset.id);
-          if (!r.ok) ui.say(reasonText(r.reason, 'cell'));
+          if (!r.ok) ui.say(reasonText(r.reason));
         });
         b.addEventListener('mouseenter', () => actions.preview?.(index, b.dataset.id));
         b.addEventListener('mouseleave', () => actions.preview?.(index, null));
@@ -256,7 +273,7 @@ export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
     <p class="lead">${dayCfg.intro.text}</p>
-    <p class="note-line">New day: you start with ${money(cash)} and empty positions. Research carries over.</p>
+    <p class="note-line">New day: you start with ${money(cash)} and no guns out. Research carries over.</p>
     <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;

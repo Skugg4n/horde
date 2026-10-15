@@ -10,10 +10,10 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
-import { slotPanel, cellPanel, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
 import { newProgress, startConfig, dayResult, buyResearch, mapState, mapUnlocked, selectMap } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor } from './sim/sim.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { Vector3, Box3 } from 'three';
@@ -82,6 +82,75 @@ function closePanel() {
   if (panel) panel.close();
   panel = null; selected = null; panelRange = null; previewCard = null;
 }
+
+// ---------- placering ----------
+// Ett vapenkort (eller 1, 2) startar placeringen: spöket följer pekaren i rutan under den, grönt
+// där pjäsen får stå och rött med skälet där den inte får. Räckvidden och de gatrutor pjäsen
+// skulle se syns. Klick ställer ut pjäsen; Esc, högerklick eller samma kort igen avbryter.
+let placing = null;          // { type } medan placeringen pågår
+let spot = null;             // rutan under pekaren: { key, x, z, ok, reason }
+const sightCache = new Map();  // 'typ:ruta' -> synliga rutor (för spöket; byggs om per dag)
+const pointer = { x: 0, y: 0 };
+const ghostTip = document.createElement('div');
+ghostTip.id = 'ghosttip'; ghostTip.className = 'plate'; ghostTip.hidden = true;
+uiRoot.appendChild(ghostTip);
+const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
+function startPlacing(type) {
+  if (!canPlaceNow()) return;
+  if (placing?.type === type) { stopPlacing(); return; }
+  closePanel();
+  placing = { type };
+  spot = null;
+  hovered = null;
+}
+function stopPlacing() {
+  placing = null; spot = null;
+  ghostTip.hidden = true;
+}
+function spotFor(key) {
+  if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
+  const c = sim.place.center(key), check = checkSpot(sim, key);
+  return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
+}
+function placeHere(key) {
+  const sp = spotFor(key);
+  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn'); return; }
+  const r = actions.build(key, placing.type);
+  if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn'); return; }
+  stopPlacing();
+}
+function sightOf(type, key) {
+  const k = type + ':' + key;
+  if (!sightCache.has(k)) sightCache.set(k, sightFor(sim, key, type));
+  return sightCache.get(k);
+}
+// Spöket, räckvidden och sikten för placeringen, eller för pjäsen som är vald eller pekas på.
+function placementUi() {
+  if (placing) {
+    if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
+    const r = weaponStats(placing.type, 1, sim.research).range;
+    return {
+      ghost: { type: placing.type, x: spot.x, z: spot.z, ok: spot.ok },
+      range: { x: spot.x, z: spot.z, r },
+      cover: { id: 'p' + spot.key + placing.type, x: spot.x, z: spot.z, r, keys: sightOf(placing.type, spot.key).keys, tone: spot.ok ? 'ok' : 'bad' },
+    };
+  }
+  const at = selected?.kind === 'gun' ? selected : hovered?.kind === 'gun' ? hovered : null;
+  const g = at && sim.guns.find(x => x.id === at.id);
+  if (!g) return { ghost: null, cover: null, range: null };
+  const rng = (at === selected && panelRange) || rangeFor(at);
+  return { ghost: null, range: rng, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
+}
+function updateGhostTip() {
+  const show = placing && spot && !spot.ok;
+  ghostTip.hidden = !show;
+  if (!show) return;
+  const t = reasonText(spot.reason);
+  if (ghostTip.textContent !== t) ghostTip.textContent = t;
+  ghostTip.style.left = pointer.x + 'px'; ghostTip.style.top = pointer.y + 'px';
+}
+renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet.
 const withCash = fn => (...args) => {
   const before = sim.cash;
@@ -94,6 +163,7 @@ const actions = {
   upgrade: withCash(id => upgrade(sim, id)),
   sell: withCash(id => sell(sim, id)),
   kit: withCash(id => buyKit(sim, id)),
+  pick: type => startPlacing(type),
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
   place: withCash((cell, type) => placeAcross(sim, cell, type)),
   remove: withCash(cell => removeObstacle(sim, cell)),
@@ -108,16 +178,26 @@ function open(p) {
   if (selected && selected.kind === p.kind && selected.id === p.id) return;
   closePanel();
   selected = p;
-  panel = p.kind === 'slot' ? slotPanel(uiRoot, p.id, sim, actions) : cellPanel(uiRoot, p.id, sim, actions);
+  panel = p.kind === 'gun' ? gunPanel(uiRoot, p.id, sim, actions) : cellPanel(uiRoot, p.id, sim, actions);
   placePanel();
 }
 
-const picker = createPicker(() => camera, renderer.domElement, () => view.rayTargets(), (x, z) => {
+// I placeringen svarar bara marken (rutan under pekaren), annars pjäserna, hindren och gatan.
+const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z) => {
+  if (placing) return { kind: 'spot', id: sim.place.keyAt(x, z) };
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) ? null : { kind: 'cell', id: i };
 }, { ignoreClick: () => rig.takeDrag() });
-picker.onPick(p => { if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return; if (p) open(p); else closePanel(); });
-picker.onHover(p => { hovered = mode === 'play' ? p : null; });
+picker.onPick(p => {
+  if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
+  if (placing) { if (p?.kind === 'spot') placeHere(p.id); return; }
+  if (p) open(p); else closePanel();
+});
+picker.onHover(p => {
+  hovered = mode === 'play' ? p : null;
+  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id) : null;
+});
+const bar = buildBar(uiRoot, actions);
 // Klick utanför panelen (men inte i scenen, den sköts av plockaren) stänger den.
 document.addEventListener('pointerdown', e => {
   if (!panel || panel.el.contains(e.target) || e.target === renderer.domElement) return;
@@ -298,7 +378,11 @@ function updateRoutes() {
 }
 addEventListener('keydown', e => {
   // Esc tar bort både valet och pekarens markering, så att ingen ram eller räckvidd ligger kvar.
-  if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else { closePanel(); hovered = null; } }
+  if (e.key === 'Escape') { if (mode === 'research') sheetAction('close'); else if (placing) stopPlacing(); else { closePanel(); hovered = null; } }
+  if (mode === 'play' && /^Digit[1-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey) {
+    const t = bar.types()[Number(e.code.slice(5)) - 1];
+    if (t) startPlacing(t);
+  }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go(); }
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
@@ -321,6 +405,7 @@ function save() {
 function setMode(m, makeSheet) {
   if (sheet) sheet.close();
   closePanel();
+  stopPlacing();
   // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna.
   for (const n of uiRoot.querySelectorAll('.note.warn')) n.remove();
   hovered = null;
@@ -348,6 +433,7 @@ function startDay(n) {
   if (!cfg) { showMenu(); return; }
   day = n;
   sim = createSim(cfg);
+  sightCache.clear();
   view.setSim(sim);
   hud.reset();
   speed = 1; hud.setSpeed(1);
@@ -385,10 +471,10 @@ function showResearch(from) {
 }
 
 function rangeFor(p) {
-  if (!p || p.kind !== 'slot') return null;
-  const s = sim.slots.find(x => x.id === p.id);
-  if (!s || !s.weapon) return null;
-  return { x: s.x, z: s.z, r: weaponStats(s.weapon.type, s.weapon.level, sim.research).range };
+  if (!p || p.kind !== 'gun') return null;
+  const g = sim.guns.find(x => x.id === p.id);
+  if (!g) return null;
+  return { x: g.x, z: g.z, r: weaponStats(g.weapon.type, g.weapon.level, sim.research).range };
 }
 
 // Panelen läggs där den inte täcker någon position eller ruta på vägen, och inte heller
@@ -411,7 +497,7 @@ function screenRect(object) {
 }
 function hudRects() {
   const out = [];
-  for (const sel of ['#day', '#res', '#hint']) {
+  for (const sel of ['#day', '#res', '#hint', '#buildbar']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();
@@ -457,7 +543,7 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 showMenu();
@@ -481,10 +567,12 @@ function tick(now) {
   if (steps === maxSteps) acc = Math.min(acc, DT);
   if (mode !== 'play') acc = 0;
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
+  if (placing && !canPlaceNow()) stopPlacing();
   if (hinting) {
-    const anyWeapon = sim.slots.some(x => x.weapon);
-    hud.hint(mode === 'play' ? (anyWeapon ? 2 : selected?.kind === 'slot' ? 1 : 0) : null);
+    hud.hint(mode === 'play' ? (sim.guns.length ? 2 : placing ? 1 : 0) : null);
   } else hud.hint(null);
+  bar.update(sim, placing?.type, canPlaceNow());
+  updateGhostTip();
 
   if (panel) panel.update(sim);
   hud.update(sim);
@@ -494,7 +582,8 @@ function tick(now) {
   shakeCamera(frameDt);
   const tiles = updateRoutes();
   routeLines.update(frameDt);
-  view.setUi({ selected, hover: hovered, range: panelRange || rangeFor(hovered) || rangeFor(selected), tiles });
+  const pu = placementUi();
+  view.setUi({ selected, hover: placing ? null : hovered, range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: placing ? null : tiles, ghost: pu.ghost, cover: pu.cover });
   view.sync(frameDt);
   updateWorld(frameDt, time);
   renderer.render(scene, camera);

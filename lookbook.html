@@ -33,7 +33,7 @@ import { VERSION } from './src/version.js';
 import { createScene } from './src/render/scene.js';
 import { dirtTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, slotMarker, baseModel, grenadeModel } from './src/render/models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, weaponGhost, setGhostTone, baseModel, grenadeModel } from './src/render/models.js';
 import { createFx } from './src/render/fx.js';
 import { createHealthRings } from './src/render/rings.js';
 import { WEAPONS } from './src/data/weapons.js';
@@ -126,11 +126,11 @@ const poses = [];
 label(19, ZV, 'Attacking', 'barrier', 2.6);
 label(24, ZV, 'Dying', 'loops', 2.6);
 
-// rad 4: positionsmarkörer
+// rad 4: placeringens spöke (grönt där pjäsen får stå, rött där den inte får)
 const SV = 24;
-[['free', 'free', -10], ['locked', 'locked', 0], ['selected', 'selected', 10]].forEach(([s, txt, u]) => {
-  const m = slotMarker(s); m.position.copy(at(u, SV)); scene.add(m);
-  label(u, SV, 'Position', txt, 3.2);
+[['m249', true, 'valid', -10], ['m249', false, 'invalid', 0], ['m2', true, 'valid', 10]].forEach(([t, ok, txt, u]) => {
+  const m = weaponGhost(t); setGhostTone(m, ok); m.position.copy(at(u, SV)); scene.add(m);
+  label(u, SV, 'Placing', txt, 3.2);
 });
 
 // rad 4, höger: basen där vägen tar slut (modellens +x mot horden, som i spelet)

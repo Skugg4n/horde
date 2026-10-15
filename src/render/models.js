@@ -546,59 +546,32 @@ export function zombieFall(z, t) {
   z.elL.rotation.x *= 1 - t * 0.3; z.elR.rotation.x *= 1 - t * 0.3;
 }
 
-// ---------- positionsmarkör ----------
-
-export function slotMarker(state = 'free') {
-  const g = new THREE.Group();
-  const m = new THREE.MeshBasicMaterial({ color: P.paper, transparent: true, opacity: 0.35, depthWrite: false });
-  const lockM = new THREE.MeshBasicMaterial({ color: P.paper, transparent: true, opacity: 0.5, depthWrite: false });
-  const holeM = new THREE.MeshBasicMaterial({ color: P.ink, transparent: true, opacity: 0.6, depthWrite: false });
-  m.userData.own = lockM.userData.own = holeM.userData.own = true;
-  const ring = new THREE.Group();
-  const dashes = 28, len = TAU / dashes;
-  for (let i = 0; i < dashes; i++) {
-    const d = new THREE.Mesh(geo('ring', 2.1, 2.3, 4, 1, i * len, len * 0.62), m);
-    d.rotation.x = -Math.PI / 2; ring.add(d);
-  }
-  ring.position.y = 0.05;
-  const plus = new THREE.Group();
-  for (const rz of [0, Math.PI / 2]) {
-    const p = new THREE.Mesh(geo('plane', 0.25, 1.4), m);
-    p.rotation.set(-Math.PI / 2, 0, rz); plus.add(p);
-  }
-  plus.position.y = 0.06;
-  // hänglås platt på marken, toppen pekar uppåt i bild
-  const lock = new THREE.Group();
-  const lockFlat = new THREE.Group();
-  lockFlat.add(new THREE.Mesh(geo('plane', 0.95, 0.75), lockM));
-  const shackle = new THREE.Mesh(geo('ring', 0.22, 0.36, 12, 1, 0, Math.PI), lockM);
-  shackle.position.y = 0.375; lockFlat.add(shackle);
-  for (const x of [-0.29, 0.29]) { const leg = new THREE.Mesh(geo('plane', 0.14, 0.12), lockM); leg.position.set(x, 0.43, 0); lockFlat.add(leg); }
-  const hole = new THREE.Mesh(geo('plane', 0.1, 0.24), holeM);
-  hole.position.set(0, -0.06, 0.001); lockFlat.add(hole);
-  lockFlat.rotation.x = -Math.PI / 2;
-  lock.add(lockFlat); lock.rotation.y = Math.PI / 4; lock.position.y = 0.06;
-  g.add(ring, plus, lock);
-  g.userData = { kind: 'slot', m, lockM, ring, plus, lock };
-  setSlotMarkerState(g, state);
-  return g;
+// ---------- placeringens spöke ----------
+// Vapnets modell (nivå 1) i en enda genomskinlig färg: grön där pjäsen får stå, röd där den inte
+// får. Följer pekaren i placeringsläget. Ett eget material, delad geometri med vapnet.
+export const GHOST_OK = '#7fbf5a', GHOST_BAD = '#c8452f';
+export function weaponGhost(type) {
+  const model = weaponModel(type, 1);
+  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false });
+  m.userData.own = true;
+  model.group.traverse(o => {
+    if (!o.isMesh) return;
+    o.material = m; o.castShadow = false; o.receiveShadow = false;
+  });
+  // en platt ring under pjäsen: rutan den står på
+  const ring = new THREE.Mesh(geo('ring', 0.9, 1.15, 4, 1, Math.PI / 4), m);
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
+  model.group.add(ring);
+  model.group.userData.ghost = { m, ok: true };
+  model.group.renderOrder = 4;
+  return model.group;
 }
-
-// state: 'free' | 'locked' | 'hover' | 'selected'. En låst position behåller hänglåset även när
-// den är markerad eller pekas på.
-export function setSlotMarkerState(group, state) {
-  const u = group.userData;
-  if (state === 'locked') u.locked = true;
-  else if (state === 'free') u.locked = false;
-  u.state = state;
-  u.lock.visible = !!u.locked;
-  u.plus.visible = !u.locked;
-  const sel = state === 'selected', hov = state === 'hover';
-  u.m.color.set(sel ? P.rust : P.paper);
-  u.lockM.color.set(sel ? P.rust : P.paper);
-  u.m.opacity = sel ? 0.85 : hov ? (u.locked ? 0.32 : 0.6) : u.locked ? 0.16 : 0.35;
-  u.lockM.opacity = sel ? 0.85 : hov ? 0.7 : 0.5;
-  u.ring.scale.setScalar(sel ? 1.04 : hov ? 1.02 : 1);
+export function setGhostTone(group, ok) {
+  const u = group.userData.ghost;
+  if (u.ok === ok) return;
+  u.ok = ok;
+  u.m.color.set(ok ? GHOST_OK : GHOST_BAD);
+  u.m.opacity = ok ? 0.5 : 0.42;
 }
 
 // ---------- basen ----------

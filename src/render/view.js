@@ -5,7 +5,7 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, slotMarker, setSlotMarkerState, disposeModel, baseModel, setBaseGlow } from './models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, setGhostTone, GHOST_OK, disposeModel, baseModel, setBaseGlow } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN } from '../sim/sim.js';
 
@@ -14,7 +14,7 @@ const FALL_TIME = 0.3;
 // sina döda i 20 s oavsett, det här styr bara hur mycket som ritas.
 const MAX_CORPSES = 24;
 const STEP_PHASE = 2.6;          // gångfas per meter
-// Osynlig träffskiva under varje position (delad, städas aldrig).
+// Osynlig träffskiva under varje pjäs (delad, städas aldrig).
 const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
@@ -43,7 +43,7 @@ export function createView(scene, initialSim) {
   const horde = createHorde(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
-  const slots = new Map();        // id → { key, group, model, angle }
+  const slots = new Map();        // pjäsens id → { key, group, model, angle }
   const cells = new Map();        // index → { type, group, frac }
   const slotObjects = new Map(), cellObjects = new Map();
   const lastChip = new Map();
@@ -132,28 +132,22 @@ export function createView(scene, initialSim) {
     horde.end();
   }
 
-  // ---------- positioner och vapen ----------
-  // Varje positionsgrupp får userData.pick och en osynlig träffskiva, så att den går att klicka
-  // på även när en liten pjäs står där. Byggs om när vapen eller nivå ändras.
-  function slotKey(s) { return s.weapon ? s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') : s.locked ? 'locked' : 'free'; }
+  // ---------- utställda vapen ----------
+  // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
+  // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : ''); }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
-    let e;
-    if (s.weapon) {
-      const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit });
-      e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle, state: null };
-      model.pivot.rotation.y = -e.angle;
-      e.pivotHome = model.pivot.position.clone();
-      e.recoil = 0;
-      e.look = SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249;
-    } else {
-      const group = slotMarker(s.locked ? 'locked' : 'free');
-      e = { key: slotKey(s), group, model: null, angle: old?.angle ?? 0, state: s.locked ? 'locked' : 'free' };
-    }
+    const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit });
+    const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle };
+    model.pivot.rotation.y = -e.angle;
+    e.pivotHome = model.pivot.position.clone();
+    e.recoil = 0;
+    e.look = SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249;
     const hit = new THREE.Mesh(HIT_GEO, HIT_MAT);
     hit.rotation.x = -Math.PI / 2; hit.position.y = 0.1;
     e.group.add(hit);
-    e.group.userData.pick = { kind: 'slot', id: s.id };
+    e.group.userData.pick = { kind: 'gun', id: s.id };
     e.group.position.set(s.x, 0, s.z);
     scene.add(e.group);
     e.group.updateMatrixWorld(true);
@@ -168,15 +162,10 @@ export function createView(scene, initialSim) {
   function syncSlots(dt) {
     const k = 1 - Math.exp(-dt * 12);
     const alive = new Set();
-    for (const s of sim.slots) {
+    for (const s of sim.guns) {
       alive.add(s.id);
       let e = slots.get(s.id);
       if (!e || e.key !== slotKey(s)) e = buildSlot(s, e);
-      if (!e.model) {
-        const want = isSel('slot', s.id) ? 'selected' : isHov('slot', s.id) ? 'hover' : s.locked ? 'locked' : 'free';
-        if (e.state !== want) { e.state = want; setSlotMarkerState(e.group, want); }
-        continue;
-      }
       const w = s.weapon;
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
       const pv = e.model.pivot;
@@ -192,6 +181,52 @@ export function createView(scene, initialSim) {
       pv.rotation.z = r * e.look.rise;
     }
     for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);
+  }
+
+  // ---------- placering: spöket och sikten ----------
+  // Spöket: vapnets modell i grönt eller rött, i rutan under pekaren. Sikten: de gångbara rutor
+  // inom räckhåll som pjäsen ser, som ljusa plattor. Rutor bakom husen får ingen platta.
+  const ghosts = new Map();       // typ → spökmodell (byggs en gång)
+  let ghostOn = null;
+  function syncGhost() {
+    const g = ui.ghost;
+    if (ghostOn && (!g || ghostOn.type !== g.type)) { ghostOn.group.visible = false; ghostOn = null; }
+    if (!g) return;
+    let e = ghosts.get(g.type);
+    if (!e) { e = { type: g.type, group: weaponGhost(g.type) }; scene.add(e.group); ghosts.set(g.type, e); }
+    ghostOn = e;
+    e.group.visible = true;
+    e.group.position.set(g.x, 0, g.z);
+    setGhostTone(e.group, g.ok);
+  }
+  const tm = new THREE.Matrix4();
+  const COVER_MAX = 1600;
+  const coverM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.3, depthWrite: false });
+  const coverGeo = new THREE.PlaneGeometry(1, 1); coverGeo.rotateX(-Math.PI / 2);
+  const cover = new THREE.InstancedMesh(coverGeo, coverM, COVER_MAX);
+  cover.count = 0; cover.frustumCulled = false; cover.renderOrder = 2; cover.castShadow = false;
+  scene.add(cover);
+  let coverKey = '';
+  function syncCover() {
+    const c = ui.cover;
+    const key = c ? `${c.id}|${c.x},${c.z},${c.r}|${c.tone}` : '';
+    if (key === coverKey) return;
+    coverKey = key;
+    let n = 0;
+    if (c) {
+      const p = sim.place, size = p.size;
+      for (const k of c.keys) {
+        const q = p.center(k);
+        if (Math.hypot(q.x - c.x, q.z - c.z) > c.r) continue;
+        if (n >= COVER_MAX) break;
+        tm.makeScale(size * 0.9, 1, size * 0.9); tm.setPosition(q.x, 0.065, q.z);
+        cover.setMatrixAt(n++, tm);
+      }
+      coverM.color.set(c.tone === 'ok' ? GHOST_OK : c.tone === 'bad' ? PALETTE.rust : PALETTE.paper);
+      coverM.opacity = c.tone === 'bad' ? 0.18 : 0.32;
+    }
+    cover.count = n;
+    cover.instanceMatrix.needsUpdate = true;
   }
 
   // ---------- rutor på vägen (streckade rektanglar, syns i byggläget) ----------
@@ -252,7 +287,6 @@ export function createView(scene, initialSim) {
   const tileEdgeGeo = new THREE.RingGeometry(0.62, 0.7, 4, 1, Math.PI / 4); tileEdgeGeo.rotateX(-Math.PI / 2);
   const tiles = new THREE.InstancedMesh(tileGeo, tileM, TILE_MAX), tileEdges = new THREE.InstancedMesh(tileEdgeGeo, tileEdgeM, TILE_MAX);
   for (const t of [tiles, tileEdges]) { t.count = 0; t.frustumCulled = false; t.renderOrder = 3; t.castShadow = false; scene.add(t); }
-  const tm = new THREE.Matrix4();
   let tileKey = '';
   function syncTiles() {
     const want = ui.tiles && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave') ? ui.tiles : null;
@@ -276,7 +310,7 @@ export function createView(scene, initialSim) {
   }
 
   // ---------- markering, pekare och räckvidd ----------
-  let ui = { selected: null, hover: null, range: null, tiles: null };
+  let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null };
   const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
   const isHov = (kind, id) => ui.hover?.kind === kind && ui.hover.id === id;
   const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
@@ -293,9 +327,9 @@ export function createView(scene, initialSim) {
   scene.add(selRing, range);
   function syncUi() {
     // ring under en byggd pjäs som är vald eller pekas på
-    const ringFor = ui.selected?.kind === 'slot' ? ui.selected : ui.hover?.kind === 'slot' ? ui.hover : null;
+    const ringFor = ui.selected?.kind === 'gun' ? ui.selected : ui.hover?.kind === 'gun' ? ui.hover : null;
     const e = ringFor && slots.get(ringFor.id);
-    selRing.visible = !!(e && e.model);
+    selRing.visible = !!e;
     if (selRing.visible) {
       selRing.position.x = e.group.position.x; selRing.position.z = e.group.position.z;
       const sel = ringFor === ui.selected;
@@ -304,10 +338,10 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, ...next }; }
   function pickTargets() {
     const out = [];
-    for (const [id, e] of slots) out.push({ kind: 'slot', id, object: e.group });
+    for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
     cellMarks.forEach((c, i) => out.push({ kind: 'cell', id: i, object: c.group }));
     for (const [i, e] of cells) out.push({ kind: 'cell', id: i, object: e.group });
     return out;
@@ -316,7 +350,7 @@ export function createView(scene, initialSim) {
   // räknas fram ur markpunkten i stället, se cellAt.
   function rayTargets() {
     const out = [];
-    for (const [id, e] of slots) out.push({ kind: 'slot', id, object: e.group });
+    for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
     for (const [i, e] of cells) out.push({ kind: 'cell', id: i, object: e.group });
     return out;
   }
@@ -396,19 +430,19 @@ export function createView(scene, initialSim) {
     return e ? e.parts.scale : 1;
   }
   function consume(events) {
-    // Positioner som byggts i samma bildruta måste finnas innan skotten ritas.
+    // Pjäser som ställts ut i samma bildruta måste finnas innan skotten ritas.
     if (events.length) syncSlots(0);
     for (const ev of events) {
       switch (ev.t) {
         case 'shot': {
-          const e = slots.get(ev.slotId); if (!e || !e.model) break;
+          const e = slots.get(ev.gunId); if (!e) break;
           const sc = zombieScale(ev.targetId);
           e.model.muzzle.getWorldPosition(from);
           const spread = ev.hit ? 0.3 : 1.4;
           to.set(ev.x + rnd(-spread, spread), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-spread, spread));
           if (!ev.hit) to.sub(from).multiplyScalar(1.4).add(from);   // missar flyger förbi
           fx.tracer(from, to, e.look.tracer);
-          fx.flash(e.model.muzzle, ev.slotId, e.look.flash);
+          fx.flash(e.model.muzzle, ev.gunId, e.look.flash);
           fx.casing(e.model.muzzle);
           e.recoil = 1;
           if (e.look.smoke) fx.muzzleSmoke(from);
@@ -428,7 +462,7 @@ export function createView(scene, initialSim) {
         }
         case 'breach': fx.puff(ev.x, ev.z); baseHit(); break;
         case 'grenade': {
-          const e = slots.get(ev.slotId); if (!e || !e.model) break;
+          const e = slots.get(ev.gunId); if (!e) break;
           e.model.gunner.root.getWorldPosition(from);
           from.y += 1.5;
           to.set(ev.x, 0.15, ev.z);
@@ -482,6 +516,8 @@ export function createView(scene, initialSim) {
     syncCells();
     syncCellMarks();
     syncTiles();
+    syncGhost();
+    syncCover();
     syncUi();
     syncBase(dt);
     fx.update(dt);
@@ -499,8 +535,8 @@ export function createView(scene, initialSim) {
     if (remap) { buildCellMarks(); buildBase(); }
     baseHitT = 0; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
-    ui = { selected: null, hover: null, range: null, tiles: null };
-    tileKey = '-';
+    ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null };
+    tileKey = '-'; coverKey = '-';
   }
 
   buildCellMarks();

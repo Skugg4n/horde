@@ -375,3 +375,30 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* Panelen placeras av main.js där den inte täcker någon position eller ruta */
 .panel.placed { left: 0; top: 0; bottom: auto; right: auto; transform: none; }
 .sheet .note-line { font-size: 14px; letter-spacing: 0.03em; color: var(--paper-dim); margin: -6px 0 14px; }
+
+/* Vapenkorten nere till vänster: välj ett kort, ställ ut pjäsen på kartan */
+#buildbar { position: fixed; bottom: 18px; left: 18px; padding: 8px 10px 10px; }
+#buildbar[hidden] { display: none; }
+#buildbar .k { font-size: 11px; letter-spacing: 0.22em; color: var(--paper-dim); margin: 0 0 6px 2px; }
+#buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
+#buildbar .cards { display: flex; gap: 8px; }
+#buildbar .card { width: 150px; text-align: left; display: block; color: var(--paper); position: relative; }
+#buildbar .card.off { opacity: 0.45; }
+#buildbar .card.off .p { color: var(--paper-dim); }
+#buildbar .card.on { border-color: var(--rust); background: rgba(181,83,42,0.22); opacity: 1; }
+#buildbar .card kbd {
+  position: absolute; top: 6px; right: 7px; font: 500 10px 'IBM Plex Mono', monospace;
+  padding: 1px 5px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; color: var(--paper-dim);
+}
+#ui:not([data-mode="play"]) #buildbar { display: none; }
+/* Skälet vid pekaren när platsen inte går ("On the road") */
+#ghosttip {
+  position: fixed; transform: translate(14px, 14px); padding: 4px 9px; pointer-events: none; white-space: nowrap;
+  font-size: 13px; letter-spacing: 0.03em; color: #f0a07a;
+}
+#ghosttip[hidden] { display: none; }
+@media (max-width: 760px) {
+  #buildbar { left: 16px; bottom: 80px; }
+  #buildbar .card { width: 128px; }
+  #hint { bottom: 230px; }
+}
