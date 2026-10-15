@@ -1,10 +1,11 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress, migrateResearch } from './progress.js';
+import { newProgress, migrateResearch, migrateV1, SAVE_VERSION } from './progress.js';
 import { MAPS } from '../data/maps.js';
 
 const KEY = 'horde.save';
 const BROKEN = 'horde.save.broken';
+const V1_COPY = 'horde.save.v1';     // kopia av en v1-sparfil, sparas när den läses första gången
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -32,13 +33,20 @@ function resolveStorage(storage) {
 const isObject = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const nonNegative = x => Number.isFinite(x) && x >= 0;
 
+const validDay = d => Number.isInteger(d) && d >= 1;
+const validAttempts = a => isObject(a) && Object.values(a).every(n => Number.isInteger(n) && n >= 0);
+const common = p => isObject(p)
+  && typeof p.mapId === 'string' && Object.hasOwn(MAPS, p.mapId)
+  && nonNegative(p.intel)
+  && Array.isArray(p.research) && p.research.every(r => typeof r === 'string');
+
 function isValidV1(p) {
-  return isObject(p) && p.v === 1
-    && typeof p.mapId === 'string' && Object.hasOwn(MAPS, p.mapId)
-    && Number.isInteger(p.unlockedDay) && p.unlockedDay >= 1
-    && nonNegative(p.intel)
-    && Array.isArray(p.research) && p.research.every(r => typeof r === 'string')
-    && isObject(p.attempts) && Object.values(p.attempts).every(n => Number.isInteger(n) && n >= 0);
+  return common(p) && p.v === 1 && validDay(p.unlockedDay) && validAttempts(p.attempts);
+}
+// v2: maps får innehålla banor som den här versionen inte känner (de behålls).
+function isValidV2(p) {
+  return common(p) && p.v === SAVE_VERSION && isObject(p.maps)
+    && Object.values(p.maps).every(m => isObject(m) && validDay(m.unlockedDay) && validAttempts(m.attempts));
 }
 
 export function loadProgress(storage) {
@@ -57,12 +65,19 @@ export function loadProgress(storage) {
   } catch {
     parsed = null;
   }
-  if (!isValidV1(parsed)) {
-    console.warn('Sparfilen gick inte att läsa. Den sparas under horde.save.broken.');
-    keepBroken(s, raw);
-    return newProgress();
+  if (isValidV2(parsed)) {
+    const p = { ...newProgress(), ...parsed, research: migrateResearch(parsed.research) };
+    return { ...p, maps: { ...newProgress().maps, ...p.maps } };
   }
-  return { ...newProgress(), ...parsed, research: migrateResearch(parsed.research) };
+  if (isValidV1(parsed)) {
+    // Gamla sparfilen behålls som den var under horde.save.v1 (skrivs aldrig över).
+    keepCopy(s, raw, V1_COPY);
+    const p = migrateV1(parsed);
+    return { ...newProgress(), ...p, maps: { ...newProgress().maps, ...p.maps } };
+  }
+  console.warn('Sparfilen gick inte att läsa. Den sparas under horde.save.broken.');
+  keepCopy(s, raw, BROKEN);
+  return newProgress();
 }
 
 // Returnerar false om framsteget inte gick att spara; kastar aldrig.
@@ -76,18 +91,19 @@ export function saveProgress(progress, storage) {
   }
 }
 
-// Befintlig trasig kopia skrivs aldrig över, och identisk kopia läggs inte till igen.
-function keepBroken(storage, raw) {
+// Kopia av en sparfil (trasig eller gammal version) under base, base.1, base.2 ...
+// En befintlig kopia skrivs aldrig över, och en identisk kopia läggs inte till igen.
+function keepCopy(storage, raw, base) {
   try {
-    let key = BROKEN;
+    let key = base;
     for (let n = 1; ; n++) {
       const existing = storage.getItem(key);
       if (existing == null) break;
       if (existing === raw) return;
-      key = `${BROKEN}.${n}`;
+      key = `${base}.${n}`;
     }
     storage.setItem(key, raw);
   } catch (err) {
-    console.warn('Den trasiga sparfilen kunde inte kopieras.', err);
+    console.warn('Sparfilen kunde inte kopieras.', err);
   }
 }

@@ -4,14 +4,36 @@ import { researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { tierOf, tierData } from '../sim/stats.js';
 
+// Sparfil v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
+// är per bana (maps). mapId är banan som spelas nu.
+export const SAVE_VERSION = 2;
 export function newProgress() {
-  return { v: 1, mapId: 'riksvagen', unlockedDay: 1, intel: 0, research: [], attempts: {} };
+  return { v: SAVE_VERSION, mapId: 'riksvagen', intel: 0, research: [], maps: { riksvagen: newMapState() } };
+}
+const newMapState = () => ({ unlockedDay: 1, attempts: {} });
+
+// Banans del av framsteget (en tom om banan inte spelats än).
+export function mapState(progress, mapId = progress.mapId) {
+  return progress.maps?.[mapId] ?? newMapState();
+}
+// Banan går att välja: den har inget krav, eller kravet (en dag klar på en annan bana) är
+// uppfyllt. debug låser upp allt (?debug i adressen).
+export function mapUnlocked(progress, mapId, { debug = false } = {}) {
+  const map = MAPS[mapId];
+  if (!map) return false;
+  if (!map.unlock || debug) return true;
+  return mapState(progress, map.unlock.map).unlockedDay > map.unlock.day;
+}
+export function selectMap(progress, mapId) {
+  if (!MAPS[mapId]) throw new Error('okänd bana ' + mapId);
+  return { ...progress, mapId, maps: { ...progress.maps, [mapId]: mapState(progress, mapId) } };
 }
 
 // Returnerar null om dagen inte finns på kartan (kampanjen klar).
 // Anropare måste hantera null.
-export function startConfig(progress, day) {
-  const map = MAPS[progress.mapId];
+export function startConfig(progress, day, mapId = progress.mapId) {
+  const map = MAPS[mapId];
+  if (!map) return null;
   const d = map.days.find(x => x.n === day) || map.days[day - 1];
   if (!d) return null;
   const bonus = tierData(progress.research, 'budget')?.cash ?? 0;
@@ -20,19 +42,27 @@ export function startConfig(progress, day) {
     day,
     cash: d.startCash + bonus,
     research: [...progress.research],
-    seed: 1000 * day + (progress.attempts[day] || 0),
+    seed: 1000 * day + (mapState(progress, mapId).attempts[day] || 0),
   };
 }
 
-export function dayResult(progress, { day, won, intelEarned }) {
-  const maxDay = MAPS[progress.mapId].days.length + 1;
-  const unlockedDay = won ? Math.min(Math.max(progress.unlockedDay, day + 1), maxDay) : progress.unlockedDay;
+export function dayResult(progress, { day, won, intelEarned, mapId = progress.mapId }) {
+  const st = mapState(progress, mapId);
+  const maxDay = MAPS[mapId].days.length + 1;
+  const unlockedDay = won ? Math.min(Math.max(st.unlockedDay, day + 1), maxDay) : st.unlockedDay;
   return {
     ...progress,
     intel: progress.intel + intelEarned,
-    unlockedDay,
-    attempts: { ...progress.attempts, [day]: (progress.attempts[day] || 0) + 1 },
+    maps: { ...progress.maps, [mapId]: { ...st, unlockedDay, attempts: { ...st.attempts, [day]: (st.attempts[day] || 0) + 1 } } },
   };
+}
+
+// Sparfil v1 (före 0.4.0): en bana, unlockedDay och attempts på toppen. Blir v2 med banans
+// framsteg under maps; övriga fält (seenHint m.m.) följer med.
+export function migrateV1(p) {
+  const { unlockedDay, attempts, v, ...rest } = p;
+  void v;
+  return { ...rest, v: SAVE_VERSION, research: migrateResearch(p.research), maps: { [p.mapId]: { unlockedDay, attempts: { ...attempts } } } };
 }
 
 // Gamla sparfiler (före 0.3.0) har platta id: 'm249Rate' blir 'm249Rate.1' osv. Nivåer under
