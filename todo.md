@@ -57,3 +57,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H039 | gnesta | Basen = ishallens entré (överlevare inne i hallen), inte mitt i rondellen. Rondellen blir sista försvarslinjen framför porten; skadeeffekter på hallens fasad/port (gjort i 0.6.0).
 - [x] H040 | gnesta | Söder om rondellen är det en stor parkering (och Gnesta sporthall), inte skog (gjort i 0.4.0).
 - [x] H041 | gnesta | Ytterkanterna: dimma med skissiga spökhus; bara den aktiva kartan är skarp (gjort i 0.4.0). Grund för att expandera kartan senare.
+- [ ] H050 | vapen | Svenska försvarets arsenal med svenska namn: Ksp 90, Ksp 88, Ksp 58, Ak 5 + granattillsats, Psg 90 (även på hustak), senare Ag 90, Grg m/48, Pskott 86 (pågår, 0.8.0).
+- [ ] H051 | enheter | Hemvärnet som grupp (inte "milis"): släpps på en plats, varje soldat tar själv skydd i terrängen (husknut, bil, häck, dike) med egen sikt, knä/liggande. Close Combat-känsla (Olas önskan 2026-10-15).
+- [ ] H052 | enheter | Senare: civila frivilliga (jaktgevär, hagel), billiga och svaga; en bana med bara civila innan militären kommer.
+- [ ] H053 | banor | Gnesta Norr: Fornminnesvägen + Vikingavägen, horden norrifrån (Dansutvägen), radhuslängor i gult tegel + mörkbrun panel, basen kvar vid ishallen. Referenser lokalt i ~/Projects/horde-refs/gnesta-norr/.
+- [ ] H054 | ljud | Skrikvariant B (lägre, hesare) att jämföra med; nuvarande skrik är standard (Ola: funkar bättre i livespelet).
