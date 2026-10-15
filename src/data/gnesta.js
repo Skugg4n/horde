@@ -5,7 +5,7 @@
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
 
-export const GNESTA_VERSION = '0.1.0';
+export const GNESTA_VERSION = '0.1.1';
 
 // ---------- skala ----------
 // 1 bildpixel = 0.095 m (ungefär halva verkliga skalan). Origo mitt i spelytan.
@@ -402,6 +402,18 @@ export function buildGrid(cellSize = 2) {
     const j = Math.min(gh - 1, Math.max(0, Math.floor((z - z0) / cellSize)));
     return [i, j];
   };
+  // terräng: 1 gata (asfalt, skogsvägens jord, rondellens ring), 2 cykelväg och grusgångar.
+  // Närmaste gångbara väglinje avgör.
+  const terrain = new Uint8Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const k = j * gw + i;
+    if (!walk[k]) continue;
+    const x = cx(i), z = cz(j);
+    let near = null, nd = Infinity;
+    for (const r of walkRoads) { const d = distPolyline(x, z, r.pts) - r.width / 2; if (d < nd) { nd = d; near = r; } }
+    const ring = distPoly(x, z, ROUNDABOUT.island) <= ROUNDABOUT.ring;
+    terrain[k] = !ring && near?.surface === 'gravel' ? 2 : 1;
+  }
   // basens ruta: närmaste gångbara ruta vid ön
   let best = null, bd = Infinity;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (walk[j * gw + i]) {
@@ -409,7 +421,7 @@ export function buildGrid(cellSize = 2) {
     if (d < bd) { bd = d; best = [i, j]; }
   }
   return {
-    w: gw, h: gh, cellSize, origin: [x0, z0], walk,
+    w: gw, h: gh, cellSize, origin: [x0, z0], walk, terrain,
     spawns: SPAWNS.map(s => ({ id: s.id, cell: cellOf(s.at) })),
     base: best,
     cellOf, center: (i, j) => [cx(i), cz(j)],

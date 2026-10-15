@@ -12,6 +12,7 @@ import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats } from '../
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch } from '../src/meta/progress.js';
+import { gnesta } from '../src/data/gnesta.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
@@ -147,6 +148,30 @@ export function campaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0 } 
   return log;
 }
 
+// Gnesta, rök-körning: en trivial våg, tre vandrare från varje spawn, inga vapen eller hinder.
+// Inga balansmål än; den visar att horden hittar fram och hur lång tid det tar per ingång.
+// check: kontrollera varje steg att varje zombie står på en gångbar ruta.
+export function gnestaSmoke({ check = false, seed = 1 } = {}) {
+  const groups = gnesta.spawns.map((s, i) => ({ type: 'walker', count: 3, interval: 2, delay: i * 0.5, spawn: s.id }));
+  const map = { ...gnesta, baseHp: 99, slots: [], days: [{ n: 1, startCash: 0, waves: [{ groups }] }] };
+  const sim = createSim({ map, day: 1, cash: 0, seed });
+  const g = sim.route.grid;
+  const arrivals = Object.fromEntries(gnesta.spawns.map(s => [s.id, { count: 0, first: null, last: null }]));
+  let offRoad = 0;
+  const from = new Map();      // zombie-id -> spawn (framme-zombier tas bort i samma steg)
+  startWave(sim);
+  while (sim.phase === 'wave' && sim.time < 600) {
+    step(sim, DT);
+    for (const z of sim.zombies) if (!from.has(z.id)) from.set(z.id, z.spawn);
+    for (const ev of sim.events) if (ev.t === 'breach') {
+      const a = arrivals[from.get(ev.id)];
+      a.count++; a.first ??= sim.time; a.last = sim.time;
+    }
+    if (check) for (const z of sim.zombies) if (!z.dead && !g.walkable(g.keyAt(z.x, z.z))) offRoad++;
+  }
+  return { phase: sim.phase, time: sim.time, arrivals, offRoad, len: sim.route.len };
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log('dag försök vann bas forskning bonus  bas/kassa efter våg 1, 2, 3       fall  hade');
   for (const r of campaign('greedy', 6)) {
@@ -159,4 +184,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const seeds = [0, 1, 2, 3, 4, 5, 6, 7].map(o => campaign('greedy', 6, { seedOffset: o * 7919 }))
     .map(log => [1, 2, 3].map(d => { const t = log.filter(r => r.day === d); const i = t.findIndex(r => r.won); return i < 0 ? 'x' : i + 1; }).join('/'));
   console.log('seed-offsets, försök till vinst dag 1/2/3: ' + seeds.join('  '));
+  const gs = gnestaSmoke({ check: true });
+  console.log(`Gnesta rök (3 vandrare per ingång, tom karta): ${gs.phase}, ${gs.time.toFixed(0)} s, utanför gatan ${gs.offRoad}`);
+  for (const [id, a] of Object.entries(gs.arrivals)) console.log(`  ${id.padEnd(7)} framme ${a.count}/3, första ${a.first?.toFixed(1)} s, sista ${a.last?.toFixed(1)} s`);
 }
