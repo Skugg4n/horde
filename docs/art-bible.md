@@ -26,6 +26,7 @@ Alla färger finns i `PALETTE` i `src/render/kit.js`. Färgsträngar skrivs inte
 | | sköld | `#8a8b64` |
 | | ammolåda | `#55603f` med lock `#3d4530` |
 | Soldat | hy, skjorta, byxor, hjälm, väst | `#a58467`, `#55593f`, `#4a4d38`, `#4f5438`, `#43472f` |
+| Hemvärnet (0.9.0) | m/90: ljusgrön grund, mörkgrönt, brunt, svart; stridssele; Ak 4-stock | `#7a8655`, `#3b4a2c`, `#5c4630`, `#1f211b`; `#4a5236`; `#5a4128` |
 | Hinder | taggtråd, stolpe | `#3c3a36`, `#4a3a2a` |
 | | betong, sliten betong | `#a59f90`, `#6f695d` |
 | Zombier | hy | gröngrå `#6f7962` till `#9b9477` |
@@ -76,6 +77,7 @@ Från 0.2.2 har människorna verkliga proportioner, inte tecknade (Olas beslut H
 - Löpare: skala 0.95, smal, längre ben, sprintar: djupt knäböj, armarna pumpar med böjd armbåge.
 - Bjässe: skala 1.45 (från `ZOMBIES.brute.scale`). Stor och tung men mänsklig: bred bröstkorg, tjocka lemmar, kortare ben, litet huvud på framskjuten nacke. Ingen gorilla.
 - Soldaterna i värnen har samma proportioner, rak rygg, hjälm och väst. M249-skytten står på ett knä, M2-skytten står vid spadgreppen.
+- Hemvärnets soldater (0.9.0) har samma proportioner men en rak låda som bål (jackan), så att splittermönstret ligger på plana sidor. Ställningen visar skyddet: på huk och lutar sig ut vid husknut och bil, på knä bakom häck och staket, på magen i diket och på gräset.
 - Animationer (`models.js`): `zombieWalk` (gång med knän), `zombieAttack` (hackar växelvis mot hindret), `zombieFall` (faller bakåt, knäna viker sig).
 - Läs på spelets avstånd: figuren ska synas på silhuetten, och kläderna ska gå att skilja i fyllnadsljuset. Byxorna är därför lite ljusare än förut.
 
@@ -108,6 +110,7 @@ Antalet meshar avgör om stilen håller när fler typer och större vågor komme
 |---|---|---|
 | Zombie | 16 delar | 0.2.2: kropp 13, plus högst 3 trasor och fläckar. Från 0.4.1 instanser: hela horden är 25 anrop plus 25 för kropparna, oavsett antal |
 | Soldat | 16 | 0.2.2: 16 |
+| Hemvärnets soldat | instanser | 0.9.0: cirka 105 delar (kropp, gevär, stridssele och 70 lappar i splittermönstret). Ritas som instanser (squad-view.js, samma väg som horden): lapparna delar enhetskuben, så anropen är ett tjugotal oavsett antal soldater |
 | Pjäs nivå 1 till 2 | 65 | M249 46 och 50, M2 59 och 63 |
 | Pjäs nivå 3 | 120, mål 60 | M249 102, M2 120 |
 | Hinder | 50 | taggtråd 46, betongblock 42 |

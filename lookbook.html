@@ -47,6 +47,8 @@ import { asphaltTexture } from './src/render/world.js';
 import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP } from './src/render/gnesta-kit.js';
 import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
+import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost } from './src/render/models.js';
+import { SQUAD } from './src/sim/squad.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
 const OVERVIEW = 44, GAME = 25;
@@ -296,6 +298,57 @@ document.getElementById('labels').appendChild(entryLb);
   b.flush(scene);
 }
 
+// rad 9: Hemvärnet (0.9.0). Soldaten i m/90 med Ak 4 i alla ställningar: på huk vid en husknut
+// (lutar sig ut åt båda håll), på knä bakom häck, på magen i diket, springer ut, stupad.
+// Sedan samma husknut två gånger: markeringen i handen (före) och gruppen i skydd (efter).
+const hvMen = [];
+{
+  const HV = 150;
+  const yaw = Math.atan2(R.x, R.z) + Math.PI / 2 - 0.5;      // tittar ner mot vänster i bild, som mot gatan
+  [['crouch', -24, 'Crouching at a corner', 'leans out left', -1], ['crouch', -14, 'Crouching at a car', 'leans out right', 1],
+   ['kneel', -4, 'Kneeling', 'behind hedge or fence', 0], ['prone', 6, 'Prone', 'in a ditch or open grass', 0],
+   ['run', 16, 'Running', 'out to his spot', 0], ['down', 26, 'Down', 'zombies reached him', 0]].forEach(([st, u, t, sub, lean], i) => {
+    const m = hvSoldierModel(40 + i);
+    const p = at(u, HV);
+    m.root.position.set(p.x, 0, p.z); m.root.rotation.y = yaw;
+    if (st === 'run') hvRun(m, 0.9); else if (st === 'down') hvDown(m, 1); else hvPose(m, st, { lean });
+    scene.add(m.root);
+    hvMen.push({ m, st, lean, t: i });
+    label(u, HV, t, sub, 3.2);
+  });
+  // en grupp i skydd vid en husknut: före (markeringen i handen) och efter (de har tagit skydd)
+  const BV = HV + 18;
+  [['before', -12], ['after', 14]].forEach(([which, u0]) => {
+    const b = createBatch(), r = seeded(77);
+    const o = at(u0, BV), ox = o.x, oz = o.z;
+    const lawn = mesh(new THREE.PlaneGeometry(22, 18), new THREE.MeshStandardMaterial({ color: GP.lawnMown, roughness: 1 }));
+    lawn.rotation.x = -Math.PI / 2; lawn.position.set(ox, 0.01, oz); lawn.castShadow = false; scene.add(lawn);
+    const road = mesh(new THREE.PlaneGeometry(22, 6), new THREE.MeshStandardMaterial({ map: asphalt, roughness: 1 }));
+    road.rotation.x = -Math.PI / 2; road.position.set(ox, 0.02, oz + 12); road.castShadow = false; scene.add(road);
+    villa(b, frame(null, ox - 4, 0, oz - 3, 0), { w: 9, d: 7, storeys: 1, roof: 'gable', facade: 'grey', roofColor: 'black', seed: 5 });
+    car(b, frame(null, ox + 6, 0, oz + 3.5, 0.15), GP.car[2]);
+    hedge(b, ox - 9, oz + 7.5, ox + 1, oz + 7.5, r, 1.4);
+    b.flush(scene);
+    const spots = [
+      { x: ox + 1.8, z: oz + 1.6, st: 'crouch', lean: 1 },     // husknuten
+      { x: ox + 4.4, z: oz + 5.6, st: 'crouch', lean: -1 },    // bilen
+      { x: ox - 4, z: oz + 6.2, st: 'kneel' },                 // häcken
+      { x: ox + 9.5, z: oz + 7.6, st: 'prone' },               // diket vid gatan
+    ];
+    if (which === 'before') {
+      const g = squadGhost(SQUAD.radius); g.position.set(ox + 2, 0, oz + 3); setGhostTone(g, true);
+      setSquadGhost(g, ox + 2, oz + 3, spots); scene.add(g);
+    } else {
+      spots.forEach((sp, i) => {
+        const m = hvSoldierModel(90 + i);
+        m.root.position.set(sp.x, 0, sp.z); m.root.rotation.y = 0.35;
+        hvPose(m, sp.st, { lean: sp.lean ?? 0 }); scene.add(m.root);
+      });
+    }
+    label(u0, BV, 'Hemvärnet at a house corner', which === 'before' ? 'before: the marker in hand, where each man will go' : 'after: corner, car, hedge and ditch', 9.5);
+  });
+}
+
 // dra och zooma
 let drag = null;
 const stage = document.getElementById('stage');
@@ -350,6 +403,7 @@ function tick(now) {
   }
   rings.end();
   grenadeLoop(dt);
+  for (const h of hvMen) if (h.st === 'run') hvRun(h.m, now / 1000 * 9);
   renderer.render(scene, camera);
   for (const l of labels) {
     v3.copy(l.p).project(camera);

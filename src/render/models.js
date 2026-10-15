@@ -725,24 +725,46 @@ export function hvSoldierModel(seed = 1) {
   const r = seededRnd(seed + 11);
   const cam = P.m90.map(c => mat(c));
   const base = P.m90[0];
-  const s = humanoid({ skin: P.soldierSkin, shirt: base, pants: base, helmet: P.m90[1],
+  const s = humanoid({ skin: P.soldierSkin, shirt: base, pants: base, helmet: P.m90[0],
     build: { chestW: 0.45, waistW: 0.37, shX: 0.26, armW: 0.115, foreW: 0.1, legW: 0.16, shinW: 0.13 } });
   const b = s.build;
-  // splittermönster: tunna lappar i vinkel, mörka färgerna (index 1-3) över grundfärgen
-  const patch = (parent, w, h, x, y, z, ry = 0) => {
-    const m = sbox(r(0.07, 0.16) * w, r(0.06, 0.13) * h, 0.012, cam[1 + Math.floor(r(0, 2.999))], x, y, z);
+  // splittermönster: tunna vinklade lappar i de tre mörka färgerna på alla fyra sidor av bålen
+  // och på benens och armarnas utsidor. Bålen smalnar mot midjan, så lapparna följer ytan.
+  const dark = () => cam[1 + Math.floor(r(0, 2.999))];
+  const patch = (parent, x, y, z, ry, sx, sy) => {
+    const m = sbox(sx, sy, 0.012, dark(), x, y, z);
     m.rotation.set(0, ry, r(-0.9, 0.9)); m.castShadow = false; parent.add(m);
   };
-  for (const side of [1, -1]) {
-    for (let i = 0; i < 4; i++) patch(s.spine, 1.4, 1.3, r(-0.17, 0.17), r(0.06, 0.5), side * (b.chestD / 2 + 0.006), side < 0 ? Math.PI : 0);
+  // Bålen som en rak låda (jackan), så att mönstret ligger på plana sidor.
+  s.spine.remove(s.torso);
+  s.torso = box(b.chestW, b.torsoH, b.chestD, mat(base), 0, b.torsoH / 2, 0);
+  s.spine.add(s.torso);
+  const tw = () => b.chestW / 2, td = () => b.chestD / 2;
+  // n lappar runt en lådformad del (halv bredd hw, halvt djup hd, från höjd y0 till y1), jämnt
+  // fördelade på de fyra sidorna. sz: lappens storlek i förhållande till delen.
+  const wrap = (parent, hw, hd, y0, y1, n, sz = 1, cz = 0) => {
+    for (let i = 0; i < n; i++) {
+      const y = r(Math.min(y0, y1), Math.max(y0, y1)), side = i % 4, sx = r(0.5, 1) * sz, sy = r(0.45, 0.9) * sz;
+      if (side < 2) { const sg = side ? -1 : 1; patch(parent, r(-0.75, 0.75) * hw, y, cz + sg * (hd + 0.007), side ? Math.PI : 0, sx * hw * 1.1, sy * 0.22); }
+      else { const sg = side === 2 ? 1 : -1; patch(parent, sg * (hw + 0.007), y, cz + r(-0.7, 0.7) * hd, sg * Math.PI / 2, sx * hd * 1.4, sy * 0.22); }
+    }
+  };
+  wrap(s.spine, tw(), td(), 0.04, b.torsoH - 0.04, 28, 0.8);
+  for (const hip of [s.hipL, s.hipR]) wrap(hip, b.legW / 2, b.legW * 0.55, -0.06, -b.thigh + 0.04, 8, 1.1);
+  for (const knee of [s.kneeL, s.kneeR]) wrap(knee, b.shinW / 2, b.shinW * 0.625, -0.06, -b.shin + 0.1, 6, 1.1, 0.015);
+  for (const sh of [s.shL, s.shR]) wrap(sh, b.armW / 2, b.armW * 0.55, -0.04, -b.upper + 0.04, 6, 1.1);
+  for (const el of [s.elL, s.elR]) wrap(el, b.foreW / 2, b.foreW * 0.525, -0.03, -b.fore + 0.04, 4, 1.1);
+  // stridssele: bälte med magasinsfickor och två axelremmar (uniformen syns runt dem)
+  const belt = mat(P.hvVest);
+  s.spine.add(box(b.chestW + 0.03, 0.09, b.chestD + 0.04, belt, 0, 0.06, 0));
+  s.spine.add(box(0.26, 0.12, 0.07, mat(P.ammo), 0, 0.12, b.chestD / 2 + 0.05));
+  for (const x of [-0.11, 0.11]) {
+    const strap = box(0.05, b.torsoH * 0.95, 0.02, belt, x, b.torsoH / 2, td(b.torsoH / 2) + 0.012);
+    strap.rotation.x = -0.06; s.spine.add(strap);
+    s.spine.add(box(0.05, b.torsoH * 0.8, 0.02, belt, x, b.torsoH / 2, -td(b.torsoH / 2) - 0.012));
   }
-  for (const hip of [s.hipL, s.hipR]) for (let i = 0; i < 2; i++) patch(hip, 0.8, 1.6, r(-0.03, 0.03), -r(0.08, 0.42), b.legW * 0.56);
-  for (const knee of [s.kneeL, s.kneeR]) patch(knee, 0.7, 1.4, 0, -r(0.1, 0.35), b.shinW * 0.64);
-  for (const sh of [s.shL, s.shR]) patch(sh, 0.6, 1.4, 0, -r(0.06, 0.24), b.armW * 0.56);
-  // stridsväst och hjälmöverdrag
-  s.spine.add(box(b.chestW + 0.05, 0.34, b.chestD + 0.07, mat(P.hvVest), 0, b.torsoH - 0.26, 0));
-  s.spine.add(box(0.28, 0.1, 0.07, mat(P.ammo), 0, b.torsoH - 0.42, b.chestD / 2 + 0.06));
-  for (let i = 0; i < 3; i++) { const t = sbox(r(0.06, 0.1), 0.012, r(0.05, 0.09), cam[1 + i], r(-0.07, 0.07), 0.07 + b.head * 0.98, r(-0.05, 0.1)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
+  // hjälmöverdraget: lappar ovanpå hjälmen
+  for (let i = 0; i < 4; i++) { const t = sbox(r(0.07, 0.11), 0.012, r(0.05, 0.09), cam[1 + (i % 3)], r(-0.06, 0.06), 0.07 + b.head * 0.72 + b.head * 0.62 * 0.85 - 0.012, 0.03 + r(-0.06, 0.06)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
   const metal = mat(P.gunMetal, METAL);
   const rifle = ak4(metal);
   s.spine.add(rifle.g);
@@ -815,11 +837,12 @@ export function hvDown(s, t) {
 // ligga. Samma gröna och röda spökmaterial som pjäserna. setSquadGhost flyttar plattorna.
 export function squadGhost(radius, max = 6) {
   const g = new THREE.Group();
-  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false });
+  // Ritas ovanpå husen och häckarna (depthTest av), så att ringen och platserna syns i kvarteret.
+  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false });
   m.userData.own = true;
   const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.14, radius, 72), m);
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07; g.add(ring);
-  const fillM = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.08, depthWrite: false });
+  const fillM = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.08, depthWrite: false, depthTest: false });
   fillM.userData.own = true;
   const fill = new THREE.Mesh(new THREE.CircleGeometry(radius, 72), fillM);
   fill.rotation.x = -Math.PI / 2; fill.position.y = 0.06; g.add(fill);

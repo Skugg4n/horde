@@ -19,6 +19,11 @@
 // ut; i ett dike eller på öppen gräsmatta ligger han; bakom häck, staket eller säckar står han på
 // knä. Varje soldat har sin egen sikt (placement.js) och väljer mål själv med samma regel som
 // pjäserna (den zombie som kommit längst).
+//
+// Ingen flytt under dagen (mitt beslut): en soldats ruta kan inte bli upptagen (barrikader läggs
+// bara på gatan, och en pjäs får inte stå närmare än GUN_GAP en soldat), och en soldat som springer
+// när zombierna redan slår honom skulle se fel ut och göra skyddsvalet mindre värt. Han stannar och
+// slåss; stupade ersätts från panelen. Gruppen väljer om när den köps eller uppgraderas.
 import { KIND, sightFrom } from './placement.js';
 import { WEAPONS } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
