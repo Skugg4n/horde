@@ -10,6 +10,8 @@ export const SHOP = [
   { id: 'ksp58', kind: 'gun' },
   { id: 'ak5', kind: 'gun' },
   { id: 'psg90', kind: 'gun' },
+  // 0.9.0: Hemvärnet (snabbval 8)
+  { id: 'hv', kind: 'gun' },
 ];
 export const shopItem = id => SHOP.find(s => s.id === id);
 // Snabbvalet för plats i (0-baserad): 1-9 och sist 0.

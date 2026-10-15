@@ -16,6 +16,12 @@ export const WEAPONS = {
            launcher: { range: 18, cooldown: 4.5, damage: 55, radius: 2.6, falloff: 0.6, flight: 0.6, minCount: 2 } },
   psg90: { id: 'psg90', name: 'Psg 90', desc: 'Sniper rifle. Slow, deadly, very long range. Pierces two in a line. Goes on rooftops.',
            cost: 700, range: 34, rate: 0.6, damage: 90, accuracy: 0.95, pierce: 2, roof: true, upgradeCost: [500, 750] },
+  // 0.9.0: Hemvärnet, en grupp soldater med Ak 4 (7,62 mm). Siffrorna gäller per soldat; gruppen
+  // väljer själv skydd runt markeringen (src/sim/squad.js). Nivå 2 ger en femte soldat, nivå 3
+  // bättre gevär (skadan som andra vapen, 30 % per nivå). Svagare per krona än Ksp 90, men
+  // fyra siktlinjer i stället för en. Zombier som når fram kan slå ner en soldat.
+  hv:    { id: 'hv', name: 'Hemvärnet', desc: 'Home Guard squad: four riflemen with Ak 4. Drop the marker and they find their own cover. Cheap and flexible, but the dead can reach them.',
+           cost: 250, range: 15, rate: 1.3, damage: 5, accuracy: 0.72, squad: true, upgradeCost: [200, 300] },
 };
 // Kulans bredd när den går igenom (Psg 90): zombier inom så många meter från skottlinjen bakom
 // målet träffas också, närmast först.

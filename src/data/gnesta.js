@@ -685,7 +685,25 @@ export function buildPlacement(grid) {
       roof[k] = Math.round(y * 100) / 100; bldg[k] = i + 1; break;
     }
   }
-  return { ...place, roof, bldg, buildings: blds.map(b => b.rects) };
+  // Hemvärnet (0.9.0): häckar och staket längs tomterna (låga, skymmer inte sikten men ger skydd)
+  // och diket längs skogsvägen. Bara öppna rutor; luckan vid uppfarten är ingen häck.
+  const hedge = new Uint8Array(n), ditch = new Uint8Array(n);
+  const segs = [];
+  for (const e of LOTS.edges) {
+    if (e.kind === 'none') continue;
+    if (!e.gap) { segs.push([e.a, e.b]); continue; }
+    const at = t => [e.a[0] + (e.b[0] - e.a[0]) * t, e.a[1] + (e.b[1] - e.a[1]) * t];
+    const L = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) || 1, h = e.gap.len / 2 / L;
+    segs.push([e.a, at(Math.max(0, e.gap.t - h))], [at(Math.min(1, e.gap.t + h)), e.b]);
+  }
+  const forest = ROADS.find(r => r.id === 'forest');
+  for (let k = 0; k < n; k++) {
+    if (place.kind[k] !== KIND.open || place.walk[k]) continue;
+    const x = grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, z = grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize;
+    if (segs.some(sg => distPolyline(x, z, sg) < 1.3)) hedge[k] = 1;
+    if (forest && distPolyline(x, z, forest.pts) - forest.width / 2 < 2.4) ditch[k] = 1;
+  }
+  return { ...place, roof, bldg, buildings: blds.map(b => b.rects), hedge, ditch };
 }
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,

@@ -83,3 +83,13 @@ export const MAPS = {
   gnesta,
 };
 MAPS.riksvagen.place = e4Place(MAPS.riksvagen.props, MAPS.riksvagen.path);
+// Dikena (0.9.0): rutorna närmast asfalten på båda sidor är vägdiken. Hemvärnet ligger där
+// (src/sim/squad.js); sikten påverkas inte.
+{
+  const pl = MAPS.riksvagen.place, ditch = new Uint8Array(pl.kind.length);
+  for (let k = 0; k < ditch.length; k++) {
+    const z = pl.origin[1] + (Math.floor(k / pl.w) + 0.5) * pl.cellSize;
+    if (pl.kind[k] === KIND.open && Math.abs(z) > ROAD_HALF && Math.abs(z) < ROAD_HALF + 2) ditch[k] = 1;
+  }
+  pl.ditch = ditch;
+}

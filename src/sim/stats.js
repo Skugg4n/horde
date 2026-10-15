@@ -31,7 +31,8 @@ export function maxGuns(research) {
 // Forskningen gäller som vanligt på andra banor.
 export const mapUnlocks = (map, id) => !!map?.unlocks?.includes(id);
 export function weaponUnlocked(type, research, map = null) {
-  return type === 'm249' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
+  // Ksp 90 och Hemvärnet (0.9.0) finns från början.
+  return type === 'm249' || type === 'hv' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
 }
 export function obstacleUnlocked(type, research, map = null) {
   return type === 'wire' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
