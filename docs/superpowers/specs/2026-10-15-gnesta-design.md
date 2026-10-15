@@ -1,31 +1,34 @@
-# Bana 2: Gnesta, Sigtunavägen (design, utkast)
+# Bana 2: Gnesta, Sigtunavägen (design)
 
-Version 0.1 · 2026-10-15 · status: utkast för Olas godkännande. Skiss: `docs/gnesta-skiss.html`. Referensbilder: `docs/refs/gnesta/`.
+Version 0.2 · 2026-10-15 · status: godkänd i chatten ("Go!"), byggs efter 0.3. Skiss: `docs/gnesta-skiss.html`. Referensbilder: `docs/refs/gnesta/`.
 
 ## Idé
 
-E4 var en plats och en väg. Gnesta är en riktig stadsdel: horden kommer från öster och vill raka vägen genom trädgårdarna till oss vid ishallen. Spelaren barrikaderar glappen mellan husen så att horden tvingas ut på gatorna där vapnen står. Moderna, hela villor en vanlig sommardag som just börjat gå åt skogen.
+E4 var en plats och en väg. Gnesta är en riktig stadsdel med gator, stickgator och cykelvägar. Horden kommer från öster och går mot oss vid rondellen utanför ishallen. Spelaren styr den med barrikader så att den tvingas runt kvarteren, förbi vapenpositionerna. Moderna, hela villor en vanlig sommardag som just börjat gå åt skogen.
 
 ## Plats och skala
 
 - Utsnitt: från den droppformade rondellen utanför Gnesta ishall (väster) till östra delen av Sigtunavägen, och från Fornminnesvägen (norr) till Sigtunavägen (söder).
-- Verklig bredd ungefär 280 m. I spelet ungefär hälften (cirka 140 x 85 m). Gatornas form och husens placering följer kartan; husen är generiska moderna villor, inte kopior av riktiga hem. Gatunamn och ishallen används.
-- Kameran är ett steg mer utzoomad än E4 och går att panorera (dra, eller piltangenter). Hela banan ryms inte på en skärm, och det är meningen.
+- Verklig bredd ungefär 280 m. I spelet ungefär hälften. Gatornas form och husens placering följer kartan; husen är generiska moderna villor, inte kopior av riktiga hem. Gatunamn och ishallen används.
+- Kameran är ett steg mer utzoomad än E4 och går att panorera.
 
-## Rutnät och vägsökning (ny grund)
+## Vägnätet (Olas beslut 2026-10-15)
 
-- Banan är ett rutnät med 2 m-rutor. Varje ruta har en kostnad: gata 1, gräs 1.3, trädgård 2 (häckar och staket bromsar), hus och skog stängda, barrikad stängd, taggtråd hög kostnad (bromsar men går att gå igenom).
-- Horden följer ett **flödesfält** mot basen som räknas om varje gång spelaren bygger eller river något. Det är billigt (en bredd-först-sökning över cirka 3 000 rutor) och helt deterministiskt, så balanssimuleringen fungerar som förut.
-- **Regel:** en barrikad får inte stänga sista vägen. Försöker man blir platsen röd med texten "Must leave a way through".
-- Bjässar kan slå sönder barrikader som på E4. Då öppnas glappet och flödet räknas om.
+- **Horden går bara på gator och cykelvägar.** Tomterna är stängda: häckar, staket och hus i blandning.
+- Stickgatorna från Sigtunavägen går upp till cykelvägen i norr, och zombierna tar gärna den vägen. Varje kvarter blir alltså ett varv.
+- Gatorna är ett osynligt rutnät (2 m-rutor). Horden följer ett flödesfält mot basen som räknas om varje gång något byggs eller rivs. Deterministiskt, så balanssimuleringen fungerar.
+- **Barrikader** sätts fritt i rutnätet på gatorna. De är mycket dyra att passera i vägsökningen, så horden väljer att gå runt kvarteret. Är alla vägar stängda går den mot närmaste barrikad och slår sig igenom. Ingen regel om att lämna en väg öppen behövs.
+- **Taggtråd** läggs fritt på gatorna och bromsar.
 
-## Barrikadplatser
+## Vapenpositioner
 
-Fasta platser i glappen mellan husen (romberna i skissen), inte fri placering. Det gör det tydligt var man kan bygga och håller banan stabil. Taggtråd går fortfarande att lägga på gatorna i rutor.
+- På tomter och vid husen, med skottfält över gatorna (A-F öppna, G-H via forskning).
+- Fokus är skjutande pjäser (M249, M2 och senare SMG/MG-varianter).
+- **Granatkit** är ett tillval per position som köps för pengar när forskningen Grenades är upplåst. Bara positioner med kit kastar, automatiskt. Molotov kan bli en senare variant av samma tillval.
 
-## Positioner
+## Vågor
 
-A-F öppna från start: två vid rondellen, två vid Sigtunavägens stickgator, en på gräset vid ishallen, en vid norra grusvägen. G-H låses upp med forskning.
+Next wave-knapp med 5 s nedräkning och bonus för tidigt kall (byggs i 0.3 och gäller alla banor).
 
 ## Dagar (förslag)
 
@@ -34,14 +37,18 @@ A-F öppna från start: två vid rondellen, två vid Sigtunavägens stickgator, 
 | 1 | Lär dig barrikader | Öst 1: Sigtunavägen |
 | 2 | Andra ingången | Öst 2: norra vägen |
 | 3 | Skogsvägen öppnas | Sydost genom skogen |
-| 4 | Bjässar slår sönder barrikader | alla |
+| 4 | Bjässar slår sönder barrikader snabbare | alla |
 | 5 | Allt på en gång | alla |
+
+## Senare överraskningar
+
+1. Nya spawns: horden kommer plötsligt från ett annat håll.
+2. Zombier bryter sig igenom en tomt och ett hus och skapar en ny väg.
 
 ## Grafik
 
-Samma ljus, sol och dis som E4. Nytt i byggsatsen: villor med svarta sadeltak och ljusa fasader, häckar, spjälstaket, gatlyktor, parkerade bilar, Gnesta ishall (röd med vit gavel), den droppformade rondellen med gräsö och flaggstång, skogskant. Allt in i visningssidan först.
+Samma ljus, sol och dis som E4. Nytt i byggsatsen: villor med mörka sadeltak och ljusa eller träpanelfasader, häckar, spjälstaket, gatlyktor, parkerade bilar och släpvagnar, Gnesta ishall (röd med vit gavel), den droppformade rondellen med gräsö och flaggstång, cykelväg i grus, skogskant. Allt in i visningssidan först.
 
-## Öppna frågor till Ola
+## Öppet
 
-1. Fasta barrikadplatser (förslag) eller fri placering i rutnätet?
-2. Ska E4 senare kopplas till Gnesta (t.ex. att horden från E4 är den som kommer in från öster)?
+- Koppla E4 till Gnesta senare (till exempel att E4-horden är den som kommer in från öster).
