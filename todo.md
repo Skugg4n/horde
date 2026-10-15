@@ -63,4 +63,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H050 | balans | Speltesta Psg 90 på taken: är 4 m död vinkel runt det egna huset rätt, och syns skytten tillräckligt på taket i spelets zoom?
 - [ ] H051 | balans | Ksp 58 kommer sällan ut i policyn (platserna är fulla när den forskas). Speltesta om den behövs tidigare eller billigare.
 - [ ] H052 | ljud | Ola väljer springarskrik A eller B i ljudbordet; B blir standard om han vill.
-- [ ] H053 | ux | Köpraden med sju kort är bara testad headless på 1440x900; smal skärm och pekskärm kvar.
+- [ ] H053 | ux | Köpraden med sju kort är bara testad headless på 1440x900; smal skärm och pekskärm kvar. (0.9.0: åtta kort, smalare, en rad i 1440 px.)
+
+## Hemvärnet 0.9.0
+
+- [ ] H054 | balans | Hemvärnet är svagt på Gnesta (hp-faktorn och Faster Ksp 90): policyerna köper det bara på E4 dag 1. Speltesta om gruppen behöver forskning (bättre ammunition, fem man från början) eller lägre pris.
+- [ ] H055 | ux | Speltesta skyddsvalet: väljer gruppen platser som känns rätt (husknut, bil, häck, dike) i händerna, och syns soldaterna i Gnestas zoom bakom häckarna?
+- [ ] H056 | grafik | Dikena på E4 och vid skogsvägen syns inte i marken; soldaterna ligger i vägrenen. Rita ett grunt dike om det behövs.
+- [ ] H057 | spel | Soldaterna flyttar inte under dagen (beslut i src/sim/squad.js). Pröva om en soldat ska byta ruta när zombier når honom.

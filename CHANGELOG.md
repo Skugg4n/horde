@@ -1,5 +1,21 @@
 # Ändringslogg
 
+## 0.9.0 (2026-10-16)
+
+Hemvärnet: en grupp soldater som själva tar skydd, med Close Combat som förebild. På kortet och i panelen heter de Hemvärnet; den engelska raden förklarar vad de gör.
+
+- Köp: kort 8 i köpraden, $ 250, finns från början. Spelaren släpper en markering (en ring på 8 m) på mark bredvid gatan. Gruppen är fyra soldater med Ak 4 (låg skada per skott, måttlig eld, räckvidd 15 m). Nivå 2 ger en femte soldat och mer liv, nivå 3 bättre gevär. Gruppen tar en position och säljs och uppgraderas som en pjäs; klick på vilken soldat som helst öppnar gruppens panel.
+- Skyddet (src/sim/squad.js, deterministiskt): varje ruta inom ringen får poäng för skydd (husknut, bil eller träd, vägg, sandsäckar vid en pjäs eller barrikad, häck eller staket, dike), för hur mycket av gatan den ser (hordens väg väger dubbelt), minus ett avdrag intill gatan och per meter från markeringen. Rutorna väljs en i taget med minst 3 m mellan soldaterna, och olika skydd föredras (en vid husknuten, en vid bilen, en i diket). Inga tak (där ligger Psg 90).
+- Ställningar efter skyddet: på huk och lutar sig ut vid husknut, vägg eller bil; på knä bakom häck, staket eller säckar; på magen i diket och på öppet gräs. Varje soldat har sin egen sikt och väljer mål själv. De springer ut från markeringen (1 till 2 s) och skjuter när de är framme.
+- Zombierna kan skada soldaterna (bara dem, pjäserna är osårbara som förut): en zombie i en ruta intill en soldat stannar och slår honom. Stupade skjuter inte och ersätts i panelen för $ 60 per man; nästa dag börjar alla om.
+- Nya kartdata: diken längs E4 (rutorna närmast asfalten) och längs skogsvägen på Gnesta, häckar och staket längs Gnestas tomter. De påverkar bara skyddet, inte sikten.
+- Bild: soldater i m/90 (splittermönster i ljusgrönt, mörkgrönt, brunt och svart, hjälmöverdrag, stridssele), Ak 4 med trästock och rakt magasin. Ritas som instanser som horden. Spöket är ringen med en platta där varje man skulle ta skydd, plus gruppens samlade sikt. Vald grupp: ring under varje man, hans siktlinje svagt och gruppens rutor. Mynningsflammor och hylsor från varje gevär.
+- Ljud: Ak 4 är en skarp 7,62-knall med överljudssmäll och längre klang, skild från Ak 5. Egen röstbudget. Ljudbordet har Ak 4 enkelt och en salva.
+- Köpraden har åtta kort, smalare så att raden ryms på en rad i 1440 px.
+- Balans: E4-policyn köper en grupp dag 1 (utfallen som förut), Gnesta-policyn fyller luckor med en grupp när planen saknar fler pjäsplatser (händer inte i de fem seedsen). Gruppen är svag på Gnesta; prövade varianter och skäl i docs/balance-log.md (0.9.0). Nya kvitton för båda banorna.
+- Lookbook: Hemvärnet i alla ställningar (huk åt båda håll, knä, liggande, springer, stupad) och en grupp vid en husknut före och efter. Skärmbilder i docs/hemvarn-*.png.
+- Tester: skyddsvalet är deterministiskt, gruppen sprider sig, skydd före öppet gräs, egen sikt per soldat, zombier slår och stupade ersätts, sparfiler från 0.8.0 läses oförändrade och raderas aldrig.
+
 ## 0.8.0 (2026-10-16)
 
 Den svenska arsenalen: Försvarsmaktens vapen under svenska beteckningar, med en kort engelsk rad om vad varje vapen gör. Spelets text i övrigt är engelsk.
