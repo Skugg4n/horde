@@ -1,5 +1,20 @@
 # Ändringslogg
 
+## 0.8.0 (2026-10-16)
+
+Den svenska arsenalen: Försvarsmaktens vapen under svenska beteckningar, med en kort engelsk rad om vad varje vapen gör. Spelets text i övrigt är engelsk.
+
+- Ksp 90 (förut M249): "Light machine gun. Cheap and fast." Ksp 88 (förut M2 .50 cal): "Heavy 12.7 mm machine gun. Chews through brutes." Samma siffror och samma id som förut, så sparfiler och forskning gäller som de är (testat med en gammal sparfil). Modellerna närmare de riktiga vapnen: Ksp 90 med patronlåda, bärhandtag och skjutbar kolv, Ksp 88 med perforerad pipmantel, flamdämpare och ammunitionslåda på sidan.
+- Ksp 58 (ny, forskning efter Ksp 88 I): allmän kulspruta 7,62 mm, mitt emellan Ksp 90 och Ksp 88 i pris, räckvidd och eld. Lång pipa med bärhandtag, tvåben och patronband.
+- Ak 5 + granattillsats (ny, forskning efter Grenades I): jämna enstaka skott och en 40 mm-granat var 4,5 sekund mot den tätaste klungan, med ytskada. Skytten står med geväret mot axeln, röret under pipan. Beteckningen följer Försvarsmakten ("Ak 5 med granattillsats"); ingen egen modellbeteckning hittades, så ingen hittades på.
+- Psg 90 (ny, forskning efter Ksp 88 II): prickskyttegevär, långsamt men dödligt, mycket lång räckvidd, går igenom två i en linje (tre med Psg 90 III). Får ligga på hustak på Gnesta: pekaren hittar taket under sig och skytten hamnar på takets topp. Från taket ser skytten över alla hus utom marken inom 4 m från det egna huset (död vinkel under takfoten); regeln står i src/sim/placement.js och är testad. På marken fungerar den som de andra. Skytten ligger på magen med ghillie, utan säckring på taket.
+- Forskning: tre nya noder med tre nivåer var och More positions IV (8 pjäser). Forskningen är nu 4240 poäng mot 2130, så den räcker förbi Gnesta dag 5 (H034).
+- Ljud: varje nytt vapen har en egen syntetiserad röst. Ksp 58 ligger mellan Ksp 90 och Ksp 88, Ak 5 är ett torrt skarpt skott, granattillsatsen ett ihåligt "thoonk" och en mindre smäll, Psg 90 en skarp knall med ett långt eko. Röstbudget och takt för alla, stresstestet håller taket.
+- Springarens skrik: en andra variant, B "torn" (lägre, hesare, sönderriven strupe, nästan ingen ton). A är kvar som standard. Välj i ljudbordet (A/B) eller med inställningen `shriek` ('classic' eller 'torn').
+- Köpraden har sju kort (Ak 5 heter "Ak 5 + Grt" på kortet, hela namnet i tipset). Vågens knapp ställer sig till höger om köpraden, och raden bryts i två när fönstret är smalt.
+- Balans: Gnesta-policyn bemannar tak med Psg 90 där de ser den tvingade vägen över fältet (två villor vid rondellen), Ak 5 och Ksp 58 när de finns. Gnesta dag 4 hp 6,0 (var 5,6) och dag 5 hp 5,1 (var 4,6). E4 oförändrad. Nytt kvitto för Gnesta, skälen i docs/balance-log.md.
+- Lookbook: en ny rad med Ksp 58, Ak 5 och Psg 90 i tre nivåer, Ak 5 med granatlåda, Psg 90 på ett villatak och spöket på taket. Ljudbordet har alla nya ljud. Skärmbilder i docs/arsenal-*.png.
+
 ## 0.7.0 (2026-10-15)
 
 Ljud och musik, helt syntetiserade i webbläsaren (Web Audio), utan ljudfiler.

@@ -66,7 +66,7 @@ function applyCamera() {
 addEventListener('resize', applyCamera); applyCamera();
 
 // mark
-const ground = mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1 }));
+const ground = mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.castShadow = false; scene.add(ground);
 const asphalt = asphaltTexture(); asphalt.repeat.set(1, 1);
 
@@ -215,7 +215,7 @@ document.getElementById('labels').appendChild(entryLb);
   b.flush(scene);
 }
 
-// rad 6: befäst position (H036). Samma trädgårdshörna två gånger: orörd, och med en M249
+// rad 6: befäst position (H036). Samma trädgårdshörna två gånger: orörd, och med en Ksp 90
 // utställd. Runt pjäsen huggs häcken ner, staketet rivs, trädet fälls, bilen blir ett vrak,
 // brevlådan välts och sandsäckar läggs i en bruten vall. Samma kod som i spelet (fortify.js).
 {
@@ -262,6 +262,38 @@ document.getElementById('labels').appendChild(entryLb);
     setBaseDamage(e, dmg); scene.add(e);
     label(u, EV, 'Ice rink entrance', txt, 3);
   });
+}
+
+// rad 8: arsenalen (0.8.0). Ksp 58, Ak 5 med granattillsats och Psg 90 i nivå 1 till 3, Psg 90
+// liggande på ett villatak (som i spelet: ingen säckring, på takets höjd) och dess spöke på taket.
+{
+  const AV = 114;
+  [['ksp58', -26], ['ak5', -2], ['psg90', 22]].forEach(([t, u0]) => {
+    for (let lv = 1; lv <= 3; lv++) {
+      const w = weaponModel(t, lv);
+      w.group.position.copy(at(u0 + (lv - 1) * 8, AV));
+      w.pivot.rotation.y = -0.35;
+      scene.add(w.group);
+      label(u0 + (lv - 1) * 8, AV, WEAPONS[t].name, 'level ' + lv, 4.6);
+    }
+  });
+  const RV = AV + 16;
+  const ak = weaponModel('ak5', 2, { kit: true }); ak.group.position.copy(at(-26, RV)); ak.pivot.rotation.y = -0.35; scene.add(ak.group);
+  label(-26, RV, WEAPONS.ak5.name + ' + grenade kit', '40 mm tube under the barrel', 4.6);
+  // Villan: gaveltak, nocken längs x, takhöjd 0,32 + 2,75 + 3,5 * tan(0,47) = 4,85 m (som data/gnesta.js räknar).
+  const b = createBatch();
+  [[-6, 'Psg 90 on a roof', 'prone, ghillie, sees over houses'], [14, 'Placing on a roof', 'ghost on the roof top']].forEach(([u, t, sub], i) => {
+    const p = at(u, RV), yaw = Math.atan2(R.x, R.z) - Math.PI / 2 + 0.35;
+    villa(b, frame(null, p.x, 0, p.z, yaw), { w: 9.5, d: 7, storeys: 1, roof: 'gable', facade: i ? 'grey' : 'red', roofColor: 'black', seed: 31 + i });
+    const ridge = 0.32 + 2.75 + 3.5 * Math.tan(0.47);
+    if (!i) {
+      const w = weaponModel('psg90', 2, { roof: true }); w.group.position.set(p.x, ridge, p.z); w.pivot.rotation.y = -0.35; scene.add(w.group);
+    } else {
+      const g = weaponGhost('psg90', { roof: true }); setGhostTone(g, true); g.position.set(p.x, ridge, p.z); scene.add(g);
+    }
+    label(u, RV, t, sub, 7.5);
+  });
+  b.flush(scene);
 }
 
 // dra och zooma

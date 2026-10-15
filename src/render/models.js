@@ -205,7 +205,7 @@ const KINDS = {
     shield: { x: 0.5, w: 1.05, h: 0.8, y: 0.14 }, outer: { r: 3.05, layers: 2, n: 14, arc: 1.2, size: 0.95 }, crate: 2.6, kit: [-0.7, -1.45] },
   m2: { ring: { r: 2.5, layers: 3, n: 13, arc: 1.95, size: 1 }, tripod: true, y: 1.15, gun: ksp88Gun, pose: 'stand',
     shield: { x: 0.75, w: 1.3, h: 1.1, y: 0.2 }, outer: { r: 3.45, layers: 2, n: 15, arc: 1.25, size: 1 }, crate: 2.9, kit: [-0.85, -1.6] },
-  ak5: { ring: { r: 1.8, layers: 3, n: 11, arc: 1.85, size: 0.9 }, y: 1.38, gun: ak5Gun, pose: 'rifle',
+  ak5: { ring: { r: 1.8, layers: 3, n: 11, arc: 1.85, size: 0.9 }, y: 1.44, gun: ak5Gun, pose: 'rifle',
     shield: { x: 0.35, w: 0.8, h: 0.55, y: -0.32 }, outer: { r: 2.65, layers: 2, n: 12, arc: 1.2, size: 0.9 }, crate: 2.2, kit: [-0.5, -1.2] },
   psg90: { ring: { r: 1.9, layers: 1, n: 11, arc: 1.5, size: 0.85 }, y: 0.3, gun: psg90Gun, pose: 'prone',
     shield: { x: 0.95, w: 0.7, h: 0.32, y: -0.08 }, outer: { r: 2.7, layers: 1, n: 12, arc: 1.1, size: 0.85 }, crate: 2.3, kit: [-0.9, -1.0] },
@@ -232,11 +232,11 @@ function pose(gunner, how, kind) {
     g.elL.rotation.x = -0.45; g.elR.rotation.x = -0.6;
   } else if (how === 'rifle') {
     // står bakom vallen med geväret mot axeln
-    g.root.position.set(-0.42, -1.38, 0.06);
-    g.spine.rotation.x = 0.12; g.head.rotation.set(-0.1, 0, 0);
+    g.root.position.set(-0.5, -1.44, 0.1);
+    g.spine.rotation.x = 0.1; g.head.rotation.set(0.05, 0, 0);
     g.hipL.rotation.x = -0.2; g.kneeL.rotation.x = 0.25; g.hipR.rotation.x = 0.25;
-    g.shR.rotation.set(-1.45, 0, -0.55); g.elR.rotation.x = -1.35;   // bakre handen vid greppet
-    g.shL.rotation.set(-1.4, 0, 0.35); g.elL.rotation.x = -0.35;     // främre handen under handskyddet
+    g.shR.rotation.set(-1.75, 0, -0.35); g.elR.rotation.x = -1.2;    // bakre handen vid greppet, armbågen ut
+    g.shL.rotation.set(-1.5, 0, 0.3); g.elL.rotation.x = -0.15;      // främre handen under handskyddet
   } else if (how === 'prone') {
     // ligger på magen bakom geväret; huvudet vid kindstödet
     g.root.rotation.set(Math.PI / 2, 0, 0);
