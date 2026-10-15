@@ -1,5 +1,20 @@
 # Ändringslogg
 
+## 0.7.0 (2026-10-15)
+
+Ljud och musik, helt syntetiserade i webbläsaren (Web Audio), utan ljudfiler.
+
+- Vapen: M249 är ett lätt, snabbt smatter där varje skott låter lite olika; M2 .50 cal är en tung duns med lågt bas-slag, långsammare och tydligt annorlunda. Hylsor klingar svagt ibland.
+- Granater: kastet är ett sus, smällen en tung knall med knaster av bråte och en kort klang. Musiken duckar under smällen.
+- Zombier: horden hörs som ett avlägset, tätt mummel som växer med antalet, och enskilda stön kommer från zombier nära bildens mitt. Springare skriker, bjässar vrålar. Träffar och döda är blöta dunsar.
+- Hinder och bas: barriären som slås på ger en knackning och spricker med ett krasch, taggtråden knarrar metalliskt och brister med ett kling. Basen tar smällar som en tung dörr, och när basen har en fjärdedel kvar pulserar en låg varning.
+- Gränssnitt: mjukt klick när något tas upp och ställs ut, en nekande ton för "har inte råd" och ogiltig plats, ett diskret kassatick för tidig bonus, en siren när vågen börjar och en stinger när dagen vinns eller förloras.
+- Musik: mörk bädd som spelas fram live (drön, vind, långsamma ackord, gles puls). Lugn i bygg och nedräkning, spänd under vågen (mer puls, filtret öppnas), hjärtslag när basen nästan är slut, tyst i menyerna. E4 går i d-moll med grövre vind, Gnesta i h-frygisk med luftigare klang.
+- Mix: röstbudget per ljud (till exempel högst 6 M249 samtidigt), takt och gallring vid 2x och 3x i stället för tätare ljud, kompressor och limiter sist, svag panorering och dämpning efter läget på skärmen. Pausmenyn och en dold flik dämpar allt med ett filter och tonar ut i stället för att klippa; reglaget för ljud hörs medan man drar i det. Mätt: 250 zombier i 3x håller taken, och ljudet kostar i snitt under 0,2 ms per bildruta.
+- Inställningarna Sound och Music styr ljudet direkt och sparas; tipset "(no audio yet)" är borta.
+- Ljudbord: soundboard.html (länk från lookbooken) spelar varje ljud, byter musikläge och stämning och har ett stresstest.
+- Simuleringen är orörd: ljudet läser bara händelserna och läget (src/audio/). Nya tester för röstbudget, gallring och nivåer.
+
 ## 0.6.0 (2026-10-15)
 
 Ett köpflöde, befästa positioner och ishallen som bas.

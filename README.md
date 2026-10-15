@@ -33,6 +33,8 @@ Simuleringen körs utan grafik, så både tester och balanssimulering går i Nod
 |---|---|
 | `index.html`, `styles.css` | Spelets sida och utseende på skyltar och HUD |
 | `lookbook.html` | Visningssida med alla modeller i spelets ljus |
+| `soundboard.html` | Ljudbord: varje ljud och musikläge går att spela upp |
+| `src/audio/` | Ljud och musik, syntetiserade (mix.js ren logik, voices.js, music.js, audio.js) |
 | `src/main.js` | Spelet: meny, dagar, vågor, klick och bildrutor |
 | `src/version.js` | Versionsnumret som syns i hörnet |
 | `src/data/` | Speldata: bana, vågor, vapen, hinder, zombier, forskning |

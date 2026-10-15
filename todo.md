@@ -11,7 +11,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H007 | innehåll | Fler banor: Bensinmacken, Bron, Köpcentret, Hamnen (se design).
 - [ ] H008 | innehåll | Sena vapen: Barrett M82, Mk 19, granatkastare 81 mm, Carl-Gustaf, Minigun.
 - [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare.
-- [ ] H010 | ljud | Ingen ljudsättning ännu.
+- [x] H010 | ljud | Ingen ljudsättning ännu. (0.7.0: syntetiserat ljud och musik, ljudbord i soundboard.html)
 - [ ] H011 | publicering | Inget GitHub-repo. Fråga Ola innan något läggs ut.
 
 ## Olas feedback efter genomspelning 2026-10-15
