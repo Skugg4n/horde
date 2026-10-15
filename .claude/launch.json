@@ -4,14 +4,38 @@
     {
       "name": "horde",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8141", "--directory", "/Users/olabelin/Projects/horde"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8141",
+        "--directory",
+        "/Users/olabelin/Projects/horde"
+      ],
       "port": 8141
     },
     {
       "name": "horde-gnesta",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8142", "--directory", "/Users/olabelin/Projects/horde-gnesta"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8142",
+        "--directory",
+        "/Users/olabelin/Projects/horde-gnesta"
+      ],
       "port": 8142
+    },
+    {
+      "name": "horde-play",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8143",
+        "--directory",
+        "/Users/olabelin/Projects/horde-play"
+      ],
+      "port": 8143
     }
   ]
 }
