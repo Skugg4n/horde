@@ -211,3 +211,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H193 | ux | VICTORY och "fallen silent" motsäger varandra fortfarande; felaktig text "Only on the road"; förrådets rullist klipper priser.
 - [ ] H194 | grafik | Frivilliga och Hemvärnet fortfarande små och svåra att hitta.
 - [ ] H200 | banor | Mölnbo: bas = Folkets hus (Olas beslut 2026-10-16). Bron över spåren som flaskhals, övergivet X60 vid perrongen. Referenser lokalt i ~/Projects/horde-refs/molnbo/ (beskrivning.md + bilder). Skiss först, sedan förhandsvisning.
+- [ ] H201 | meta | Gnesta = EN sektor (South + North är samma stad, North vidgar kartan). En gemensam trupp-pool, ingen omplacering mellan dem. Omplacering bara mellan verkligt olika platser (E4, Gnesta, senare Mölnbo). Olas påpekande 2026-10-16. Pågår i onboarding-passet.
