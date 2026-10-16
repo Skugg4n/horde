@@ -4,7 +4,7 @@
 export const RESEARCH = [
   // id 'm2' och 'm249Rate' behålls (sparfilerna), namnen är Försvarsmaktens sedan 0.8.0.
   { id: 'm2', name: 'Ksp 88', tiers: [
-    { cost: 100, requires: [], effect: 'New gun: heavy 12.7 mm machine gun.' },
+    { cost: 100, requires: [], effect: 'New gun: heavy 12.7 mm machine gun. Gnesta has it from day 1.' },
     { cost: 120, requires: [], effect: 'Ksp 88 hits 20 % harder.', damage: 1.2 },
     { cost: 170, requires: [], effect: 'Ksp 88 hits 40 % harder.', damage: 1.4 },
   ] },

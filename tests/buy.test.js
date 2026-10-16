@@ -21,14 +21,15 @@ test('för dyrt: gråat med hur mycket som saknas, går inte att ta upp', () => 
   assert.equal(canPickUp(sim, 'm249'), true);
 });
 
-test('låst av forskningen: E4 kräver forskning för M2 och barrikaden, inte Gnesta för barrikaden', () => {
+test('låst av forskningen: E4 kräver forskning för Ksp 88 och barrikaden, inte Gnesta (0.10.1: Ksp 88 också)', () => {
   const sim = e4();
   assert.equal(buyState(sim, 'm2').state, 'locked');
   assert.equal(buyState(sim, 'block').state, 'locked');
   assert.equal(buyState(sim, 'wire').state, 'ok');
   const g = createSim({ map: MAPS.gnesta, day: 1, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(g, 'block').state, 'ok');
-  assert.equal(buyState(g, 'm2').state, 'locked');
+  assert.equal(buyState(g, 'm2').state, 'ok', 'Gnesta har Ksp 88 från dag 1 (0.10.1)');
+  assert.equal(buyState(g, 'psg90').state, 'locked');
 });
 
 test('fullt: alla positioner upptagna', () => {

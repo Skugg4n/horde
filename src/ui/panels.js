@@ -340,9 +340,11 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 
 // lastDay: sista dagen på banan; då leder vinsten till menyn.
 // cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
-export function dayResultPanel(root, { won, intelEarned, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, mapName = '' }, { onRetry, onNext, onResearch, onMenu }) {
+export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, mapName = '' }, { onRetry, onNext, onResearch, onMenu }) {
   const head = won ? `Day ${day} cleared.` : 'The base fell.';
-  const lead = won ? `You earned ${intelEarned} research points.` : `You keep ${intelEarned} research points.`;
+  // 0.10.1: överlevarnas lärdom fyller på en förlust så att den räcker till en nivå i forskningen
+  const lead = won ? `You earned ${intelEarned} research points.`
+    : `You keep ${intelEarned} research points${lesson ? `, ${lesson} of them from what the survivors learned` : ''}. Spend them before you try again.`;
   const done = won && lastDay ? `<p class="lead strong">${mapName} cleared. More maps coming.</p>` : '';
   const main = won
     ? (lastDay ? `<button type="button" class="act main" data-a="menu"><span class="a">To menu</span></button>`

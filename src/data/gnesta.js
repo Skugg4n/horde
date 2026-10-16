@@ -407,10 +407,15 @@ export const LABELS = [
 ];
 
 // ---------- spawn och bas ----------
+// 0.10.1: ingångarna flyttade in längs vägen (världskoordinater), så att första skottet kommer efter
+// 15 till 25 s i stället för 40 till 55 och dagarna blir kortare (speltestet av 0.10.0). Förut låg de
+// vid dimkanten: east1 w(1995, 965), east2 w(1966, -10), forest w(1330, 1160). Zombierna kliver upp ur
+// diket när de kommer (render/horde.js). Sträckan till entrén med spärren vid rondellen: east1 190 m
+// (var 268), east2 180 m (214), forest 280 m (320).
 export const SPAWNS = [
-  { id: 'east1', name: 'Sigtunavägen öst', day: 1, at: w(1995, 965) },
-  { id: 'east2', name: 'Norra vägen', day: 2, at: w(1966, -10) },
-  { id: 'forest', name: 'Skogsvägen', day: 3, at: w(1330, 1160) },
+  { id: 'east1', name: 'Sigtunavägen öst', day: 1, at: [37, 37] },
+  { id: 'east2', name: 'Norra vägen', day: 2, at: [49, -39] },
+  { id: 'forest', name: 'Skogsvägen', day: 3, at: [43, 51] },
 ];
 // Basen är ishallens entré (0.6.0): horden ska fram till dörrarna, inte till rondellen.
 // Rondellen blir sista försvarslinjen framför porten.
@@ -737,28 +742,28 @@ export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 800, hp: 3.6, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+  { n: 1, startCash: 900, hp: 4.3, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
     hints: { lines: ['Pick the barricade (3).', 'Block Sigtunavägen.', 'Watch them walk around the block.'], steps: ['pick:block', 'block', 'watch'] },
-    waves: [ { groups: [g('walker', 30, 0.5, 0, 'east1')] },
-             { groups: [g('walker', 50, 0.35, 0, 'east1')] },
-             { groups: [g('walker', 70, 0.25, 0, 'east1'), g('runner', 30, 0.3, 6, 'east1')] } ] },
-  { n: 2, startCash: 1100, hp: 5.0, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1'), g('walker', 20, 0.7, 2, 'east1')] },
+             { groups: [g('walker', 36, 0.45, 0, 'east1')] },
+             { groups: [g('walker', 60, 0.25, 0, 'east1'), g('runner', 40, 0.3, 6, 'east1')] } ] },
+  { n: 2, startCash: 1300, hp: 5.8, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
     waves: [ { groups: [g('walker', 40, 0.4, 0, 'east1'), g('walker', 20, 0.5, 4, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 40, 0.3, 6, 'east2')] },
              { groups: [g('walker', 60, 0.25, 0, 'east1'), g('walker', 40, 0.3, 0, 'east2'), g('runner', 60, 0.2, 8, 'east1')] } ] },
-  { n: 3, startCash: 1000, hp: 4.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
+  { n: 3, startCash: 1300, hp: 5.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
     waves: [ { groups: [g('walker', 26, 0.5, 0, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, startCash: 1100, hp: 6.0, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
-    waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 3, 8, 'east1')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2.5, 10, 'east2')] },
-             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 2, 12, 'east1'), g('brute', 10, 2, 20, 'forest')] } ] },
-  { n: 5, startCash: 1200, hp: 5.1, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
+  { n: 4, startCash: 1800, hp: 5.1, overlap: 100, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+    waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
+             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
+  { n: 5, startCash: 1600, hp: 4.0, overlap: 100, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
     waves: [ { groups: [g('walker', 40, 0.35, 0, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
-             { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2.5, 8, 'east2')] },
-             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 44, 0.3, 0, 'east2'), g('walker', 44, 0.3, 0, 'forest'),
-               g('runner', 70, 0.15, 8, 'east1'), g('brute', 12, 2, 12, 'east2'), g('brute', 12, 2, 18, 'forest'), g('brute', 12, 2, 24, 'east1')] } ] },
+             { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
+             { groups: [g('walker', 44, 0.3, 0, 'east1'), g('walker', 38, 0.3, 0, 'east2'), g('walker', 38, 0.3, 0, 'forest'),
+               g('runner', 60, 0.15, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },
 ];
 
 export const gnesta = {
@@ -772,11 +777,15 @@ export const gnesta = {
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
   baseHp: 20, days: DAYS,
+  // 0.10.1: dörrarna släpper in en zombie per 3,2 s (src/sim/sim.js, doorBreak)
+  door: { gap: 3.2 },
   // Basen är ishallens entré: igenspikade dörrar som tar skada (render/models.js rinkEntranceModel).
   baseModel: 'rink',
   // Banans upplåsningar (0.6.0): dag 1 lär ut barrikaden, så den finns här utan forskning.
   // På E4 kräver den forskningen som förut (Concrete barrier, efter Heavy wire I).
-  unlocks: ['block'],
+  // 0.10.1: Ksp 88 också, så att en spelare utan forskningen från E4 (?debug&fresh, eller den som
+  // forskat annat) har en tung pjäs dag 1. E4-spelaren har den redan.
+  unlocks: ['block', 'm2'],
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },
 };

@@ -17,7 +17,10 @@ import { makeRng } from '../src/sim/rng.js';
 // 0.9.0: nytt kvitto, avsiktligt: girig policy köper en grupp ur Hemvärnet dag 1 direkt efter
 // första Ksp 90 (billig täckning tidigt). Utfallen (vinster, försök, bas kvar, bonus) är desamma
 // som i 0.8.0; det som ändras är kassan efter varje våg dag 1. Se docs/balance-log.md, 0.9.0.
-const BEFORE = { hash: 'f322422c', length: 7658 };
+// 0.10.1: nytt kvitto, avsiktligt: nedräkningen mellan vågorna 10 s (var 5) och bonusen 3 per sekund
+// (var 5), och en förlust ger minst LESSON_MIN i forskning (överlevarnas lärdom). Dag 1 och 2 vinns
+// som förut; dag 3 vinns på tredje försöket i alla fem seeds. Se docs/balance-log.md, 0.10.1.
+const BEFORE = { hash: 'f3366f27', length: 7775 };
 
 function fingerprint() {
   const out = [];
@@ -29,7 +32,7 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('E4:s balanslogg är identisk med 0.9.0', () => {
+test('E4:s balanslogg är identisk med 0.10.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 

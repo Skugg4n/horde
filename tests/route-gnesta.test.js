@@ -23,7 +23,10 @@ import { logs, naives } from './gnesta-logs.js';
 // Norr: en siktpunkt uppströms godtas aldrig (granskningen av 0.10, Must fix 2). Gnesta valde sådana
 // siktpunkter i vanliga körningar, så vägarna ändras något; vinster, försök och naives utfall är
 // samma i alla 25 dagar, bas kvar varierar inom kaoset. Se docs/balance-log.md, 0.10.1.
-const BEFORE = { hash: 'eaf289f6', length: 39328 };
+// 0.10.1, balanspasset: bytt avsiktligt. Ingångarna närmare (dagarna 6 till 7,5 minuter, första
+// skottet efter 38 s), dörrarna släpper in en zombie per 3,2 s, Ksp 88 från dag 1, nya hp-faktorer,
+// startkassor och dag 4 och 5 med överlapp. Se docs/balance-log.md, 0.10.1.
+const BEFORE = { hash: 'a2051b10', length: 38970 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.

@@ -34,7 +34,7 @@ test('efter en klarad våg räknar den ner och startar nästa vid 0', () => {
 test('Next wave under nedräkningen ger bonus per sekund kvar', () => {
   const s = mk();
   startWave(s); clearNow(s);
-  run(s, 1.5);                       // 3,5 s kvar, räknas som 4
+  run(s, COUNTDOWN - 3.5);           // 3,5 s kvar, räknas som 4
   assert.equal(earlyBonus(s), 4 * EARLY_PER_SEC);
   const r = callNextWave(s);
   assert.deepEqual(r, { ok: true, bonus: 4 * EARLY_PER_SEC, index: 1 });
@@ -105,4 +105,36 @@ test('Next wave utan stack mitt i en våg gör inget så länge zombier är kvar
   run(s, 1);
   assert.equal(callNextWave(s, { stack: true }).ok, true);
   assert.equal(s.wavesStarted, 3);
+});
+
+test('nedräkningen mellan vågorna är 10 s, och en hel nedräkning är värd ungefär som förut', () => {
+  assert.equal(COUNTDOWN, 10);
+  assert.ok(COUNTDOWN * EARLY_PER_SEC >= 25 && COUNTDOWN * EARLY_PER_SEC <= 35);
+});
+
+// Överlapp (0.10.1): på en dag med overlap startar nästa våg så många sekunder efter att föregående
+// kommit ut helt, även om den fortfarande är på väg; klaras den före får spelaren minst COUNTDOWN.
+const overlapMap = ov => ({ ...map, days: [{ ...map.days[0], overlap: ov,
+  waves: [{ groups: [{ type: 'walker', count: 3, interval: 1, delay: 0 }] }, { groups: [{ type: 'walker', count: 2, interval: 1, delay: 0 }] }, { groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] });
+test('overlap: nästa våg startar efter att vågen kommit ut, medan zombierna går', () => {
+  const s = createSim({ map: overlapMap(6), day: 1, cash: 0, seed: 1 });
+  startWave(s);
+  while (s.spawnQueue.length) step(s, DT);
+  assert.equal(s.nextWaveIn, 6, 'vågen har kommit ut: nedräkningen börjar');
+  assert.equal(earlyBonus(s), 6 * EARLY_PER_SEC);
+  run(s, 5.9);
+  assert.equal(s.wavesStarted, 1);
+  run(s, 0.3);
+  assert.equal(s.wavesStarted, 2, 'våg 2 startade med våg 1 på vägen');
+  assert.ok(s.zombies.some(z => !z.dead && z.wave === 0));
+  assert.equal(s.nextWaveIn, null);
+});
+test('overlap: klaras vågen före nedräkningen är slut får spelaren minst COUNTDOWN', () => {
+  const s = createSim({ map: overlapMap(3), day: 1, cash: 0, seed: 1 });
+  startWave(s);
+  while (s.spawnQueue.length) step(s, DT);
+  assert.equal(s.nextWaveIn, 3);
+  clearNow(s);
+  assert.equal(s.phase, 'build');
+  assert.ok(Math.abs(s.nextWaveIn - COUNTDOWN) < 1e-9);
 });

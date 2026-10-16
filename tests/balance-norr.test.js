@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gnestaSmoke, gnestaPlan, daySpawns, TOWN, NORR_BLOCKS } from '../scripts/balance.mjs';
+import { gnestaSmoke, gnestaPlan, daySpawns, TOWN, NORR_BLOCKS, norrCampaign } from '../scripts/balance.mjs';
 import { gnestaNorr } from '../src/data/gnesta-norr.js';
 import { placementFor } from '../src/sim/placement.js';
-import { SEEDS, logs, tries, naives } from './norr-logs.js';
+import { SEEDS, starts, logs, tries, naives } from './norr-logs.js';
 
 // Gnesta Norr (0.10.0): balansmålen över fem seeds, och kvittot. Körningen ligger i norr-logs.js.
 // Målen (Olas uppdrag): dag 1 vinner smart direkt och naive tar klar skada; dag 2 till 4 vinner smart
 // inom 1 till 3 försök och naive förlorar; dag 5 är svårast och smart vinner inom 4 försök; en
-// förlorad dag rasar gradvis; högst cirka 250 levande; Hemvärnet används.
+// förlorad dag rasar gradvis; högst cirka 250 levande. 0.10.1: utan Hemvärnet, och dagarna är 4 till
+// 8 minuter.
 const winIdx = (log, d) => tries(log, d).findIndex(r => r.won);
 const winner = (log, d) => tries(log, d).find(r => r.won);
 const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -43,7 +44,13 @@ test('Gnesta Norr: en förlorad dag rasar gradvis, och ingen dag fastnar', () =>
   assert.ok(lost.length > 10);
   for (const r of lost) assert.ok(r.fallTime >= 60, `basen föll på ${r.fallTime.toFixed(0)} s`);
   // varje försök tar slut (vunnet eller förlorat) långt före tidsgränsen: ingen zombie fastnar
-  for (const r of [...logs.flat(), ...naives.flat()]) assert.ok(r.time < 1400, `dagen tog ${r.time.toFixed(0)} s`);
+  // (tests/stuck.test.js provar det direkt)
+  for (const r of [...logs.flat(), ...naives.flat()]) assert.ok(r.time < 1000, `dagen tog ${r.time.toFixed(0)} s`);
+});
+
+test('Gnesta Norr: en dag tar 4 till 8 minuter vid 1x, och första skottet dag 1 kommer inom 45 s', () => {
+  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 200 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
+  for (const log of logs) assert.ok(tries(log, 1)[0].firstShot <= 45, `första skottet ${tries(log, 1)[0].firstShot}`);
 });
 
 test('Gnesta Norr: högst cirka 250 levande zombier samtidigt', () => {
@@ -51,10 +58,26 @@ test('Gnesta Norr: högst cirka 250 levande zombier samtidigt', () => {
   assert.ok(Math.max(...peaks) < 250, `flest levande ${Math.max(...peaks)}`);
 });
 
-test('Gnesta Norr: smart använder Hemvärnet och dess forskning, gruppen träffar', () => {
+// 0.10.1: smart köper inte Hemvärnet (granskningen av 0.10: banan var balanserad mot en spelare som
+// köpte gruppen, ett sämre köp än pjäserna). Utan gruppen ska banan ändå inte vara lätt.
+test('Gnesta Norr utan Hemvärnet: smart köper ingen grupp, och banan är inte lätt', () => {
   logs.forEach((log, i) => {
-    const days = [1, 2, 3, 4, 5].filter(d => tries(log, d).some(r => r.squads > 0 && r.squadHits > 100));
-    assert.ok(days.length >= 3, `seed ${i}: gruppen gör nytta dag ${days.join(', ')}`);
+    for (const r of log) assert.equal(r.squads, 0, `seed ${i} dag ${r.day}: ingen grupp`);
+    assert.ok(!log.at(-1).research.some(id => id.startsWith('hv')), `seed ${i}: ingen forskning i Hemvärnet`);
+  });
+  for (const d of [2, 3, 4, 5]) {
+    const left = mean(logs.map(log => winner(log, d).baseHp));
+    assert.ok(left <= 14, `dag ${d}: bas kvar i snitt ${left}`);
+  }
+});
+
+// Den som köper Hemvärnet varje dag och forskar i gruppen först klarar de första dagarna, och
+// gruppen gör nytta. (Dag 4 och 5 är svårare för den spelaren: docs/balance-log.md, 0.10.1.)
+test('Gnesta Norr med Hemvärnet: gruppen träffar, dag 1 till 3 vinns inom 2 försök', () => {
+  [0, 1, 2].forEach(i => {
+    const log = norrCampaign('smart', 6, { seedOffset: SEEDS[i], start: starts[i], hv: true, days: 3 });
+    for (const d of [1, 2, 3]) assert.ok(winIdx(log, d) >= 0 && winIdx(log, d) <= 1, `seed ${i} dag ${d}: index ${winIdx(log, d)}`);
+    assert.ok(log.filter(r => r.squads > 0 && r.squadHits > 100).length >= 3, `seed ${i}: gruppen gör nytta`);
     assert.ok(log.at(-1).research.some(id => id.startsWith('hvRifles')), `seed ${i}: Better rifles köpt`);
   });
 });
@@ -87,7 +110,9 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // 0.10.0: första kvittot.
 // 0.10.1: bytt avsiktligt. Fil-vakten gäller alla rutnät, så Gnesta-kampanjen som Norr börjar efter
 // ger lite annan forskning och andra seeds; Norrs egna regler är oförändrade.
-const BEFORE = { hash: '51ba32f6', length: 65387 };
+// 0.10.1, balanspasset: bytt avsiktligt. Smart köper inte Hemvärnet, takt 1,25, Dansutvägen närmare,
+// överlapp 60 s, dörrarna, hp-faktorer 2,8 till 5,0 (var 3,7 till 9,0). Se docs/balance-log.md, 0.10.1.
+const BEFORE = { hash: 'f98cc27a', length: 54733 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;

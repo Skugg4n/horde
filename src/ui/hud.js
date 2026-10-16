@@ -142,7 +142,9 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.next.hidden = !canCall;
     if (canCall) {
       const n = waveLeft(sim), still = n > 0;
-      set(el.nextLbl, still ? `Next wave: still ${n} left` : 'Next wave');
+      // Överlapp (Gnesta Norr): nästa våg kommer av sig själv medan den här fortfarande är på väg.
+      const auto = sim.nextWaveIn != null ? `Next wave in ${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s` : null;
+      set(el.nextLbl, auto ?? (still ? `Next wave: still ${n} left` : 'Next wave'));
       set(el.nextKey, still ? 'Shift+Space' : 'Space');
       el.next.classList.toggle('still', still);
       const showBonus = !still || shiftDown || nextHover;

@@ -417,7 +417,8 @@ export const LABELS = [
 // öster (dag 2), och överraskningen dag 4: genom radhusen från Östra Storgatan i öster.
 // Sigtunavägen öst (Gnestas gamla front) är med dag 5.
 export const SPAWNS = [
-  { id: 'dansW', name: 'Dansutvägen west', day: 1, at: K(344, 192) },
+  // 0.10.1: in längs Dansutvägen (var K(344, 192) vid dimkanten), 420 m till entrén med spärren (var 506)
+  { id: 'dansW', name: 'Dansutvägen west', day: 1, at: [-7, -159] },
   { id: 'vikN', name: 'Vikingavägen north', day: 2, at: K(1684, -6) },
   { id: 'ostra', name: 'Östra Storgatan', day: 4, at: K(1986, 1030) },
   { ...G_SPAWNS.find(s => s.id === 'east1'), day: 5 },
@@ -479,24 +480,24 @@ export const SURROUNDINGS = {
 // med det mesta av forskningen). Balanserad i 0.10.0 (docs/balance-log.md).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 2100, hp: 3.7, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
+  { n: 1, startCash: 2100, hp: 2.8, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. The dead up here move faster. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
     hints: { lines: ['Pick the barricade (3).', 'Block Vikingavägen.', 'Watch them take the footpath past the terraced houses.'], steps: ['pick:block', 'block', 'watch'] },
     waves: [ { groups: [g('walker', 40, 0.45, 0, 'vikN')] },
              { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
              { groups: [g('walker', 80, 0.22, 0, 'vikN'), g('runner', 40, 0.3, 6, 'vikN')] } ] },
-  { n: 2, startCash: 2100, hp: 7.2, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
+  { n: 2, startCash: 2100, hp: 3.8, overlap: 60, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
     waves: [ { groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 4, 'vikN')] },
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.3, 6, 'dansW')] },
              { groups: [g('walker', 60, 0.25, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.22, 8, 'vikN')] } ] },
-  { n: 3, startCash: 2000, hp: 7.6, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes walk behind the others down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
+  { n: 3, startCash: 2000, hp: 4.0, overlap: 60, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes walk behind the others down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
     waves: [ { groups: [g('walker', 40, 0.35, 0, 'vikN'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 2, 4, 25, 'vikN')] },
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.25, 4, 'dansW'), g('brute', 3, 3, 24, 'vikN')] },
              { groups: [g('walker', 60, 0.28, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.2, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'vikN')] } ] },
-  { n: 4, startCash: 2200, hp: 7.9, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
+  { n: 4, startCash: 2200, hp: 5.0, overlap: 60, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
     waves: [ { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.35, 2, 'vikN'), g('brute', 2, 4, 26, 'vikN')] },
              { groups: [g('walker', 40, 1.4, 0, 'ostra'), g('runner', 40, 0.9, 40, 'dansW'), g('brute', 3, 3, 24, 'ostra')] },
              { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 1.0, 0, 'ostra'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'ostra')] } ] },
-  { n: 5, startCash: 1800, hp: 9.0, intro: { title: 'Day 5: The whole town', text: 'From the north, through the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
+  { n: 5, startCash: 1800, hp: 4.3, overlap: 60, intro: { title: 'Day 5: The whole town', text: 'From the north, through the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
     waves: [ { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'ostra'), g('brute', 2, 4, 30, 'vikN')] },
              { groups: [g('runner', 40, 0.4, 0, 'vikN'), g('walker', 25, 0.8, 0, 'east1'), g('walker', 40, 0.35, 10, 'dansW'), g('brute', 4, 3, 30, 'dansW')] },
              { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 0, 'vikN'), g('walker', 40, 0.3, 20, 'ostra'),
@@ -526,6 +527,11 @@ export const gnestaNorr = {
   rows: ROWS, parkingLots: PARKING_LOTS, yards: YARDS, forskolaYard: FORSKOLA_YARD, clearings: CLEARINGS,
   grid: townGrid(NORR_TOWN),
   baseHp: 20, days: DAYS,
+  // 0.10.1: dörrarna släpper in en zombie per 3,2 s (src/sim/sim.js, doorBreak)
+  door: { gap: 3.2 },
+  // 0.10.1: vägen norrifrån till entrén är 400 m (Gnestas är 220); zombierna går en fjärdedel
+  // fortare här så att en dag tar 6 till 8 minuter i stället för 16 till 20.
+  pace: 1.25,
   baseModel: 'rink',
   unlocks: ['block'],
   // Låses upp när Gnesta dag 5 är klar.

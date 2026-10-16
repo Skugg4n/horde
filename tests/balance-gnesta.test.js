@@ -140,3 +140,9 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
     assert.ok(withRes <= plain, `men inte bättre än en pjäs till: ${withRes} mot ${plain}`);
   } finally { HV_POLICY.gnesta = saved; }
 });
+
+// 0.10.1 (speltestet av 0.10.0): dagarna var 7 till 13 minuter och första skottet kom efter 110 s.
+test('en dag på Gnesta tar 4 till 8 minuter vid 1x, och första skottet dag 1 kommer inom 45 s', () => {
+  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
+  for (const log of logs) assert.ok(tries(log, 1)[0].firstShot <= 45, `första skottet ${tries(log, 1)[0].firstShot}`);
+});

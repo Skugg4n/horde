@@ -42,6 +42,9 @@ const SHOT_LOOK = {
   psg90: { tracer: 'heavy', flash: 'heavy', kick: 0.12, rise: 0.18, back: 5, rattle: 0, smoke: true },
 };
 
+// Nya zombier kliver upp ur marken: så många sekunder, från så djupt (meter, gånger storleken).
+const RISE_TIME = 0.9, RISE_DEPTH = 1.9;
+
 export function createView(scene, initialSim) {
   let sim = initialSim;
   const fx = createFx(scene);
@@ -66,7 +69,8 @@ export function createView(scene, initialSim) {
     seedZombie(parts, z.id);
     place(P, sim, z);
     parts.root.position.set(P.x, 0, P.z);
-    const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6) };
+    // rise: kliver upp ur marken (0.10.1: ingångarna ligger inne i staden nu, inte vid dimkanten)
+    const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6), rise: z.dead ? 1 : 0 };
     parts.root.rotation.y = e.ry;
     horde.attach(parts);
     zombies.set(z.id, e);
@@ -97,7 +101,11 @@ export function createView(scene, initialSim) {
         else { f.vy = 0; f.vx *= Math.exp(-dt * 8); f.vz *= Math.exp(-dt * 8); f.ox += f.vx * dt; f.oz += f.vz * dt; }
         parts.root.position.set(e.x + f.ox, f.oy, e.z + f.oz);
         parts.root.rotation.y = e.ry + f.spin;
-      } else parts.root.position.set(e.x, 0, e.z);
+      } else {
+        if (e.rise < 1) e.rise = Math.min(1, e.rise + dt / RISE_TIME);
+        const r = 1 - e.rise;
+        parts.root.position.set(e.x, -RISE_DEPTH * r * r * (parts.scale ?? 1), e.z);
+      }
       if (z.dead) {
         // faller bakåt och ligger kvar
         if (e.fall < 1) {

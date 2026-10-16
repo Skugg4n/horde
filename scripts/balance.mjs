@@ -30,7 +30,10 @@ const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Ra
   'ksp58', 'ak5', 'psg90', 'positions', 'ksp58', 'ak5', 'psg90'];
 // Gnesta Norr (0.10.0): Hemvärnets forskning först (H054), sedan resten i samma ordning. E4 och Gnesta
 // använder RESEARCH_ORDER som förut, så deras kvitton påverkas inte.
-export const NORR_ORDER = ['hvRifles', 'hvSquad', 'hvRifles', 'hvVeterans', 'hvRifles', 'hvSquad', 'hvVeterans', ...RESEARCH_ORDER];
+export const NORR_HV_ORDER = ['hvRifles', 'hvSquad', 'hvRifles', 'hvVeterans', 'hvRifles', 'hvSquad', 'hvVeterans', ...RESEARCH_ORDER];
+// En spelare som kommer till en bana utan forskning (?debug&fresh): billigast nyttiga först (Faster
+// Ksp 90 I, Heavy wire I), sedan som vanligt.
+export const FRESH_ORDER = ['budget', 'm249Rate', 'grenade', 'm249Rate', 'budget', ...RESEARCH_ORDER];
 const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
 const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever
 const WIRE_CELLS = [0, 1, 2];
@@ -105,7 +108,7 @@ function buildNext(sim, spots, type) {
 // köps för sig (gnestaBuild).
 const GROUND = ['m249', 'ksp58', 'm2'];
 const wantedWeapon = sim => {
-  const opts = GROUND.map(id => WEAPONS[id]).filter(w => weaponUnlocked(w.id, sim.research));
+  const opts = GROUND.map(id => WEAPONS[id]).filter(w => weaponUnlocked(w.id, sim.research, sim.map));
   const heavy = opts.find(w => w.id === 'm2');
   if (heavy && sim.cash >= heavy.cost) return heavy.id;
   if (opts.some(w => w.id === 'ksp58')) return 'ksp58';
@@ -119,7 +122,7 @@ const HV_PER_DAY = 1;
 // days: dagar då gruppen köps tidigt, gap: dagar då den fyller en lucka.
 export const HV_POLICY = { riksvagen: { days: [1], gap: [] }, gnesta: { days: [], gap: [2, 3, 4, 5] } };
 function buySquad(sim, spots, { gap = false } = {}) {
-  const pol = HV_POLICY[sim.map.id] ?? { days: [], gap: [] };
+  const pol = sim.hvPolicy ?? HV_POLICY[sim.map.id] ?? { days: [], gap: [] };
   if (gap ? !pol.gap.includes(sim.day) || sim.waveIndex < 1 : !pol.days.includes(sim.day)) return;
   if (!weaponUnlocked('hv', sim.research, sim.map) || sim.guns.length >= sim.maxGuns) return;
   if (sim.guns.filter(g => g.squad).length >= HV_PER_DAY) return;
@@ -196,7 +199,7 @@ function runDay(sim, think, early, onSecond = null, maxTicks = MAX_TICKS, trackS
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];
-  let ticks = 0, firstHit = null, waveIdx = 0, peak = 0;
+  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0;
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < maxTicks) {
     if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
     else if (sim.phase === 'build') {
@@ -211,6 +214,7 @@ function runDay(sim, think, early, onSecond = null, maxTicks = MAX_TICKS, trackS
       if (ev.t === 'grenade') thrown++;
       else if (ev.t === 'blast') blastNow = true;
       else if (ev.t === 'kill' && blastNow) blastKills++;
+      else if (ev.t === 'shot' && firstShot == null) { firstShot = sim.time; if (trackSquads && ev.soldier != null && ev.hit) squadHits++; }
       else if (trackSquads && ev.t === 'shot' && ev.soldier != null && ev.hit) squadHits++;
       else if (trackSquads && ev.t === 'soldierDown') squadDown++;
     }
@@ -226,7 +230,7 @@ function runDay(sim, think, early, onSecond = null, maxTicks = MAX_TICKS, trackS
   }
   return {
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex,
-    waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
+    waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
     ...(sim.map.grid ? { peak, sim } : {}),
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
@@ -447,14 +451,14 @@ function gnestaBuild(sim, plan, maxKits, maxRoofs = GN_ROOFS) {
   // 0.8.0: Psg 90 på taken som ser den tvingade vägen, sedan en Ak 5, sedan fler vapen på marken.
   // Pengarna sparas till dem: inga fler pjäser på marken förrän taken är bemannade.
   let saving = false;
-  if (weaponUnlocked('psg90', sim.research)) {
+  if (weaponUnlocked('psg90', sim.research, sim.map)) {
     for (const k of plan.roofs.slice(0, maxRoofs)) {
       if (sim.guns.some(g => g.cell === k)) continue;
       const r = build(sim, k, 'psg90');
       if (!r.ok) { saving = r.reason === 'pengar'; break; }
     }
   }
-  if (!saving && weaponUnlocked('ak5', sim.research) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) {
+  if (!saving && weaponUnlocked('ak5', sim.research, sim.map) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) {
     if (!buildNext(sim, plan.guns, 'ak5') && sim.cash < WEAPONS.ak5.cost && sim.guns.length < sim.maxGuns) saving = true;
   }
   // Hemvärnet fyller en lucka: när en position står tom efter första vågen och planen inte har
@@ -488,7 +492,7 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   };
   lay(plan.lines, 'block');
   let saving = false;
-  if (weaponUnlocked('psg90', sim.research)) {
+  if (weaponUnlocked('psg90', sim.research, sim.map)) {
     for (const k of plan.roofs.slice(0, Math.max(1, maxRoofs))) {
       if (sim.guns.some(g => g.cell === k)) continue;
       // fler tak först när två pjäser står på marken
@@ -501,7 +505,7 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   if (saving && sim.guns.length) { lay(plan.wire.slice(0, 1), 'wire'); return; }
   while (buildNext(sim, plan.guns, wantedWeapon(sim)));
   lay(plan.wire, 'wire');
-  if (weaponUnlocked('ak5', sim.research) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) buildNext(sim, plan.guns, 'ak5');
+  if (weaponUnlocked('ak5', sim.research, sim.map) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) buildNext(sim, plan.guns, 'ak5');
   const kits = sim.guns.filter(g => g.weapon.kit).length;
   if (grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
     const g = plan.guns.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
@@ -517,11 +521,13 @@ export function playGnestaDay(progress, day, policy = 'smart', { seedOffset = 0,
   return playTownDay(progress, day, policy, { seedOffset, onSecond, plan: given, kits, mapId: 'gnesta' });
 }
 // En dag på Gnesta eller Gnesta Norr. TOWN[mapId] säger hur policyn läser kartan.
-function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, plan: given = null, kits = true, mapId }) {
+function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, plan: given = null, kits = true, mapId, hv = false }) {
   const T = TOWN[mapId];
   if (policy !== 'smart' && policy !== 'naive') throw new Error('okänd policy ' + policy);
   const cfg = startConfig(progress, day, mapId);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
+  // hv (Gnesta Norr): spelaren som köper Hemvärnet varje dag (HV_NORR), i stället för banans policy
+  if (hv) sim.hvPolicy = HV_NORR;
   const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { ...T.planOpts(day, policy), blocks: policy === 'smart' ? T.blocks(day) : [] });
   const buildFn = T.build ?? gnestaBuild;
   const r = runDay(sim, () => buildFn(sim, plan, kits ? T.kits[day] : 0, T.roofsDay[day]), true, onSecond, T.maxTicks, mapId !== 'gnesta');
@@ -561,7 +567,11 @@ export const TOWN = {
     kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
   },
 };
-HV_POLICY['gnesta-norr'] = { days: [1, 2, 3, 4, 5], gap: [] };
+// 0.10.1: Norr balanseras mot spelaren som INTE köper Hemvärnet (granskningen av 0.10: gruppen var
+// ett sämre köp än pjäserna, och hp-faktorerna var satta för en handikappad spelare). Den som köper
+// gruppen varje dag och forskar i den först (hv: true, NORR_HV_ORDER) ska också vinna; det provas för sig.
+HV_POLICY['gnesta-norr'] = { days: [], gap: [] };
+export const HV_NORR = { days: [1, 2, 3, 4, 5], gap: [] };
 export function playNorrDay(progress, day, policy = 'smart', opts = {}) {
   return playTownDay(progress, day, policy, { ...opts, mapId: 'gnesta-norr' });
 }
@@ -569,8 +579,13 @@ export function playNorrDay(progress, day, policy = 'smart', opts = {}) {
 export function gnestaFinished(seedOffset = 0) {
   return selectMap(runGnestaCampaign('smart', 6, { seedOffset }).progress, 'gnesta-norr');
 }
-export function norrCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = gnestaFinished(seedOffset) } = {}) {
-  return runTownCampaign('gnesta-norr', policy, maxAttempts, { seedOffset, start }).log;
+export function norrCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = gnestaFinished(seedOffset), hv = false, days } = {}) {
+  return runTownCampaign('gnesta-norr', policy, maxAttempts, { seedOffset, start, hv, order: hv ? NORR_HV_ORDER : RESEARCH_ORDER, days }).log;
+}
+// En ny spelare på en stadsbana (?debug&fresh): ingen forskning alls, FRESH_ORDER mellan försöken.
+// days: hur många dagar som spelas.
+export function freshCampaign(mapId, policy = 'smart', maxAttempts = 6, { seedOffset = 0, days = 1 } = {}) {
+  return runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start: selectMap(newProgress(), mapId), order: FRESH_ORDER, days }).log;
 }
 
 // Spelarens framsteg när E4 är klar med girig policy: forskningen och poängen som blev över.
@@ -579,23 +594,24 @@ export function e4Finished(seedOffset = 0) {
 }
 
 // Gnesta dag 1 till 5 efter E4. Forskning köps mellan dagarna som på E4.
-export function gnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset) } = {}) {
-  return runGnestaCampaign(policy, maxAttempts, { seedOffset, start }).log;
+export function gnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset), days } = {}) {
+  return runGnestaCampaign(policy, maxAttempts, { seedOffset, start, days }).log;
 }
-export function runGnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset) } = {}) {
-  return runTownCampaign('gnesta', policy, maxAttempts, { seedOffset, start });
+export function runGnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset), days } = {}) {
+  return runTownCampaign('gnesta', policy, maxAttempts, { seedOffset, start, days });
 }
-function runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start }) {
+function runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start, hv = false, order = RESEARCH_ORDER, days = MAPS[mapId].days.length }) {
+  days ??= MAPS[mapId].days.length;
   let progress = start;
   const log = [];
-  for (let day = 1; day <= MAPS[mapId].days.length; day++) {
+  for (let day = 1; day <= days; day++) {
     let won = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const before = progress;
-      const r = playTownDay(progress, day, policy, { seedOffset, mapId });
-      progress = buyInOrder(dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned, mapId }), mapId === 'gnesta' ? RESEARCH_ORDER : NORR_ORDER);
+      const r = playTownDay(progress, day, policy, { seedOffset, mapId, hv });
+      progress = buyInOrder(dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned, mapId }), order);
       log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves, bonus: r.bonus, peak: r.peak,
-        grenades: r.grenades, waveLog: r.waveLog, fallTime: r.fallTime, firstHit: r.firstHit, time: r.time, barricades: r.barricades,
+        grenades: r.grenades, waveLog: r.waveLog, fallTime: r.fallTime, firstHit: r.firstHit, firstShot: r.firstShot, time: r.time, barricades: r.barricades,
         ...(mapId === 'gnesta' ? {} : { squads: r.squads, squadHits: r.squadHits, squadDown: r.squadDown }),
         before, had: [...before.research], research: [...progress.research] });
       if (r.won) { won = true; break; }

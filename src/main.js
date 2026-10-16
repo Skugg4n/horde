@@ -634,7 +634,7 @@ function finishDay() {
   progress = dayResult(progress, { day, won, intelEarned: sim.intelEarned, mapId: map.id });
   save();
   lastResult = {
-    won, day, intelEarned: sim.intelEarned, kills: sim.kills,
+    won, day, intelEarned: sim.intelEarned, lesson: sim.lesson ?? 0, kills: sim.kills,
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length,
     lastDay: day >= map.days.length,
     cashLeft: won ? Math.round(sim.cash) : 0,

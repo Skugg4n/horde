@@ -315,3 +315,36 @@ Mätt 2026-10-15 headless (Chrome for Testing via Playwright, 1440 x 900, inget 
 - Tiden gick inte till en CPU-slinga. Markens canvas (3332 x 2156) målas på 23 ms, rutnätet och placeringen räknas på cirka 70 ms vid import, batchen på cirka 70 ms. Med mjukvaru-GL gick nästan allt till första bildrutan: 26 shaderprogram länkas när de först används, ungefär 0,5 s styck. Mindre skuggkarta (1024 i stället för 4096) och inga skuggor ändrade inget.
 - Ändrat: varje bana byggs en gång och sparas (programmen ligger kvar, så ett återbesök är omedelbart). Bygget görs i steg bakom en laddningsskylt, och `renderer.compileAsync` kompilerar programmen parallellt (KHR_parallel_shader_compile) innan banan visas, så sidan fryser inte och första spelbildrutan hackar inte.
 - Kvar: mjukvaru-GL har inte KHR_parallel_shader_compile, så första besöket där tar fortfarande cirka 16 s (en bildruta). Att få ner det kräver färre shadervarianter (Gnesta lägger till cirka 11 program utöver E4:s 15). Målet under 2 s på en vanlig laptop med GPU nås med god marginal i mätningarna, men en riktig laptop med integrerad grafik är inte mätt.
+
+## 0.10.1: granskningen av 0.10 och speltestet av 0.10.0
+
+Uppdraget: rättningarna före publiceringen (fil-vakten, gruppens storlek) och speltestets värsta fynd: Gnesta och Gnesta Norr dag 1 gick inte att vinna för en ny spelare, dagarna var 7 till 20 minuter, första skottet kom efter 40 till 55 s (på 2x), nästa våg efter 5 s, och basen föll "från 20 till 0 på ett par sekunder".
+
+Fil-vakten (src/sim/route.js) gäller nu alla rutnät. Gnestas kvitto byttes avsiktligt i ett eget steg (eaf289f6/39328, granskningens siffror): vinster och försök som förut, bas kvar inom kaoset. Nytt prov tests/stuck.test.js: ingen levande zombie som inte slår på något står still i 10 s på Gnesta eller Norr, med och utan spärrar och alla sorter. Med vakten avslagen fastnar 100 till 220 zombier på Norr.
+
+Regler (alla banor):
+- Nedräkningen mellan vågorna 10 s (var 5). Bonusen 3 per sekund kvar (var 5), så en hel nedräkning är värd 30 i stället för 25.
+- Överlevarnas lärdom: ett förlorat försök ger minst 60 i forskning (LESSON_MIN). Prövat 50 och 80: 50 räckte inte till Grenades I, 80 ändrade ingenting för den nya spelaren (dödade och vågor gav redan över 80). Restart day ger fortfarande ingenting.
+- Överlapp (dayCfg.overlap): nästa våg startar så många sekunder efter att föregående kommit ut helt, även om den är på väg. Klaras vågen före får spelaren minst 10 s.
+- Dörrarna (map.door, bara stadsbanorna): de som når ishallens entré tar sig in en per 3,2 s och går att skjuta medan de står där. Basen faller aldrig på mindre än en minut från första skadan, och "rasar gradvis"-proven blev en egenskap i stället för tur. Prövat utan: med kortare vägar och överlapp föll naive på 5 till 10 s i hälften av seedsen.
+- map.pace (Gnesta Norr 1,25): alla sorter går en fjärdedel fortare. Vägen från norr till entrén är 400 m; utan takten tar en bjässe sex och en halv minut på sig.
+- Prövat och förkastat: bjässar 1,3 m/s överallt (E4 dag 3 tog fyra försök i två seeds, Gnesta dag 4 blev inte kortare än 520 s).
+
+Gnesta:
+- Ingångarna flyttade in längs vägen (världskoordinater i gnesta.js): east1 [37, 37] (220 m till entrén med spärren, var 268), east2 [49, -39] (180 m, var 214), forest [43, 51] (280 m, var 320). Prövat east1 vid 190 m och 170 m: första skottet kom inte tidigare (pjäserna står vid fältet), men naive fick så kort väg att den föll på 8 s, och spärren slutade skilja smart från naive.
+- Ksp 88 finns från dag 1 (unlocks), som barrikaden. E4-spelaren har den redan; den nya spelaren behöver den.
+- Dag 1: fem löpare först i våg 1 (första skottet efter 38 s, var 110), våg 1 och 2 mindre (20 och 36 vandrare), våg 3 60 vandrare och 40 löpare. hp 3,6 till 4,3, start $ 800 till $ 900.
+- Dag 2 och 3: start $ 1 300 (var 1 100 och 1 000), hp 5,8 (var 5,0 och 4,8). Med kortare vägar tjänar pjäserna mindre under vågen; med $ 1 100 hade två seeds av fem bara två pjäser dag 2 och föll på 120 s, hur låg hp-faktorn än var (en klippa i forskningen: Bigger budget II eller inte).
+- Dag 4 och 5: bjässarna från Norra vägen (den kortaste), överlapp 100 s, start $ 1 800 och $ 1 600, hp 5,1 och 4,0 (var 6,0 och 5,1). Dag 5 våg 3 något mindre (flest levande 238 till 242, var över 250).
+- Smart (bas kvar, försök; naive första försöket): dag 1 20 i alla (naive 7 till 16), dag 2 20 (naive förlorar alla), dag 3 6 till 20 (seed 0 andra försöket), dag 4 7 till 13, dag 5 4 till 10. Dagarna 364 till 464 s (6 till 7,7 minuter, var 430 till 820).
+- Ny spelare utan forskning (freshCampaign, FRESH_ORDER: Bigger budget, Faster Ksp 90, Grenades först): vinner dag 1 på andra eller tredje försöket i alla fem seeds; förlusterna gav 93 till 120 i forskning.
+
+Gnesta Norr (balanserad mot smart UTAN Hemvärnet, granskningen av 0.10):
+- Dansutvägen väster in längs vägen till [-7, -159] (420 m, var 506). Vikingavägen norr och Östra Storgatan som förut: längre in delar sig vägen förbi radhusen och Vikingavägen, och spärren skulle inte längre spela roll.
+- Överlapp 60 s alla dagar, takt 1,25, dörrarna. hp 2,8 / 3,8 / 4,0 / 5,0 / 4,3 (var 3,7 / 7,2 / 7,6 / 7,9 / 9,0).
+- Smart utan grupp: dag 1 20 i alla (naive förlorar eller 1 till 6 kvar), dag 2 6 till 14, dag 3 7 till 20, dag 4 6 till 8 (en seed andra försöket), dag 5 3 till 11. Naive förlorar dag 2 till 5 i alla seeds. Dagarna 236 till 452 s (4 till 7,5 minuter, var 460 till 1 050).
+- Smart som köper gruppen varje dag och forskar i den först (hv: true): dag 1 till 3 vinns direkt (10 till 20 kvar), men dag 4 förloras i alla sex försök (basen faller vid 256 s när Östra Storgatan kommer in bakom linjen). Det är granskningens fynd i skarpare form: gruppen och dess forskning är ett sämre köp än pjäserna. Provet kräver dag 1 till 3; dag 4 för den spelaren hör till nästa balanspass (H058, H059).
+
+E4: nedräkningen och bonusen ändrar kassan; dag 1 och 2 som förut, dag 3 vinns på tredje försöket i alla fem seeds (var andra eller tredje). Nytt kvitto f3366f27/7775.
+
+Kvitton: E4 f3366f27/7775, Gnesta a2051b10/38970, Gnesta Norr f98cc27a/54733.

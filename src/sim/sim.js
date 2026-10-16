@@ -8,11 +8,20 @@ import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime } from './squad.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
+// Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
+// klarade vågor och lärdomen tillsammans), så att en förlust räcker till en nyttig nivå (Heavy wire
+// I kostar 50, Faster Ksp 90 I 40, Grenades I 60). Restart day och Main menu ger ingenting (abandonDay).
+export const LESSON_MIN = 60;
 export { CELL_LEN } from './cells.js';
 // Nästa våg: nedräkning efter en klarad våg, och bonus för att kalla den tidigt.
-export const COUNTDOWN = 5;         // sekunder från klarad våg till nästa startar av sig själv
-export const EARLY_PER_SEC = 5;    // pengar per sekund som sparas
+// 0.10.1: 10 s (var 5, speltestet hann inte bygga om); bonusen per sekund sänkt så att en hel
+// nedräkning är värd ungefär lika mycket som förut.
+export const COUNTDOWN = 10;        // sekunder från klarad våg till nästa startar av sig själv
+export const EARLY_PER_SEC = 3;     // pengar per sekund som sparas
 export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många sekunder kvarvarande spawn
+// dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg startar så många sekunder efter att
+// föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
+// vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
 
 export function createSim({ map, day, cash, research = [], seed = 1 }) {
   const dayCfg = map.days[day - 1];
@@ -61,9 +70,10 @@ export function earlyBonus(sim) {
   if (!hasNextWave(sim)) return 0;
   if (sim.phase === 'build') return sim.nextWaveIn == null ? 0 : Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   if (sim.phase !== 'wave') return 0;
+  if (sim.nextWaveIn != null) return Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   const q = sim.spawnQueue;
   const spawnLeft = q.length ? Math.max(0, q[q.length - 1].at - sim.time) : 0;
-  return Math.round((COUNTDOWN + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
+  return Math.round(((sim.dayCfg.overlap ?? COUNTDOWN) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
 // Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
@@ -116,6 +126,12 @@ export function step(sim, dt) {
   if (sim.phase !== 'wave') return;
   sim.time += dt;
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
+  // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
+  const ov = sim.dayCfg.overlap;
+  if (ov != null && hasNextWave(sim) && !sim.spawnQueue.length) {
+    if (sim.nextWaveIn == null) sim.nextWaveIn = ov;
+    else { sim.nextWaveIn -= dt; if (sim.nextWaveIn <= 1e-6) launch(sim); }
+  }
   runSoldiers(sim, dt);
   moveZombies(sim, dt);
   const cells = zombieCells(sim);
@@ -124,7 +140,14 @@ export function step(sim, dt) {
   landGrenades(sim, dt);
   throwGrenades(sim, dt, cells);
   ageCorpses(sim, dt);
-  if (sim.baseHp <= 0) { sim.phase = 'lost'; sim.events.push({ t: 'lost' }); return; }
+  if (sim.baseHp <= 0) {
+    sim.phase = 'lost';
+    const lesson = Math.max(0, LESSON_MIN - sim.intelEarned);
+    if (lesson) { sim.intelEarned += lesson; sim.events.push({ t: 'lesson', intel: lesson }); }
+    sim.lesson = lesson;
+    sim.events.push({ t: 'lost' });
+    return;
+  }
   checkCleared(sim);
 }
 
@@ -140,7 +163,7 @@ function checkCleared(sim) {
     sim.events.push({ t: 'waveCleared', index: k, intel: WAVE_INTEL });
   }
   if (sim.waveIndex >= sim.dayCfg.waves.length) { sim.phase = 'won'; sim.events.push({ t: 'won' }); }
-  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = COUNTDOWN; }
+  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, COUNTDOWN); }
 }
 
 function moveZombies(sim, dt) {
@@ -167,17 +190,38 @@ function moveZombies(sim, dt) {
         hitSoldier(sim, foe.g, foe.s, def.hitDamage * dt, hurt);
       }
     }
-    const speed = def.speed * mul;
+    // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
+    const speed = def.speed * mul * (sim.map.pace ?? 1);
     z.v = speed;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
     if (sim.route.arrived(z)) {
-      sim.baseHp -= def.baseDamage;
-      const p = zombiePos(sim, z);
-      z.dead = true; z.breached = true; z.deadT = 99;
-      sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });
+      // Dörrarna (map.door, ishallens igenspikade entré): de som når fram slår på dörrarna och
+      // tar sig in en i taget (doorBreak), och går att skjuta medan de står där.
+      if (sim.map.door) { if (!z.atDoor) { z.atDoor = true; z.doorAt = sim.time; } z.attacking = true; z.v = 0; }
+      else breach(sim, z);
     }
   }
+  if (sim.map.door) doorBreak(sim, dt);
+}
+function breach(sim, z) {
+  const def = ZOMBIES[z.type];
+  sim.baseHp -= def.baseDamage;
+  const p = zombiePos(sim, z);
+  z.dead = true; z.breached = true; z.deadT = 99;
+  sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });
+}
+// 0.10.1: dörrarna släpper in en zombie per map.door.gap sekunder (den som kom först), så att
+// basen aldrig faller på några sekunder när en klunga når fram (speltestet av 0.10.0: "20 till 0
+// på ett par sekunder"). Med 20 i bas och 3,2 s tar det minst en minut från första skadan.
+function doorBreak(sim, dt) {
+  sim.doorCd = Math.max(0, (sim.doorCd ?? 0) - dt);
+  if (sim.doorCd > 0) return;
+  let first = null;
+  for (const z of sim.zombies) if (z.atDoor && !z.dead && (!first || z.doorAt < first.doorAt || (z.doorAt === first.doorAt && z.id < first.id))) first = z;
+  if (!first) return;
+  breach(sim, first);
+  sim.doorCd = sim.map.door.gap;
 }
 
 // ---------- Hemvärnet ----------
