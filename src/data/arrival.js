@@ -9,7 +9,7 @@
 // stämmer med balansen.
 export const ARRIVAL = {
   riksvagen: [],
-  gnesta: ['m2.1', 'wireTough.1', 'budget.1', 'block.1', 'grenade.1', 'm249Rate.1', 'positions.1', 'm2.2', 'm249Rate.2', 'grenade.2', 'budget.2'],
+  gnesta: ['m2.1', 'wireTough.1', 'budget.1', 'block.1', 'grenade.1', 'm249Rate.1', 'positions.1', 'm2.2'],
   'gnesta-norr': ['m2.1', 'wireTough.1', 'budget.1', 'block.1', 'grenade.1', 'm249Rate.1', 'positions.1', 'm2.2', 'm249Rate.2',
-    'grenade.2', 'budget.2', 'block.2', 'wireTough.2', 'm2.3', 'psg90.1', 'm249Rate.3', 'grenade.3', 'budget.3', 'ksp58.1', 'ak5.1'],
+    'grenade.2', 'budget.2', 'block.2', 'wireTough.2', 'm2.3', 'psg90.1', 'm249Rate.3', 'grenade.3', 'budget.3'],
 };

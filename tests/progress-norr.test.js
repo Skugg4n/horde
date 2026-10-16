@@ -110,7 +110,7 @@ test('debugArrival: forskningen vid ankomsten läggs till för dagen, sparfilen 
   assert.deepEqual(d.research, ARRIVAL.gnesta);
   assert.deepEqual(p.research, [], 'framsteget är orört');
   assert.equal(debugArrival(p, 'gnesta', { fresh: true }), p);
-  assert.equal(startConfig(d, 1, 'gnesta').cash, 900 + 150, 'Bigger budget I ingår');
+  assert.equal(startConfig(d, 1, 'gnesta').cash, MAPS.gnesta.days[0].startCash + 150, 'Bigger budget I ingår');
   // det spelaren redan har behålls, inget dubbelt
   const q = { ...p, research: ['m2.1', 'm2.2', 'm2.3'] };
   const r = debugArrival(q, 'gnesta-norr').research;

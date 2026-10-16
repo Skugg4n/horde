@@ -6,7 +6,7 @@
 // levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
 // högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
-import { gunCount, squadCount, createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
+import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
@@ -204,7 +204,31 @@ export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot
 // Dagens slinga, gemensam för båda banorna: policyn tänker före varje våg och en gång per
 // simulerad sekund under vågen, och kallar nästa våg tidigt när försvaret har det bekvämt.
 // peak: flest levande zombier samtidigt.
-function runDay(sim, think, early, onSecond = null, maxTicks = MAX_TICKS, trackSquads = false) {
+// 0.13.0 (H132): en människa vrider en pjäs som står sysslolös medan zombier går förbi utanför dess
+// skjutvinkel (Rotate). En pjäs som inte haft något mål på REAIM_IDLE s, och ser levande zombier inom
+// räckvidd i sin hela sikt men inte i vinkeln, vrids mot deras mitt. Deterministiskt.
+const REAIM_IDLE = 3;
+function reaim(sim) {
+  for (const g of sim.guns) {
+    if (g.squad || !g.fullSight || g.move || g.turn || g.building > 0) continue;
+    if (g.weapon.targetId != null) { g._idleSince = sim.time; continue; }
+    g._idleSince ??= sim.time;
+    if (sim.time - g._idleSince < REAIM_IDLE) continue;
+    const range = WEAPONS[g.weapon.type].range * 1.2;
+    let sx = 0, sz = 0, n = 0;
+    for (const z of sim.zombies) {
+      if (z.dead) continue;
+      const p = zombiePos(sim, z), k = sim.place.keyAt(p.x, p.z);
+      if (k < 0 || !g.fullSight.mask[k] || g.sight.mask[k] || Math.hypot(p.x - g.x, p.z - g.z) > range) continue;
+      sx += p.x; sz += p.z; n++;
+    }
+    if (!n) continue;
+    rotateGun(sim, g.id, Math.atan2(sz / n - g.z, sx / n - g.x));
+    g._idleSince = sim.time;
+  }
+}
+function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, trackSquads = false) {
+  const think = () => { think0(); if (sim.phase === 'wave') reaim(sim); };
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];

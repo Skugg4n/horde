@@ -43,7 +43,12 @@ import { logs, naives } from './gnesta-logs.js';
 // sig på knä för ett mål utanför (src/sim/squad.js PRONE_ARC), och ställningen varierar inom gruppen.
 // Gnestas egna data är orörda; bara seed 1 dag 4 och 5 ändras (bas 4 och 2 blev 5 och 4).
 // Se docs/balance-log.md, 0.12.2.
-const BEFORE = { hash: 'f36af1a6', length: 39183 };
+// 0.13.0: bytt avsiktligt. Kampanjens början (H104, H105): dag 1 är de civila (evakueringen till
+// ishallen, frivilliga, barrikader och tråd), Hemvärnet och Ksp 90 dag 2, Ksp 58 och Ak 5 dag 3, Psg 90
+// och pillboxen dag 4, Ksp 88 dag 5 (banan lånar ut dem). Skjutvinklar och vridfart (H132), policyn
+// lägger spärren före första pjäsen, föredrar Ksp 58 framför Ksp 88 och vrider sysslolösa pjäser.
+// hp 2,4 / 4,3 / 3,6 / 2,5 dag 2 till 5. Se docs/balance-log.md, 0.13.0.
+const BEFORE = { hash: '890d4e5b', length: 45429 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -53,6 +58,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.12.2', () => {
+test('Gnestas balanslogg är identisk med 0.13.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

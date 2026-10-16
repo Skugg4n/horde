@@ -23,7 +23,11 @@ import { makeRng } from '../src/sim/rng.js';
 // 0.10.2: nytt kvitto, avsiktligt: nedräkningen 15 s (var 10) och bonusen 2 per sekund (var 3), och
 // Psg 90 kräver Ksp 88 I och kostar 180 (forskningsordningen köper annorlunda). Vinster och försök
 // som förut: dag 1 och 2 direkt, dag 3 på tredje försöket. Se docs/balance-log.md, 0.10.2.
-const BEFORE = { hash: '4d617fb6', length: 7775 };
+// 0.13.0: nytt kvitto, avsiktligt (H104): E4 är den militära vägspärren. Infanteriet, Ksp 88 och
+// pillboxen utan forskning, inget Hemvärn (policyn köper infanteriet dag 1), skjutvinklar och vridfart
+// (H132), policyn vrider en sysslolös pjäs mot zombier utanför vinkeln, dag 2 hp 1,9 och dag 3 1,2.
+// Dag 1 och 2 direkt, dag 3 på tredje försöket. Se docs/balance-log.md, 0.13.0.
+const BEFORE = { hash: '71d06ab8', length: 7943 };
 
 function fingerprint() {
   const out = [];
@@ -35,7 +39,7 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('E4:s balanslogg är identisk med 0.10.2', () => {
+test('E4:s balanslogg är identisk med 0.13.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 

@@ -864,14 +864,14 @@ export const DAYS = [
       { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
     // 0.12.0 (H101, H110): vilande smittade i en villa längs stickgatan, ute när våg 1 börjar, så att
     // första skottet kommer tidigt (och de civila har något att vara rädda för).
-    dormant: [{ house: 'B1-00', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 }],
+    dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 3, 1.4, 0, 'east1', LEAD_RUN), g('walker', 16, 0.8, 4, 'east1')] },
              { groups: [g('walker', 24, 0.55, 0, 'east1'), g('runner', 8, 0.6, 10, 'east1')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 20, 0.4, 6, 'east1')] } ] },
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, startCash: 1300, hp: 2.7, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, startCash: 1300, hp: 2.4, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
     dormant: [{ house: 'B2-00', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
@@ -917,8 +917,9 @@ export const gnesta = {
   // På E4 kräver den forskningen som förut (Concrete barrier, efter Heavy wire I).
   // 0.10.1: Ksp 88 också, så att en spelare utan forskningen från E4 (?debug&fresh, eller den som
   // forskat annat) har en tung pjäs dag 1. E4-spelaren har den redan.
-  // 0.13.0: Ksp 88 (dag 5) och pillboxen (dag 4) är banans, utan forskning. Förrådet per dag i DAYS.
-  unlocks: ['block', 'm2', 'epa'],
+  // 0.13.0: armén lånar ut sina pjäser här, utan forskning, när de finns i dagens förråd (DAYS arsenal):
+  // Ksp 58 och Ak 5 dag 3, Psg 90 och pillboxen dag 4, Ksp 88 dag 5. Forskningens senare nivåer gäller.
+  unlocks: ['block', 'm2', 'epa', 'ksp58', 'ak5', 'psg90'],
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },
 };

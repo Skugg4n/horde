@@ -131,14 +131,17 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // öppningspjäs möter dagens första grupp (scripts/balance.mjs norrOpener). Svårare: dag 1 bas kvar 15
 // (var 19), hp 2,8 / 3,1 / 3,25 / 4,6 / 5,1 med den tyngre formen. Se docs/balance-log.md, 0.12.2.
 // Med Hemvärnets båge (samma ändring som för Gnesta) blev kvittot 2dd1da63 / 60500.
-const BEFORE = { hash: '2dd1da63', length: 60500 };
+// 0.13.0: bytt avsiktligt. Skjutvinklar och vridfart (H132), förrådet per dag (infanteriet från dag 3,
+// Ksp 58, Ak 5, Psg 90, pillboxen och Ksp 88 lånas ut), Gnesta-kampanjen före är omgjord, policyn vrider
+// sysslolösa pjäser. hp 2,8 / 2,4 / 2,1 / 3,8 / 3,9, dag 1:s sista våg något mindre. docs/balance-log.md, 0.13.0.
+const BEFORE = { hash: 'cf67c451', length: 59164 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.12.2', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.13.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;

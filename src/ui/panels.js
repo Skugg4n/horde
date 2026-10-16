@@ -427,10 +427,18 @@ export function intelLine(dayCfg) {
   const streets = [...new Set((dayCfg.dormant ?? []).filter(d => d.intel !== false).map(d => d.street).filter(Boolean))];
   return streets.length ? `<p class="lead intel">Intel: dormant infected reported on ${streets.join(' and ')}.</p>` : '';
 }
-export function dayIntro(root, dayCfg, cash, onGo) {
+// 0.13.0 (H104): det som kommit till förrådet i dag (jämfört med i går), en rad i introt.
+export function arrivedLine(map, day) {
+  const list = d => map.days[d - 1]?.arsenal ?? map.arsenal ?? null;
+  const now = list(day), before = day > 1 ? list(day - 1) : null;
+  if (!now || !before) return '';
+  const fresh = now.filter(id => !before.includes(id)).map(id => WEAPONS[id]?.name ?? OBSTACLES[id]?.name).filter(Boolean);
+  return fresh.length ? `<p class="lead arrived">New today: ${fresh.join(', ')}.</p>` : '';
+}
+export function dayIntro(root, dayCfg, cash, onGo, { arrived = '' } = {}) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
-    <p class="lead">${dayCfg.intro.text}</p>${dayCfg.objective ? `<p class="lead strong objective">${dayCfg.objective}</p>` : ''}${intelLine(dayCfg)}
+    <p class="lead">${dayCfg.intro.text}</p>${dayCfg.objective ? `<p class="lead strong objective">${dayCfg.objective}</p>` : ''}${arrived}${intelLine(dayCfg)}
     <p class="note-line">New day: you start with ${money(cash)} and no guns out. Research carries over.</p>
     <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);

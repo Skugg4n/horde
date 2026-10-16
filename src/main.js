@@ -10,7 +10,7 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, arrivedLine, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
@@ -1078,7 +1078,7 @@ function startDay(n) {
   const frame = dayFrame();
   if (frame) rig.focus(frame.x, frame.z, frame.view);
   hinting = n === 1 && !hintSeen(progress, map.id) && !!map.days[0].hints; hintDone = 0;
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }));
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, { arrived: arrivedLine(map, n) }));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).

@@ -141,26 +141,24 @@ test('Psg 90 på taken: planen väljer tak som ser den tvingade vägen, policyn 
   assert.deepEqual(roofPlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys).spots, []);
 });
 
-test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta dag 4, inte bättre än pjäserna', async () => {
+// 0.13.0: dag 4 har ingen Ksp 88 (den kommer dag 5). En grupp först, före fler pjäser, håller inte dag 4
+// längre, men forskningen gör gruppen klart bättre (fler vågor, mer bas kvar efter våg 1), och pjäserna
+// är fortfarande det bättre köpet (smart vinner dag 4).
+test('Hemvärnet med forskningen (0.10.0, H054) gör gruppen bättre på Gnesta dag 4, men inte bättre än pjäserna', async () => {
   const { HV_POLICY } = await import('../scripts/balance.mjs');
   const HV = ['hvRifles.1', 'hvRifles.2', 'hvRifles.3', 'hvSquad.1', 'hvSquad.2', 'hvVeterans.1'];
   const saved = HV_POLICY.gnesta;
+  const score = r => r.waves * 100 + (r.waveLog[0]?.baseHp ?? 0) + (r.won ? r.baseHp : 0);
   try {
     HV_POLICY.gnesta = { days: [4], gap: [] };       // en grupp direkt dag 4, före fler pjäser
-    let withRes = 0, without = 0, plain = 0, heldRes = 0;
+    let withRes = 0, without = 0;
     logs.forEach((log, i) => {
       const before = tries(log, 4)[0].before;
-      const a = playGnestaDay({ ...before, research: [...before.research, ...HV] }, 4, 'smart', { seedOffset: SEEDS[i] });
-      const b = playGnestaDay(before, 4, 'smart', { seedOffset: SEEDS[i] });
-      // 0.13.0: dag 4 är svårare utan Ksp 88 (den kommer dag 5); gruppen med forskningen håller inte
-      // alltid, men oftare än utan
-      if (a.won) heldRes++;
-      withRes += a.won ? a.baseHp : 0; without += b.won ? b.baseHp : 0;
-      plain += winner(log, 4).baseHp;
+      withRes += score(playGnestaDay({ ...before, research: [...before.research, ...HV] }, 4, 'smart', { seedOffset: SEEDS[i] }));
+      without += score(playGnestaDay(before, 4, 'smart', { seedOffset: SEEDS[i] }));
+      assert.ok(winner(log, 4), `seed ${i}: pjäserna vinner dag 4`);
     });
-    assert.ok(heldRes >= 2, `gruppen med forskning håller dag 4 i ${heldRes} av 5`);
     assert.ok(withRes > without, `forskningen gör gruppen bättre: ${withRes} mot ${without}`);
-    assert.ok(withRes <= plain, `men inte bättre än en pjäs till: ${withRes} mot ${plain}`);
   } finally { HV_POLICY.gnesta = saved; }
 });
 

@@ -608,3 +608,4 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel .info.armour { font-size: 13px; color: var(--paper); margin-top: 8px; letter-spacing: 0.04em; }
 .panel .info.armour.low { color: #e0866a; }
 .sheet .objective { color: #f2c46b; }
+.sheet .arrived { color: #b9d3dc; }
