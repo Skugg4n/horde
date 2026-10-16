@@ -324,3 +324,8 @@ Utgår från speltesterna 0.14.0 till 0.14.2 och spelets nuvarande strängar.
 ## Tillägg: knapphet i rekvisitionen (Ola 2026-10-16)
 
 Det ska INTE gå att rekvirera hur mycket som helst. Ola tyckte begränsningen var det coola. Ledningen släpper ett bestämt antal per leverans: varje post i förrådet har ett lager ("Försvarsmakten releases 1 infantry squad for Gnesta"), och det man inte fått släppt kan inte köpas hur mycket RP man än har. RP är priset, leveranserna är taket. Sektortaket ligger kvar. Förrådets kort visar "1 available" / "None released".
+
+## Tillägg: uppgraderingar och förrådets utseende (Ola 2026-10-16)
+
+- Uppgraderingar i förrådet visas bara för det man faktiskt HAR (eller har fått släppt). Inga "Ksp 58 II" om man inte har någon Ksp 58. Uppgraderingarna släpps också pö om pö av ledningen, precis som trupperna.
+- Förrådets rullister ska vara i spelets stil: smala, mörka, plåtfärgade med rost/benvit tumme, inga vita systemlister. Hellre färre poster som får plats utan rullning än långa listor.
