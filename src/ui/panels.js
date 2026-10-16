@@ -9,7 +9,7 @@ import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
 import { ICONS } from './icons.js';
-import { SHOP, shopItem, hotkey } from '../data/shop.js';
+import { SHOP, BUY_MENU, shopItem, hotkeyOf } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
@@ -96,6 +96,14 @@ export function cardLines(it, research = []) {
   const o = OBSTACLES[it.id];
   return [head, o.kind === 'block' ? 'Takes blows, then breaks' : `Slows by ${Math.round((1 - o.slow) * 100)} %, wears out`];
 }
+// H096 (0.11.0, speltestet av 0.10.2: statistiken syntes bara vid hovring): en kort rad som alltid
+// står på kortet, "26·22m·4/s" (skada, räckvidd, eld per sekund). Hela raden vid hovring.
+export function cardCompact(it, research = []) {
+  if (it.kind !== 'gun') { const o = OBSTACLES[it.id]; return o.kind === 'block' ? 'Holds' : `Slow ${Math.round((1 - o.slow) * 100)}%`; }
+  const st = weaponStats(it.id, 1, research), w = WEAPONS[it.id];
+  const rate = st.rate >= 2 ? String(Math.round(st.rate)) : st.rate.toFixed(1).replace(/^0/, '');
+  return `${Math.round(st.damage)}${w.squad ? '×' + squadSize(1, research) : ''}·${Math.round(st.range)}m·${rate}/s`;
+}
 const itemDesc = (it, sim) => {
   if (it.kind === 'gun') { const w = WEAPONS[it.id], st = weaponStats(it.id, 1, sim.research); return `${w.short ? w.name + '. ' : ''}${w.desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
   const o = OBSTACLES[it.id];
@@ -121,14 +129,16 @@ export function buildBar(root, actions) {
     // 0.10.1: en smal rad med små kort (namn och pris); pekaren över ett kort fäller ut det uppåt
     // med vad saken gör, skada och räckvidd, och varför det inte går (speltestet: raden tog en
     // fjärdedel av kartan).
-    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="cards">${SHOP.map((it, i) => {
-      const [role, stats] = cardLines(it, sim.research);
+    // 0.11.0: korten i kategorier (BUY_MENU) med små rubriker, snabbvalet "2-1" på varje kort.
+    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="groups">${BUY_MENU.map((c, ci) => `
+      <div class="grp" data-cat="${ci + 1}"><div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div><div class="cards">${c.items.map(x => {
+      const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
       <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
-        <kbd>${hotkey(i)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
-        <div class="p" data-price></div>
+        <kbd>${hotkeyOf(it.id)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
+        <div class="p" data-price></div><div class="cs">${cardCompact(it, sim.research)}</div>
         <div class="more"><div class="r">${role}</div><div class="st">${stats}</div><div class="why" data-why></div></div></button>`;
-    }).join('')}</div>`;
+    }).join('')}</div></div>`).join('')}</div>`;
     cards.clear();
     for (const b of el.querySelectorAll('.card')) {
       cards.set(b.dataset.id, { btn: b, price: b.querySelector('[data-price]'), why: b.querySelector('[data-why]'), state: null });
@@ -136,11 +146,19 @@ export function buildBar(root, actions) {
     }
   }
   const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
-  function update(sim, holding, show) {
+  // openCat: kategorin som tvåstegsvalet har öppnat (1-baserad) eller null; armed: andra tangenten väntas.
+  let catKey = '';
+  function update(sim, holding, show, openCat = null, armed = false) {
     el.hidden = !show;
     if (!show) return;
     const k = [...sim.research].join(',') + '|' + sim.map.id;
-    if (k !== key || barR < 0) { key = k; render(sim); measure(); }
+    if (k !== key || barR < 0) { key = k; render(sim); catKey = ''; measure(); }
+    const ck = openCat + ':' + armed;
+    if (ck !== catKey) {
+      catKey = ck;
+      el.classList.toggle('choosing', openCat != null);
+      for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', armed && Number(gEl.dataset.cat) === openCat); }
+    }
     set(el.querySelector('[data-n]'), `${sim.guns.length} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
@@ -168,7 +186,7 @@ export function buildBar(root, actions) {
     if (!c) return;
     c.btn.classList.remove('shake'); void c.btn.offsetWidth; c.btn.classList.add('shake');
   }
-  return { el, update, shake, types: () => SHOP.map(s => s.id) };
+  return { el, update, shake };
 }
 
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.

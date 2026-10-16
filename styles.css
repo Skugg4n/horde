@@ -394,11 +394,22 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
 #buildbar .k .guns { margin-left: 14px; }
 #buildbar .cards { display: flex; gap: 4px; }
+/* 0.11.0: kategorier med små rubriker (Defenses, Guns, Units), alltid på en rad; tvåstegsvalet
+   tänder kategorin och dämpar de andra */
+#buildbar .groups { display: flex; gap: 7px; flex-wrap: nowrap; }
+#buildbar .gh { font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper-dim); margin: 0 0 3px 1px; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+#buildbar .gh kbd { font: 500 9px 'IBM Plex Mono', monospace; padding: 0 3px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; letter-spacing: 0; }
+#buildbar.choosing .grp:not(.open) { opacity: 0.4; }
+#buildbar .grp.open .gh { color: var(--paper); }
+#buildbar .grp.open .gh kbd, #buildbar .grp.open .card kbd { background: var(--rust); border-color: var(--rust); color: var(--paper); }
+#buildbar .grp.armed .card { box-shadow: 0 0 0 1px rgba(181,83,42,0.7) inset; }
+/* H096: kort statistikrad som alltid syns, hela raden vid hovring */
+#buildbar .card .cs { font: 500 8.5px 'IBM Plex Mono', monospace; color: rgba(217,164,65,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; letter-spacing: -0.02em; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
 /* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
 /* 0.10.1: smal rad, små kort (ikon, namn, pris); pekaren fäller ut kortet uppåt (.more) */
 /* 0.10.2: 66 px, så att åtta kort ryms på en rad ned till 1024 px (speltestet av 0.10.1: Hemvärnet ensamt på rad två) */
-#buildbar .card { width: 66px; padding: 5px 5px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+#buildbar .card { width: 64px; padding: 5px 5px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
 #buildbar .card svg:not(.lock) { height: 17px; margin: 0 0 2px; width: 70%; }
 #buildbar .card .n { font-size: 10.5px; white-space: nowrap; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
 #buildbar .card .p { font-size: 12px; margin-top: 1px; white-space: nowrap; }
@@ -494,7 +505,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
    högerkant mäts (--bar-r, panels.js) och raden bryts i två när fönstret är smalt. */
 @media (min-width: 761px) {
   #buildbar { max-width: calc(100vw - 420px); }
-  #buildbar .cards { flex-wrap: wrap; }
   /* 0.10.2: #go och #wavebar placeras av hud.js (layoutBottom) mellan köpraden och fartknappen */
   #wavebar, #go { white-space: nowrap; }
 }

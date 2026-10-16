@@ -18,12 +18,17 @@ export function advance(st, frameDt, { playing, paused, mul = 1, dt, maxPerSpeed
 // placeringen, en öppen panel eller en markering, och först därefter öppnas menyn. På huvudmenyn
 // finns ingen meny. Ett tryck gör exakt en sak (0.10.1): en markering utan panel räknas som en panel,
 // och en upprepning medan tangenten hålls nere gör ingenting (repeat).
-export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false }) {
+// 0.11.0: en öppen kategori i köpradens tvåstegsval (category) stängs före placeringen, och ett
+// Esc strax efter ett köp (justPlaced, H095: saken släpptes när den ställdes ut och tangenten var
+// tänkt för den) öppnar inte menyn.
+export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false, category = false, justPlaced = false }) {
   if (repeat) return 'none';
   if (menuOpen) return 'menu-back';
   if (mode === 'research') return 'close-research';
+  if (category && mode === 'play') return 'close-category';
   if (placing) return 'cancel-placing';
   if (panel || selected) return 'close-panel';
+  if (justPlaced && mode === 'play') return 'none';
   if (mode === 'menu') return 'none';
   return 'open-menu';
 }

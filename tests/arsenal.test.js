@@ -21,8 +21,8 @@ test('svenska beteckningar, stabila id', () => {
   assert.equal(WEAPONS.ak5.name, 'Ak 5 + granattillsats');
   assert.equal(WEAPONS.psg90.name, 'Psg 90');
   for (const w of Object.values(WEAPONS)) assert.ok(w.desc.length > 10 && !/[åäö]/.test(w.desc), `${w.id}: engelsk beskrivning`);
-  // köpradens fyra första snabbval är orörda, de nya kommer sist (0.9.0: Hemvärnet på 8)
-  assert.deepEqual(SHOP.map(s => s.id), ['m249', 'm2', 'block', 'wire', 'ksp58', 'ak5', 'psg90', 'hv']);
+  // 0.11.0: köpraden i kategorier (Defenses, Guns, Units), id oförändrade
+  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'm249', 'm2', 'ksp58', 'ak5', 'psg90', 'hv']);
   assert.equal(WEAPONS.hv.name, 'Hemvärnet');
   assert.ok(!/militia/i.test(WEAPONS.hv.desc + WEAPONS.hv.name), 'aldrig "militia"');
 });

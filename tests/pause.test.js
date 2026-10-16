@@ -70,3 +70,15 @@ test('Esc gör en sak per tryck: markering först, ingen upprepning', () => {
   assert.equal(escapeAction({ ...base, selected: true }), 'close-panel');
   assert.equal(escapeAction(base), 'open-menu');
 });
+
+// 0.11.0: köpradens öppna kategori stängs först i spelet, och ett Esc strax efter ett köp (H095)
+// öppnar inte pausmenyn.
+test('Esc: öppen kategori före placeringen, inget pausmeny strax efter ett köp', () => {
+  const base = { menuOpen: false, mode: 'play', placing: false, panel: false };
+  assert.equal(escapeAction({ ...base, category: true, placing: true }), 'close-category');
+  assert.equal(escapeAction({ ...base, category: true, menuOpen: true }), 'menu-back');
+  assert.equal(escapeAction({ ...base, justPlaced: true }), 'none');
+  assert.equal(escapeAction({ ...base, justPlaced: true, placing: true }), 'cancel-placing');
+  assert.equal(escapeAction({ ...base, justPlaced: true, panel: true }), 'close-panel');
+  assert.equal(escapeAction(base), 'open-menu');
+});

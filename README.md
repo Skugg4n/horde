@@ -14,7 +14,7 @@ python3 -m http.server 8141 --directory ~/Projects/horde
 
 Öppna sedan http://localhost:8141/. Inget byggsteg: vanliga ES-moduler, Three.js 0.160 hämtas via importmap.
 
-Tangenter: 1-0 tar upp en sak ur köpraden (klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, R visar och döljer hordens väg (Gnesta), Esc gör en sak per tryck (släpper kortet, stänger panelen, sist pausmenyn).
+Tangenter: två siffror tar upp en sak ur köpraden, först kategorin (1 Defenses, 2 Guns, 3 Units) och sedan saken (2-1 Ksp 90; Esc eller samma kategori igen backar; klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, R visar och döljer hordens väg (Gnesta), Esc gör en sak per tryck (släpper kortet, stänger panelen, sist pausmenyn).
 
 Felsökning: med http://localhost:8141/?debug finns `window.__horde` i konsolen (simuleringen, renderaren med `renderer.info`, scenen och kameran).
 

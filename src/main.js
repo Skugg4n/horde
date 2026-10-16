@@ -23,6 +23,7 @@ import { weaponStats } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
+import { createChord } from './ui/chord.js';
 import { createAudio } from './audio/audio.js';
 import { Vector3, Box3 } from 'three';
 
@@ -150,6 +151,9 @@ function closePanel() {
 // Esc eller högerklick släpper den. Det som inte har råd eller är låst går inte att ta upp: kortet
 // skakar. Klick på något som redan står ute (pjäs, barrikad, tråd) öppnar dess panel.
 let placing = null;          // { type, kind: 'gun' | 'obstacle' } medan något är i handen
+let placedAt = -Infinity;    // när något senast ställdes ut och släpptes ur handen (H095)
+const JUST_PLACED_MS = 1200;
+const chord = createChord();
 let spot = null;             // under pekaren: { key, x, z, ok, reason }
 const sightCache = new Map();  // 'typ:ruta' -> synliga rutor (för spöket; byggs om per dag)
 const pointer = { x: 0, y: 0 };
@@ -171,6 +175,8 @@ function startPlacing(type) {
 function stopPlacing() {
   placing = null; spot = null;
   ghostTip.hidden = true;
+  // H095: "On the road" och de andra skälen från placeringen ligger inte kvar när den är slut
+  for (const n of uiRoot.querySelectorAll('.note.place')) n.remove();
 }
 // Rutan under pekaren för det som är i handen. Vapen: placeringsrutnätet. Hinder: vägens rutor.
 function spotFor(key) {
@@ -186,12 +192,13 @@ function spotFor(key) {
 }
 function placeHere(key) {
   const sp = spotFor(key);
-  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn'); audio.ui('deny'); return; }
+  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn place'); audio.ui('deny'); return; }
   const type = placing.type;
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type);
-  if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn'); return; }
+  if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn place'); return; }
   // Shift: kvar i handen så länge det finns råd till en till.
-  if (!shiftHeld || buyState(sim, type).state !== 'ok') stopPlacing();
+  // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
+  if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
   else spot = spotFor(key);
 }
 function sightOf(type, key) {
@@ -267,6 +274,7 @@ function updateGhostTip() {
 }
 renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
+renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; spot = null; });
 renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet,
 // och låter: ett klick när den gick igenom, en nekande ton när den inte gjorde det.
@@ -284,7 +292,7 @@ const actions = {
   kit: withCash('click', id => buyKit(sim, id)),
   reinforce: withCash('click', id => reinforce(sim, id)),
   squadRoom: id => squadRoom(sim, id),
-  pick: type => startPlacing(type),
+  pick: type => { chord.reset(); startPlacing(type); },
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
   place: withCash('place', (cell, type) => placeAcross(sim, cell, type)),
   remove: withCash('click', cell => removeObstacle(sim, cell)),
@@ -572,8 +580,10 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
     e.preventDefault();
-    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel, selected: !!selected, repeat: e.repeat });
-    if (what === 'menu-back') menu.back();
+    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel, selected: !!selected, repeat: e.repeat,
+      category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS });
+    if (what === 'close-category') chord.escape();
+    else if (what === 'menu-back') menu.back();
     else if (what === 'close-research') sheetAction('close');
     else if (what === 'cancel-placing') stopPlacing();
     else if (what === 'close-panel') { closePanel(); hovered = null; }
@@ -582,10 +592,11 @@ addEventListener('keydown', e => {
   }
   // Medan menyn är öppen gör spelets tangenter ingenting.
   if (menu.isOpen()) { if (e.code === 'Space') e.preventDefault(); return; }
-  if (mode === 'play' && /^Digit[0-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey) {
-    const n = Number(e.code.slice(5));
-    const t = bar.types()[n === 0 ? 9 : n - 1];
-    if (t) startPlacing(t);
+  // 0.11.0: tvåstegsval, kategori och sedan sak ("2" "1" = Ksp 90), src/ui/chord.js
+  if (mode === 'play' && /^(Digit|Numpad)[0-9]$/.test(e.code) && !e.repeat && !e.metaKey && !e.ctrlKey && canPlaceNow()) {
+    const r = chord.press(Number(e.code.slice(-1)), performance.now() / 1000);
+    if (r.t === 'pick') startPlacing(r.id);
+    else if (r.t === 'category' || r.t === 'close') audio.ui('click');
   }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
@@ -837,7 +848,8 @@ function tick(now) {
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
   if (placing && (!canPlaceNow() || buyState(sim, placing.type).state === 'locked')) stopPlacing();
   updateHint();
-  bar.update(sim, placing?.type, canPlaceNow());
+  if (!canPlaceNow()) chord.reset();
+  bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
   updateGhostTip();
 
   if (panel) panel.update(sim);
