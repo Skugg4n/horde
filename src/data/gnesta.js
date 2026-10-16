@@ -713,7 +713,7 @@ export function townPlacement(T, grid) {
   }
   segs.push(...(T.hedgeSegs ?? []));
   const ditchRoads = (T.ditchRoads ?? ['forest']).map(id => T.roads.find(r => r.id === id)).filter(Boolean);
-  // Gnesta Norr (1.0): radhusens låga tegelmurar, ett eget skydd (src/sim/squad.js 'brick').
+  // Gnesta Norr (0.10.0): radhusens låga tegelmurar, ett eget skydd (src/sim/squad.js 'brick').
   const brickSegs = T.brickSegs ?? null, brick = brickSegs ? new Uint8Array(n) : null;
   for (let k = 0; k < n; k++) {
     if (place.kind[k] !== KIND.open || place.walk[k]) continue;

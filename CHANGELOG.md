@@ -1,5 +1,22 @@
 # Ändringslogg
 
+## 0.10.0 (2026-10-16)
+
+Bana 3: Gnesta Norr. Samma stad som Gnesta, dimman har dragit sig undan norrut. Basen är kvar vid ishallens entré, men horden kommer mest norrifrån.
+
+- Kartan (src/data/gnesta-norr.js) är ritad ur Olas kart- och satellitbild över norra Gnesta, i samma halva skala som Gnesta, med en affin passning mot elva punkter som finns i båda bilderna (felet under 1 m). Allt från Gnesta är med i söder. Nytt i norr: Dansutvägen längs kanten, Vikingavägen från Dansutvägen ner till Fornminnesvägen med fyra stickgator, Fornminnesvägens norra stickgata och förskolans slinga med parkering, Gångvägen (den raka asfaltsgången förbi radhusen ner till Sigtunavägens norra gren), gångarna mellan radhuslängorna, två grusstigar mellan villatomterna, Valsvägen och Hambovägen i nordväst (återvändsgator med villor) och skogsbacken väster om Vikingavägen (sluten skog, ingen stig syns i bilderna). Omkring ligger spökhus i dimman som förut.
+- Radhusen öster om Vikingavägen: tio längor på kartbildens platser, en eller två våningar, gult tegel nertill, mörkbrun stående panel upptill och i gavlarna, bruna tegeltak med en skorsten per lägenhet, vita dörrar under takfoten, låga gula tegelmurar mellan förgårdarna, plankstaket mellan baksidorna, gavelträdgårdar och parkeringar med vita vinklar framför längorna mot Gångvägen. Radhustaken går att ligga på med Psg 90.
+- Villorna mellan Vikingavägen och Fornminnesvägen och vid Valsvägen och Hambovägen: generiska villor på fotavtryckens platser, var och en på sin tomt med häckar och staket.
+- Förskola Ringleken: Gnestas förskola fick färgade skivor vid fönstren och en barnvagnsbod (på båda banorna), och på Gnesta Norr en inhägnad lekgård med lekstuga, gungor, klätterställning med rutschkana och sandlåda.
+- Ingångarna: Vikingavägen norr (dag 1), Dansutvägen väster (från dag 2), Östra Storgatan genom radhusen (överraskningen dag 4, bakom den norra linjen) och Sigtunavägen öst (dag 5). Dag 1 lär ut att horden kommer norrifrån: spärra Vikingavägen så tar den Gångvägen förbi radhusen.
+- Menyn har tre banor: E4, Gnesta och Gnesta Norr (dag 1 till 5). Gnesta Norr låses upp när Gnesta dag 5 är klar; ?debug låser upp allt. Sparfilen har samma format (v3): en sparfil från 0.9.0 läses som den är, banans framsteg läggs till när den spelas, inget raderas (prov i tests/progress-norr.test.js).
+- Hemvärnet i forskningen (H054): Better rifles I till III (Ak 4 hårdare och snabbare), Bigger squad I och II (en femte och en sjätte man) och Hemvärnet veterans I och II (mer liv). Gruppen blir ett riktigt val: med forskningen håller den Gnesta dag 4 i alla seeds, men en pjäs till på samma plats är fortfarande bättre per position. Tegelmurarna är ett eget skydd (på huk, bättre än häck).
+- Simuleringen: en fil-vakt för Gnesta Norr där smala gångar möts (zombier kunde pendla mellan två rutor för alltid). Gnesta och E4 påverkas inte.
+- Byggsatsen (gnesta-kit.js) har radhuslängan, tegelmuren, plankstaketet, parkeringen och förskolans gård, allt instansierat i samma batch som Gnesta. Visningssidan har en ny rad med radhus i en och två våningar, parkering, förskolan och lekgården.
+- Balans: smart och naiv policy för Gnesta Norr över fem seeds, med kvitto. Smart spärrar Vikingavägen, ställer pjäserna i en dödszon vid radhusen och en sista linje vid entrén, en Psg 90 på radhustaket och Hemvärnet vid murarna. Dag 1 vinner smart direkt med full bas och naiv tar skada, dag 2 till 4 vinner smart inom två försök och naiv förlorar, dag 5 är svårast. E4 och Gnesta har samma kvitton som i 0.9.0. Siffror, prövade varianter och skäl i docs/balance-log.md (0.10.0).
+- Prestanda (headless, Metal, 1440 x 900): banan byggs på 0,16 s och shaders kompileras på 0,2 s (första besöket 0,39 s, återbesök 6 ms). 44 anrop och 389 000 trianglar med 180 levande zombier, 120 bildrutor per sekund även med strypt processor (4x).
+- Skärmbilder i docs/norr-*.png.
+
 ## 0.9.0 (2026-10-16)
 
 Hemvärnet: en grupp soldater som själva tar skydd, med Close Combat som förebild. På kortet och i panelen heter de Hemvärnet; den engelska raden förklarar vad de gör.

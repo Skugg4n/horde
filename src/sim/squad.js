@@ -49,7 +49,7 @@ export const COVER = {
   corner: { score: 10, stance: 'crouch', name: 'house corner' },
   car: { score: 8, stance: 'crouch', name: 'car or tree' },
   wall: { score: 7, stance: 'crouch', name: 'wall' },
-  // Gnesta Norr (1.0.0): radhusens låga tegelmurar mellan förgårdarna. Bröstvärn i sten.
+  // Gnesta Norr (0.10.0): radhusens låga tegelmurar mellan förgårdarna. Bröstvärn i sten.
   brick: { score: 9, stance: 'crouch', name: 'brick wall' },
   sandbag: { score: 7, stance: 'kneel', name: 'sandbags' },
   ditch: { score: 7, stance: 'prone', name: 'ditch' },
@@ -58,7 +58,7 @@ export const COVER = {
 };
 
 export const isSquad = type => !!WEAPONS[type]?.squad;
-// Antal man och liv per man: nivån, plus forskningen (1.0.0, H054): Bigger squad ger en eller två
+// Antal man och liv per man: nivån, plus forskningen (0.10.0, H054): Bigger squad ger en eller två
 // man till, Hemvärnet veterans mer liv. research: Set eller lista med köpta nivåer.
 export const squadSize = (level, research = []) => SQUAD.size[Math.min(level, SQUAD.size.length) - 1] + (tierData(research, 'hvSquad')?.men ?? 0);
 export const soldierHp = (level, research = []) => SQUAD.hp[Math.min(level, SQUAD.hp.length) - 1] * (tierData(research, 'hvVeterans')?.hp ?? 1);

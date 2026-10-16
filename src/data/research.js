@@ -56,7 +56,7 @@ export const RESEARCH = [
     { cost: 200, requires: [], effect: 'Launcher grenades hit 30 % harder and wider.', gDamage: 1.3, gRadius: 1.15 },
     { cost: 260, requires: [], effect: 'Launcher reloads in 3 seconds.', gDamage: 1.3, gRadius: 1.15, gCooldown: 3 },
   ] },
-  // 1.0.0: Hemvärnet i forskningen (H054). Gruppen var för svag mot Gnestas hårdare vågor; nu
+  // 0.10.0: Hemvärnet i forskningen (H054). Gruppen var för svag mot Gnestas hårdare vågor; nu
   // växer den med spelaren: bättre gevär, fler man och veteraner. Inga krav på andra vapen, så
   // den går att välja tidigt som billig täckning. Siffrorna läses av src/sim/stats.js (gevären)
   // och src/sim/squad.js (antal man och liv).

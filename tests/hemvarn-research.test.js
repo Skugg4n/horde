@@ -10,7 +10,7 @@ import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr } from '../src/data/gnesta-norr.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
 
-// Hemvärnet i forskningen (1.0.0, H054): bättre gevär, fler man och veteraner.
+// Hemvärnet i forskningen (0.10.0, H054): bättre gevär, fler man och veteraner.
 
 test('forskningen: tre noder, gevären först, fler man och veteraner efter', () => {
   const ids = RESEARCH.map(n => n.id);

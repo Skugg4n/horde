@@ -4,7 +4,7 @@ import { newProgress, startConfig, dayResult, mapState, mapUnlocked, selectMap, 
 import { loadProgress, saveProgress } from '../src/meta/save.js';
 import { MAPS } from '../src/data/maps.js';
 
-// Gnesta Norr (1.0.0): tredje banan, upplåst när Gnesta dag 5 är klar. Sparfilen behåller sitt
+// Gnesta Norr (0.10.0): tredje banan, upplåst när Gnesta dag 5 är klar. Sparfilen behåller sitt
 // format (v3): en sparfil från 0.9.0 läses som den är, och banans framsteg läggs till under maps
 // första gången den spelas. Inget raderas och inget skrivs över vid läsning.
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), _m: m }; };

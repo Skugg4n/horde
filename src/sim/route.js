@@ -164,7 +164,7 @@ export function gridRoute(map) {
         const mid = (a - b) / 2, room = Math.max(0, (a + b) / 2 - LANE_EDGE);
         const off = mid + z.lane * room;
         tx = bx + nx * off; tz = bz + nz * off;
-        // Vakt (Gnesta Norr, 1.0.0): där två smala gångar möts kan filen hamna i den andra gången,
+        // Vakt (Gnesta Norr, 0.10.0): där två smala gångar möts kan filen hamna i den andra gången,
         // uppströms, och zombien pendlar mellan två rutor för alltid. Med laneGuard godtas inte en
         // siktpunkt i en ruta längre från basen än den zombien står i. Gnesta och E4 har ingen vakt
         // (deras kvitton är oförändrade, och där har det aldrig hänt).

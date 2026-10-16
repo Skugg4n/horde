@@ -28,7 +28,7 @@ const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1
 const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'positions',
   'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'psg90', 'm249Rate', 'grenade', 'budget', 'ksp58', 'ak5', 'block', 'positions',
   'ksp58', 'ak5', 'psg90', 'positions', 'ksp58', 'ak5', 'psg90'];
-// Gnesta Norr (1.0.0): Hemvärnets forskning först (H054), sedan resten i samma ordning. E4 och Gnesta
+// Gnesta Norr (0.10.0): Hemvärnets forskning först (H054), sedan resten i samma ordning. E4 och Gnesta
 // använder RESEARCH_ORDER som förut, så deras kvitton påverkas inte.
 export const NORR_ORDER = ['hvRifles', 'hvSquad', 'hvRifles', 'hvVeterans', 'hvRifles', 'hvSquad', 'hvVeterans', ...RESEARCH_ORDER];
 const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
@@ -529,7 +529,7 @@ function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, p
   return { ...rest, plan, barricades: Object.values(_s.obstacles).filter(o => o.type === 'block').length };
 }
 
-// ---------- Gnesta Norr (1.0.0): horden norrifrån ----------
+// ---------- Gnesta Norr (0.10.0): horden norrifrån ----------
 // smart : en människa som läser kartan. Hon spärrar Vikingavägen söder om den andra stigen till
 //         Gångvägen, så att horden från Dansutvägen och Vikingavägen norr måste gå hela Gångvägen förbi
 //         radhusen och sedan Fornminnesvägen och gångarna ner mot ishallen. Utan spärren viker horden
@@ -539,7 +539,7 @@ function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, p
 //         öst öppnar igen, spärrar hon också Sigtunavägen vid rondellen som på Gnesta.
 // naive : samma köp, allt ställt efter sin egen väg (vilket tak som helst, vilken plats som helst),
 //         aldrig en barrikad.
-// Prövat och förkastat (docs/balance-log.md, 1.0.0): spärren söder om Gångvägens början (horden
+// Prövat och förkastat (docs/balance-log.md, 0.10.0): spärren söder om Gångvägens början (horden
 // tog en U-sväng vid Vikingavägens krök som var bättre för naive), två spärrar genom
 // radhuskvarteret, dödszonen över hela Gångvägen.
 export const NORR_BLOCKS = [normK(1305, 650)];   // Vikingavägen, söder om den andra stigen

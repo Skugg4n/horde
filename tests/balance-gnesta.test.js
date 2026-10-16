@@ -121,7 +121,7 @@ test('Psg 90 på taken: planen väljer tak som ser den tvingade vägen, policyn 
   assert.deepEqual(roofPlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys).spots, []);
 });
 
-test('Hemvärnet med forskningen (1.0.0, H054) är ett riktigt val på Gnesta dag 4, inte bättre än pjäserna', async () => {
+test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta dag 4, inte bättre än pjäserna', async () => {
   const { HV_POLICY } = await import('../scripts/balance.mjs');
   const HV = ['hvRifles.1', 'hvRifles.2', 'hvRifles.3', 'hvSquad.1', 'hvSquad.2', 'hvVeterans.1'];
   const saved = HV_POLICY.gnesta;

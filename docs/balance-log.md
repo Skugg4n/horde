@@ -215,6 +215,48 @@ Policyerna (scripts/balance.mjs, `HV_POLICY`):
 - Slutsatsen: på Gnesta är gruppen sämre än alla alternativ för policyerna. Zombiernas hp-faktor (3,6 till 6) och forskningen för Ksp 90 (Faster III ger 37 per sekund mot gruppens 19 för samma pris) gör att en position med gruppen kostar mer än den ger. Om Hemvärnet ska ha en roll på Gnesta behövs forskning för gruppen (bättre ammunition, större grupp från början) eller ett lägre pris; det är en fråga för speltest (todo.md H054), inte gissat här.
 - Kvittona byttes avsiktligt: E4 'f322422c' (7658 tecken), Gnesta '759821b7' (39386 tecken; planens nya fält ligger i naiv-körningarnas resultat).
 
+## 0.10.0: Gnesta Norr och Hemvärnets forskning
+
+Ny bana (src/data/gnesta-norr.js): Gnesta med dimman bortdragen norrut. Horden kommer mest norrifrån, Dansutvägen väster (dag 1 Vikingavägen norr, dag 2 också Dansutvägen väster), genom radhusen från Östra Storgatan (dag 4, överraskningen) och Sigtunavägen öst igen dag 5. Vägen från norr till entrén är lång: en vandrare från Dansutvägen väster är framme efter cirka 250 s med tom karta (Gnesta: 100 till 130 s).
+
+Hemvärnet (H054), tre forskningsnoder utan krav på andra vapen:
+
+| Nod | Nivåer (pris) | Effekt |
+|---|---|---|
+| Better rifles | 80, 130, 190 | Ak 4 skada x1,2/1,4/1,6, eld x1,1/1,2/1,3 |
+| Bigger squad | 120 (kräver Better rifles I), 200 | en eller två man till i varje grupp |
+| Hemvärnet veterans | 100 (kräver Bigger squad I), 160 | liv per man x1,5 / x2 |
+
+- Per krona blir gruppen med full forskning ungefär lika bra som Ksp 88 nivå 3, men per plats svagare (positionerna är det som tar slut), och den är sårbar. Prov: tests/hemvarn-research.test.js.
+- På Gnesta dag 4 (fem seeds, smart policy, en grupp direkt): med forskningen vinner gruppen alla fem (bas kvar 6 till 9, summa 33), utan forskningen förloras en och resten slutar på 2 till 4 (summa 13). En pjäs till i stället ger summa 50. Gruppen är alltså ett riktigt val, inte bättre än pjäserna. Gnestas och E4:s policyer köper fortfarande inte forskningen (RESEARCH_ORDER är orörd), så deras kvitton är oförändrade.
+- Tegelmurarna mellan radhusens förgårdar är ett eget skydd ('brick wall', poäng 9, på huk). Prövat 8: gruppen valde bilarna på parkeringen framför och husknutarna i stället, ingen tog muren.
+
+Policyerna för Gnesta Norr (scripts/balance.mjs, `TOWN['gnesta-norr']`, `norrBuild`):
+- smart: spärrar Vikingavägen söder om den andra stigen till Gångvägen, så att horden går hela Gångvägen förbi radhusen. Dödszonen är Gångvägens södra del (längorna E, G och H): pjäserna ställs varannan i dödszonen, varannan i sista linjen framför entrén (sista fjärdedelen av vägen), gruppen vid tegelmurarna, första Psg 90 på det radhustak som ser mest och de andra på vilket tak som helst. Köpordningen: spärren, ett tak, Hemvärnet, pjäser, taggtråd, fler tak efter två pjäser, granatlådor efter första vågen, uppgraderingar först när planen inte har fler lediga platser. Hemvärnets forskning köps först (NORR_ORDER), sedan resten som förut. Dag 5 spärras också Sigtunavägen vid rondellen.
+- naive: samma köp, allt ställt efter sin egen väg (vilket tak, vilken plats), aldrig en spärr.
+- Prövat och förkastat:
+  - Spärren söder om Gångvägens början, utan stigarna: horden från Dansutvägen gjorde en U-sväng vid Vikingavägens krök (Dansutvägen och Vikingavägen möts bara vid länken i nordost), och den U-svängen var en bättre dödszon än Gångvägen. Naive vann med full bas där smart förlorade. Stigarna mellan stickgatornas vändplaner och Gångvägen (tomtgränserna i kartbilden) tog bort U-svängen.
+  - Två spärrar (Gångvägens början och Vikingavägen) genom radhuskvarteret: 281 rutor för Dansutvägen men pjäserna ser lite mellan längorna, sämre än en spärr.
+  - Dödszonen över hela Gångvägen: sämre för smart. Psg 90 bara på radhustak: dag 3 lika många läckor som naive (13 mot 13 vid hp 8). Alla skyttar på villatak: bäst för smart (2 mot 17) men då spelar radhusens tak ingen roll; mitt beslut blev första skytten på radhustaket.
+  - Mer pengar dag 3 ($ 2200 i stället för 2000): sämre för smart (en Ksp 88 i stället för en Ksp 58 och en plats till), så $ 2000.
+- Vågorna har gruppernas löpare och de östra ingångarna utspridda (0,4 till 1,4 s mellan zombierna) och bjässarna efter de andra: annars kom en klump fram samtidigt och basen föll på 7 till 27 s.
+- Fil-vakten (src/sim/route.js, `laneGuard`, bara Gnesta Norr): där två smala gångar möts (radhusgången och tvärgången i öster) kunde filens siktpunkt hamna uppströms i den andra gången, och zombien pendlade mellan två rutor för alltid. Dagen tog aldrig slut. Med vakten godtas ingen siktpunkt längre från basen än zombiens egen ruta. Gnesta och E4 har ingen vakt och samma kvitton.
+
+Dagarna (hp-faktor, startkassa; spelaren har Gnestas forskning och Bigger budget III, $ 350 till):
+
+| Dag | hp | Kassa | Smart, försök till vinst / bas kvar (fem seeds) | Naive |
+|---|---|---|---|---|
+| 1 | 3,7 | 2100 | 1/20 i alla | vinner med 1 till 10 (snitt 5,2) |
+| 2 | 7,2 | 2100 | 1 till 2 / 1 till 7 | förlorar alla |
+| 3 | 7,6 | 2000 | 1 / 5 till 11 | förlorar alla |
+| 4 | 7,9 | 2200 | 1 till 2 / 2 till 7 | förlorar alla |
+| 5 | 9,0 | 1800 | 1 till 2 / 3 till 4 (lägst) | förlorar alla |
+
+- hp-faktorn är högre än på Gnesta (3,6 till 6): spelaren har mer forskning, mer pengar och en längre väg att skjuta längs. Dag 1 är lägre: alla kommer från ett håll och en klump som läcker förbi går hela vägen till dörrarna.
+- Förlorade försök rasar på 81 till 713 s. Flest levande 163. Hemvärnet används alla dagar i alla seeds (200 till 1900 träffar per försök).
+- Känslighet: kurvan har klippor, både i hp och i pengar. Dag 4 hp 7,6 ger naive vinst i två seeds, 8,2 ger smart fem försök i en seed; dag 5 hp 9,4 ger sex försök i en seed. Dagens längd: 300 s (dag 1) till 1000 s (dag 3 till 5) speltid.
+- Kvittot för Gnesta Norr: tests/balance-norr.test.js, '6f86b22c' (65389 tecken). E4 och Gnesta oförändrade.
+
 ## Prestanda
 
 Mätt 2026-10-15 inför 0.2.0, dag 3 våg 3 (65 zombier, varav 35 bjässar). Den här datorn: Mac med Apple Silicon, Chromium via Playwright i synligt fönster, 1440 x 900, pixeltäthet 1. Bildskärmen går i 120 Hz, så 120 fps är taket. Anrop = `renderer.info.render.calls` (skuggpass och huvudpass), medel och högsta per 5 s. Hoppet till vågen gjordes i konsolen (`?debug`), basen fick oändligt med liv så att hela vågen gick.

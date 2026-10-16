@@ -19,7 +19,7 @@ import {
   townGrid, townPlacement, PLINTH,
 } from './gnesta.js';
 
-export const NORR_VERSION = '1.0.0';
+export const NORR_VERSION = '0.1.0';
 
 // ---------- skala ----------
 // Kartbildens pixel (K) till Gnestas bildpixel. Minsta kvadrat över elva gemensamma punkter.
@@ -466,11 +466,17 @@ export const SURROUNDINGS = {
       ].map(ghostK) },
   ],
 };
+// Spökhus inne i den skarpa ytan ser ut som grå klossar mitt i staden: de tas bort (radhusen allra
+// längst i öster och garagelängan i nordost står utanför spelytan i verkligheten också).
+{
+  const c = SURROUNDINGS.crisp;
+  SURROUNDINGS.districts = SURROUNDINGS.districts.map(d => ({ ...d, buildings: d.buildings.filter(b => !(b.x > c.x0 - 2 && b.x < c.x1 + 2 && b.z > c.z0 - 2 && b.z < c.z1 + 2)) }));
+}
 
 // ---------- dagarna ----------
 // Dag 1 lär ut att horden kommer norrifrån nu, dag 2 andra ingången, dag 3 bjässar, dag 4
 // överraskningen genom radhusen, dag 5 allt. hp: dagens hp-faktor (spelaren kommer från Gnesta
-// med det mesta av forskningen). Balanserad i 1.0.0 (docs/balance-log.md).
+// med det mesta av forskningen). Balanserad i 0.10.0 (docs/balance-log.md).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
   { n: 1, startCash: 2100, hp: 3.7, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
