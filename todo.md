@@ -217,3 +217,17 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H197 | ux | Dag 2:s andra grupp (Södertälje) syns först i våg 2; dagens startkamera visar bara avfarten. Pröva att visa båda vägarna när dagen börjar.
 - [ ] H198 | grafik | Skyltarnas text är svår att läsa längst ut; överväg större paneler eller en portal över motorvägen.
 
+
+## Onboarding (0.16.0, docs/superpowers/specs/2026-10-16-onboarding-design.md)
+- [ ] H200 | onboarding | Upplåsningsschemat dag för dag som data (src/data/lessons.js): ett nytt begrepp per dag, resten dolt. E4 dag 1: en Ksp 90 på en markerad plats, starta vågen; ingen tråd, inga förnödenheter.
+- [ ] H201 | onboarding | Gradvis HUD: varje del syns först när den är upplåst, med en diskret animation första gången.
+- [ ] H202 | onboarding | Lektionsplåten: hård paus, en markering, högst ca 12 ord, Esc hoppar över, "fewer tips", Tips On / New only / Off och Reset tips i pausmenyn.
+- [ ] H203 | onboarding | Field manual på J: uppslag som fylls på, prick på nya, Show me.
+- [ ] H204 | onboarding | Sparfilen: allt fram till den längst spelade dagen räknas som sett och upplåst. Prov.
+- [ ] H205 | onboarding | Ny fiendetyp: hård paus med presentationsruta, porträtt renderat ur 3D-modellen, rapporttext och Continue (vandrare, löpare, bjässe).
+- [ ] H206 | ux | Köpraden: enkla siffror 1, 2, 3; tvåstegsval bara med fler än 9 kort (ersätter H097). Tips, intron, prov och chord.js.
+- [ ] H207 | operation | Knapphet: ledningen släpper ett bestämt antal per leverans, "1 available" / "None released"; RP är priset, leveranserna taket.
+- [ ] H208 | operation | Uppgraderingar bara för det man har eller fått släppt, och släpps pö om pö.
+- [ ] H209 | ux | Förrådets rullister i spelets stil, färre poster, stabil kortlayout.
+- [ ] H210 | text | Textgenomgången i designens avsnitt 6, med "(research More positions)" och "press U to upgrade".
+- [ ] H211 | balans | Balansskriptets policyer följer upplåsningen och förrådets lager; nya fingeravtryck med skäl i docs/balance-log.md.
