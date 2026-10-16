@@ -539,3 +539,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #minimap.off { display: none; }
 #ui:not([data-mode="play"]) #minimap { display: none; }
 @media (max-width: 760px) { #minimap { display: none; } }
+
+/* 0.12.0 (H099): flaggan över en skymd enhet, liten och i lagets färg */
+#pips { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+#ui:not([data-mode="play"]) #pips { display: none; }
+.pip { position: absolute; width: 12px; height: 12px; padding: 0; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer;
+  background: rgba(20, 40, 60, 0.85); border: 1.5px solid #8fc4e8; border-radius: 2px 2px 2px 0; }
+.pip::after { content: ''; position: absolute; left: -1.5px; top: 100%; width: 1.5px; height: 7px; background: #8fc4e8; }
+.pip:hover, .pip.sel { background: #8fc4e8; }

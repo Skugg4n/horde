@@ -213,6 +213,7 @@ export function createView(scene, initialSim) {
     model.group.rotation.y = -face;
     model.pivot.rotation.y = face - e.angle;
     e.pivotHome = model.pivot.position.clone();
+    addXray(e);
     e.recoil = 0;
     e.look = SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249;
     const hit = new THREE.Mesh(HIT_GEO, HIT_MAT);
@@ -276,6 +277,52 @@ export function createView(scene, initialSim) {
     }
     e.group.position.set(P0.x, yGun + lift + 0.02, P0.z);
     return pitch;
+  }
+  // ---------- skymda enheter (0.12.0, H099) ----------
+  // En enhet bakom ett högre hus (sett från kameran) får en tunn siluett i lagets färg, ritad bara där
+  // den skyms (djuptest 'större än'), och main.js en liten klickbar flagga ovanför. Syns enheten
+  // ritas inget extra. Om den skyms räknas med husens höjd (sim.place.height): en stråle från
+  // enhetens huvud mot kameran som passerar under ett tak.
+  const XRAY = new THREE.MeshBasicMaterial({ color: '#8fc4e8', transparent: true, opacity: 0.35, depthWrite: false, depthFunc: THREE.GreaterDepth });
+  function addXray(e) {
+    const list = [];
+    e.model.pivot.traverse(o => { if (o.isMesh) list.push(o); });
+    e.xray = list.map(o => { const c = new THREE.Mesh(o.geometry, XRAY); c.renderOrder = 8; c.visible = false; c.castShadow = false; o.add(c); return c; });
+  }
+  const camDir = new THREE.Vector3(40, 46, 40).normalize();
+  // Skyms punkten (x, y, z) av ett hus mellan den och kameran?
+  function hidden(x, y, z) {
+    const p = sim.place;
+    if (!p.height) return false;
+    for (let t = 1; t < 70; t += 0.7) {
+      const px = x + camDir.x * t, py = y + camDir.y * t, pz = z + camDir.z * t;
+      if (py > 14) return false;
+      const k = p.keyAt(px, pz);
+      if (k >= 0 && p.kind[k] === 2 && p.height[k] > py) return true;
+    }
+    return false;
+  }
+  let occT = 0;
+  const occluded = new Map();      // id -> { x, y, z }
+  function syncOcclusion(dt) {
+    occT -= dt;
+    if (occT > 0) return;
+    occT = 0.1;
+    occluded.clear();
+    for (const g of sim.guns) {
+      let hit = null;
+      if (g.squad) {
+        // gruppen: skymd när alla stående soldater skyms
+        const men = g.soldiers.filter(s => !s.down);
+        if (men.length && men.every(s => hidden(s.x, 1.3, s.z))) hit = { x: men.reduce((a, s) => a + s.x, 0) / men.length, y: 1.8, z: men.reduce((a, s) => a + s.z, 0) / men.length };
+      } else {
+        const y = (g.y ?? 0) + (g.roof ? 0.5 : 1.4);
+        if (hidden(g.x, y, g.z)) hit = { x: g.x, y: y + 1.2, z: g.z };
+      }
+      if (hit) occluded.set(g.id, hit);
+      const e = slots.get(g.id);
+      if (e?.xray) { const on = !!hit; if (e.xrayOn !== on) { e.xrayOn = on; for (const m of e.xray) m.visible = on; } }
+    }
   }
   function removeSlot(id) {
     const e = slots.get(id); if (!e) return;
@@ -794,6 +841,7 @@ export function createView(scene, initialSim) {
     syncCover();
     syncUi();
     syncSector();
+    syncOcclusion(dt);
     syncBase(dt);
     dormant.update(dt);
     fx.update(dt);
@@ -823,5 +871,5 @@ export function createView(scene, initialSim) {
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
   dormant.setSim(sim);
-  return { dormant, sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
+  return { occluded, dormant, sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
 }

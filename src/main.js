@@ -20,7 +20,7 @@ import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeOb
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle } from './sim/snap.js';
 import { pointAt } from './sim/path.js';
-import { weaponStats } from './sim/stats.js';
+import { weaponStats, upgradeCost } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
@@ -414,6 +414,38 @@ document.addEventListener('pointerdown', e => {
   closePanel();
 });
 
+// ---------- skymda enheter (0.12.0, H099) ----------
+// En liten flagga i lagets färg ovanför en pjäs eller grupp som skyms av ett hus. Klick väljer den.
+const pips = document.createElement('div');
+pips.id = 'pips';
+uiRoot.appendChild(pips);
+const pipEls = new Map();
+// 0.12.0 (H118, speltestet av 0.11.0: $ 1 180 kvar som inte gick att använda): när alla platser är
+// tagna och kassan räcker till en uppgradering säger spelet det en gång per dag.
+let spareTold = false;
+function updateSpare() {
+  if (mode !== 'play' || spareTold || sim.phase !== 'wave' || sim.guns.length < sim.maxGuns) return;
+  const cheapest = Math.min(...sim.guns.map(g => upgradeCost(g.weapon.type, g.weapon.level) ?? Infinity));
+  if (sim.cash < cheapest) return;
+  spareTold = true;
+  note(uiRoot, 'Cash to spare: click a gun and Upgrade (U), or Move it where the horde is.');
+}
+function updatePips() {
+  const occ = mode === 'play' && !placing ? view.occluded : new Map();
+  for (const [id, el] of pipEls) if (!occ.has(id)) { el.remove(); pipEls.delete(id); }
+  for (const [id, p] of occ) {
+    let el = pipEls.get(id);
+    if (!el) {
+      el = document.createElement('button'); el.type = 'button'; el.className = 'pip'; el.title = 'Behind a building: click to select';
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
+      pips.appendChild(el); pipEls.set(id, el);
+    }
+    tmpV.set(p.x, p.y, p.z).project(camera);
+    el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
+    el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === id);
+  }
+}
+
 // ---------- barrikadernas hälsa (0.12.0, H114) ----------
 // Speltestet av 0.11.0: barrikaden gick sönder tyst mitt i våg 3 och horden tog en annan väg. Nu har en
 // skadad spärr en liten stapel ovanför sig, "Barricade failing" när den har en fjärdedel kvar (med en
@@ -764,6 +796,11 @@ addEventListener('keydown', e => {
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
+  // 0.12.0 (H118): U uppgraderar den valda pjäsen (pengar mitt i vågen ska gå att använda snabbt)
+  if (e.code === 'KeyU' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && selected?.kind === 'gun') {
+    const r = actions.upgrade(selected.id);
+    if (!r.ok) flashTip(reasonText(r.reason));
+  }
   if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') {
     minimap.toggle();
     try { localStorage.setItem(MM_KEY, minimap.visible ? 'on' : 'off'); } catch { /* ingen lagring */ }
@@ -822,7 +859,7 @@ function startDay(n) {
   if (!cfg) { showMenu(); return; }
   day = n;
   sim = createSim(cfg);
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0;
+  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false;
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
@@ -1031,6 +1068,8 @@ function tick(now) {
   hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
   updateEntry();
   updateBarricades(paused ? 0 : frameDt);
+  updatePips();
+  updateSpare();
   if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
   rig.active = mode === 'play' && !paused;
   const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
