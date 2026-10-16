@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.14.2 (2026-10-16)
+
+Efter speltestet av 0.14.1 (docs/playtests/2026-10-16-0.14.1.md, "SPELBART: JA" med irritationer kvar), todo H174 till H181.
+
+- Placeringen i Gnesta (H180). Medan en enhet hålls i handen ligger ett svagt ljus på marken där just den typen får stå, inom 20 m från pekaren. Står pekaren på en ruta som inte går snäpper spöket till närmaste ruta som går inom 3 m (var 2,3), och en platt pil går från pekaren dit. Skogsbrynet går att stå i: tät skog börjar 6,5 m från gatukanten (var 3,5). Träden ritas först 4,5 m in och är låga där, så den första glesa raden är bryn och inte skog; de fälls i bilden när något ställs ut bredvid dem. Djupare in är det stängt som förut (beslutet i src/data/gnesta.js och docs/balance-log.md).
+- Förrådet (H174). Enhetsraderna har fast höjd och fasta platser för Level, Refill och Return; där Refill var står "Full" efter köpet, så att nästa klick hamnar på samma knapp. Omplaceringen ligger uppe till höger i raden. Varje kolumn rullar för sig och behåller sin rullning när något köps. Knapparna har förrådets egen storlek igen (de ärvde 16 px).
+- Sektorns slut (H175). VICTORY står ensam, sedan siffrorna, sist sektorns berättelse som ett radiomeddelande i en egen ruta ("Radio · Försvarsmakten to all units ... Out."). En evakueringsdag visar "Civilians safe 15 of 20" i stället för "Waves cleared 1 of 3".
+- Evakueringen (H176). Rombens storlek skuggades i koden av en annan variabel, så den växte aldrig med zoomen; nu gör den det (ungefär tre gånger så stor på normal zoom), har en mörk kant och starkare gul färg. De civila är en fjärdedel större och ringen under dem växer med zoomen. En civil som faller får ett rött kryss som står kvar dagen ut och syns genom husen. Märket "Civilian lost" syns från första bildrutan och står i 5 s (det började genomskinligt och hann aldrig tona in med låg bildtakt). Dagens kamera tar med ishallens hörn, så att hallen och de civilas väg syns vid start.
+- De frivilliga och Hemvärnet (H181). De frivilliga bär gul varselväst med två reflexband och har en större varselgul ring under sig; de civila som evakueras ser ut som förut. Hemvärnets hjälmband är bredare och varje man har ljusa armbindlar.
+- R-flaggan (H178) för mål utanför vinkeln är ungefär tre gånger så stor, med en vridpil och mörk kant, och försvinner direkt när pjäsen vrids.
+- Minikartan (H179) ritas om med den nya simuleringen när en dag eller ett nytt försök börjar; förra försökets pjäser, horde och pingar syns inte längre. Prov: tests/minimap.test.js.
+- E4 (H177). Spärren släpper in en i taget (3,2 s, som ishallens dörrar): de som når fram står vid bommen och går att skjuta, och en förlust tar minst en minut. Dag 2:s löpare kommer i fler och mindre klungor och hp är 4,0 (var 4,4): utan köp i förrådet vinner man nu med skada (förut förlorade man på sekunder). Dag 3 ger hälften så mycket förnödenheter per dödad (förut över 1 000 dollar som inte gick att använda) och hp 1,2. Nya fingeravtryck och nytt kvitto för E4 dag 2, prov för E4:s tempo (docs/balance-log.md, 0.14.2).
+- `__horde.jump(bana, dag)` med ?debug, som Jump to i debugmenyn.
+
 ## 0.14.1 (2026-10-16)
 
 Rättningarna efter granskningen av 0.14 (docs/reports/review-0.14.md, Must fix 1 till 6) och speltestet av 0.14.0 (docs/playtests/2026-10-16-0.14.0.md, "SPELBART: NEJ").

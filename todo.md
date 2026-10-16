@@ -191,11 +191,15 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H173 | ux | Lookbook och gnesta.html visar inte skrotbilarna; lägg till dem.
 
 ## Efter speltest 0.14.1 (2026-10-16)
-- [ ] H174 | ux | Refill-köp krymper kortet så nästa klick missar; stabil layout i förrådet.
-- [ ] H175 | ux | "VICTORY" står bredvid "has fallen silent"; läses tvetydigt.
-- [ ] H176 | grafik | Civila och gula romber för små; "Civilian lost"-markör syns inte; ishallen ej i bild vid start på Gnesta dag 1.
-- [ ] H177 | balans | E4 dag 2 svänger för mycket (basen 17 till 0 på sekunder vs full bas med två uppgraderingar). Dag 3 våg 3: 82 fiender och $1 042 oanvända.
-- [ ] H178 | ux | "Outside arc"-flaggan är liten.
-- [ ] H179 | bugg | Minikartan visar förra försökets pjäser.
-- [ ] H180 | ux | Gnesta: ungefär hälften av placeringarna nekas (väg, hus, skog). Värst kvar. Tydligare var man FÅR stå (ljus markering av giltiga ytor när man håller en enhet).
-- [ ] H181 | grafik | De frivilliga syns knappt.
+- [x] H174 | ux | Refill-köp krymper kortet så nästa klick missar; stabil layout i förrådet.
+- [x] H175 | ux | "VICTORY" står bredvid "has fallen silent"; läses tvetydigt.
+- [x] H176 | grafik | Civila och gula romber för små; "Civilian lost"-markör syns inte; ishallen ej i bild vid start på Gnesta dag 1.
+- [x] H177 | balans | E4 dag 2 svänger för mycket (basen 17 till 0 på sekunder vs full bas med två uppgraderingar). Dag 3 våg 3: 82 fiender och $1 042 oanvända.
+- [x] H178 | ux | "Outside arc"-flaggan är liten.
+- [x] H179 | bugg | Minikartan visar förra försökets pjäser.
+- [x] H180 | ux | Gnesta: ungefär hälften av placeringarna nekas (väg, hus, skog). Värst kvar. Tydligare var man FÅR stå (ljus markering av giltiga ytor när man håller en enhet).
+- [x] H181 | grafik | De frivilliga syns knappt.
+- [ ] H182 | balans | E4 dag 2: ett köp i förrådet ger fortfarande full bas (utan köp 7 till 9). Speltesta om steget känns rätt nu när en ny spelare vinner utan köp och förlusten tar över en minut.
+- [ ] H183 | balans | South dag 2 kostar den skickliga inget längre (tre Ksp 90 efter E4:s fulla bas). Ta med i passet för North (H168).
+- [ ] H184 | spel | Ett sätt att lägga förnödenheter mitt i striden (t.ex. laga spärren) i stället för att bara sänka överskottet. Bestäm med Ola först.
+- [ ] H185 | ux | Uppställningens kort glider åt vänster när en typ är slut (speltestet av 0.14.1); fasta platser som i förrådet.
