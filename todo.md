@@ -103,3 +103,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H084 | balans | ?debug-ankomsten på Gnesta Norr har ändå Ksp 58 I och Ak 5 I: forskningen fram till Gnesta dag 5 räcker till alla vapen (ca 2 000 poäng). Ska den snålas in krävs ett beslut om forskningstakten.
 - [ ] H085 | ux | Speltesta 0.10.2 i händerna: Gnesta dag 2, pilarna och nästa grupp, köpraden vid 1024 px.
 
+
+## Efter speltest 0.10.2 (2026-10-16)
+- [ ] H090 | balans | Gnesta dag 2: en grupp tar en inre gata mellan villorna som inte syns före vågen; förhandsvisa varje grupps väg innan vågen.
+- [ ] H091 | ux | Ingångsetiketter hamnar på hustak eller fel plats; placera dem på gatan vid kartkanten.
+- [ ] H092 | ux | Ingen ledtråd om R (hordens väg); visa i HUD eller dagintro.
+- [ ] H093 | tempo | Gnesta Norr: första skottet ~50 s och våg 2 startar innan våg 1 nått vapnen (se H083).
+- [ ] H094 | grafik | Räckviddsringen och Hemvärnets ringar ritas ovanpå hustak.
+- [ ] H095 | ux | Esc efter ett köp öppnar pausmenyn; "On the road"-texten ligger kvar.
+- [ ] H096 | ux | Statistiken på köpkorten syns bara vid hovring.
