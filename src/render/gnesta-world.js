@@ -13,7 +13,7 @@ import { distPolyline, distPoly, inPoly, w as px2w, FOREST_EDGE } from '../data/
 const PPM_DEFAULT = 14;                  // markens pixlar per meter (en större bana kan ange färre)
 
 // ---------- mönster för marken ----------
-function pattern(size, base, specks, n, rMax, extra) {
+export function pattern(size, base, specks, n, rMax, extra) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d');
   g.fillStyle = base; g.fillRect(0, 0, size, size);

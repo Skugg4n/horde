@@ -35,15 +35,17 @@
 import * as THREE from 'three';
 import { VERSION } from './src/version.js';
 import { createScene } from './src/render/scene.js';
-import { dirtTexture } from './src/render/world.js';
+import { grassTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, weaponGhost, setGhostTone, baseModel, grenadeModel } from './src/render/models.js';
+import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, weaponGhost, setGhostTone, baseModel, roadblockModel, grenadeModel } from './src/render/models.js';
+import { guardRail, highwayLamp, wreck, semiTruck, bus, boulder, grassTuft, roadSign } from './src/render/e4-kit.js';
 import { createFx } from './src/render/fx.js';
 import { createHealthRings } from './src/render/rings.js';
 import { WEAPONS } from './src/data/weapons.js';
 import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
 import { asphaltTexture } from './src/render/world.js';
+import { spruce, pine, birch } from './src/render/gnesta-kit.js';
 import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP, rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard } from './src/render/gnesta-kit.js';
 import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
@@ -68,7 +70,7 @@ function applyCamera() {
 addEventListener('resize', applyCamera); applyCamera();
 
 // mark
-const ground = mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ map: dirtTexture(), roughness: 1 }));
+const ground = mesh(new THREE.PlaneGeometry(700, 700), new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.castShadow = false; scene.add(ground);
 const asphalt = asphaltTexture(); asphalt.repeat.set(1, 1);
 
@@ -428,6 +430,51 @@ const campMen = [];
     scene.add(w.group);
     label(-22 + i * 10, CV + 14, 'EPA pillbox', 'level ' + lv, 4.8);
   });
+}
+
+// E4 vid Lästringe (0.15.0): vägspärren vid avfarten, motorvägens detaljer, fordonen som stannade och
+// skogen. Samma byggsats som banan (src/render/e4-kit.js) och skyltarna med gröna (motorväg) och blå
+// (övriga vägar) bottnar.
+{
+  const LV = 280, b = createBatch(), r = seeded(137);
+  const strip = (u, v, w, d) => {
+    const p = at(u, v);
+    const m = mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95 }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 4; m.position.set(p.x, 0.02, p.z); m.castShadow = false; scene.add(m);
+  };
+  // vägspärren: betongsuggor, bom, sandsäckar, kur, lastbil och pansarbandvagn (+x mot horden)
+  strip(-16, LV, 22, 10);
+  const rb = roadblockModel(); const rp = at(-16, LV); rb.position.set(rp.x, 0, rp.z); rb.rotation.y = -Math.PI / 4; scene.add(rb);
+  label(-16, LV, 'Roadblock at the off-ramp', 'jerseys, boom, sandbags, booth, truck, APC', 9);
+  // vägräcke och hög belysningsstolpe
+  { const a = at(2, LV - 4), c = at(12, LV - 4); guardRail(b, [[a.x, a.z], [c.x, c.z]]); }
+  label(7, LV - 4, 'Guard rail', 'posts every 2 m', 2.4);
+  { const p = at(16, LV - 4); highwayLamp(b, frame(null, p.x, 0, p.z, Math.PI * 0.75)); }
+  label(16, LV - 4, 'Tall lamp post', '10 m', 2.4);
+  // skyltarna
+  [['green', ['HELSINGBORG >', 'NYKÖPING >'], { motorway: true }, 0], ['green', ['137 S LÄSTRINGE', 'GNESTA'], { exit: true }, 6],
+   ['blue', ['SÖDERTÄLJE 45 >', 'VÄSTERLJUNG >', 'GRANLUND >'], {}, 12], ['blue', ['< GNESTA', '< S LÄSTRINGE'], {}, 18], ['speed', ['110'], {}, 23]].forEach(([kind, lines, extra, u]) => {
+    const p = at(u, LV + 6);
+    scene.add(roadSign({ x: p.x, z: p.z, ry: Math.PI / 4, kind, lines, ...extra }));
+  });
+  label(9, LV + 6, 'Road signs', 'green: motorway, blue: other roads, 110', 1.6);
+  // fordonen: övergiven bil, utbränd, på taket, långtradaren knäckt och bussen
+  [[{}, -26, 'Abandoned car', 'door open'], [{ burnt: true }, -20, 'Burnt car', ''], [{ flipped: true }, -14, 'Car on its roof', '']].forEach(([o, u, t, sub], i) => {
+    const p = at(u, LV + 22); wreck(b, frame(null, p.x, 0, p.z, -Math.PI / 4), GP.car[(i * 2 + 1) % GP.car.length], o);
+    label(u, LV + 22, t, sub, 3);
+  });
+  strip(-3, LV + 24, 24, 10);
+  { const p = at(-3, LV + 24); semiTruck(b, frame(null, p.x + 4, 0, p.z - 4, -Math.PI / 4), 1.1); }
+  label(-3, LV + 24, 'Jackknifed truck', 'across the E4 between the ramps', 7);
+  { const p = at(14, LV + 24); bus(b, frame(null, p.x, 0, p.z, -Math.PI / 4)); }
+  label(14, LV + 24, 'Stalled bus', 'at the Lästringe stop', 4);
+  // natur: gran, tall, björk, stenblock och högt gräs
+  [[spruce, 'Spruce', -26], [pine, 'Pine', -20], [birch, 'Birch', -14]].forEach(([fn, t, u]) => {
+    const p = at(u, LV + 40); fn(b, p.x, p.z, 12, r); label(u, LV + 40, t, '', 2);
+  });
+  { const p = at(-6, LV + 40); boulder(b, p.x, p.z, 1.8, r); label(-6, LV + 40, 'Rock outcrop', 'grey with moss', 2.4); }
+  { const p = at(4, LV + 40); for (let i = 0; i < 40; i++) grassTuft(b, p.x + r.range(-2.5, 2.5), p.z + r.range(-2.5, 2.5), r.range(0.5, 1.1), r); label(4, LV + 40, 'Tall grass', 'verges and meadow', 2.4); }
+  b.flush(scene);
 }
 
 // dra och zooma
