@@ -11,6 +11,7 @@ import { CELL_LEN } from '../sim/sim.js';
 import { createSquadView } from './squad-view.js';
 import { squadGhost, setSquadGhost } from './models.js';
 import { SQUAD, isSquad } from '../sim/squad.js';
+import { createDormant } from './dormant.js';
 
 const FALL_TIME = 0.3;
 // Högst så många liggande kroppar visas; de äldsta tas bort först. Simuleringen behåller
@@ -53,6 +54,8 @@ export function createView(scene, initialSim) {
   const horde = createHorde(scene);
   // Hemvärnets soldater: egna instanser, samma väg som horden (squad-view.js).
   const squadView = createSquadView(scene);
+  // 0.12.0 (H101): vilande smittade i husen (röd ton, dörren som slås upp)
+  const dormant = createDormant(scene, fx);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // pjäsens id → { key, group, model, angle }
@@ -71,6 +74,13 @@ export function createView(scene, initialSim) {
     parts.root.position.set(P.x, 0, P.z);
     // rise: kliver upp ur marken (0.10.1: ingångarna ligger inne i staden nu, inte vid dimkanten)
     const e = { parts, x: P.x, z: P.z, phase: z.wob * STEP_PHASE, fall: 0, ry: Math.atan2(P.dirX, P.dirZ), seen: frame, chop: rnd(0, 6), rise: z.dead ? 1 : 0 };
+    // 0.12.0: en vilande kliver ut genom dörröppningen och går ut till gatan (i stället för att stiga ur marken)
+    const door = z.house ? dormant.doorAt(z.house) : null;
+    if (door) {
+      e.rise = 1; e.x = door.x; e.z = door.z; e.ry = door.ry;
+      e.pour = { t: 0, len: Math.max(0.5, Math.hypot(P.x - door.x, P.z - door.z) / 2.2), x0: door.x, z0: door.z };
+      parts.root.position.set(door.x, 0, door.z);
+    }
     parts.root.rotation.y = e.ry;
     horde.attach(parts);
     zombies.set(z.id, e);
@@ -96,7 +106,12 @@ export function createView(scene, initialSim) {
       e.seen = frame;
       const parts = e.parts;
       if (!z.dead) place(P, sim, z); else { P.x = e.x; P.z = e.z; }
-      e.x += (P.x - e.x) * k; e.z += (P.z - e.z) * k;
+      if (e.pour && !z.dead) {
+        e.pour.t += dt;
+        const u = Math.min(1, e.pour.t / e.pour.len);
+        e.x = e.pour.x0 + (P.x - e.pour.x0) * u; e.z = e.pour.z0 + (P.z - e.pour.z0) * u;
+        if (u >= 1) e.pour = null;
+      } else { e.x += (P.x - e.x) * k; e.z += (P.z - e.z) * k; }
       if (e.fling) {
         // Kastad av en smäll: glider ut, hoppar och landar. Bara bild, simuleringen rör sig inte.
         const f = e.fling;
@@ -139,7 +154,7 @@ export function createView(scene, initialSim) {
       if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale));
       // vrider sig mjukt mot gångriktningen (rutnätets svängar blir inte ryck)
       // en zombie som slår en soldat vänder sig mot honom
-      const face = z.foe ? Math.atan2(z.foe[0] - e.x, z.foe[1] - e.z) : Math.atan2(P.dirX, P.dirZ);
+      const face = z.foe ? Math.atan2(z.foe[0] - e.x, z.foe[1] - e.z) : e.pour ? Math.atan2(P.x - e.x, P.z - e.z) : Math.atan2(P.dirX, P.dirZ);
       e.ry += angleDiff(e.ry, face) * Math.min(1, dt * 9);
       parts.root.rotation.y = e.ry;
       e.phase += (z.wob * STEP_PHASE - e.phase) * k;
@@ -596,6 +611,7 @@ export function createView(scene, initialSim) {
           break;
         }
         case 'breach': fx.puff(ev.x, ev.z); baseHit(); break;
+        case 'dormantBurst': dormant.burst(ev.house); break;
         case 'soldierHit': {
           // en zombie slår en soldat: lite blod, högst var tredjedels sekund per soldat
           const k = 's' + ev.gunId + ':' + ev.soldier;
@@ -681,6 +697,7 @@ export function createView(scene, initialSim) {
     syncCover();
     syncUi();
     syncBase(dt);
+    dormant.update(dt);
     fx.update(dt);
   }
 
@@ -695,6 +712,7 @@ export function createView(scene, initialSim) {
     const remap = next.map !== sim.map;
     sim = next;
     dug.clear(); scene.userData.fortify?.reset();
+    dormant.setSim(sim);
     if (remap) { buildCellMarks(); buildBase(); }
     baseHitT = 0; baseFrac = -1; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
@@ -706,5 +724,6 @@ export function createView(scene, initialSim) {
   buildBase();
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
-  return { sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
+  dormant.setSim(sim);
+  return { dormant, sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
 }

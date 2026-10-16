@@ -260,19 +260,24 @@ export function villa(b, M, o) {
   }
   // stuprör vid hörnen
   for (const sx of [-1, 1]) b.box(M, sx * (W / 2 + 0.08), PL + wallH / 2, D / 2 + 0.08, 0.09, wallH, 0.09, GP.sheet, 'metal');
+  // 0.12.0 (H101): dörren och ett fönster på framsidan (vilande smittade markeras och dörren slås upp)
+  const winU = (() => { for (let i = 0; i < nf; i++) { const u = -W / 2 + (i + 0.5) * W / nf; if (Math.abs(u - doorX) > 1.1) return u; } return null; })();
+  return { doorX, doorY: PL + 1.05, frontZ: D / 2, winU, winY: wy };
 }
 
 // Lång låg byggnad (förskolan): villans regler, längre och med fler dörrar.
 export function preschool(b, M, o) {
-  villa(b, M, { ...o, storeys: 1, roof: 'gable', ridge: 'x', pitch: 0.38, garage: 0, balcony: false, veranda: false, chimney: false });
+  const front = villa(b, M, { ...o, storeys: 1, roof: 'gable', ridge: 'x', pitch: 0.38, garage: 0, balcony: false, veranda: false, chimney: false });
   b.box(M, 0, 1.4, o.d / 2 + 1.0, o.w * 0.6, 0.12, 2.0, GP.roof.charcoal);  // skärmtak
   for (const sx of [-1, 1]) b.box(M, sx * o.w * 0.28, 0.7, o.d / 2 + 1.9, 0.12, 1.4, 0.12, GP.trim);
+  return front;
 }
 
 // Verkstad/butik: plåt och port.
 export function shop(b, M, o) {
-  villa(b, M, { ...o, storeys: 1, roof: 'gable', pitch: 0.3, garage: 0, balcony: false, veranda: false, chimney: false, solar: false });
+  const front = villa(b, M, { ...o, storeys: 1, roof: 'gable', pitch: 0.3, garage: 0, balcony: false, veranda: false, chimney: false, solar: false });
   b.box(M, -o.w * 0.2, 1.4, o.d / 2 + 0.05, 3.2, 2.8, 0.08, GP.facade.grey);
+  return front;
 }
 
 // ---------- trädgård ----------
@@ -669,7 +674,7 @@ export function parkingLot(b, M, o) {
 // Förskolans byggnad: Gnestas långa låga hus (villans regler, samma tak), med färgade skivor
 // vid fönstren, skärmtak och en barnvagnsbod. o: som preschool.
 export function forskola(b, M, o) {
-  preschool(b, M, o);
+  const front = preschool(b, M, o);
   const W = o.w, D = o.d, colors = ['#7c3a2c', '#3e5566', '#4f6a3a', '#c49a3c'];
   for (let i = 0; i < 4; i++) {
     const x = -W / 2 + W * (0.12 + i * 0.25);
@@ -679,6 +684,7 @@ export function forskola(b, M, o) {
   // barnvagnsbod vid gaveln
   b.box(M, W / 2 + 1.6, 1.0, D / 2 - 1.2, 2.2, 2.0, 2.4, '#7a6146');
   b.box(M, W / 2 + 1.6, 2.1, D / 2 - 1.2, 2.6, 0.12, 2.8, GP.roof.charcoal, 'matte', 0, 0.1);
+  return front;
 }
 // Förskolans lekgård: lågt grönt staket runt, sandlåda, lekstuga, gungor, rutschkana och en
 // klätterställning. Lokal ram: w längs x, d längs z, mitt vid marken.

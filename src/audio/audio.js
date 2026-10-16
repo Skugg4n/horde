@@ -192,6 +192,8 @@ export function createAudio({ settings, muted = false } = {}) {
           wear.delete(ev.cell);
           break;
         }
+        // 0.12.0 (H101): en dörr slås upp, vilande smittade väller ut
+        case 'dormantBurst': play('knock', { x: ev.x, z: ev.z, gain: 1 }, toScreen); play('crunch', { x: ev.x, z: ev.z, type: 'wire' }, toScreen); break;
         case 'waveStart': play('horn', {}); break;
         case 'earlyBonus': play('bonus', {}); break;
         case 'won': case 'lost': play('stinger', { kind: ev.t }); duckMusic(0.2, 2); break;

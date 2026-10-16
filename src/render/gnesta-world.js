@@ -242,13 +242,16 @@ export function buildGnesta(scene, map) {
       b.tag = null;
     }
   }
+  const fronts = new Map();
+  scene.userData.houseFronts = fronts;
   for (const p of map.lots.plots) {
     const h = p.house;
     if (h) {
       const M = frame(null, h.x, 0, h.z, h.ry);
-      if (h.kind === 'preschool') forskola(b, M, { ...h, w: Math.max(h.w, 13), d: Math.max(h.d, 7.5) });
-      else if (h.kind === 'shop') shop(b, M, h);
-      else villa(b, M, h);
+      const front = h.kind === 'preschool' ? forskola(b, M, { ...h, w: Math.max(h.w, 13), d: Math.max(h.d, 7.5) })
+        : h.kind === 'shop' ? shop(b, M, h) : villa(b, M, h);
+      // 0.12.0 (H101): dörren och ett fönster i världen, för de vilande smittade (render/dormant.js)
+      fronts.set(p.id, { x: h.x, z: h.z, ry: h.ry, ...front });
     }
     for (const x of p.extras) {
       const M = frame(null, x.x, 0, x.z, x.ry);
