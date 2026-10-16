@@ -26,7 +26,25 @@ export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många 
 // föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
 // vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
 
-export function createSim({ map, day, cash, research = [], seed = 1 }) {
+// ---------- debugmenyns reglar (0.12.2) ----------
+// tweaks: multiplikatorer som debugmenyn ändrar live (zombiernas hp och fart, antalet i varje grupp,
+// pengar och forskning per död, nedräkningens sekunder, god mode). Standard är identitet: då räknar
+// simuleringen exakt som förut (balansproven kör alltid utan tweaks, tests/tweaks.test.js).
+// Lagras bara i 'horde.debug' i webbläsaren, aldrig i sparfilen.
+export const IDENTITY_TWEAKS = Object.freeze({ hp: 1, speed: 1, count: 1, cash: 1, intel: 1, countdown: null, god: false });
+export function normalizeTweaks(t) {
+  const out = { ...IDENTITY_TWEAKS };
+  if (!t || typeof t !== 'object') return out;
+  for (const k of ['hp', 'speed', 'count', 'cash', 'intel']) { const v = Number(t[k]); if (Number.isFinite(v) && v > 0) out[k] = v; }
+  const c = t.countdown == null || t.countdown === '' ? NaN : Number(t.countdown);
+  if (Number.isFinite(c) && c >= 0) out.countdown = c;
+  out.god = t.god === true;
+  return out;
+}
+export const tweaksActive = t => !!t && (['hp', 'speed', 'count', 'cash', 'intel'].some(k => t[k] !== 1) || t.countdown != null || t.god === true);
+const countdownOf = sim => sim.tweaks?.countdown ?? COUNTDOWN;
+
+export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
   const route = routeFor(map);
@@ -41,6 +59,7 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
     obstacles: {}, grenades: [], nextLine: 1,
     // husen vars dörrar slagits upp i dag (vilande smittade, H101)
     burst: [],
+    tweaks: normalizeTweaks(tweaks),
   };
 }
 
@@ -65,11 +84,14 @@ export function houseDoor(map, house, route) {
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
-  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) });
+  const kc = sim.tweaks?.count ?? 1;
+  // debug: spawn count × (gruppens tid behålls; identitet = exakt dagens data)
+  const nOf = n => kc === 1 ? n : Math.max(1, Math.round(n * kc));
+  for (const g of wave.groups) { const n = nOf(g.count), iv = kc === 1 ? g.interval : g.interval * g.count / n; for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * iv, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) }); }
   for (const d of sim.dayCfg.dormant ?? []) {
     if ((d.wave ?? 0) !== index) continue;
     const door = houseDoor(sim.map, d.house, sim.route);
-    for (let i = 0; i < d.count; i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
+    for (let i = 0; i < nOf(d.count); i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
     sim.burst.push(d.house);
     sim.events.push({ t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false });
   }
@@ -98,7 +120,7 @@ export function earlyBonus(sim) {
   if (sim.nextWaveIn != null) return Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   const q = sim.spawnQueue;
   const spawnLeft = q.length ? Math.max(0, q[q.length - 1].at - sim.time) : 0;
-  return Math.round(((sim.dayCfg.overlap ?? COUNTDOWN) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
+  return Math.round(((sim.dayCfg.overlap ?? countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
 // Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
@@ -143,12 +165,12 @@ export function fogFactor(map, x, z) {
 // group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
 function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1 }) {
   const id = sim.nextId++;
-  const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1);
+  const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1) * (sim.tweaks?.hp ?? 1);
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
   const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : sim.route.spawn(sim.rng, spawnId, id);
   const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   if (lead > 0) {
-    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1);
+    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
     // 0.11.0: på en bana med dis stannar försprånget i diset (ingen dyker upp mitt i kartan)
     const fog = sim.route.kind === 'grid' && sim.map.surroundings?.crisp;
@@ -214,11 +236,12 @@ function checkCleared(sim) {
     if (sim.spawnQueue.some(q => q.wave === k) || sim.zombies.some(z => !z.dead && z.wave === k)) continue;
     sim.cleared[k] = true;
     sim.waveIndex++;
-    sim.intelEarned += WAVE_INTEL;
-    sim.events.push({ t: 'waveCleared', index: k, intel: WAVE_INTEL });
+    const wi = WAVE_INTEL * (sim.tweaks?.intel ?? 1);
+    sim.intelEarned += wi;
+    sim.events.push({ t: 'waveCleared', index: k, intel: wi });
   }
   if (sim.waveIndex >= sim.dayCfg.waves.length) { sim.phase = 'won'; sim.events.push({ t: 'won' }); }
-  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, COUNTDOWN); }
+  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, countdownOf(sim)); }
 }
 
 function moveZombies(sim, dt) {
@@ -246,7 +269,7 @@ function moveZombies(sim, dt) {
       }
     }
     // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
-    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
+    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
     z.v = speed;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
@@ -261,7 +284,7 @@ function moveZombies(sim, dt) {
 }
 function breach(sim, z) {
   const def = ZOMBIES[z.type];
-  sim.baseHp -= def.baseDamage;
+  if (!sim.tweaks?.god) sim.baseHp -= def.baseDamage;
   const p = zombiePos(sim, z);
   z.dead = true; z.breached = true; z.deadT = 99;
   sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });
@@ -812,8 +835,9 @@ function damage(sim, z, amount, p) {
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
-    sim.cash += def.bounty; sim.intelEarned += def.intel; sim.kills++;
-    sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty: def.bounty, intel: def.intel, x: p.x, z: p.z });
+    const bounty = def.bounty * (sim.tweaks?.cash ?? 1), intel = def.intel * (sim.tweaks?.intel ?? 1);
+    sim.cash += bounty; sim.intelEarned += intel; sim.kills++;
+    sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty, intel, x: p.x, z: p.z });
   }
 }
 
