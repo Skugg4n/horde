@@ -2,7 +2,7 @@
 // svagt rutnät med koordinater (A, B, C ... och 1, 2, 3 ... per 20 m) och en ram i spelets plåtstil.
 // Den visar den aktiva kartan, ingångarnas pilar, horden som röda prickar med ett svans som bleknar,
 // pingar (förvarnade hus, barrikader som håller på att gå sönder), pjäserna och barrikaderna som små
-// NATO-lika tecken, basen och kamerans ruta. Klick eller drag flyttar kameran. M slår av och på.
+// NATO-lika tecken, basen och kamerans ruta. Klick eller drag flyttar kameran. Tab slår av och på (0.13.0, var M).
 // Ritas med en billig 2D-canvas, ungefär 10 gånger i sekunden. Bara bild: läser simuleringen.
 import { OBSTACLES } from '../data/obstacles.js';
 
@@ -19,7 +19,7 @@ const C = {
 export function createMinimap(root, { onPan, visible = true } = {}) {
   const el = document.createElement('div');
   el.id = 'minimap'; el.className = 'plate';
-  el.innerHTML = '<canvas></canvas><div class="mm-k">M</div>';
+  el.innerHTML = '<canvas></canvas><div class="mm-k">Tab</div>';
   root.appendChild(el);
   const cv = el.querySelector('canvas');
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
@@ -97,10 +97,11 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
     g.strokeStyle = C.own; g.lineWidth = 1.2; g.fillStyle = 'rgba(20,40,60,0.85)';
     g.fillRect(x - w / 2, y - h / 2, w, h); g.strokeRect(x - w / 2, y - h / 2, w, h);
     g.beginPath();
-    if (kind === 'hv' || kind === 'ak5') { g.moveTo(x - w / 2, y - h / 2); g.lineTo(x + w / 2, y + h / 2); g.moveTo(x + w / 2, y - h / 2); g.lineTo(x - w / 2, y + h / 2); }
+    if (kind === 'hv' || kind === 'ak5' || kind === 'inf' || kind === 'civ') { g.moveTo(x - w / 2, y - h / 2); g.lineTo(x + w / 2, y + h / 2); g.moveTo(x + w / 2, y - h / 2); g.lineTo(x - w / 2, y + h / 2); }
     if (kind === 'psg90') { g.moveTo(x - 2.5, y + 1.5); g.lineTo(x, y - 1.8); g.lineTo(x + 2.5, y + 1.5); }
     g.stroke();
-    if (kind !== 'hv' && kind !== 'psg90') { g.fillStyle = C.own; g.beginPath(); g.arc(x, y, 1.3, 0, Math.PI * 2); g.fill(); }
+    if (kind === 'epa') { g.moveTo(x - w / 2 + 1.5, y); g.lineTo(x + w / 2 - 1.5, y); }
+    if (kind !== 'hv' && kind !== 'psg90' && kind !== 'inf' && kind !== 'civ') { g.fillStyle = C.own; g.beginPath(); g.arc(x, y, 1.3, 0, Math.PI * 2); g.fill(); }
     if (moving) { g.strokeStyle = 'rgba(217,164,65,0.9)'; g.setLineDash([2, 2]); g.strokeRect(x - w / 2 - 2, y - h / 2 - 2, w + 4, h + 4); g.setLineDash([]); }
   }
   function ping(x, y, t, col = C.ping) {
@@ -159,6 +160,9 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
     for (const t of trails.values()) { const [x, z] = t[t.length - 1]; g.fillRect(X(x) - 1.1, Z(z) - 1.1, 2.2, 2.2); }
     // pjäserna
     for (const gun of sim.guns) unit(X(gun.x), Z(gun.z), gun.weapon.type, !!gun.move);
+    // 0.13.0 (H105): de civila på väg till ishallen, små varma prickar
+    g.fillStyle = '#f2c46b';
+    for (const c of sim.civilians ?? []) if (c.state === 'walk') { g.beginPath(); g.arc(X(c.x), Z(c.z), 1.6, 0, Math.PI * 2); g.fill(); }
     // pingar: förvarnade hus som inte slagits upp, och larmen (hus som slogs upp, barrikad som går sönder)
     for (const d of sim.dayCfg.dormant ?? []) {
       if (d.intel === false || sim.burst.includes(d.house)) continue;

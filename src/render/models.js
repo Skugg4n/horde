@@ -312,6 +312,13 @@ function roofMarker(group) {
 // emplace (0.12.0, H098): { face, cover[8] } ur src/sim/emplace.js. Värnet vänds mot face (gruppens
 // lokala +x) och säckar läggs inte i riktningar där det redan står skydd. seed: rutan (samma bild).
 export function weaponModel(type, level = 1, { kit = false, roof = false, emplace = null, seed = null } = {}) {
+  if (type === 'epa') {
+    const R0 = seed == null ? seededR(7) : seededR(seed * 2654435761 + 3);
+    const m = epaModel(level, R0);
+    m.group.userData = { kind: 'weapon', type, level, kit, roof };
+    if (kit) grenadeCrate(m.group, -2.4, -0.6, 0.35);
+    return m;
+  }
   const K = KINDS[type] ?? KINDS.m249;
   const group = new THREE.Group();
   const pivot = new THREE.Group();
@@ -371,6 +378,93 @@ export function weaponModel(type, level = 1, { kit = false, roof = false, emplac
   if (kit) grenadeCrate(group, K.kit[0], K.kit[1], 0.35);
   group.userData = { kind: 'weapon', type, level, kit, roof };
   return { group, pivot, muzzle, gunner, bags };
+}
+
+// ---------- EPA-pillboxen (0.13.0, H135) ----------
+// En gammal A-traktor (en nedkortad bil) med svetsade plåtar i olika färger, rost, svetsfogar,
+// skottgluggar runt hytten och en Ksp 58 i takluckan med skytten upp till midjan. LGF-triangeln sitter
+// kvar bak. Origo mitt under bilen, fronten mot +x (pjäsens lokala riktning, som de andra). R: frö.
+function epaModel(level, R) {
+  const group = new THREE.Group(), body = new THREE.Group(), bags = new THREE.Group();
+  group.add(body, bags);
+  const plate = () => mat(P.epaBody[Math.floor(R() * P.epaBody.length)]);
+  const rust = mat(P.rust), weld = mat(P.weld), dark = mat(P.gunDark), metal = mat(P.gunMetal, METAL);
+  // chassi och hjul
+  body.add(box(3.9, 0.3, 1.5, dark, 0, 0.5, 0));
+  for (const [x, z, r] of [[1.25, 0.82, 0.36], [1.25, -0.82, 0.36], [-1.2, 0.82, 0.42], [-1.2, -0.82, 0.42]]) {
+    const w = mesh(geo('cylinder', r, r, 0.26, 10), mat(P.tire), x, r, z); w.rotation.x = Math.PI / 2; body.add(w);
+    const hub = mesh(geo('cylinder', r * 0.45, r * 0.45, 0.28, 6), metal, x, r, z); hub.rotation.x = Math.PI / 2; body.add(hub);
+  }
+  // nedre skrovet: plåtar sida vid sida, olika färger, lite förskjutna
+  for (let i = 0; i < 4; i++) for (const side of [-1, 1]) {
+    const x = -1.55 + i * 1.0 + (R() - 0.5) * 0.06;
+    body.add(box(0.98, 0.72 + (R() - 0.5) * 0.08, 0.06, plate(), x, 0.98, side * 0.86));
+  }
+  body.add(box(3.7, 0.08, 1.7, plate(), 0, 1.36, 0));                                   // skrovets tak
+  // motorhuven framåt, sluttande, och en plåt för grillen
+  const hood = box(1.3, 0.12, 1.6, plate(), 1.45, 1.45, 0); hood.rotation.z = -0.18; body.add(hood);
+  body.add(box(0.08, 0.72, 1.62, plate(), 2.0, 1.0, 0));
+  for (const z of [-0.3, 0, 0.3]) body.add(box(0.03, 0.06, 0.22, dark, 2.05, 1.12, z));  // gluggar i grillplåten
+  // hytten: plåtlåda med skottgluggar på alla sidor
+  const cab = new THREE.Group(); cab.position.set(-0.35, 1.4, 0); body.add(cab);
+  cab.add(box(1.9, 0.78, 1.62, plate(), 0, 0.39, 0));
+  cab.add(box(1.95, 0.07, 1.68, plate(), 0, 0.8, 0));
+  for (const [x, z, ry] of [[0.96, 0, 0], [-0.96, 0, 0], [0, 0.82, Math.PI / 2], [0, -0.82, Math.PI / 2], [0.5, 0.82, Math.PI / 2], [-0.5, -0.82, Math.PI / 2]]) {
+    const slit = box(0.04, 0.07, 0.42, dark, x, 0.5, z); slit.rotation.y = ry; cab.add(slit);
+  }
+  // svetsfogar och rost
+  for (let i = 0; i < 9; i++) { const f = sbox(0.03, 0.04, 0.5 + R() * 0.6, weld, -1.6 + R() * 3.2, 0.7 + R() * 0.9, (R() < 0.5 ? -1 : 1) * 0.89); f.rotation.x = (R() - 0.5) * 0.3; f.castShadow = false; body.add(f); }
+  for (let i = 0; i < 10; i++) { const r0 = sbox(0.12 + R() * 0.3, 0.08 + R() * 0.2, 0.012, rust, -1.7 + R() * 3.4, 0.7 + R() * 0.6, (R() < 0.5 ? -1 : 1) * 0.895); r0.castShadow = false; body.add(r0); }
+  // LGF-skylten bak: orange triangel med röd kant, spetsen uppåt
+  const tri = (r, m, x) => { const t = new THREE.Mesh(new THREE.CircleGeometry(r, 3), m); t.position.set(x, 1.2, 0); t.rotation.set(0, -Math.PI / 2, Math.PI / 2); body.add(t); };
+  tri(0.34, mat(P.lgfRim), -1.98); tri(0.26, mat(P.lgf), -1.99);
+  body.add(box(0.06, 0.9, 1.62, plate(), -1.92, 0.95, 0));
+  // takluckan och kulsprutan med skytten upp till midjan
+  const ring = mesh(geo('cylinder', 0.42, 0.42, 0.1, 10), metal, -0.35, 2.25, 0); body.add(ring);
+  const pivot = new THREE.Group(); pivot.position.set(-0.35, 2.55, 0);
+  const muzzle = new THREE.Object3D();
+  muzzle.position.set(ksp58Gun(pivot, metal), 0.03, 0);
+  pivot.add(muzzle);
+  gunShield(pivot, { x: 0.55, w: 0.9, h: 0.5, y: 0.08 });
+  const gunner = soldier();
+  gunner.root.rotation.y = Math.PI / 2; gunner.root.position.set(-0.55, -1.2, 0);
+  gunner.shL.rotation.set(-1.15, 0, 0.1); gunner.shR.rotation.set(-1.05, 0, -0.1); gunner.elL.rotation.x = -0.45; gunner.elR.rotation.x = -0.6;
+  pivot.add(gunner.root);
+  group.add(pivot);
+  // nivå 2: sandsäckar på motorhuven; nivå 3: extra plåt på sidorna och en ammolåda på taket
+  if (level >= 2) sandbagArc(bags, { r: 0.55, layers: 1, n: 5, arc: 0.9, size: 0.6, y0: 1.45 }, { R });
+  if (level >= 3) { for (const side of [-1, 1]) body.add(box(2.4, 0.5, 0.05, plate(), 0, 1.0, side * 0.93)); crate(body, -1.3, 1.4, 0.3, 0.2); }
+  return { group, pivot, muzzle, gunner, bags, body };
+}
+
+// ---------- laget på väg (0.13.0, H134) ----------
+// Laget som bär sin pjäs när den flyttas: man nummer ett bär vapnet över axeln, de andra lådorna.
+// Samma soldat som infanteriet (eller prickskytten med ghillie). Vyn sätter springposen (hvRun) och
+// flyttar männen längs vägen.
+export function crewCarryModel(type, n = 2, seed = 1) {
+  const K = KINDS[type] ?? KINDS.m249;
+  const men = [];
+  for (let i = 0; i < Math.max(1, n); i++) {
+    const m = hvSoldierModel(seed * 7 + i, 'inf');
+    m.rifle.visible = i > 0 && type !== 'psg90';
+    if (i === 0) {
+      // vapnet över höger axel, pipan framåt och lite uppåt
+      const carry = new THREE.Group();
+      K.gun(carry, mat(P.gunMetal, METAL));
+      carry.scale.setScalar(0.85);
+      carry.position.set(0.22, m.build.torsoH + 0.05, -0.15); carry.rotation.set(0, -Math.PI / 2, 0.25);
+      m.spine.add(carry);
+      if (type === 'psg90') ghillie(m);
+    } else {
+      const c = new THREE.Group(); crate(c, 0, 0, 0, 0); c.scale.setScalar(0.7);
+      c.position.set(-0.3, m.build.torsoH * 0.35, 0.05); c.rotation.set(0, Math.PI / 2, 0);
+      m.spine.add(c);
+    }
+    men.push(m);
+  }
+  const root = new THREE.Group();
+  for (const m of men) root.add(m.root);
+  return { root, men };
 }
 
 // ---------- hinder ----------
@@ -751,15 +845,52 @@ function ak4(metal) {
   g.add(muzzle);
   return { g, muzzle };
 }
-export function hvSoldierModel(seed = 1) {
+// 0.13.0: Ak 5C (infanteriet): svart, kort, rödpunktsikte och ett böjt magasin. Samma mått som Ak 4 så
+// att ställningarna håller.
+function ak5c(metal) {
+  const g = new THREE.Group(), blk = mat(P.ak5);
+  g.add(box(0.06, 0.1, 0.26, blk, 0, -0.01, 0.13));                        // kolv
+  g.add(box(0.065, 0.1, 0.34, metal, 0, 0.01, 0.43));                      // låda
+  const mag = box(0.05, 0.16, 0.07, blk, 0, -0.1, 0.5); mag.rotation.x = -0.25; g.add(mag);   // böjt magasin
+  g.add(box(0.04, 0.09, 0.04, blk, 0, -0.08, 0.33));                       // pistolgrepp
+  g.add(box(0.07, 0.08, 0.24, blk, 0, 0.0, 0.7));                          // handskydd med skenor
+  g.add(box(0.05, 0.06, 0.09, blk, 0, 0.09, 0.42));                        // rödpunktsikte
+  const barrel = mesh(geo('cylinder', 0.014, 0.016, 0.26, 5), metal, 0, 0.02, 0.93);
+  barrel.rotation.x = Math.PI / 2; g.add(barrel);
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.02, 1.08); muzzle.rotation.y = -Math.PI / 2;
+  g.add(muzzle);
+  return { g, muzzle };
+}
+// 0.13.0: de civilas vapen: jaktstudsare med kikarsikte, eller hagelbössa med dubbla pipor.
+function huntingGun(metal, shotgun) {
+  const g = new THREE.Group(), wood = mat(P.civWood);
+  g.add(box(0.06, 0.12, 0.34, wood, 0, -0.03, 0.15));                      // kolv
+  g.add(box(0.055, 0.07, 0.22, metal, 0, 0.01, 0.42));                     // låda
+  g.add(box(0.06, 0.06, 0.3, wood, 0, -0.01, 0.66));                       // framstock
+  if (shotgun) for (const x of [-0.015, 0.015]) { const b = mesh(geo('cylinder', 0.014, 0.014, 0.5, 5), metal, x, 0.025, 0.85); b.rotation.x = Math.PI / 2; g.add(b); }
+  else {
+    const b = mesh(geo('cylinder', 0.012, 0.014, 0.46, 5), metal, 0, 0.02, 0.86); b.rotation.x = Math.PI / 2; g.add(b);
+    const sc = mesh(geo('cylinder', 0.024, 0.024, 0.26, 6), mat(P.gunDark), 0, 0.085, 0.42); sc.rotation.x = Math.PI / 2; g.add(sc);
+  }
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.02, 1.1); muzzle.rotation.y = -Math.PI / 2;
+  g.add(muzzle);
+  return { g, muzzle };
+}
+// Soldaten i en grupp. kind: 'hv' (Hemvärnet: m/90, Ak 4 med trästock, ljust hjälmband), 'inf'
+// (infanteriet: m/90, skyddsväst med plattor, hjälm 18, knäskydd, svart Ak 5C) eller 'civ' (civila:
+// jaktjacka eller flanell, jeans, keps eller mössa, ibland orange jaktväst, jaktstudsare eller hagel).
+// Hemvärnet och infanteriet ska gå att skilja på håll: bandet och trästocken mot den mörka västen och
+// den svarta Ak 5:an. armed: false ger en civil utan vapen (de som evakueras).
+export function hvSoldierModel(seed = 1, kind = 'hv', { armed = true } = {}) {
   const r = seededRnd(seed + 11);
+  const civ = kind === 'civ', inf = kind === 'inf';
   const cam = P.m90.map(c => mat(c));
   const base = P.m90[0];
-  const s = humanoid({ skin: P.soldierSkin, shirt: base, pants: base, helmet: P.m90[0],
+  const pickC = arr => arr[Math.floor(r(0, arr.length - 0.001))];
+  const coat = civ ? pickC(P.civCoat) : base, pants = civ ? pickC(P.civPants) : base;
+  const s = humanoid({ skin: P.soldierSkin, shirt: coat, pants, helmet: civ ? null : inf ? P.infHelmet : P.m90[0],
     build: { chestW: 0.45, waistW: 0.37, shX: 0.26, armW: 0.115, foreW: 0.1, legW: 0.16, shinW: 0.13 } });
   const b = s.build;
-  // splittermönster: tunna vinklade lappar i de tre mörka färgerna på alla fyra sidor av bålen
-  // och på benens och armarnas utsidor. Bålen smalnar mot midjan, så lapparna följer ytan.
   const dark = () => cam[1 + Math.floor(r(0, 2.999))];
   const patch = (parent, x, y, z, ry, sx, sy) => {
     const m = sbox(sx, sy, 0.012, dark(), x, y, z);
@@ -767,11 +898,26 @@ export function hvSoldierModel(seed = 1) {
   };
   // Bålen som en rak låda (jackan), så att mönstret ligger på plana sidor.
   s.spine.remove(s.torso);
-  s.torso = box(b.chestW, b.torsoH, b.chestD, mat(base), 0, b.torsoH / 2, 0);
+  s.torso = box(b.chestW, b.torsoH, b.chestD, mat(coat), 0, b.torsoH / 2, 0);
   s.spine.add(s.torso);
   const tw = () => b.chestW / 2, td = () => b.chestD / 2;
-  // n lappar runt en lådformad del (halv bredd hw, halvt djup hd, från höjd y0 till y1), jämnt
-  // fördelade på de fyra sidorna. sz: lappens storlek i förhållande till delen.
+  const headTop = 0.07 + b.head * 0.72;
+  const metal = mat(P.gunMetal, METAL);
+  if (civ) {
+    // jaktväst i orange på ungefär var tredje, annars en flanellrand över bröstet
+    if (r(0, 1) < 0.35) s.spine.add(box(b.chestW + 0.04, b.torsoH * 0.7, b.chestD + 0.05, mat(P.civOrange), 0, b.torsoH * 0.55, 0));
+    else for (const y of [0.18, 0.34]) s.spine.add(sbox(b.chestW + 0.01, 0.035, b.chestD + 0.01, mat(P.civCoat[2]), 0, y, 0));
+    // keps (med skärm) eller stickad mössa
+    const cap = mat(pickC(P.civCap));
+    if (r(0, 1) < 0.55) { s.head.add(box(b.head * 0.8, b.head * 0.3, b.head * 0.92, cap, 0, headTop + 0.06, 0.03)); s.head.add(box(b.head * 0.7, 0.025, b.head * 0.45, cap, 0, headTop + 0.0, 0.03 + b.head * 0.55)); }
+    else { const k = mesh(geo('sphere', b.head * 0.56, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), cap, 0, headTop - 0.02, 0.03); k.scale.set(1, 1.05, 1.08); s.head.add(k); }
+    const gun = huntingGun(metal, r(0, 1) < 0.4);
+    if (!armed) gun.g.visible = false;
+    s.spine.add(gun.g);
+    return { ...s, rifle: gun.g, muzzle: gun.muzzle, seed, kind };
+  }
+  // splittermönster: tunna vinklade lappar i de tre mörka färgerna på alla fyra sidor av bålen
+  // och på benens och armarnas utsidor. Bålen smalnar mot midjan, så lapparna följer ytan.
   const wrap = (parent, hw, hd, y0, y1, n, sz = 1, cz = 0) => {
     for (let i = 0; i < n; i++) {
       const y = r(Math.min(y0, y1), Math.max(y0, y1)), side = i % 4, sx = r(0.5, 1) * sz, sy = r(0.45, 0.9) * sz;
@@ -784,7 +930,19 @@ export function hvSoldierModel(seed = 1) {
   for (const knee of [s.kneeL, s.kneeR]) wrap(knee, b.shinW / 2, b.shinW * 0.625, -0.06, -b.shin + 0.1, 6, 1.1, 0.015);
   for (const sh of [s.shL, s.shR]) wrap(sh, b.armW / 2, b.armW * 0.55, -0.04, -b.upper + 0.04, 6, 1.1);
   for (const el of [s.elL, s.elR]) wrap(el, b.foreW / 2, b.foreW * 0.525, -0.03, -b.fore + 0.04, 4, 1.1);
-  // stridssele: bälte med magasinsfickor och två axelremmar (uniformen syns runt dem)
+  if (inf) {
+    // skyddsväst med plattor fram och bak, magasinsfickor och radio; knäskydd; hjälm 18 med fäste fram
+    const vest = mat(P.infVest);
+    s.spine.add(box(b.chestW + 0.07, b.torsoH * 0.62, b.chestD + 0.1, vest, 0, b.torsoH * 0.6, 0));
+    for (const x of [-0.12, 0, 0.12]) s.spine.add(box(0.08, 0.12, 0.05, mat(P.infKit), x, b.torsoH * 0.42, b.chestD / 2 + 0.07));
+    s.spine.add(box(0.1, 0.18, 0.07, mat(P.infKit), 0.14, b.torsoH * 0.7, -b.chestD / 2 - 0.07));
+    for (const knee of [s.kneeL, s.kneeR]) knee.add(box(b.shinW + 0.03, 0.09, 0.05, mat(P.infKit), 0, -0.04, b.shinW * 0.65));
+    s.head.add(box(0.05, 0.05, 0.04, mat(P.infKit), 0, headTop + b.head * 0.3, 0.03 + b.head * 0.6));
+    const rifle = ak5c(metal);
+    s.spine.add(rifle.g);
+    return { ...s, rifle: rifle.g, muzzle: rifle.muzzle, seed, kind };
+  }
+  // Hemvärnet: stridssele med bälte, magasinsfickor och två axelremmar (uniformen syns runt dem)
   const belt = mat(P.hvVest);
   s.spine.add(box(b.chestW + 0.03, 0.09, b.chestD + 0.04, belt, 0, 0.06, 0));
   s.spine.add(box(0.26, 0.12, 0.07, mat(P.ammo), 0, 0.12, b.chestD / 2 + 0.05));
@@ -795,14 +953,13 @@ export function hvSoldierModel(seed = 1) {
   }
   // H094 (0.11.0): ett ljust band runt hjälmen, som lyser svagt (squad-view.js glow), så att gruppen
   // syns i skugga utan ringar som ritas ovanpå taken
-  const band = mesh(geo('cylinder', b.head * 0.64, b.head * 0.64, 0.04, 12, 1, true), mat(P.hvBand), 0, 0.07 + b.head * 0.72 + 0.03, 0.03);
+  const band = mesh(geo('cylinder', b.head * 0.64, b.head * 0.64, 0.04, 12, 1, true), mat(P.hvBand), 0, headTop + 0.03, 0.03);
   band.castShadow = false; s.head.add(band);
   // hjälmöverdraget: lappar ovanpå hjälmen
-  for (let i = 0; i < 4; i++) { const t = sbox(r(0.07, 0.11), 0.012, r(0.05, 0.09), cam[1 + (i % 3)], r(-0.06, 0.06), 0.07 + b.head * 0.72 + b.head * 0.62 * 0.85 - 0.012, 0.03 + r(-0.06, 0.06)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
-  const metal = mat(P.gunMetal, METAL);
+  for (let i = 0; i < 4; i++) { const t = sbox(r(0.07, 0.11), 0.012, r(0.05, 0.09), cam[1 + (i % 3)], r(-0.06, 0.06), headTop + b.head * 0.62 * 0.85 - 0.012, 0.03 + r(-0.06, 0.06)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
   const rifle = ak4(metal);
   s.spine.add(rifle.g);
-  return { ...s, rifle: rifle.g, muzzle: rifle.muzzle, seed };
+  return { ...s, rifle: rifle.g, muzzle: rifle.muzzle, seed, kind };
 }
 // Ställningar. stance: 'crouch' (på huk vid husknut eller bil, lutar sig ut), 'kneel' (på knä
 // bakom häck, staket eller säckar) eller 'prone' (ligger i diket eller på gräset). lean: -1..1

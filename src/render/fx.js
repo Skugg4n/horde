@@ -23,7 +23,7 @@ const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 // Färger på småbitar: blod, betong, damm.
 const BIT_COLORS = { blood: new THREE.Color(P.gib), concrete: new THREE.Color(P.concreteDark), dust: new THREE.Color(P.dust), smoke: new THREE.Color('#5d5a52'),
-  dirt: P.dirtSpeck.map(c => new THREE.Color(c)), soot: new THREE.Color('#4a453e') };
+  dirt: P.dirtSpeck.map(c => new THREE.Color(c)), soot: new THREE.Color('#4a453e'), spark: new THREE.Color('#ffe08a') };
 const FIRE_HOT = new THREE.Color('#ffd27a'), FIRE_MID = new THREE.Color(P.fireball), FIRE_END = new THREE.Color('#5a1e08'), BLACK = new THREE.Color(0, 0, 0);
 
 export function createFx(scene) {
@@ -121,6 +121,14 @@ export function createFx(scene) {
   function chips(x, y, z, n = 4) {
     for (let i = 0; i < n; i++) bit(x, y, z, BIT_COLORS.concrete, rnd(0.05, 0.12), 1.0, 18).v.set(rnd(0.5, 3), rnd(1.5, 4), rnd(-1.5, 1.5));
     const d = bit(x, y * 0.5, z, BIT_COLORS.dust, 0.25, 0.7, -0.5); d.v.set(rnd(0.2, 0.8), rnd(0.3, 0.8), rnd(-0.4, 0.4)); d.grow = 1.2;
+  }
+  // 0.13.0: svetsgnistor (pillboxen svetsas ihop) och rök från en skadad pillbox
+  function sparks(x, y, z, n = 3) {
+    for (let i = 0; i < n; i++) bit(x, y, z, BIT_COLORS.spark, rnd(0.03, 0.06), rnd(0.25, 0.5), 14).v.set(rnd(-2, 2), rnd(1, 3), rnd(-2, 2));
+  }
+  function smoke(x, y, z) {
+    const d = bit(x + rnd(-0.2, 0.2), y, z + rnd(-0.2, 0.2), BIT_COLORS.soot, rnd(0.18, 0.3), rnd(1.2, 1.8), -0.5);
+    d.v.set(rnd(-0.2, 0.2), rnd(0.6, 1.1), rnd(-0.2, 0.2)); d.grow = 1.4;
   }
   function puff(x, z, n = 7) {
     for (let i = 0; i < n; i++) {
@@ -332,5 +340,5 @@ export function createFx(scene) {
     flashOwner = new Map(); flashNext = 0;
   }
 
-  return { tracer, flash, muzzleSmoke, casing, gibs, chips, puff, splat, grenade, blast, update, clear };
+  return { tracer, flash, muzzleSmoke, casing, gibs, chips, puff, sparks, smoke, splat, grenade, blast, update, clear };
 }

@@ -11,7 +11,7 @@ import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
-import { shopItem } from './data/shop.js';
+import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
@@ -21,12 +21,13 @@ import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
 import { RESEARCH } from './data/research.js';
-import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave } from './sim/sim.js';
+import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND } from './sim/placement.js';
 import { pointAt } from './sim/path.js';
-import { weaponStats, upgradeCost, maxGuns, maxSquads } from './sim/stats.js';
+import { weaponStats, upgradeCost, maxGuns, maxSquads, inArsenal } from './sim/stats.js';
+import { crewPassable } from './sim/crew-path.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
@@ -140,7 +141,7 @@ const routeKeys = { now: null, preview: null };
 
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go({ stack: true }) });
 // ---------- minikartan (0.12.0, H100) ----------
-// M slår av och på; valet sparas i webbläsaren (bara en bekvämlighet, går det inte gäller "på").
+// Tab slår av och på (0.13.0, var M: M är nu Move); valet sparas i webbläsaren (bara en bekvämlighet).
 const MM_KEY = 'horde.minimap';
 let mmOn = true;
 try { mmOn = localStorage.getItem(MM_KEY) !== 'off'; } catch { /* ingen lagring */ }
@@ -182,7 +183,8 @@ function closePanel() {
 let placing = null;          // { type, kind: 'gun' | 'obstacle' } medan något är i handen
 let placedAt = -Infinity;    // när något senast ställdes ut och släpptes ur handen (H095)
 const JUST_PLACED_MS = 1200;
-const chord = createChord();
+// 0.13.0: snabbvalen räknas på dagens köprad (förrådet per sektor och dag)
+const chord = createChord({ menu: () => (sim ? dayMenu(id => inArsenal(id, sim.map, sim.dayCfg)) : BUY_MENU) });
 let spot = null;             // under pekaren: { key, x, z, ok, reason }
 const sightCache = new Map();  // 'typ:ruta' -> synliga rutor (för spöket; byggs om per dag)
 const pointer = { x: 0, y: 0 };
@@ -203,7 +205,8 @@ function startMove(id) {
   if (!g) return;
   closePanel();
   audio.ui('pick');
-  placing = { type: g.weapon.type, kind: 'gun', move: id };
+  // 0.13.0 (H136): Shift-klick lägger till waypoints (via), vanligt klick är slutpunkten
+  placing = { type: g.weapon.type, kind: 'gun', move: id, via: [] };
   spot = null; hovered = null;
 }
 function startPlacing(type) {
@@ -217,7 +220,7 @@ function startPlacing(type) {
   hovered = null;
 }
 function stopPlacing() {
-  placing = null; spot = null;
+  placing = null; spot = null; aim = null; if (rig) rig.panLock = false;
   ghostTip.hidden = true; ghostWhere.hidden = true;
   // H095: "On the road" och de andra skälen från placeringen ligger inte kvar när den är slut
   for (const n of uiRoot.querySelectorAll('.note.place')) n.remove();
@@ -240,7 +243,7 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   if (rt) key = rt.key;
   else if (x != null && !roofHit) key = snapGun(sim, x, z, placing?.type, { move: placing?.move }).key;
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
-  const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key) : checkSpot(sim, key, placing?.type);
+  const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key, placing.via ?? []) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
   return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
 }
@@ -250,7 +253,7 @@ function placeHere(p) {
   if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
   if (placing.move) {
-    const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null);
+    const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null, placing.via ?? []);
     if (!r.ok) { flashTip(reasonText(r.reason)); return; }
     stopPlacing(); placedAt = performance.now();
     return;
@@ -260,7 +263,7 @@ function placeHere(p) {
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
-  else spot = sp.ok ? spotFor(key) : sp;
+  else { spot = sp.ok ? spotFor(key) : sp; placing.userFacing = false; }
 }
 function sightOf(type, key, facing = null) {
   const k = type + ':' + key + ':' + (facing == null ? '' : facing.toFixed(3));
@@ -282,7 +285,95 @@ function turnAim(dir) {
   placing.facing = f + dir * AIM_STEP; placing.userFacing = true;
   return true;
 }
-addEventListener('wheel', e => { if (hasCone() && mode === 'play') { e.preventDefault(); e.stopImmediatePropagation(); turnAim(Math.sign(e.deltaY)); } }, { capture: true, passive: false });
+// 0.13.0 (H132): klicka och dra för att sikta (hjulet zoomar igen, Q och E vrider fortfarande i handen).
+// Ett vanligt klick ger riktningen mot hordens väg. Dragningen börjar på pekarens ruta, som står kvar
+// medan man drar; släppet ställer ut pjäsen (eller flytten, eller Rotate) med den riktningen.
+const AIM_DRAG_PX = 10;
+let aim = null, suppressClick = false;
+const groundRay = new Raycaster(), groundNdc = new Vector2(), groundHit = new Vector3();
+function groundAt(cx, cy) {
+  const r = renderer.domElement.getBoundingClientRect();
+  groundNdc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  groundRay.setFromCamera(groundNdc, camera);
+  return groundRay.ray.intersectPlane(mmPlane, groundHit) ? { x: groundHit.x, z: groundHit.z } : null;
+}
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || mode !== 'play') return;
+  if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
+  if (!hasCone() || !spot || spot.key < 0 || (placing.move && e.shiftKey)) return;
+  aim = { sp: spot, x: spot.x, z: spot.z, sx: e.clientX, sy: e.clientY, drag: false };
+  rig.panLock = true;
+}, true);
+addEventListener('pointermove', e => {
+  if (!aim) return;
+  if (!aim.drag && Math.hypot(e.clientX - aim.sx, e.clientY - aim.sy) < AIM_DRAG_PX) return;
+  aim.drag = true;
+  if (aim.rotate || !placing) return;
+  const g = groundAt(e.clientX, e.clientY);
+  if (g && Math.hypot(g.x - aim.x, g.z - aim.z) > 0.5) { placing.facing = Math.atan2(g.z - aim.z, g.x - aim.x); placing.userFacing = true; }
+});
+addEventListener('pointerup', () => {
+  if (!aim) return;
+  const a = aim; aim = null; rig.panLock = false;
+  if (!a.drag) return;            // ett vanligt klick: plockaren sköter det
+  suppressClick = true;
+  if (a.rotate) { commitRotate(); return; }
+  if (placing) { spot = a.sp; placeHere(a.sp.key); }
+});
+const takeSuppress = () => { const s0 = suppressClick; suppressClick = false; return s0; };
+
+// ---------- Rotate (0.13.0, H132) ----------
+// R eller panelens Rotate: skjutvinkeln följer pekaren runt pjäsen; klick (eller dra och släpp) vrider
+// den dit. Pjäsen vrids i sin egen fart och skjuter inte under tiden. Esc eller högerklick avbryter.
+let rotating = null;           // { id, facing }
+function startRotate(id) {
+  const c = checkRotate(sim, id);
+  if (!c.ok) { flashTip(reasonText(c.reason)); audio.ui('deny'); return; }
+  const g = sim.guns.find(x => x.id === id);
+  closePanel(); stopPlacing();
+  rotating = { id, facing: g.facing ?? 0 };
+  audio.ui('pick');
+}
+function updateRotate() {
+  if (!rotating) return null;
+  const g = sim.guns.find(x => x.id === rotating.id);
+  if (!g || mode !== 'play' || !canPlaceNow()) { rotating = null; return null; }
+  const p = groundAt(pointer.x, pointer.y);
+  if (p && Math.hypot(p.x - g.x, p.z - g.z) > 0.8) rotating.facing = Math.atan2(p.z - g.z, p.x - g.x);
+  return { x: g.x, y: g.y ?? 0, z: g.z, facing: rotating.facing, cone: WEAPONS[g.weapon.type].cone, r: weaponStats(g.weapon.type, g.weapon.level, sim.research).range, ok: true };
+}
+function commitRotate() {
+  if (!rotating) return;
+  const { id, facing } = rotating;
+  rotating = null;
+  const r = actions.rotate(id, facing);
+  if (!r.ok) flashTip(reasonText(r.reason));
+}
+function guideMove(id) {
+  const g = sim.guns.find(x => x.id === id);
+  if (!g) return;
+  if (!canMoveType(g.weapon.type)) { flashTip(reasonText('fast')); audio.ui('deny'); return; }
+  startMove(id);
+}
+// Flyttens väg i handen (H136): från pjäsen genom waypoints till rutan under pekaren.
+const routeCache = { key: '', route: null };
+function moveRoute() {
+  if (!placing?.move || !spot || spot.key < 0) return null;
+  const g = sim.guns.find(x => x.id === placing.move);
+  if (!g) return null;
+  const via = placing.via ?? [];
+  const k = `${g.id}|${g.cell}|${via.join(',')}|${spot.key}`;
+  if (routeCache.key !== k) { routeCache.key = k; routeCache.route = crewPathTo(sim, { x: g.x, z: g.z }, spot.key, via); }
+  const r = routeCache.route, viaPts = via.map(q => { const c = sim.place.center(q); return [c.x, c.z]; });
+  if (!r) return { pts: [[g.x, g.z], ...viaPts, [spot.x, spot.z]], ok: false, via: viaPts };
+  return { pts: r.pts, ok: !!spot.ok, via: viaPts };
+}
+function addWaypoint(p) {
+  const k = sim.place.keyAt(p.x, p.z);
+  if (k < 0 || !crewPassable(sim.place, k)) { flashTip(reasonText('ingen väg')); audio.ui('deny'); return; }
+  placing.via.push(k);
+  audio.ui('click');
+}
 // Hindrets rutor och vridning (som view.js ställer hindren): spöket i handen.
 function obstacleCells(key, type) {
   const grid = sim.route.kind === 'grid';
@@ -370,7 +461,7 @@ function updateGhostTip() {
 renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
 renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; ghostWhere.hidden = true; spot = null; });
-renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
+renderer.domElement.addEventListener('contextmenu', e => { if (placing || rotating) { e.preventDefault(); stopPlacing(); rotating = null; } });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet,
 // och låter: ett klick när den gick igenom, en nekande ton när den inte gjorde det.
 const withCash = (sound, fn) => (...args) => {
@@ -386,8 +477,10 @@ const actions = {
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
   reinforce: withCash('click', id => reinforce(sim, id)),
-  move: withCash('place', (id, key, facing) => moveGun(sim, id, key, { facing })),
-  startMove: id => startMove(id),
+  move: withCash('place', (id, key, facing, via = []) => moveGun(sim, id, key, { facing, via })),
+  startMove: id => guideMove(id),
+  rotate: withCash('click', (id, facing) => rotateGun(sim, id, facing)),
+  startRotate: id => startRotate(id),
   squadRoom: id => squadRoom(sim, id),
   pick: type => { chord.reset(); startPlacing(type); },
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
@@ -432,7 +525,7 @@ function buildingUnder(ray) {
 }
 // Med något i handen svarar bara marken (rutan under pekaren). Annars pjäserna och hindren som
 // står ute; en tom gata öppnar ingenting (köp sker från köpraden).
-const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z, ray) => {
+const picker = createPicker(() => camera, renderer.domElement, () => (placing || rotating ? [] : view.rayTargets()), (x, z, ray) => {
   if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i, x, z }; }
   if (placing) {
     // 0.12.1: en byggnad under pekaren ger byggnadens utsiktspunkt (snapRoof), inte marken bakom
@@ -446,15 +539,19 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ? 
   }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
-}, { ignoreClick: () => rig.takeDrag() });
+}, { ignoreClick: () => rig.takeDrag() || takeSuppress() });
 picker.onPick(p => {
   if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
+  if (rotating) { commitRotate(); return; }
+  // 0.13.0 (H136): Shift-klick lägger en waypoint på flyttens väg
+  if (placing?.move && shiftHeld && p?.kind === 'spot') { addWaypoint(p); return; }
   if (placing) { if (p?.kind === 'spot') placeHere(p); return; }
   if (p) open(p); else closePanel();
 });
 picker.onHover(p => {
   hovered = mode === 'play' ? p : null;
-  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : null;
+  // medan spelaren drar för att sikta står spöket kvar på sin ruta
+  if (placing && !aim?.drag) spot = p?.kind === 'spot' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : null;
 });
 const bar = buildBar(uiRoot, actions);
 // 0.12.0 (H116): en öppen kategori i köpraden stängs av Esc eller ett klick utanför köpraden.
@@ -474,6 +571,24 @@ const pipEls = new Map();
 // 0.12.0 (H118, speltestet av 0.11.0: $ 1 180 kvar som inte gick att använda): när alla platser är
 // tagna och kassan räcker till en uppgradering säger spelet det en gång per dag.
 let spareTold = false;
+let civToldAt = -Infinity, builtTold = false;
+// 0.13.0 (H105): uppdraget med de civila uppe i mitten: hur många som är framme och hur många som behövs.
+const evacEl = document.createElement('div');
+evacEl.id = 'evac'; evacEl.className = 'plate'; evacEl.hidden = true;
+evacEl.innerHTML = '<div class="t"></div><div class="n"></div>';
+uiRoot.appendChild(evacEl);
+let evacKey = '';
+function updateEvac() {
+  const ev = mode === 'play' ? sim.evac : null;
+  evacEl.hidden = !ev;
+  if (!ev) return;
+  const k = `${ev.safe}|${ev.lost}|${ev.out}`;
+  if (k === evacKey) return;
+  evacKey = k;
+  evacEl.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the civilians reach the ice rink.';
+  const left = ev.total - ev.safe - ev.lost;
+  evacEl.querySelector('.n').innerHTML = `<b>${ev.safe}</b> of ${ev.need} safe · ${left} on the way${ev.lost ? ` · <span class="lost">${ev.lost} lost (max ${ev.total - ev.need})</span>` : ''}`;
+}
 function updateSpare() {
   if (mode !== 'play' || spareTold || sim.phase !== 'wave' || gunCount(sim) < sim.maxGuns) return;
   const cheapest = Math.min(...sim.guns.map(g => upgradeCost(g.weapon.type, g.weapon.level) ?? Infinity));
@@ -584,6 +699,13 @@ function handleEvents() {
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
     else if (ev.t === 'obstacleBroken' && ev.type === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
+    // 0.13.0: de civila, pillboxen och lagen på väg
+    else if (ev.t === 'civilianDown') { if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } alerts.push({ x: ev.x, z: ev.z, until: time + 5, kind: 'house' }); }
+    else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first family is inside the ice rink.');
+    else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
+    else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
+    else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
+    else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
     else if (ev.t === 'dormantBurst') { alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); if (!ev.intel) note(uiRoot, 'Infected breaking out of a house!', 'warn'); }
     else if (ev.t === 'kill' && ev.bounty) {
       tmpV.set(ev.x, 2, ev.z).project(camera);
@@ -843,12 +965,12 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
     e.preventDefault();
-    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel, selected: !!selected, repeat: e.repeat,
+    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
       category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS });
     if (what === 'close-category') chord.escape();
     else if (what === 'menu-back') menu.back();
     else if (what === 'close-research') sheetAction('close');
-    else if (what === 'cancel-placing') stopPlacing();
+    else if (what === 'cancel-placing') { stopPlacing(); rotating = null; }
     else if (what === 'close-panel') { closePanel(); hovered = null; }
     else if (what === 'open-menu') menu.show();
     return;
@@ -879,13 +1001,23 @@ addEventListener('keydown', e => {
       flashTip(r.ok ? `${WEAPONS[g.weapon.type].short ?? WEAPONS[g.weapon.type].name} level ${g.weapon.level}` : reasonText(r.reason));
     }
   }
-  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') {
-    minimap.toggle();
-    try { localStorage.setItem(MM_KEY, minimap.visible ? 'on' : 'off'); } catch { /* ingen lagring */ }
+  // 0.13.0 (H136, H132): Tab minikartan (var M), M flyttar, R vrider, V visar hordens väg (var R).
+  if (e.code === 'Tab' && mode === 'play' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    if (!e.repeat) { minimap.toggle(); try { localStorage.setItem(MM_KEY, minimap.visible ? 'on' : 'off'); } catch { /* ingen lagring */ } }
   }
-  if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
+  const unitId = () => (hovered?.kind === 'gun' ? hovered.id : selected?.kind === 'gun' ? selected.id : null);
+  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow()) {
+    const id = unitId();
+    if (id != null) guideMove(id);
+  }
+  if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing) {
+    const id = unitId();
+    if (id != null) startRotate(id);
+  }
+  if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
     showRoute = !showRoute;
-    note(uiRoot, showRoute ? 'Horde route shown (R)' : 'Horde route hidden (R)');
+    note(uiRoot, showRoute ? 'Horde route shown (V)' : 'Horde route hidden (V)');
     hud.routeKey(true, showRoute);
   }
 }, true);
@@ -937,7 +1069,7 @@ function startDay(n) {
   if (!cfg) { showMenu(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false;
+  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false;
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
@@ -990,7 +1122,7 @@ function finishDay() {
   progress = dayResult(progress, { day, won, intelEarned: sim.intelEarned, mapId: map.id });
   save();
   lastResult = {
-    won, day, intelEarned: sim.intelEarned, lesson: sim.lesson ?? 0, kills: sim.kills,
+    won, day, intelEarned: sim.intelEarned, lesson: sim.lesson ?? 0, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac } : null,
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length,
     lastDay: day >= map.days.length,
     cashLeft: won ? Math.round(sim.cash) : 0,
@@ -1047,7 +1179,7 @@ function screenRect(object) {
 }
 function hudRects() {
   const out = [];
-  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)']) {
+  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)', '#evac']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();
@@ -1093,7 +1225,7 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open,
@@ -1213,7 +1345,7 @@ function tick(now) {
   const paused = menu.isOpen();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
-  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : buyState(sim, placing.type).state === 'locked'))) stopPlacing();
+  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateHint();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
@@ -1234,9 +1366,12 @@ function tick(now) {
   const tiles = updateRoutes();
   routeLines.update(vdt);
   const pu = placementUi();
-  view.setUi({ selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
-    range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
-    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, sector: pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null });
+  const rot = updateRotate();
+  updateEvac();
+  view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
+    range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
+    ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,
+    route: moveRoute() });
   view.setZoom(rig.view);
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });

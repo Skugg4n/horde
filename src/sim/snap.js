@@ -23,7 +23,7 @@ function near(g, x, z, r) {
 // för rutan under pekaren när ingen ruta i närheten går.
 export function snapGun(sim, x, z, type, { move = null } = {}) {
   const p = sim.place, under = p.keyAt(x, z);
-  const check = k => (move ? checkMove(sim, move, k) : checkSpot(sim, k, type));
+  const check = k => (move ? checkMove(sim, move, k, [], { path: false }) : checkSpot(sim, k, type));
   const first = under >= 0 ? check(under) : { ok: false, reason: 'utanför' };
   if (first.ok || ['fel läge', 'fullt', 'pengar', 'flyttar'].includes(first.reason)) return { key: under, ...first };
   for (const k of near(p, x, z, SNAP)) {
@@ -86,7 +86,7 @@ export function buildingAt(p, key) {
 export function snapRoof(sim, hit, x, z, type, { move = null } = {}) {
   const p = sim.place, bid = buildingAt(p, hit);
   if (!bid) return null;
-  const check = k => (move ? checkMove(sim, move, k) : checkSpot(sim, k, type));
+  const check = k => (move ? checkMove(sim, move, k, [], { path: false }) : checkSpot(sim, k, type));
   const cells = perchCellsOf(p, bid).map(k => { const c = p.center(k); return { k, d: Math.hypot(c.x - x, c.z - z) }; })
     .sort((a, b) => a.d - b.d || a.k - b.k);
   for (const { k } of cells) {

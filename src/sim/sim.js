@@ -689,7 +689,8 @@ export function gunPos(g) {
 export const crewPathTo = (sim, from, key, via = []) => crewRoute(sim.place, from, key, via);
 // Kan pjäsen id flyttas till rutan key just nu (genom via)? Samma skäl som checkSpot, plus 'flyttar',
 // 'fast' (Ksp 88), 'bygger' (pillboxen svetsas ihop) och 'ingen väg'.
-export function checkMove(sim, id, key, via = []) {
+// opts.path: false hoppar över vägsökningen (snäppningen provar många rutor; vägen provas en gång sist).
+export function checkMove(sim, id, key, via = [], { path = true } = {}) {
   const g = gunOf(sim, id);
   if (!g) return { ok: false, reason: 'tom' };
   if (!canMoveType(g.weapon.type)) return { ok: false, reason: 'fast' };
@@ -698,7 +699,7 @@ export function checkMove(sim, id, key, via = []) {
   if (key === g.cell) return { ok: false, reason: 'samma' };
   const c = checkSpot(sim, key, g.weapon.type, { ignore: id });
   if (!c.ok) return c;
-  if (!crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
+  if (path && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
   return c;
 }
 // Gruppens nya rutor om den flyttas till key (spöket i handen).

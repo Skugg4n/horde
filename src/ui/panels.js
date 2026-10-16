@@ -49,6 +49,12 @@ const REASONS = {
   // Flytta (0.12.0)
   'flyttar': 'Already on the move',
   'samma': 'Already here',
+  // 0.13.0
+  'ej här': 'Not available in this sector today',
+  'fast': "Mounted, can't move",
+  'bygger': 'Still being welded',
+  'ingen väg': 'No way there on foot',
+  'flexibel': 'Turns by itself, no arc to rotate',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -220,14 +226,14 @@ export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '');
+  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
     if (g.squad) { renderSquad(s, g); return; }
     const w = g.weapon, def = WEAPONS[w.type];
     const gs = grenadeStats(s.research);
-    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}</div>`;
+    ui.head.innerHTML = `<div class="t">${def.name}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}${def.cone ? ` · ${def.cone}° arc` : ''}</div>`;
     // Granatlådan: en rad till när Grenades är forskat. Med låda står det vad den gör i stället.
     const kitRow = !gs ? '' : w.kit
       ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute, where it can see.</p>`
@@ -235,9 +241,10 @@ export function gunPanel(root, gunId, sim, actions) {
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
         <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>
-        <button type="button" class="act" data-a="move" title="Pack up, carry and set up somewhere else. No fire while moving."><span class="a">Move</span><span class="p">${moveText(w.type)}</span></button>
+        ${canMoveType(w.type) ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : ''}
+        ${def.cone ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : ''}
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
-      </div>${movingRow(g)}${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
+      </div>${def.mounted ? `<p class="info mounted">Mounted, can't move. Sell it to free the spot.</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const kit = ui.body.querySelector('[data-a="kit"]');
     const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
@@ -249,11 +256,12 @@ export function gunPanel(root, gunId, sim, actions) {
       kit.addEventListener('mouseenter', () => { const gg = gunOf(cur); if (gg && gs) showRange(gg, gs.range); });
       kit.addEventListener('mouseleave', own);
     }
-    ui.body.querySelector('[data-a="move"]').addEventListener('click', () => {
+    ui.body.querySelector('[data-a="move"]')?.addEventListener('click', () => {
       const gg = gunOf(cur);
       if (gg?.move) { ui.say(reasonText('flyttar')); return; }
       actions.startMove(gunId);
     });
+    ui.body.querySelector('[data-a="rotate"]')?.addEventListener('click', () => actions.startRotate?.(gunId));
     up.addEventListener('click', () => {
       const r = actions.upgrade(gunId);
       if (!r.ok) ui.say(reasonText(r.reason));
@@ -281,11 +289,12 @@ export function gunPanel(root, gunId, sim, actions) {
     const men = g.soldiers.map(m => `<li class="${m.down ? 'down' : ''}">${m.down ? 'Down' : `${COVER[m.cover].name}, ${STANCE[m.stance]}`}</li>`).join('');
     const standing = g.soldiers.filter(m => !m.down).length;
     ui.head.innerHTML = `<div class="t">${WEAPONS[w.type].name}</div><div class="sub">Squad · Level ${w.level} of ${MAX_LEVEL} · ${standing} of ${g.soldiers.length} standing</div>`;
-    ui.body.innerHTML = `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Ak 4 <b>×${g.soldiers.length}</b></span></div>
+    const gunName = { hv: 'Ak 4', inf: 'Ak 5', civ: 'Rifles' }[w.type] ?? 'Rifles';
+    ui.body.innerHTML = `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>
       <ul class="men">${men}</ul>
       <div class="acts">
         <button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>
-        <button type="button" class="act" data-a="move" title="The squad runs to a new spot. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span></button>
+        <button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
       </div>${standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
@@ -302,6 +311,8 @@ export function gunPanel(root, gunId, sim, actions) {
 
   function patch(s, g) {
     const w = g.weapon;
+    const arm = ui.body.querySelector('[data-armour]');
+    if (arm) { const t = g.building > 0 ? `Welding · ${Math.ceil(g.building)} s · not firing` : `Armour ${Math.max(0, Math.round(g.hp))} of ${g.maxHp}`; if (arm.textContent !== t) arm.textContent = t; arm.classList.toggle('low', g.hp < g.maxHp * 0.35); }
     const rf = ui.body.querySelector('[data-a="reinforce"]');
     if (rf) {
       const cost = g.soldiers.filter(m => m.down).length * SQUAD.reinforce, poor = s.cash < cost;
@@ -408,7 +419,8 @@ function movingRow(g) {
   const ph = movePhase(g);
   if (!ph) return '';
   const left = Math.max(0, Math.ceil(g.move.total - g.move.t));
-  return `<p class="info moving">${{ pack: 'Packing up', carry: 'On the move', setup: 'Setting up' }[ph]} · ${left} s · not firing</p>`;
+  const crew = g.move.crewMax ? ` · team ${Math.max(0, Math.round(g.move.crewHp / g.move.crewMax * 100))} %` : '';
+  return `<p class="info moving">${{ pack: 'Packing up', carry: 'On the move', setup: 'Setting up' }[ph]} · ${left} s · not firing${crew}</p>`;
 }
 // 0.12.0 (H101): förvarningen om vilande smittade i husen (en rad per gata; överraskningen syns inte).
 export function intelLine(dayCfg) {
@@ -418,7 +430,7 @@ export function intelLine(dayCfg) {
 export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
-    <p class="lead">${dayCfg.intro.text}</p>${intelLine(dayCfg)}
+    <p class="lead">${dayCfg.intro.text}</p>${dayCfg.objective ? `<p class="lead strong objective">${dayCfg.objective}</p>` : ''}${intelLine(dayCfg)}
     <p class="note-line">New day: you start with ${money(cash)} and no guns out. Research carries over.</p>
     <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
@@ -429,8 +441,10 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 // cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
 // outro (0.11.0): sektorns slut, { text, nextName } när sista dagen är vunnen; nextName leder
 // direkt till nästa sektors dag 1 (onNextMap).
-export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, outro = null }, { onRetry, onNext, onNextMap, onResearch, onMenu }) {
-  const head = won ? `Day ${day} cleared.` : 'The base fell.';
+export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, outro = null, lostBy = null, evac = null }, { onRetry, onNext, onNextMap, onResearch, onMenu }) {
+  // 0.13.0 (H105): evakueringen avgör dagen; säg det på skylten
+  const head = won ? `Day ${day} cleared.` : lostBy === 'civilians' ? 'Too many civilians fell.' : 'The base fell.';
+  const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians reached the ice rink${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   // 0.10.1: överlevarnas lärdom fyller på en förlust så att den räcker till en nivå i forskningen
   const lead = won ? `You earned ${intelEarned} research points.`
     // 0.12.1 (speltestet): "You keep 141" stod kvar efter att poängen spenderats. Raden säger vad
@@ -444,6 +458,7 @@ export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel,
     : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span></button>`;
   const p = plate(root, 'result' + (won ? ' won' : ' lost'), `
     <div class="h">${head}</div>
+    ${evacLine}
     <p class="lead">${lead}</p>
     ${done}
     ${won && !lastDay && cashLeft > 0 ? `<p class="note-line">Left in the cash box: ${money(cashLeft)}. It does not carry over.</p>` : ''}

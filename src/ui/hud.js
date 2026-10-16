@@ -297,7 +297,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // fartknappen, bara på stadsbanorna.
   const routeKeyEl = document.createElement('div');
   routeKeyEl.id = 'routekey'; routeKeyEl.className = 'plate'; routeKeyEl.hidden = true;
-  routeKeyEl.innerHTML = '<kbd>R</kbd><span>Horde route</span><b></b>';
+  // 0.13.0: V (view routes); R vrider nu en pjäs (Rotate)
+  routeKeyEl.innerHTML = '<kbd>V</kbd><span>Horde route</span><b></b>';
   root.appendChild(routeKeyEl);
   function routeKey(show, on) {
     routeKeyEl.hidden = !show;

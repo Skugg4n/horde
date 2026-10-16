@@ -12,6 +12,7 @@ import { hvSoldierModel, hvPose, hvRun, hvDown } from './models.js';
 import { PALETTE } from './kit.js';
 import { KIND } from '../sim/placement.js';
 import { runTime } from '../sim/squad.js';
+import { soldierAt } from '../sim/sim.js';
 
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 // 0.12.2 (speltestet: "de ligger och snurrar på marken"): den liggande vrider sig runt höften, högst
@@ -63,7 +64,9 @@ export function createSquadView(scene) {
     return lx > 0.01 ? -1 : lx < -0.01 ? 1 : 0;
   }
   function addMan(g, s) {
-    const parts = hvSoldierModel(hashId(g.id) * 7 + s.i);
+    // 0.13.0: infanteriet och de civila har sina egna modeller (models.js hvSoldierModel)
+    const kind = g.weapon.type === 'inf' ? 'inf' : g.weapon.type === 'civ' ? 'civ' : 'hv';
+    const parts = hvSoldierModel(hashId(g.id) * 7 + s.i, kind);
     horde.attach(parts);
     const ry = Math.atan2(Math.cos(s.face), Math.sin(s.face));
     const seed = hashId(g.id) * 7 + s.i;
@@ -88,7 +91,7 @@ export function createSquadView(scene) {
         if (e.wasDown && !s.down) { e.down = 0; e.x = g.x; e.z = g.z; e.run = { t: 0, dur: runTime(Math.hypot(s.x - g.x, s.z - g.z)) }; }
         e.wasDown = s.down;
         // 0.12.0 (H102): gruppen flyttas; varje soldat springer från där han står till sin nya plats
-        if ((s.mv ?? 0) !== (e.mv ?? 0)) { e.mv = s.mv; if (!s.down) e.run = { t: 0, dur: s.runTotal ?? s.run, x0: e.x, z0: e.z }; }
+        if ((s.mv ?? 0) !== (e.mv ?? 0)) { e.mv = s.mv; if (!s.down && !s.path) e.run = { t: 0, dur: s.runTotal ?? s.run, x0: e.x, z0: e.z }; }
         const parts = e.parts;
         if (s.down) {
           e.run = null;
@@ -96,6 +99,15 @@ export function createSquadView(scene) {
           if (e.down === 0) { e.x = s.x; e.z = s.z; }
           e.down = Math.min(1, e.down + dt / DOWN_TIME);
           hvDown(parts, e.down * e.down);
+        } else if (s.path) {
+          // 0.13.0 (H134): på väg längs sin väg (simuleringen flyttar honom), i springposen med vapnet
+          e.run = null;
+          const p = soldierAt(s), px = e.x, pz = e.z;
+          e.x = p.x; e.z = p.z;
+          const mv = Math.hypot(e.x - px, e.z - pz);
+          if (mv > 1e-4) e.ry += angleDiff(e.ry, Math.atan2(e.x - px, e.z - pz)) * Math.min(1, dt * 14);
+          e.phase += mv * 2.4;
+          hvRun(parts, e.phase);
         } else if (e.run) {
           const r = e.run;
           r.t += dt;

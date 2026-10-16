@@ -19,6 +19,15 @@ export const PALETTE = {
   // Hemvärnet (0.9.0): m/90-kamouflage, splittermönster i ljusgrönt, mörkgrönt, brunt och svart
   // (avmättat som resten), stridsväst och Ak 4 med trästock.
   m90: ['#7a8655', '#3b4a2c', '#5c4630', '#1f211b'], hvVest: '#4a5236', hvWood: '#5a4128',
+  // 0.13.0 (H130): infanteriet. Samma m/90 men skarpare, en mörk skyddsväst med plattor och fickor,
+  // hjälm 18 (rundare, med fäste fram), knäskydd och en svart Ak 5C med rödpunktsikte.
+  infVest: '#2f3527', infHelmet: '#3e4632', infKit: '#262a22', ak5: '#1b1c1a',
+  // 0.13.0 (H105): de civila. Jaktjackor, flanell, jeans och orange jaktväst; kepsar och mössor.
+  civCoat: ['#4f5a3a', '#6b4a32', '#7a2f28', '#3c4652', '#5c5a4a'], civPants: ['#38465a', '#4a4338', '#2f3238', '#55503f'],
+  civOrange: '#d0612a', civCap: ['#3a3f2c', '#7a2a24', '#2a3140', '#c25a26'], civWood: '#6b4a2c',
+  // 0.13.0 (H135): EPA-pillboxen. Gammal traktorbil i olika plåtar (grön, rödbrun, grå primer, blå),
+  // rost, svetsfogar, LGF-triangeln bak.
+  epaBody: ['#54613f', '#7a3b2b', '#6f6f66', '#3e4f5c', '#8a7a52'], rust: '#6e3b1f', weld: '#9a8f78', lgf: '#d0542a', lgfRim: '#8e1f17',
   // hinder
   wireSteel: '#3c3a36', post: '#4a3a2a', concrete: '#a59f90', concreteDark: '#6f695d', grime: '#7d7768', crack: '#3a3630',
   // zombier

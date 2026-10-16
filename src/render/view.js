@@ -5,13 +5,16 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
+import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { CELL_LEN, movePhase, MOVE_PACK, MOVE_CARRY } from '../sim/sim.js';
+import { CELL_LEN, movePhase, gunPos } from '../sim/sim.js';
+import { WEAPONS } from '../data/weapons.js';
+import { alongPath as alongPathAt } from '../sim/crew-path.js';
 import { createSquadView } from './squad-view.js';
 import { squadGhost, setSquadGhost } from './models.js';
 import { SQUAD, isSquad } from '../sim/squad.js';
 import { createDormant } from './dormant.js';
+import { createCivilians } from './civilians.js';
 
 const FALL_TIME = 0.3;
 const OLD_VARN = typeof location !== 'undefined' && new URLSearchParams(location.search).has('oldvarn');
@@ -41,6 +44,7 @@ const SHOT_LOOK = {
   m249: { tracer: 'light', flash: 'light', kick: 0.05, rise: 0.025, back: 22, rattle: 0.012, smoke: false },
   ksp58: { tracer: 'light', flash: 'light', kick: 0.09, rise: 0.05, back: 16, rattle: 0.01, smoke: false },
   ak5: { tracer: 'light', flash: 'light', kick: 0.06, rise: 0.06, back: 18, rattle: 0, smoke: false },
+  epa: { tracer: 'light', flash: 'light', kick: 0.06, rise: 0.04, back: 16, rattle: 0.008, smoke: false },
   psg90: { tracer: 'heavy', flash: 'heavy', kick: 0.12, rise: 0.18, back: 5, rattle: 0, smoke: true },
 };
 
@@ -57,6 +61,8 @@ export function createView(scene, initialSim) {
   const squadView = createSquadView(scene);
   // 0.12.0 (H101): vilande smittade i husen (röd ton, dörren som slås upp)
   const dormant = createDormant(scene, fx);
+  // 0.13.0 (H105): de civila på väg till ishallen
+  const civilians = createCivilians(scene);
   const zombies = new Map();      // id → { z: modelldelar, x, z, phase, fall, ry }
   let corpses = [];               // id på liggande kroppar, äldst först
   const slots = new Map();        // pjäsens id → { key, group, model, angle }
@@ -178,7 +184,8 @@ export function createView(scene, initialSim) {
   // ---------- utställda vapen ----------
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
-  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : ''); }
+  // 0.13.0: värnet byggs om när Rotate vänt det (emplace.face)
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : '') + (s.emplace ? ':' + s.emplace.face.toFixed(2) : ''); }
   // Modellen byggs om när vapnet ändras, och efter en flytt när pjäsen ställs upp på den nya platsen
   // (medan den packas och bärs är det den gamla platsens värn).
   function wantKey(s, e) {
@@ -209,8 +216,10 @@ export function createView(scene, initialSim) {
     const emp = OLD_VARN ? null : s.emplace ?? null;
     const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof, emplace: emp, seed: s.cell });
     // 0.12.0 (H098): värnet vänt mot hordens väg (face) och tryckt mot skyddet (nestle)
-    const face = emp?.face ?? 0, nest = emp?.nestle ?? [0, 0];
-    const e = { key: wantKey(s, old), cellKey: s.cell, group: model.group, model, face, nest, angle: old?.angle ?? s.facing ?? s.emplace?.face ?? s.weapon.angle };
+    // 0.13.0 (H135): pillboxen vänds mot skjutvinkeln (facing); kulsprutan i luckan vrids för sig
+    const veh = !!WEAPONS[s.weapon.type]?.vehicle;
+    const face = veh ? (s.facing ?? 0) : emp?.face ?? 0, nest = emp?.nestle ?? [0, 0];
+    const e = { key: wantKey(s, old), cellKey: s.cell, group: model.group, model, face, nest, veh, angle: old?.angle ?? s.facing ?? s.emplace?.face ?? s.weapon.angle };
     model.group.rotation.y = -face;
     model.pivot.rotation.y = face - e.angle;
     e.pivotHome = model.pivot.position.clone();
@@ -231,26 +240,62 @@ export function createView(scene, initialSim) {
     slots.set(s.id, e); slotObjects.set(s.id, e.group);
     return e;
   }
-  // 0.12.0 (H102): flytten i bild. Packa: säckarna sjunker ihop på den gamla platsen. Bära: pjäsen och
-  // skytten glider till den nya platsen, vända dit. Ställa upp: säckarna växer upp igen.
+  // 0.12.0 (H102), 0.13.0 (H134): flytten i bild. Packa: säckarna sjunker ihop på den gamla platsen. På
+  // väg: pjäsen syns inte i sitt värn, laget springer längs vägen med vapnet och lådorna (pillboxen kryper
+  // själv längs vägen). Ställa upp: säckarna växer upp igen på den nya platsen.
   function placeSlot(e, s, dt) {
     const m = s.move, bags = e.model.bags;
     if (!m) {
-      if (e.moving) { e.moving = false; e.group.position.set(s.x + e.nest[0], s.y ?? 0, s.z + e.nest[1]); if (bags) { bags.visible = true; bags.scale.y = 1; } }
+      if (e.moving) {
+        e.moving = false; e.group.visible = true;
+        e.group.position.set(s.x + e.nest[0], s.y ?? 0, s.z + e.nest[1]);
+        if (e.veh) { e.face = s.facing ?? e.face; e.group.rotation.y = -e.face; }
+        if (bags) { bags.visible = true; bags.scale.y = 1; }
+      }
+      dropCrew(e);
       return;
     }
     e.moving = true;
-    const ph = movePhase(s), T = m.total, f = m.from;
-    let x = s.x, z = s.z, y = s.y ?? 0, bag = 1;
-    if (ph === 'pack') { x = f.x; z = f.z; y = f.y ?? 0; bag = 1 - m.t / (T * MOVE_PACK); }
+    const ph = movePhase(s), f = m.from;
+    let bag = 1;
+    if (ph === 'pack') { e.group.position.set(f.x + e.nest[0], f.y ?? 0, f.z + e.nest[1]); bag = 1 - m.t / Math.max(1e-6, m.pack); }
     else if (ph === 'carry') {
-      const u = (m.t - T * MOVE_PACK) / (T * MOVE_CARRY), q = u * u * (3 - 2 * u);
-      x = f.x + (s.x - f.x) * q; z = f.z + (s.z - f.z) * q; y = (f.y ?? 0) + ((s.y ?? 0) - (f.y ?? 0)) * q; bag = 0;
-      const want = Math.atan2(s.z - f.z, s.x - f.x);  // världens riktning; pivoten räknar om mot face
-      e.angle += angleDiff(e.angle, want) * Math.min(1, dt * 8);
-    } else bag = (m.t - T * (MOVE_PACK + MOVE_CARRY)) / (T * (1 - MOVE_PACK - MOVE_CARRY));
-    e.group.position.set(x + e.nest[0], y, z + e.nest[1]);
-    if (bags) { bags.visible = bag > 0.02; bags.scale.y = Math.max(0.02, Math.min(1, bag)); }
+      const p = gunPos(s);
+      if (e.veh) {
+        e.group.visible = true;
+        e.group.position.set(p.x, 0, p.z);
+        e.face += angleDiff(e.face, p.dir) * Math.min(1, dt * 3);
+        e.group.rotation.y = -e.face;
+      } else { e.group.visible = false; runCrew(e, s, p, dt); }
+      bag = 0;
+    } else {
+      dropCrew(e); e.group.visible = true;
+      e.group.position.set(s.x + e.nest[0], s.y ?? 0, s.z + e.nest[1]);
+      bag = (m.t - m.pack - m.travel) / Math.max(1e-6, m.setup);
+    }
+    if (bags && !e.veh) { bags.visible = bag > 0.02; bags.scale.y = Math.max(0.02, Math.min(1, bag)); }
+  }
+  // Laget på väg: männen i en rad längs vägen bakom den första, i springposen.
+  function runCrew(e, s, p, dt) {
+    if (!e.crew) {
+      const n = Math.max(1, WEAPONS[s.weapon.type]?.move?.crew ?? 1);
+      e.crew = crewCarryModel(s.weapon.type, n, hashId(s.id));
+      e.crew.phase = 0;
+      scene.add(e.crew.root);
+    }
+    const c = e.crew, m = s.move, d = (m.t - m.pack) * m.speed;
+    c.phase += m.speed * dt * 2.4;
+    c.men.forEach((man, i) => {
+      const q = alongPathAt(m.path, d - i * 1.3);
+      man.root.position.set(q.x, 0, q.z);
+      man.root.rotation.y = Math.atan2(Math.cos(q.dir), Math.sin(q.dir));
+      hvRun(man, c.phase + i * 1.7);
+    });
+  }
+  function dropCrew(e) {
+    if (!e.crew) return;
+    disposeModel(e.crew.root);
+    e.crew = null;
   }
   function perchFor(s) {
     const pa = sim.place.perchAt?.(s.x, s.z);
@@ -327,6 +372,7 @@ export function createView(scene, initialSim) {
   }
   function removeSlot(id) {
     const e = slots.get(id); if (!e) return;
+    dropCrew(e);
     disposeModel(e.group);
     slots.delete(id); slotObjects.delete(id);
   }
@@ -353,7 +399,10 @@ export function createView(scene, initialSim) {
       if (e.squad) continue;
       const w = s.weapon;
       placeSlot(e, s, dt);
-      if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
+      // 0.13.0: pipan följer simuleringens vridning (vridfarten), och Rotate vrider hela pjäsen
+      if (w.targetId != null || s.turn) e.angle += angleDiff(e.angle, w.angle) * k;
+      if (dt > 0 && s.building > 0 && Math.random() < dt * 14) fx.sparks(e.group.position.x + rnd(-1.6, 1.6), rnd(0.8, 2), e.group.position.z + rnd(-0.9, 0.9), 3);
+      if (dt > 0 && e.veh && s.hp < s.maxHp * 0.5 && Math.random() < dt * (s.hp < s.maxHp * 0.25 ? 9 : 4)) fx.smoke(e.group.position.x + rnd(-0.8, 0.8), 1.8, e.group.position.z + rnd(-0.5, 0.5));
       const pv = e.model.pivot;
       pv.rotation.y = e.face - e.angle;
       // Rekyl: pjäsen stöts bakåt längs pipan och mynningen lyfts, sedan tillbaka.
@@ -387,6 +436,8 @@ export function createView(scene, initialSim) {
     ghostOn = e;
     e.group.visible = true;
     e.group.position.set(g.x, g.y ?? 0, g.z);
+    // 0.13.0 (H132): spöket vänds dit skjutvinkeln pekar (dras med musen, eller mot hordens väg)
+    e.group.rotation.y = g.facing != null && !squad ? -g.facing : 0;
     setGhostTone(e.group, g.ok);
     // Hemvärnet: ringen och en platta där varje soldat skulle ta skydd
     if (squad) setSquadGhost(e.group, g.x, g.z, g.men ?? []);
@@ -588,6 +639,37 @@ export function createView(scene, initialSim) {
     const bad = s.ok === false;
     sectorM.color.set(bad ? PALETTE.rust : PALETTE.paper); sectorEdgeM.color.set(bad ? PALETTE.rust : PALETTE.paper);
   }
+  // ---------- flyttens väg (0.13.0, H136) ----------
+  // Medan en flytt hålls i handen: vägen laget skulle springa (en streckad linje på marken) och en ring
+  // vid varje waypoint. ui.route = { pts: [[x, z], ...], ok, via: [[x, z], ...] }.
+  const ROUTE_MAX = 512;
+  const routeGeo = new THREE.BufferGeometry();
+  routeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ROUTE_MAX * 3), 3));
+  const routeM = new THREE.LineDashedMaterial({ color: PALETTE.paper, dashSize: 0.9, gapSize: 0.5, transparent: true, opacity: 0.9, depthWrite: false });
+  const routeLine = new THREE.Line(routeGeo, routeM);
+  routeLine.frustumCulled = false; routeLine.renderOrder = 7; routeLine.visible = false;
+  const wpGeo = new THREE.RingGeometry(0.55, 0.8, 20); wpGeo.rotateX(-Math.PI / 2);
+  const wpM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.9, depthWrite: false });
+  const wps = new THREE.InstancedMesh(wpGeo, wpM, 12);
+  wps.count = 0; wps.frustumCulled = false; wps.renderOrder = 7;
+  scene.add(routeLine, wps);
+  let routeKey = '';
+  function syncRoute() {
+    const r = ui.route;
+    const key = r ? r.pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(';') + '|' + r.ok + '|' + (r.via ?? []).length : '';
+    if (key === routeKey) return;
+    routeKey = key;
+    routeLine.visible = !!r && r.pts.length > 1;
+    wps.count = 0;
+    if (!r) return;
+    const pos = routeGeo.attributes.position, n = Math.min(ROUTE_MAX, r.pts.length);
+    for (let i = 0; i < n; i++) pos.setXYZ(i, r.pts[i][0], 0.18, r.pts[i][1]);
+    pos.needsUpdate = true; routeGeo.setDrawRange(0, n);
+    routeLine.computeLineDistances();
+    routeM.color.set(r.ok ? PALETTE.paper : PALETTE.rust); wpM.color.set(r.ok ? PALETTE.paper : PALETTE.rust);
+    (r.via ?? []).slice(0, 12).forEach(([x, z], i) => { tm.makeTranslation(x, 0.12, z); wps.setMatrixAt(i, tm); wps.count = i + 1; });
+    wps.instanceMatrix.needsUpdate = true;
+  }
   function syncUi() {
     // ring under en byggd pjäs som är vald eller pekas på
     const ringFor = ui.selected?.kind === 'gun' ? ui.selected : ui.hover?.kind === 'gun' ? ui.hover : null;
@@ -604,7 +686,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, route: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -767,6 +849,17 @@ export function createView(scene, initialSim) {
           fx.gibs(ev.x, 0.6, ev.z, 3);
           break;
         }
+        // 0.13.0: pillboxen tar stryk och faller, ett lag på väg slås ner
+        case 'vehicleHit': {
+          const kk = 'v' + ev.gunId;
+          if (clock - (lastChip.get(kk) ?? -1) < 0.3) break;
+          lastChip.set(kk, clock);
+          fx.chips(ev.x + rnd(-1, 1), rnd(0.6, 1.4), ev.z + rnd(-0.8, 0.8), 3);
+          break;
+        }
+        case 'vehicleDown': fx.blast(ev.x, ev.z, 2.4); for (let q = 0; q < 4; q++) fx.puff(ev.x + rnd(-1, 1), ev.z + rnd(-1, 1), 5); break;
+        case 'crewHit': { const kk = 'c' + ev.gunId; if (clock - (lastChip.get(kk) ?? -1) < 0.33) break; lastChip.set(kk, clock); fx.gibs(ev.x, 0.7, ev.z, 3); break; }
+        case 'crewLost': fx.gibs(ev.x, 0.7, ev.z, 10); fx.splat(ev.x, ev.z, rnd(1.4, 2)); break;
         case 'soldierDown': fx.gibs(ev.x, 0.7, ev.z, 8); fx.splat(ev.x + rnd(-0.4, 0.4), ev.z + rnd(-0.4, 0.4), rnd(1.2, 1.8)); break;
         case 'grenade': {
           const e = slots.get(ev.gunId); if (!e) break;
@@ -836,6 +929,8 @@ export function createView(scene, initialSim) {
     syncZombies(dt);
     syncSlots(dt);
     squadView.sync(sim, dt);
+    civilians.sync(sim, dt);
+    syncRoute();
     syncCells();
     syncCellMarks();
     syncTiles();
@@ -852,10 +947,11 @@ export function createView(scene, initialSim) {
 
   function setSim(next) {
     for (const [id, e] of zombies) removeZombie(id, e);
-    for (const e of slots.values()) disposeModel(e.group);
+    for (const e of slots.values()) { dropCrew(e); disposeModel(e.group); }
     slots.clear(); slotObjects.clear();
     for (const i of [...cells.keys()]) removeCell(i);
     squadView.clear();
+    civilians.clear();
     lastChip.clear();
     fx.clear();
     const remap = next.map !== sim.map;
@@ -875,4 +971,10 @@ export function createView(scene, initialSim) {
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
   dormant.setSim(sim);
   return { occluded, dormant, sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
+}
+
+function hashId(id) {
+  let h = 7;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % 100000;
 }

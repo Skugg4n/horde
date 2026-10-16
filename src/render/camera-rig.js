@@ -47,9 +47,10 @@ export function createRig({ camera, map, fill, dom }) {
   }
 
   // ---------- inmatning (bara banor som går att panorera) ----------
-  let drag = null, dragged = false, active = true;
+  // panLock (0.13.0, H132): medan spelaren drar för att sikta panorerar kameran inte
+  let drag = null, dragged = false, active = true, panLock = false;
   const keys = new Set();
-  const onDown = e => { if (!canPan || !active || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; dragged = false; };
+  const onDown = e => { if (!canPan || !active || panLock || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; dragged = false; };
   const onUp = () => { if (drag?.moved) dom.style.cursor = ''; drag = null; };
   const onMove = e => {
     if (!drag) return;
@@ -146,6 +147,7 @@ export function createRig({ camera, map, fill, dom }) {
     // true en gång efter en panorering, så att släppet inte räknas som ett klick
     takeDrag() { const d = dragged; dragged = false; return d; },
     set active(v) { active = v; if (!v) { keys.clear(); drag = null; } },
+    set panLock(v) { panLock = !!v; if (v) drag = null; },
     get target() { return target; },
     get view() { return view; },
     focus(x, z, v) { target.set(x, 0, z); if (v) view = Math.min(zMax, Math.max(zMin, v)); apply(); },
