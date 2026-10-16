@@ -16,7 +16,7 @@ import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
@@ -277,6 +277,7 @@ const actions = {
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
   reinforce: withCash('click', id => reinforce(sim, id)),
+  squadRoom: id => squadRoom(sim, id),
   pick: type => startPlacing(type),
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
   place: withCash('place', (cell, type) => placeAcross(sim, cell, type)),

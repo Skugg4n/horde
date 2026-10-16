@@ -11,7 +11,7 @@ import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../met
 import { ICONS } from './icons.js';
 import { SHOP, shopItem, hotkey } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
-import { COVER, SQUAD, squadSize } from '../sim/squad.js';
+import { COVER, SQUAD } from '../sim/squad.js';
 import { money } from './format.js';
 
 const REASONS = {
@@ -38,6 +38,7 @@ const REASONS = {
   'ingen gata': 'Only on the road',
   // Hemvärnet (0.9.0)
   'trångt': 'No room for the squad here',
+  'trångt-man': 'No room for one more rifleman here',
   'hela': 'Nobody is down.',
 };
 export function reasonText(r) {
@@ -151,7 +152,7 @@ export function buildBar(root, actions) {
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
 export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
-  let key = null, cur = sim;
+  let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
   const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
@@ -202,7 +203,9 @@ export function gunPanel(root, gunId, sim, actions) {
   const STANCE = { crouch: 'crouching', kneel: 'kneeling', prone: 'prone' };
   function renderSquad(s, g) {
     const w = g.weapon, st = weaponStats(w.type, w.level, s.research);
-    const next = w.level < MAX_LEVEL ? (squadSize(w.level + 1, s.research) > g.soldiers.length ? 'Upgrade: one more rifleman' : 'Upgrade: better rifles') : 'Upgrade';
+    const room = actions.squadRoom ? actions.squadRoom(gunId) : { want: 0, fit: 0 };
+    noRoom = room.fit < room.want;
+    const next = w.level < MAX_LEVEL ? (noRoom ? REASONS['trångt-man'] : room.want ? 'Upgrade: one more rifleman' : 'Upgrade: better rifles') : 'Upgrade';
     const men = g.soldiers.map(m => `<li class="${m.down ? 'down' : ''}">${m.down ? 'Down' : `${COVER[m.cover].name}, ${STANCE[m.stance]}`}</li>`).join('');
     const standing = g.soldiers.filter(m => !m.down).length;
     ui.head.innerHTML = `<div class="t">${WEAPONS[w.type].name}</div><div class="sub">Squad · Level ${w.level} of ${MAX_LEVEL} · ${standing} of ${g.soldiers.length} standing</div>`;
@@ -237,7 +240,7 @@ export function gunPanel(root, gunId, sim, actions) {
     const upText = cost == null ? 'Max level' : s.cash < cost ? 'Need ' + money(cost) : money(cost);
     const upP = up.querySelector('[data-p]');
     if (upP.textContent !== upText) upP.textContent = upText;
-    up.classList.toggle('off', cost == null || s.cash < cost);
+    up.classList.toggle('off', cost == null || s.cash < cost || (g.squad && noRoom));
     up.classList.toggle('max', cost == null);
     const sellText = '+' + money(weaponRefund(w));
     const sellP = sell.querySelector('[data-p]');

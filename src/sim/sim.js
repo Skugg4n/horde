@@ -248,7 +248,8 @@ export function checkSpot(sim, key, type = null) {
   const c = p.center(key);
   if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
   // Hemvärnet: en pjäs står inte i en soldats ruta, och gruppen behöver rum för alla.
-  if (isSquad(type)) { if (squadPlanAt(sim, key, type).length < squadSize(1)) return { ok: false, reason: 'trångt' }; }
+  // Gruppens storlek med forskningen (Bigger squad): ingen soldat tas betalt för som inte får plats.
+  if (isSquad(type)) { if (squadPlanAt(sim, key, type).length < squadSize(1, sim.research)) return { ok: false, reason: 'trångt' }; }
   else if (sim.guns.some(g => g.squad && g.soldiers.some(s => Math.hypot(s.x - c.x, s.z - c.z) < SQUAD.gunGap - 1e-9))) return { ok: false, reason: 'nära' };
   return { ok: true };
 }
@@ -292,22 +293,38 @@ export function upgrade(sim, id) {
   const cost = upgradeCost(w.type, w.level);
   if (cost == null) return { ok: false, reason: 'max' };
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
+  // Hemvärnet (0.10.1): ger nivån en man till och han inte får plats nekas uppgraderingen, så att
+  // ingen betalar för en soldat som aldrig kommer.
+  let add = null;
+  if (g.squad) {
+    const room = squadRoom(sim, id);
+    if (room.fit < room.want) return { ok: false, reason: 'trångt-man' };
+    add = room.plan;
+  }
   sim.cash -= cost; w.level++; w.spent += cost;
-  if (g.squad) growSquad(sim, g);
+  if (g.squad) growSquad(sim, g, add);
   return { ok: true };
 }
-// Hemvärnet efter en uppgradering: mer liv till alla, och en soldat till om nivån ger det (han
-// väljer den bästa lediga rutan med de andra på plats; finns ingen blir gruppen som den var).
-function growSquad(sim, g) {
-  const hp = soldierHp(g.weapon.level, sim.research);
-  for (const s of g.soldiers) { const add = hp - s.maxHp; s.maxHp = hp; if (!s.down) s.hp += add; }
-  const want = squadSize(g.weapon.level, sim.research) - g.soldiers.length;
-  if (want <= 0) return;
+// Får gruppens nästa nivå plats? want: nya man som nivån ger, fit: hur många som får plats.
+export function squadRoom(sim, id) {
+  const g = gunOf(sim, id);
+  if (!g?.squad || upgradeCost(g.weapon.type, g.weapon.level) == null) return { want: 0, fit: 0, plan: [] };
+  const want = Math.max(0, squadSize(g.weapon.level + 1, sim.research) - g.soldiers.length);
+  if (!want) return { want, fit: 0, plan: [] };
   const mine = g.soldiers;
   // de egna soldaterna räknas som fasta (inte som andra gruppers), så att planen inte stängs ute
   g.soldiers = [];
-  const add = planSquad(sim, g.cell, { type: g.weapon.type, count: want, fixed: mine });
+  const plan = planSquad(sim, g.cell, { type: g.weapon.type, count: want, fixed: mine });
   g.soldiers = mine;
+  return { want, fit: plan.length, plan };
+}
+// Hemvärnet efter en uppgradering: mer liv till alla, och de nya männen i rutorna squadRoom valde
+// (den bästa lediga rutan med de andra på plats; upgrade har redan kollat att alla får plats).
+function growSquad(sim, g, add) {
+  const hp = soldierHp(g.weapon.level, sim.research);
+  for (const s of g.soldiers) { const d = hp - s.maxHp; s.maxHp = hp; if (!s.down) s.hp += d; }
+  if (!add?.length) return;
+  const mine = g.soldiers;
   for (const pc of add) mine.push(makeSoldier(pc, mine.length, g.weapon.level, g, sim.research));
   g.sight = unionSight(sim.place, mine);
 }
