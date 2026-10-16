@@ -52,8 +52,9 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // och nya hp 3,2, 3,6 och 1,2); kampanjen bär det vidare in i Gnesta (docs/balance-log.md 0.15.0).
 // 0.16.0: alla steg nya, avsiktligt: inlärningen (E4 dag 1 utan förnödenheter med infanteriet vid bommen och den
 // andra Ksp 90 efter våg 1, pillboxen dag 3, barrikaderna från South dag 2, förrådet i steg från South dag 2,
-// knappheten i rekvisitionen och uppgraderingarna i ledningens takt; docs/balance-log.md 0.16.0).
-const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"dcd56fd8","riksvagen 3":"f6952dce","gnesta 1":"a4860f79","gnesta 2":"c778c38c","gnesta 3":"5d7e4a8d","gnesta 4":"de9e95d2","gnesta 5":"9740db9b","gnesta-norr 1":"7272c5a0","gnesta-norr 2":"cafd7a9e","gnesta-norr 3":"805a5161","gnesta-norr 4":"c348ef85","gnesta-norr 5":"4a2e1dbd"};
+// knappheten i rekvisitionen och uppgraderingarna i ledningens takt, Hagstumosse som en sektor med en trupp;
+// docs/balance-log.md 0.16.0).
+const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"dcd56fd8","riksvagen 3":"f6952dce","gnesta 1":"339db5d4","gnesta 2":"c778c38c","gnesta 3":"5d7e4a8d","gnesta 4":"de9e95d2","gnesta 5":"9740db9b","gnesta-norr 1":"8fd73175","gnesta-norr 2":"b5c5c52d","gnesta-norr 3":"eefc5162","gnesta-norr 4":"2eefdc82","gnesta-norr 5":"d4ac0840"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

@@ -185,6 +185,8 @@ export function buildBar(root, actions) {
     if (!show) return;
     const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day + '|' + (sim.core ? sim.wavesStarted > 0 : '') + '|' + (sim.reserve ? [...new Set(sim.reserve.map(u => u.type))].sort().join(',') : '') + '|' + dayMenu(id => inBar(sim, id)).flatMap(c => c.items.map(i => i.id)).join(',');
     if (k !== key || barR < 0) { key = k; render(sim); catKey = ''; measure(); }
+    // 0.16.0: en tom köprad (E4 dag 1 efter uppställningen) syns inte
+    if (!cards.size) { el.hidden = true; return; }
     const ck = openCat + ':' + armed;
     if (ck !== catKey) {
       catKey = ck;

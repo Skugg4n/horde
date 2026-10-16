@@ -51,7 +51,7 @@ test('mellan dagarna: kartan efter E4, förrådet efter South dag 2, och sedan e
 test('texterna: högst 12 ord per steg och tips, 40 per uppslag, inga tankstreck', () => {
   for (const ls of Object.values(LESSONS)) for (const l of ls) {
     assert.ok(words(l.text) <= 12, `${l.id}: ${l.text}`);
-    assert.doesNotMatch(l.text, /—/);
+    assert.doesNotMatch(l.text, /\u2014/);
     assert.ok(['step', 'show', 'caption'].includes(l.kind), l.id);
   }
   for (const t of TIPS) assert.ok(words(t.text) <= 12, t.id);

@@ -76,3 +76,13 @@ Ordningen i förrådet styr inlärningskurvan. Spelaren kan inte köpa allt dire
 - E4:s vägspärr drar sig tillbaka när sektorn tystnar; RP som lagts på enheter där lämnas tillbaka. Gnesta South:s trupper blir fria att omplacera när sektorn håller.
 - MCF: Myndigheten för civilt försvar ersatte MSB den 1 januari 2026. Kontrollerat mot min kunskap, inte mot en källa i dag.
 - Gnesta North öppnar efter South dag 4 (förut 5), så att två sektorer är öppna samtidigt och trycket spelar roll.
+
+## Gnesta = en sektor (Ola 2026-10-16)
+
+Gnesta North:s karta innehåller Gnesta South (ishallen, rondellen, Sigtunavägen): det är samma plats, och det går inte att "skicka trupp" mellan dem. Beslut:
+- Sektorn heter **Hagstumosse** ("Hagstumosse · Gnesta" där det finns plats): stadsdelen med ishallen, Sigtunavägen, Fornminnesvägen och Vikingavägen. Senare sektorer: Gnesta Centrum (grå platshållare på kartan) och längre norrut, Mölnbo.
+- Två faser: **Hagstumosse · Ishallen** (förut South, dag 1 till 5) och **Hagstumosse · Vikingavägen** (förut North, dag 1 till 5). Vikingavägen öppnar när Ishallen dag 5 är vunnen; kartan vidgas norrut ("The fog lifts. They are circling north.").
+- En gemensam trupp: enheterna följer med från Ishallen till Vikingavägen. Ingen omplacering, garnison eller tryck mellan faserna.
+- Omplaceringen, garnisonen och trycket finns kvar i koden men är vilande. De visas bara när två skilda platser är aktiva samtidigt (E4, Hagstumosse, senare Mölnbo). Klarheten om nästa strid (NEXT BATTLE, Deploy-knappen med sektorn, skicka och ta tillbaka gratis till Deploy, varningen när sektorn som strider har färre än garnisonen) gäller generellt.
+- Garnisonen (vilande): färre än 3 enheter i en öppen sektor gör att trycket där stiger 2 per vunnen dag någon annanstans i stället för 1 (src/meta/operation.js pressureGain; förrådet säger samma sak, prov i tests/operation.test.js).
+- Interna id:n är oförändrade ('gnesta', 'gnesta-norr'). Sparfilen: enheter, lager och tryck i 'gnesta-norr' slås ihop med 'gnesta' (inga enheter förloras), en kopia sparas under horde.save.v4, och Vikingavägen står kvar öppen för den som redan spelat den efter South dag 4.

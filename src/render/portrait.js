@@ -37,12 +37,18 @@ function render(type) {
   ground.rotation.x = -Math.PI / 2; scene.add(ground);
   const z = zombieModel(type);
   zombieWalk(z, 1.3, 0.4);
-  z.root.rotation.y = -0.45;
+  // tre kvarts vy: zombien vänd lite åt höger, kameran framifrån och något ovanför
+  z.root.rotation.y = 0.5;
   scene.add(z.root);
-  const s = z.scale ?? 1, top = 1.75 * s;
-  const cam = new THREE.PerspectiveCamera(28, W / H, 0.1, 30);
-  cam.position.set(0.9 * s, top * 0.8, 3.1 * s);
-  cam.lookAt(0, top * 0.62, 0);
+  z.root.updateMatrixWorld(true);
+  // bilden ramas in efter modellen: överkroppen och huvudet, från höften och uppåt
+  const box = new THREE.Box3().setFromObject(z.root), h = box.max.y - box.min.y;
+  const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+  const span = h * 0.78, ty = box.max.y - span / 2 + h * 0.04;
+  const cam = new THREE.PerspectiveCamera(30, W / H, 0.1, 30);
+  const d = (span / 2) / Math.tan((30 / 2) * Math.PI / 180) * 1.12;
+  cam.position.set(cx + d * 0.18, ty + d * 0.12, cz + d * 0.98);
+  cam.lookAt(cx, ty, cz);
   renderer.render(scene, cam);
   const url = canvas.toDataURL('image/png');
   // zombiens geometrier och material delas med spelet (kit.js): bara marken släpps

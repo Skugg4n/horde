@@ -719,3 +719,35 @@ seed 4    1  1  1  1  1  3  1  2  1  1  1  2  1
 Kampanjens mål håller: den normala klarar varje dag inom 1 till 4 försök (som mest 3), den skickliga allt på första försöket, första skottet inom 60 s, högst 250 levande. Fingeravtrycken per kampanjsteg (balance-op-skilled och balance-op-normal) är alla nya, avsiktligt: E4 ritades om och kampanjen bär RP:n vidare in i Gnesta. Simuleringens kvitto: E4 dag 2 e007577b till be6e026f (pjäsernas rutor är e4Plan(2) på den nya kartan; den fasta styrkan vinner med 13 kvar). Gnesta South dag 3 och North dag 2 står kvar.
 
 Proven: simuleringens prov av vägen, hindren, vapnen, granaterna och reglarna (sim-core, sim-waves, sim-weapons, sim-obstacles, sim-grenades, cells, route-e4, barricade-failing, tweaks och delar av arsenal, epa-evac och operation) mäter på den raka vägen som förut, nu en provbana i tests/fixtures/straight-road.js, så att de inte rör sig när banan ritas om. Placeringsprovet för E4 är nytt (rampen är gata, vägrenen går, bilen och skogen står i vägen, motorvägen mellan ramperna är inte gångbar), och dis-provet kollar att E4:s ingångar ligger i diset.
+
+## 0.16.0: inlärningen steg för steg, knappheten i förrådet och Hagstumosse som en sektor
+
+Underlag: docs/superpowers/specs/2026-10-16-onboarding-design.md (med Olas beslut och tilläggen) och Olas beslut samma dag att Gnesta South och North är samma plats (Hagstumosse). Policyerna i scripts/balance.mjs spelar nu det spel en ny spelare får, så att fingeravtrycken mäter det riktiga spelet.
+
+Vad policyerna följer (src/meta/unlocks.js, simuleringens sim.allow):
+- E4 dag 1 har inga förnödenheter (kassan 0, dödade ger inget), infanteriet står vid bommen (preset), första Ksp 90 ställs på en markerad plats och den andra först efter våg 1 (late). Policyn ställer ut den sena enheten när den kommit fram. De markerade platserna är e4Plan(1):s fyra första, så att policyn och spelaren ser samma platser.
+- Taggtråd från E4 dag 2, barrikader först från South dag 2 (smart spärrar inte dag 1, planen räknas utan spärr), skrotbilar efter South dag 2, Rotate och sikta-dra från E4 dag 3, Move från South dag 4, förnödenheter på enheten (ammunition, sandsäckar, granatlådor) från South dag 5, Next wave med bonus från South dag 3 (skilled kallar inte tidigt före det).
+- Förrådet: inget att köpa på E4 och South dag 1 och 2. Nivåer och påfyllnad efter South dag 2, rekvisition efter dag 3, uppgraderingar och Return efter dag 4. Rekvisitionen hoppar över mål som inte är släppta (lagret tomt, 'none') eller inte upplåsta ('locked') i stället för att spara RP till dem.
+- Knappheten: varje leverans har ett lager (stock) och uppgraderingarna släpps upp till en nivå (ups), North-uppgraderingarna fördelade över dag 1 till 5.
+- Hagstumosse: Vikingavägen (förut Gnesta North) öppnar efter Ishallen dag 5 (förut dag 4) och har samma trupp; trycket mellan dem är borta.
+
+Ändrade siffror och varför:
+- E4 dag 1 hp 3,2 till 2,8. Med en Ksp 90 i våg 1 och infanteriet vid bommen tappade båda policyerna 5 i bas; dagen ska vara den lättaste (nu 19 till 20).
+- E4 dag 2 hp 3,6 till 3,2, förnödenheter 350 till 250 och halva per dödad (bounty 0,6). Utan förrådets köp efter dag 1 föll basen till 9; överskottet (550 dollar) gick inte att lägga på något utom tråd.
+- E4 dag 3 hp 1,2 till 1,0, förnödenheter 400 till 200, bounty 0,5 till 0,4. Utan förrådet förlorade normal i en seed av fem (bas 3 i de andra); nu 7 till 11, överskottet under 500.
+- South dag 1 hp 2,8 till 1,9. Utan barrikaden vid rondellen (kommer dag 2) dog de civila på 44 s; nu 14 av 20 framme och 5 till 6 förlorade, båda policyerna, alla seeds.
+- South dag 2 hp 3,3 till 1,8 och våg 3 från 130 till 98 (40 + 24 vandrare, 34 löpare). Utan förrådet före dagen (förut en tredje Ksp 90 och nivå 2 på allt) var den en vägg: alla försök förlorade. Nu vinner normal på första försöket med 7 till 11 kvar, skilled med full bas.
+- De vilande husen flyttade från South dag 1 och 2 till dag 3 (designen); dag 3 har nu det förvarnade huset vid stickgatan i våg 1 och överraskningen i våg 2.
+
+Resultat (fem seeds, försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 2 1 2 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 1 3 1 2 1 1 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller: normal inom 1 till 4 försök (som mest 3, South dag 5), skilled allt på första försöket. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt. Simuleringens kvitto: E4 dag 2 be6e026f till cf609061 (infanteriet står vid bommen från början, hp 3,2), South dag 3 3b601645 till db5f4217 (de vilande husen); North dag 2 står kvar.
+
+Kvar att speltesta: överskottet av förnödenheter på South dag 3 och 4 för den skickliga (tidiga kall ger bonus, men förnödenheter på enheten kommer först dag 5); South dag 5 är nu den svåraste för normal (2 till 3 försök).
