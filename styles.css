@@ -901,3 +901,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .entry.holding { opacity: 0.18; pointer-events: none !important; }
 .depotlater { cursor: default; }
 #coach .cplate .cgo { display: block; margin-top: 4px; font-size: 12px; color: var(--paper-dim); letter-spacing: 0.04em; }
+/* 0.16.1 (H194): märket över de frivilliga (gult) och Hemvärnet (grönt), lyser när gruppen skjuter */
+.sqtag { position: absolute; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px; padding: 1px 5px; pointer-events: auto; cursor: pointer;
+  font: 600 10.5px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; border-radius: 2px; border: 1.5px solid; background: rgba(20, 18, 14, 0.82); transition: box-shadow 0.12s, background 0.12s; }
+.sqtag::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 6px; margin-left: -0.75px; background: currentColor; }
+.sqtag i { font-style: normal; opacity: 0.85; }
+.sqtag.civ { color: #ffd23a; border-color: #ffd23a; }
+.sqtag.hv { color: #9fd38a; border-color: #9fd38a; }
+.sqtag.fire { box-shadow: 0 0 10px 2px currentColor; background: rgba(60, 50, 20, 0.9); }
+.sqtag.sel, .sqtag:hover { background: rgba(60, 54, 40, 0.95); }

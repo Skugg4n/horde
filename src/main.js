@@ -702,6 +702,37 @@ function updatePips() {
   }
 }
 
+// ---------- gruppernas märken (0.16.1, H194) ----------
+// Speltesterna av 0.14.2 och 0.16.0: "frivilliga är små gula prickar som knappt syns, och jag ser inte om de skjuter",
+// "Hemvärnet kunde jag knappt se efteråt". Över varje grupp (de frivilliga och Hemvärnet) står ett litet märke i
+// gruppens färg med kortnamnet och hur många som står, som lyser upp när gruppen skjuter. Klick väljer gruppen.
+const squadTags = new Map();
+const SQUAD_TAG = { civ: { t: 'VOL', cls: 'civ' }, hv: { t: 'HV', cls: 'hv' } };
+const shotAt = new Map();
+function updateSquadTags() {
+  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.squad && SQUAD_TAG[g.weapon.type] && g.soldiers.length) : [];
+  const ids = new Set(want.map(g => g.id));
+  for (const [id, el] of squadTags) if (!ids.has(id)) { el.remove(); squadTags.delete(id); }
+  for (const g of want) {
+    let el = squadTags.get(g.id);
+    if (!el) {
+      const d = SQUAD_TAG[g.weapon.type], id = g.id;
+      el = document.createElement('button'); el.type = 'button'; el.className = 'sqtag ' + d.cls;
+      el.innerHTML = `<b>${d.t}</b><i></i>`;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
+      pips.appendChild(el); squadTags.set(id, el);
+    }
+    const up = g.soldiers.filter(q => !q.down);
+    const cx = up.reduce((a, q) => a + q.x, 0) / (up.length || 1), cz = up.reduce((a, q) => a + q.z, 0) / (up.length || 1);
+    tmpV.set(up.length ? cx : g.x, 2.4, up.length ? cz : g.z).project(camera);
+    el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
+    const n = String(up.length);
+    const ni = el.querySelector('i'); if (ni.textContent !== n) ni.textContent = n;
+    el.classList.toggle('fire', time - (shotAt.get(g.id) ?? -Infinity) < 0.35);
+    el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === g.id);
+  }
+}
+
 // ---------- mål utanför vinkeln (0.14.1, granskningen av 0.14, Important 5) ----------
 // En liten gul flagga "R" över en pjäs som stått sysslolös med zombier i sikte men utanför vinkeln
 // (simuleringens idleOutside), en ping på minikartan första gången och klick väljer pjäsen.
@@ -812,6 +843,7 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach();
+  for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
   const ovKey = 'overlap-' + map.id;
@@ -1320,13 +1352,10 @@ function coachAvoid() {
   }
   return out;
 }
-// Målet på skärmen: { rect } för något som syns, { off: { x, y, angle } } vid kanten för något utanför bild.
-function lessonTarget(t) {
-  if (!t) return null;
-  if (t.ui) { const r = uiRect(t.ui); return r ? { rect: r } : null; }
-  if (mode !== 'play') return null;
+// Ett världsmåls punkter ([x, z]) för lektionsplåten och Show me.
+function lessonWorldPts(t) {
   const w = t.world, pts = [];
-  if (w === 'pointer') return { rect: { x0: pointer.x - 16, y0: pointer.y - 16, x1: pointer.x + 16, y1: pointer.y + 16 }, light: true };
+  if (!w || w === 'pointer' || !sim) return pts;
   if (w === 'marked') { for (const k of sim.marked ?? []) if (!sim.guns.some(g => g.cell === k)) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'route') { for (const p of nowPaths ?? []) for (let i = Math.floor(p.cells.length * 0.55); i < p.cells.length; i += 2) pts.push(cellWorld(p.cells[i])); }
   else if (w === 'danger') { for (const z of evacHelp().zones) for (const q of z.pts) pts.push(q); }
@@ -1335,6 +1364,16 @@ function lessonTarget(t) {
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
   else if (w.startsWith('gun')) { const type = w.split(':')[1]; const g = sim.guns.find(x => (type ? x.weapon.type === type : !x.preset)) ?? sim.guns[0]; if (g) pts.push([g.x, g.z]); }
+  return pts;
+}
+// Målet på skärmen: { rect } för något som syns, { off: { x, y, angle } } vid kanten för något utanför bild.
+function lessonTarget(t) {
+  if (!t) return null;
+  if (t.ui) { const r = uiRect(t.ui); return r ? { rect: r } : null; }
+  if (mode !== 'play') return null;
+  const w = t.world;
+  if (w === 'pointer') return { rect: { x0: pointer.x - 16, y0: pointer.y - 16, x1: pointer.x + 16, y1: pointer.y + 16 }, light: true };
+  const pts = lessonWorldPts(t);
   if (!pts.length) return null;
   const sp = pts.map(([x, z]) => toScreen(x, z));
   const inside = sp.filter(q => q.sx >= 20 && q.sx <= innerWidth - 20 && q.sy >= 20 && q.sy <= innerHeight - 20);
@@ -1476,6 +1515,17 @@ function updateManualBtn(dt) {
   uiRoot.dataset.manual = show ? 'on' : 'off';
   if ((manualDotT -= dt) <= 0) { manualDotT = 0.5; manualBtn.classList.toggle('fresh', show && manualNew(progress).length > 0); }
 }
+// 0.16.1 (H216, "Show me spelar bara om steg vars mål finns på skärmen"): målets punkter i världen, och kameran dit
+// när det ligger utanför bild (banor som går att panorera).
+function panToTarget(t) {
+  if (!t?.world || !rig?.canPan) return;
+  const tg = lessonTarget(t);
+  if (!tg?.off) return;
+  const pts = lessonWorldPts(t);
+  if (!pts.length) return;
+  const f = rig.fit(pts, 10);
+  rig.focus(f.x, f.z, Math.max(rig.view, f.view));
+}
 function showMeStep(id) {
   if (mode !== 'play') return null;
   for (const ls of Object.values(LESSONS)) for (const l of ls) if (l.manual === id && l.target && lessonTarget(l.target)) return l;
@@ -1491,7 +1541,8 @@ function openManual(focus = null) {
   manual = manualSheet(uiRoot, {
     entries: focus && !entries.includes(focus) ? [...entries, focus] : entries, fresh: manualNew(progress), portrait: portraitOf, focus,
     onOpen: id => { progress = markManualRead(progress, id); save(); },
-    onShowMe: id => { const st = showMeStep(id); closeManual(); if (st && !lesson) { lesson = { step: { ...st, kind: 'show' }, pause: true, missing: 0 }; coach.show({ ...st, kind: 'show', text: fillText(st.text), pause: true, dim: true }); } },
+    // 0.16.1 (H216): ett mål utanför bild flyttar kameran dit först
+    onShowMe: id => { const st = showMeStep(id); closeManual(); if (st && !lesson) { panToTarget(st.target); lesson = { step: { ...st, kind: 'show' }, pause: true, missing: 0 }; coach.show({ ...st, kind: 'show', text: fillText(st.text), pause: true, dim: true }); } },
     onClose: () => closeManual(),
     canShow: id => !!showMeStep(id),
   });
@@ -1626,7 +1677,7 @@ function startDay(n) {
   if (!cfg) { showOpMap(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); toldSpawns.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
+  failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
   view.setSim(sim);
@@ -1955,6 +2006,7 @@ function tick(now) {
   updateEntry();
   updateBarricades(paused ? 0 : frameDt);
   updatePips();
+  updateSquadTags();
   updateArcFlags();
   updateSpare();
   if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
