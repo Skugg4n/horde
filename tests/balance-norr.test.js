@@ -123,3 +123,8 @@ test('Gnesta Norrs balanslogg är identisk med 0.10.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;
+
+test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta Norr', async () => {
+  const { ARRIVAL } = await import('../src/data/arrival.js');
+  assert.deepEqual(ARRIVAL['gnesta-norr'], starts[0].research);
+});

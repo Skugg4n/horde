@@ -146,3 +146,8 @@ test('en dag på Gnesta tar 4 till 8 minuter vid 1x, och första skottet dag 1 k
   for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
   for (const log of logs) assert.ok(tries(log, 1)[0].firstShot <= 45, `första skottet ${tries(log, 1)[0].firstShot}`);
 });
+
+test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta', async () => {
+  const { ARRIVAL } = await import('../src/data/arrival.js');
+  assert.deepEqual(ARRIVAL.gnesta, tries(logs[0], 1)[0].before.research);
+});

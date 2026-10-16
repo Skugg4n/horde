@@ -14,7 +14,7 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, re
 import { shopItem } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
-import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
+import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
 import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
@@ -35,6 +35,9 @@ const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
+// ?debug&fresh: ingen forskning läggs till (0.10.1); annars spelas en upplåst bana med forskningen en
+// typisk spelare har när den kommer dit (src/data/arrival.js).
+const FRESH = DEBUG && new URLSearchParams(location.search).has('fresh');
 // Laddningsskydd (index.html): huvudfilen och version.js ska vara samma version. Skiljer de sig har en
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
@@ -600,7 +603,7 @@ function showMenu() {
   }));
 }
 function startDay(n) {
-  const cfg = startConfig(progress, n);
+  const cfg = startConfig(DEBUG ? debugArrival(progress, map.id, { fresh: FRESH }) : progress, n);
   if (!cfg) { showMenu(); return; }
   day = n;
   sim = createSim(cfg);

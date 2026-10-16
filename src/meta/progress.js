@@ -3,6 +3,7 @@
 import { researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { tierOf, tierData } from '../sim/stats.js';
+import { ARRIVAL } from '../data/arrival.js';
 
 // Sparfil v3 (0.5.0): som v2, forskningen New position (slot4) heter More positions (positions).
 // v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
@@ -24,6 +25,12 @@ export function mapUnlocked(progress, mapId, { debug = false } = {}) {
   if (!map) return false;
   if (!map.unlock || debug) return true;
   return mapState(progress, map.unlock.map).unlockedDay > map.unlock.day;
+}
+// ?debug (0.10.1): framsteget med forskningen en typisk spelare har när banan låses upp
+// (src/data/arrival.js) tillagd, för en dag som spelas. Sparas inte. fresh: ingenting läggs till.
+export function debugArrival(progress, mapId = progress.mapId, { fresh = false } = {}) {
+  const add = fresh ? [] : (ARRIVAL[mapId] ?? []).filter(id => !progress.research.includes(id));
+  return add.length ? { ...progress, research: [...progress.research, ...add] } : progress;
 }
 // Första dagens tips per bana (0.6.0). seenHints: banor där tipsen visats klart. Ett äldre
 // seenHint: true gällde bara E4 (det var den enda banan med tips). Fältet följer med i sparfilen

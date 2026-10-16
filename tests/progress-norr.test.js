@@ -98,3 +98,21 @@ test('sparfil där Gnesta Norr är vald men inte upplåst (debug förut): läses
   assert.deepEqual(selectMap(p, 'riksvagen').maps['gnesta-norr'], p.maps['gnesta-norr']);
   assert.equal(st.getItem('horde.save'), raw);
 });
+
+// 0.10.1: ?debug ger forskningen en typisk spelare har när banan låses upp; ?debug&fresh ingenting.
+test('debugArrival: forskningen vid ankomsten läggs till för dagen, sparfilen rörs inte', async () => {
+  const { debugArrival } = await import('../src/meta/progress.js');
+  const { ARRIVAL } = await import('../src/data/arrival.js');
+  const p = selectMap(newProgress(), 'gnesta');
+  const d = debugArrival(p, 'gnesta');
+  assert.deepEqual(d.research, ARRIVAL.gnesta);
+  assert.deepEqual(p.research, [], 'framsteget är orört');
+  assert.equal(debugArrival(p, 'gnesta', { fresh: true }), p);
+  assert.equal(startConfig(d, 1, 'gnesta').cash, 900 + 150, 'Bigger budget I ingår');
+  // det spelaren redan har behålls, inget dubbelt
+  const q = { ...p, research: ['m2.1', 'm2.2', 'm2.3'] };
+  const r = debugArrival(q, 'gnesta-norr').research;
+  assert.equal(new Set(r).size, r.length);
+  assert.ok(ARRIVAL['gnesta-norr'].every(id => r.includes(id)));
+  assert.equal(debugArrival(newProgress(), 'riksvagen').research.length, 0);
+});
