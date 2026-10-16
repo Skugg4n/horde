@@ -878,6 +878,7 @@ export function squadGhost(radius, max = 6) {
     men.push(t);
   }
   g.userData.ghost = { m, ok: true, fillM, men };
+  xrayGhost(g, g.userData.ghost);
   g.renderOrder = 4;
   return g;
 }
@@ -908,6 +909,7 @@ export function weaponGhost(type, { roof = false } = {}) {
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
   model.group.add(ring);
   model.group.userData.ghost = { m, ok: true };
+  xrayGhost(model.group, model.group.userData.ghost);
   model.group.renderOrder = 4;
   return model.group;
 }
@@ -918,6 +920,7 @@ export function obstacleGhost(type, opts) {
   m.userData.own = true;
   g.traverse(o => { if (o.isMesh || o.isLine) { o.material = m; o.castShadow = false; o.receiveShadow = false; } });
   g.userData.ghost = { m, ok: true };
+  xrayGhost(g, g.userData.ghost);
   g.renderOrder = 4;
   return g;
 }
@@ -927,6 +930,22 @@ export function setGhostTone(group, ok) {
   u.ok = ok;
   u.m.color.set(ok ? GHOST_OK : GHOST_BAD);
   u.m.opacity = ok ? 0.5 : 0.42;
+  if (u.x) u.x.color.set(ok ? GHOST_OK : GHOST_BAD);
+}
+// 0.12.0 (H113, speltestet av 0.11.0: "spöket göms bakom taken"): de delar av spöket som skyms av hus
+// och tak ritas ändå, svagare, genom det som står framför (ett röntgenpass: djuptest 'större än').
+// Spöket själv skriver inget djup, så bara riktiga föremål framför det räknas.
+function xrayGhost(group, u) {
+  const x = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.28, depthWrite: false, depthFunc: THREE.GreaterDepth });
+  x.userData.own = true;
+  const meshes = [];
+  group.traverse(o => { if (o.isMesh) meshes.push(o); });
+  for (const o of meshes) {
+    const c = new THREE.Mesh(o.geometry, x);
+    c.renderOrder = 6; c.castShadow = false; c.receiveShadow = false;
+    o.add(c);
+  }
+  u.x = x;
 }
 
 // ---------- basen ----------

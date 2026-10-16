@@ -17,26 +17,25 @@ test('köpraden: Defenses och Units; snabbvalen 1-1 till 2-6', () => {
   assert.equal(itemAt(2, 2), 'm249'); assert.equal(itemAt(1, 3), null); assert.equal(itemAt(3, 1), null);
 });
 
-test('tvåstegsvalet: kategori, sak, Esc, samma kategori och tidsgränsen', () => {
+test('tvåstegsvalet: kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0)', () => {
   const c = createChord();
   assert.deepEqual(c.press(2, 0), { t: 'category', cat: 2 });
   assert.equal(c.open, 2);
   assert.deepEqual(c.press(2, 0.5), { t: 'pick', id: 'm249' });
   assert.equal(c.open, null, 'kategorin stängs när saken är vald');
-  // inom tidsgränsen är samma siffra en sak: 1 1 = barrikaden
   c.press(1, 10); assert.deepEqual(c.press(1, 10.4), { t: 'pick', id: 'block' });
   // en plats som inte finns gör ingenting, kategorin står kvar
   c.press(1, 20); assert.deepEqual(c.press(4, 20.2), { t: 'none' }); assert.equal(c.open, 1);
   // Esc stänger kategorin och säger att den gjorde det
   assert.equal(c.escape(), true); assert.equal(c.open, null); assert.equal(c.escape(), false);
-  // efter tidsgränsen: kategorin står kvar öppen, ingenting väljs, och nästa siffra är en ny kategori
+  // speltestet av 0.11.0: efter tidsgränsen väljer andra siffran fortfarande en sak, samma siffra också
   c.press(1, 30);
-  assert.equal(c.armed(30 + WINDOW + 0.1), false);
-  assert.equal(c.open, 1);
-  assert.deepEqual(c.press(1, 30 + WINDOW + 0.5), { t: 'close' }, 'samma kategori igen backar');
-  c.press(1, 40);
-  assert.deepEqual(c.press(2, 40 + WINDOW + 0.5), { t: 'category', cat: 2 }, 'en annan kategori byter');
-  assert.deepEqual(c.press(6, 40 + WINDOW + 0.6), { t: 'pick', id: 'psg90' });
+  assert.equal(c.armed(30 + WINDOW + 0.1), false, 'lugnare bild efter tidsgränsen');
+  assert.equal(c.open, 1, 'men fortfarande öppen');
+  assert.deepEqual(c.press(1, 30 + WINDOW + 5), { t: 'pick', id: 'block' }, '1, paus, 1 = barrikaden');
+  c.press(2, 40);
+  assert.deepEqual(c.press(3, 40 + WINDOW + 3), { t: 'pick', id: 'm2' }, '2, paus, 3 = Ksp 88');
+  c.press(2, 60); assert.deepEqual(c.press(6, 60 + 30), { t: 'pick', id: 'psg90' });
   // siffror utan kategori gör ingenting
   assert.deepEqual(c.press(0, 50), { t: 'none' }); assert.deepEqual(c.press(3, 50), { t: 'none' }); assert.equal(c.open, null);
 });

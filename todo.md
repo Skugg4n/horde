@@ -129,3 +129,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H110 | tempo | Gnesta South: policyns första skott 52 till 54 s sedan ingångarna flyttade ut i diset (vägen inne på kartan är längre). Speltesta om en spelare ställer en pjäs vid kartkanten, annars kortare väg in eller fler löpare först.
 - [ ] H111 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen?
 - [ ] H112 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot.
+
+## Speltestet av 0.11.0 (måste rättas före publicering)
+- [ ] H113 | placering | Skälet vid pekaren (inte uppe i mitten), spöket syns ovanpå taken, hitta orsaken till var tredje misslyckad placering, tråd och spärr går att lägga på grus- och cykelvägar. Prov.
+- [ ] H114 | barrikad | Barrikadens hälsa syns (liten stapel när den tagit skada, sprickor), "Barricade failing" vid låg hälsa med ping på minikartan, och den nya vägen blinkar när den går sönder.
+- [ ] H115 | gnesta-norr | Södra gruppen dyker upp mitt på kartan vid ishallen. Ingångarna ska ligga utanför den aktiva kartan; provet täcker varje bana, ingång och våg.
+- [ ] H116 | ux | Tvåstegsvalet: när en kategori är öppen väljer nästa siffra alltid en sak. Bara Esc eller klick utanför stänger; tidsgränsen är bara visuell. Provet uppdateras.
+- [ ] H117 | kamera | Zooma ut så långt att hela den aktiva kartan ryms på 1440x900.
+- [ ] H118 | balans | Gnesta dag 2 vinns av en vettig människa inom två försök: de vilande husen ger tidig action, dagen mjukare, och köp mitt i vågen går smidigt (pengar som inte går att använda).

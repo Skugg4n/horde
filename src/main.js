@@ -18,6 +18,7 @@ import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState,
 import { loadProgress, saveProgress } from './meta/save.js';
 import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
+import { snapGun, snapObstacle } from './sim/snap.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
@@ -189,19 +190,24 @@ function stopPlacing() {
   for (const n of uiRoot.querySelectorAll('.note.place')) n.remove();
 }
 // Rutan under pekaren för det som är i handen. Vapen: placeringsrutnätet. Hinder: vägens rutor.
-function spotFor(key) {
+// 0.12.0 (H113): med punkten på marken (x, z) tas närmaste ruta som går om rutan under pekaren inte
+// gör det (src/sim/snap.js); ett tak under pekaren (roof) tas som det är.
+function spotFor(key, x = null, z = null, roofHit = false) {
   if (placing?.kind === 'obstacle') {
+    if (x != null) { const sn = snapObstacle(sim, x, z, placing.type); key = sn.key; }
     if (key == null || key < 0) return { key: -1, ok: false, reason: 'ingen gata' };
     const c = sim.route.cellCenter(key), check = checkObstacle(sim, key, placing.type);
     return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
   }
+  if (x != null && !roofHit) key = snapGun(sim, x, z, placing?.type, { move: placing?.move }).key;
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
   const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
   return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason };
 }
-function placeHere(key) {
-  const sp = spotFor(key);
+function placeHere(p) {
+  const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof) : spotFor(p);
+  const key = sp.key;
   if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
   if (placing.move) {
@@ -215,7 +221,7 @@ function placeHere(key) {
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
-  else spot = spotFor(key);
+  else spot = sp.ok ? spotFor(key) : sp;
 }
 function sightOf(type, key) {
   const k = type + ':' + key;
@@ -349,21 +355,23 @@ function roofUnder(ray) {
 // Med något i handen svarar bara marken (rutan under pekaren). Annars pjäserna och hindren som
 // står ute; en tom gata öppnar ingenting (köp sker från köpraden).
 const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z, ray) => {
-  if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i }; }
-  if (placing) return { kind: 'spot', id: roofUnder(ray) ?? sim.place.keyAt(x, z) };
+  if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i, x, z }; }
+  if (placing) { const roof = roofUnder(ray); return { kind: 'spot', id: roof ?? sim.place.keyAt(x, z), x, z, roof: roof != null }; }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
 }, { ignoreClick: () => rig.takeDrag() });
 picker.onPick(p => {
   if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
-  if (placing) { if (p?.kind === 'spot') placeHere(p.id); return; }
+  if (placing) { if (p?.kind === 'spot') placeHere(p); return; }
   if (p) open(p); else closePanel();
 });
 picker.onHover(p => {
   hovered = mode === 'play' ? p : null;
-  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id) : null;
+  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id, p.x, p.z, p.roof) : null;
 });
 const bar = buildBar(uiRoot, actions);
+// 0.12.0 (H116): en öppen kategori i köpraden stängs av Esc eller ett klick utanför köpraden.
+document.addEventListener('pointerdown', e => { if (chord.open != null && !e.target.closest?.('#buildbar')) chord.reset(); }, true);
 // Klick utanför panelen (men inte i scenen, den sköts av plockaren) stänger den.
 document.addEventListener('pointerdown', e => {
   if (!panel || panel.el.contains(e.target) || e.target === renderer.domElement) return;
