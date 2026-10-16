@@ -864,34 +864,34 @@ export const DAYS = [
       { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
     // 0.12.0 (H101, H110): vilande smittade i en villa längs stickgatan, ute när våg 1 börjar, så att
     // första skottet kommer tidigt (och de civila har något att vara rädda för).
-    dormant: [{ house: 'B2-12', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 }],
+    dormant: [{ house: 'B1-00', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 3, 1.4, 0, 'east1', LEAD_RUN), g('walker', 16, 0.8, 4, 'east1')] },
              { groups: [g('walker', 24, 0.55, 0, 'east1'), g('runner', 8, 0.6, 10, 'east1')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 20, 0.4, 6, 'east1')] } ] },
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, startCash: 1300, hp: 5.7, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, startCash: 1300, hp: 2.7, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
     dormant: [{ house: 'B2-00', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
              { groups: [g('walker', 50, 0.28, 0, 'east1'), g('walker', 30, 0.35, 0, 'east2'), g('runner', 50, 0.25, 10, 'east1')] } ] },
-  { n: 3, startCash: 1300, hp: 5.8, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now. The army sends Ksp 58s and grenade launchers.' },
+  { n: 3, startCash: 1300, hp: 4.3, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now. The army sends Ksp 58s and grenade launchers.' },
     // 0.12.0 (H101): överraskningen. Ingen förvarning: ett hus vid fältet slås upp när våg 2 börjar.
     dormant: [{ house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, startCash: 1800, hp: 4.85, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Snipers and a welded EPA pillbox arrive. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+  { n: 4, startCash: 1800, hp: 3.6, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Snipers and a welded EPA pillbox arrive. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, startCash: 1600, hp: 4.0, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. The heavy Ksp 88 is here. Hold the roundabout in front of the doors.' },
+  { n: 5, startCash: 1600, hp: 2.5, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. The heavy Ksp 88 is here. Hold the roundabout in front of the doors.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
              { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
-               g('runner', 60, 0.15, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },
+               g('runner', 48, 0.18, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },
 ];
 
 export const gnesta = {

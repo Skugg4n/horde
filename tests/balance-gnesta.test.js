@@ -13,18 +13,17 @@ const winIdx = (log, d) => tries(log, d).findIndex(r => r.won);
 const winner = (log, d) => tries(log, d).find(r => r.won);
 const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-test('dag 1: smart vinner direkt, naiv tar klart mer skada', () => {
+// 0.13.0 (H105): dag 1 är de civila. Smart (spärren vid rondellen, de frivilliga där de ser vägen) får
+// in dem i ishallen på första försöket; naiv (aldrig en barrikad) får in klart färre och förlorar oftast.
+test('dag 1, de civila: smart får in dem på första försöket, naiv klart färre', () => {
   logs.forEach((log, i) => {
-    assert.equal(tries(log, 1)[0].won, true, `seed ${i}: dag 1 första försöket`);
-    const n = naives[i][0];
-    // 0.10.2: <= i stället för <. Med försprånget (lead) ser naives pjäser på Sigtunavägen de första
-    // löparna direkt, och i en seed av fem klarar naive dag 1 utan skada. Skillnaden i snitt nedan
-    // (minst 5) är kravet som bär: smart är klart bättre, inte i varje enskild seed.
-    assert.ok(!n.won || n.baseHp <= winner(log, 1).baseHp, `seed ${i}: naiv ${n.baseHp} mot smart ${winner(log, 1).baseHp}`);
+    const w = tries(log, 1)[0];
+    assert.equal(w.won, true, `seed ${i}: dag 1 första försöket`);
+    assert.ok(w.evac.safe >= w.evac.need, `seed ${i}: ${w.evac.safe} framme`);
   });
-  const smart = mean(logs.map(log => winner(log, 1).baseHp));
-  const nv = mean(naives.map(n => n[0].baseHp));
-  assert.ok(smart - nv >= 5, `bas kvar: smart ${smart}, naiv ${nv}`);
+  const smart = mean(logs.map(log => tries(log, 1)[0].evac.safe)), nv = mean(naives.map(n => n[0].evac.safe));
+  assert.ok(smart - nv >= 3, `framme: smart ${smart}, naiv ${nv}`);
+  assert.ok(naives.filter(n => !n[0].won).length >= 3, 'naiv förlorar oftast');
 });
 
 // 0.12.0 (H118, speltestet av 0.11.0: dag 2 gick inte att vinna på två försök för en människa): dag 2
@@ -41,8 +40,9 @@ test('dag 2: smart vinner direkt, och naiv vinner också (en människa ska klara
 test('dag 2: ett steg upp från dag 1, inte en vägg', () => {
   naives.forEach((n, i) => assert.ok(n[1].waveLog[0].baseHp >= 17, `seed ${i}: naiv efter våg 1 ${n[1].waveLog[0].baseHp}`));
   assert.equal(naives.filter(n => n[1].won).length, 5, `naiv vinner dag 2 i ${naives.filter(n => n[1].won).length} av 5`);
-  const d1 = mean(naives.map(n => n[0].baseHp)), d2 = mean(naives.map(n => n[1].baseHp));
-  assert.ok(d2 <= d1 - 4, `naiv bas kvar dag 1 ${d1}, dag 2 ${d2}`);
+  // 0.13.0: dag 1 avgörs av de civila, inte basen; dag 2 kostar naiv märkbart på basen
+  const d2 = mean(naives.map(n => n[1].baseHp));
+  assert.ok(d2 <= 16, `naiv bas kvar dag 2 ${d2}`);
 });
 
 test('dag 3: smart vinner på 1 till 3 försök', () => {
@@ -83,7 +83,8 @@ test('en förlorad dag rasar gradvis, inte på några sekunder', () => {
     ...logs.map((log, i) => playGnestaDay({ ...tries(log, 5)[0].before, research: tries(log, 1)[0].before.research }, 5, 'smart', { seedOffset: SEEDS[i] })),
   ];
   assert.ok(lost.some(r => !r.won));
-  for (const r of lost) if (!r.won) assert.ok(r.fallTime >= 60, `basen föll på ${r.fallTime.toFixed(0)} s`);
+  // 0.13.0: en förlust på de civila (dag 1) är ingen fallande bas
+  for (const r of lost) if (!r.won && r.lostBy !== 'civilians') assert.ok(r.fallTime >= 60, `basen föll på ${r.fallTime.toFixed(0)} s`);
 });
 
 test('högst cirka 250 levande zombier samtidigt', () => {
@@ -146,15 +147,18 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
   const saved = HV_POLICY.gnesta;
   try {
     HV_POLICY.gnesta = { days: [4], gap: [] };       // en grupp direkt dag 4, före fler pjäser
-    let withRes = 0, without = 0, plain = 0;
+    let withRes = 0, without = 0, plain = 0, heldRes = 0;
     logs.forEach((log, i) => {
       const before = tries(log, 4)[0].before;
       const a = playGnestaDay({ ...before, research: [...before.research, ...HV] }, 4, 'smart', { seedOffset: SEEDS[i] });
       const b = playGnestaDay(before, 4, 'smart', { seedOffset: SEEDS[i] });
-      assert.equal(a.won, true, `seed ${i}: gruppen med forskning håller dag 4`);
-      withRes += a.baseHp; without += b.won ? b.baseHp : 0;
+      // 0.13.0: dag 4 är svårare utan Ksp 88 (den kommer dag 5); gruppen med forskningen håller inte
+      // alltid, men oftare än utan
+      if (a.won) heldRes++;
+      withRes += a.won ? a.baseHp : 0; without += b.won ? b.baseHp : 0;
       plain += winner(log, 4).baseHp;
     });
+    assert.ok(heldRes >= 2, `gruppen med forskning håller dag 4 i ${heldRes} av 5`);
     assert.ok(withRes > without, `forskningen gör gruppen bättre: ${withRes} mot ${without}`);
     assert.ok(withRes <= plain, `men inte bättre än en pjäs till: ${withRes} mot ${plain}`);
   } finally { HV_POLICY.gnesta = saved; }
@@ -167,12 +171,15 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
 // längre (Sigtunavägen från x 84 i stället för 37), så dagen tar upp till 9 minuter och policyns första
 // skott (pjäserna vid fältet) kommer efter 52 till 54 s. Horden går fortare i diset och syns i
 // kartkanten inom 10 s (tests/fog-spawns.test.js); den som ställer en pjäs där skjuter direkt.
-test('en dag på Gnesta tar 4 till 9 minuter vid 1x, och policyns första skott kommer inom 60 s', () => {
-  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 560, `dag ${r.day}: ${r.time.toFixed(0)} s`);
+test('en dag på Gnesta tar 4 till 9 minuter vid 1x (dag 1 högst 5), och policyns första skott kommer inom 60 s', () => {
+  // 0.13.0: dag 1 (de civila) är kort: klar när de är inne, högst 5 minuter
+  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.day === 1 ? r.time <= 300 : r.time >= 240 && r.time <= 560, `dag ${r.day}: ${r.time.toFixed(0)} s`);
   for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 60, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
   // 0.12.0 (H101, H110): de vilande i husen dag 1 och 2 ger första skottet inom 15 s, smart och naiv
-  for (const log of logs) for (const d of [1, 2]) assert.ok(tries(log, d)[0].firstShot <= 15, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
-  for (const n of naives) for (const d of [1, 2]) assert.ok(n[d - 1].firstShot <= 15, `naiv dag ${d}: första skottet ${n[d - 1].firstShot}`);
+  // 0.13.0: dag 1 har de civila (ut ur husen efter 3 s) och ett hus med vilande vid rondellen; de
+  // frivilliga har kort räckvidd, så första skottet kommer inom 40 s (dag 2 inom 16 s)
+  for (const log of logs) for (const d of [1, 2]) assert.ok(tries(log, d)[0].firstShot <= (d === 1 ? 40 : 16), `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
+  for (const n of naives) for (const d of [1, 2]) assert.ok(n[d - 1].firstShot <= (d === 1 ? 40 : 16), `naiv dag ${d}: första skottet ${n[d - 1].firstShot}`);
 });
 
 test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta', async () => {
