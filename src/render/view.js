@@ -198,7 +198,7 @@ export function createView(scene, initialSim) {
     }
     // En pjäs på ett tak (Psg 90) står på takets höjd (s.y, simuleringen räknar fram den).
     const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof });
-    const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.weapon.angle };
+    const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.facing ?? s.weapon.angle };
     model.pivot.rotation.y = -e.angle;
     e.pivotHome = model.pivot.position.clone();
     e.recoil = 0;
@@ -208,6 +208,10 @@ export function createView(scene, initialSim) {
     e.group.add(hit);
     e.group.userData.pick = { kind: 'gun', id: s.id };
     e.group.position.set(s.x, s.y ?? 0, s.z);
+    // 0.12.0 (H106): skytten på taket ligger där taket bär honom (bredvid skorstenen på nocken), och
+    // kroppen följer takets lutning i den riktning han siktar (perchPose varje bildruta).
+    e.perch = s.roof ? perchFor(s) : null;
+    if (e.perch?.chimney) { const t = e.group.getObjectByName('roof-tarp'); if (t) t.visible = false; }
     scene.add(e.group);
     e.group.updateMatrixWorld(true);
     slots.set(s.id, e); slotObjects.set(s.id, e.group);
@@ -233,6 +237,33 @@ export function createView(scene, initialSim) {
     } else bag = (m.t - T * (MOVE_PACK + MOVE_CARRY)) / (T * (1 - MOVE_PACK - MOVE_CARRY));
     e.group.position.set(x, y, z);
     if (bags) { bags.visible = bag > 0.02; bags.scale.y = Math.max(0.02, Math.min(1, bag)); }
+  }
+  function perchFor(s) {
+    const pa = sim.place.perchAt?.(s.x, s.z);
+    if (!pa) return null;
+    let x = s.x, z = s.z;
+    if (pa.kind === 2 && pa.chimney) {
+      // nocken: en meter vid sidan av skorstenen, på den sida som vetter mot rutans mitt
+      const [cx, cz] = pa.chimney, dx = s.x - cx, dz = s.z - cz, L = Math.hypot(dx, dz) || 1;
+      x = cx + dx / L * 1.05; z = cz + dz / L * 1.05;
+    }
+    return { x, z, h: pa.height, chimney: pa.chimney };
+  }
+  // Kroppen (från vapnet bakåt BODY meter) läggs efter taket: lutningen mellan vapnet och fötterna, och
+  // höjden så att ingen del sjunker in i taket (prov längs kroppen och vid sidorna).
+  const BODY = 1.95, SIDE = 0.28;
+  function perchPose(e, angle) {
+    const P0 = e.perch, ux = Math.cos(angle), uz = Math.sin(angle), px = -uz, pz = ux;
+    const at = (t, sd) => P0.h(P0.x - ux * t + px * sd, P0.z - uz * t + pz * sd);
+    const yGun = at(0, 0), yFeet = at(BODY, 0) || yGun;
+    const pitch = Math.atan2(yGun - yFeet, BODY);
+    let lift = 0;
+    for (const t of [0, 0.5, 1, 1.5, BODY]) for (const sd of [-SIDE, 0, SIDE]) {
+      const roofY = at(t, sd); if (!roofY) continue;
+      lift = Math.max(lift, roofY - (yGun - Math.tan(pitch) * t));
+    }
+    e.group.position.set(P0.x, yGun + lift + 0.02, P0.z);
+    return pitch;
   }
   function removeSlot(id) {
     const e = slots.get(id); if (!e) return;
@@ -274,7 +305,7 @@ export function createView(scene, initialSim) {
         e.pivotHome.x - Math.cos(e.angle) * back + rnd(-jit, jit),
         e.pivotHome.y + rnd(-jit, jit),
         e.pivotHome.z - Math.sin(e.angle) * back + rnd(-jit, jit));
-      pv.rotation.z = r * e.look.rise;
+      pv.rotation.z = r * e.look.rise + (e.perch && !s.move ? perchPose(e, e.angle) : 0);
     }
     for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);
   }
@@ -465,6 +496,35 @@ export function createView(scene, initialSim) {
   rangeEdge.position.y = 0.08; rangeFill.position.y = 0.07;
   range.visible = false;
   scene.add(selRing, range);
+  // 0.12.0 (H108): prickskyttens sektor, en kil på marken (i handen och när pjäsen är vald)
+  const sectorM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.16, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+  const sectorEdgeM = new THREE.LineBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.8, depthTest: false });
+  const sector = new THREE.Group();
+  let sectorKey = '';
+  sector.visible = false; sector.renderOrder = 7;
+  scene.add(sector);
+  function syncSector() {
+    const s = ui.sector;
+    sector.visible = !!s;
+    if (!s) return;
+    const key = s.cone + '|' + s.r.toFixed(2);
+    if (key !== sectorKey) {
+      sectorKey = key;
+      for (const c of [...sector.children]) { c.geometry.dispose(); sector.remove(c); }
+      const half = s.cone / 2 * Math.PI / 180;
+      const fan = new THREE.CircleGeometry(s.r, 40, -half, 2 * half); fan.rotateX(-Math.PI / 2);
+      const fm = new THREE.Mesh(fan, sectorM); fm.renderOrder = 7; sector.add(fm);
+      const pts = [new THREE.Vector3(0, 0, 0)];
+      for (let i = 0; i <= 40; i++) { const a = -half + 2 * half * i / 40; pts.push(new THREE.Vector3(Math.cos(a) * s.r, 0, -Math.sin(a) * s.r)); }
+      pts.push(new THREE.Vector3(0, 0, 0));
+      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), sectorEdgeM); ln.renderOrder = 7; sector.add(ln);
+    }
+    // kilen ligger i marknivå (på taket: lite ovanför taket), vriden mot facing (atan2(dz, dx))
+    sector.position.set(s.x, (s.y ?? 0) + 0.12, s.z);
+    sector.rotation.y = -s.facing;
+    const bad = s.ok === false;
+    sectorM.color.set(bad ? PALETTE.rust : PALETTE.paper); sectorEdgeM.color.set(bad ? PALETTE.rust : PALETTE.paper);
+  }
   function syncUi() {
     // ring under en byggd pjäs som är vald eller pekas på
     const ringFor = ui.selected?.kind === 'gun' ? ui.selected : ui.hover?.kind === 'gun' ? ui.hover : null;
@@ -481,7 +541,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -720,6 +780,7 @@ export function createView(scene, initialSim) {
     syncObGhost();
     syncCover();
     syncUi();
+    syncSector();
     syncBase(dt);
     dormant.update(dt);
     fx.update(dt);

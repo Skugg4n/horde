@@ -294,7 +294,7 @@ const ROOF_RING = new THREE.MeshBasicMaterial({ color: 0xf0d7a8, transparent: tr
 const ROOF_RING_GEO = (() => { const g = new THREE.RingGeometry(1.35, 1.55, 28); g.rotateX(-Math.PI / 2); return g; })();
 function roofMarker(group) {
   const tarp = box(1.9, 0.03, 1.3, mat(0xc8642a), -0.1, 0.02, 0);
-  tarp.receiveShadow = true; group.add(tarp);
+  tarp.receiveShadow = true; tarp.name = 'roof-tarp'; group.add(tarp);
   const ring = new THREE.Mesh(ROOF_RING_GEO, ROOF_RING);
   ring.position.y = 0.06; ring.renderOrder = 5; ring.castShadow = false; ring.name = 'roof-ring';
   group.add(ring);

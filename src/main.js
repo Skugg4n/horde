@@ -211,23 +211,39 @@ function placeHere(p) {
   if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
   if (placing.move) {
-    const r = actions.move(placing.move, key, placing.facing);
+    const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null);
     if (!r.ok) { flashTip(reasonText(r.reason)); return; }
     stopPlacing(); placedAt = performance.now();
     return;
   }
-  const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type);
+  const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type, hasCone() ? aimFacing() : null);
   if (!r.ok) { flashTip(reasonText(r.reason)); return; }
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
   else spot = sp.ok ? spotFor(key) : sp;
 }
-function sightOf(type, key) {
-  const k = type + ':' + key;
-  if (!sightCache.has(k)) sightCache.set(k, sightFor(sim, key, type));
+function sightOf(type, key, facing = null) {
+  const k = type + ':' + key + ':' + (facing == null ? '' : facing.toFixed(3));
+  if (!sightCache.has(k)) sightCache.set(k, sightFor(sim, key, type, facing));
   return sightCache.get(k);
 }
+// 0.12.0 (H108): skjutsektorn för det som är i handen. Tills spelaren vrider (hjulet eller Q/E) följer
+// den platsen: riktningen som ser mest av hordens väg därifrån. Vriden står den kvar.
+const AIM_STEP = Math.PI / 12;
+const hasCone = () => !!placing && !!WEAPONS[placing.type]?.cone;
+function aimFacing() {
+  if (!hasCone() || !spot || spot.key < 0) return null;
+  if (!placing.userFacing) placing.facing = sightOf(placing.type, spot.key).facing;
+  return placing.facing;
+}
+function turnAim(dir) {
+  if (!hasCone()) return false;
+  const f = aimFacing() ?? 0;
+  placing.facing = f + dir * AIM_STEP; placing.userFacing = true;
+  return true;
+}
+addEventListener('wheel', e => { if (hasCone() && mode === 'play') { e.preventDefault(); e.stopImmediatePropagation(); turnAim(Math.sign(e.deltaY)); } }, { capture: true, passive: false });
 // Hindrets rutor och vridning (som view.js ställer hindren): spöket i handen.
 function obstacleCells(key, type) {
   const grid = sim.route.kind === 'grid';
@@ -259,9 +275,9 @@ function placementUi() {
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
     const r = weaponStats(placing.type, 1, sim.research).range;
     return {
-      ghost: { type: placing.type, x: spot.x, y: spot.y, z: spot.z, roof: spot.roof, ok: spot.ok },
-      range: { x: spot.x, z: spot.z, r },
-      cover: { id: 'p' + spot.key + placing.type, x: spot.x, z: spot.z, r, keys: sightOf(placing.type, spot.key).keys, tone: spot.ok ? 'ok' : 'bad' },
+      ghost: { type: placing.type, x: spot.x, y: spot.y, z: spot.z, roof: spot.roof, ok: spot.ok, ...(hasCone() ? { facing: aimFacing(), cone: WEAPONS[placing.type].cone, r } : {}) },
+      range: hasCone() ? null : { x: spot.x, z: spot.z, r },
+      cover: { id: 'p' + spot.key + placing.type + (hasCone() ? aimFacing().toFixed(3) : ''), x: spot.x, z: spot.z, r, keys: sightOf(placing.type, spot.key, hasCone() ? aimFacing() : null).keys, tone: spot.ok ? 'ok' : 'bad' },
     };
   }
   const at = selected?.kind === 'gun' ? selected : hovered?.kind === 'gun' ? hovered : null;
@@ -274,7 +290,8 @@ function placementUi() {
     const men = g.soldiers.filter(s => !s.down);
     return { ghost: null, range: rng, squadRange: r, cover: { id: g.id + ':' + g.weapon.level + ':' + men.length, x: g.x, z: g.z, r: 1e9, keys: squadKeys(men, r), tone: 'paper' } };
   }
-  return { ghost: null, range: rng, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
+  const sector = g.facing != null ? { x: g.x, y: g.y ?? 0, z: g.z, facing: g.facing, cone: WEAPONS[g.weapon.type].cone, r: rng.r } : null;
+  return { ghost: null, range: sector ? null : rng, sector, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
 }
 // Rutorna en grupp ser tillsammans: varje soldats synliga rutor inom räckvidden från honom.
 function squadKeys(men, r) {
@@ -315,7 +332,7 @@ const withCash = (sound, fn) => (...args) => {
   return r;
 };
 const actions = {
-  build: withCash('place', (id, type) => build(sim, id, type)),
+  build: withCash('place', (id, type, facing) => build(sim, id, type, facing == null ? {} : { facing })),
   upgrade: withCash('click', id => upgrade(sim, id)),
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
@@ -725,6 +742,8 @@ addEventListener('keydown', e => {
   if (e.key === 'Enter' && mode === 'result' && !e.repeat) { e.preventDefault(); sheetAction('nextmap'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
   if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
+  // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
+  if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
   if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
     showRoute = !showRoute;
@@ -998,7 +1017,7 @@ function tick(now) {
   const pu = placementUi();
   view.setUi({ selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
-    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null });
+    ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, sector: pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null });
   view.setZoom(rig.view);
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
