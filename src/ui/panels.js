@@ -165,7 +165,7 @@ export function buildBar(root, actions) {
     if (ck !== catKey) {
       catKey = ck;
       el.classList.toggle('choosing', openCat != null);
-      for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', armed && Number(gEl.dataset.cat) === openCat); }
+      for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', !!armed && Number(gEl.dataset.cat) === openCat); }
     }
     set(el.querySelector('[data-n]'), `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
@@ -195,6 +195,21 @@ export function buildBar(root, actions) {
     c.btn.classList.remove('shake'); void c.btn.offsetWidth; c.btn.classList.add('shake');
   }
   return { el, update, shake };
+}
+
+// 0.12.2 (speltestet: "Upgrade $ 450 grå fast kassan är $ 1 264"): knappens läge i en ren funktion.
+// Felet var classList.toggle('off', a || b || (g.squad && noRoom)): för en pjäs som inte är Hemvärnet
+// blev sista ledet undefined, och toggle utan sant/falskt växlar klassen varje bildruta (knappen
+// blinkade grå/vit och såg grå ut). Nu är ok alltid true/false, och när knappen inte går står skälet
+// på den: "Max level", "Need $ X more", "No room", "Moving" eller "Day over".
+export function upgradeState(s, g, { noRoom = false } = {}) {
+  const w = g.weapon, cost = upgradeCost(w.type, w.level);
+  if (cost == null) return { ok: false, max: true, cost: null, text: 'Max level', why: REASONS.max };
+  const base = { max: false, cost };
+  if (s.phase !== 'build' && s.phase !== 'wave') return { ...base, ok: false, text: 'Day over', why: REASONS['fel läge'] };
+  if (s.cash < cost) { const need = Math.ceil(cost - s.cash); return { ...base, ok: false, text: `Need ${money(need)} more`, why: `Costs ${money(cost)}. ${REASONS.pengar}` }; }
+  if (g.squad && noRoom) return { ...base, ok: false, text: 'No room', why: REASONS['trångt-man'] };
+  return { ...base, ok: true, text: money(cost), why: '' };
 }
 
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
@@ -292,12 +307,12 @@ export function gunPanel(root, gunId, sim, actions) {
       rf.classList.toggle('off', poor);
     }
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
-    const cost = upgradeCost(w.type, w.level);
-    const upText = cost == null ? 'Max level' : s.cash < cost ? 'Need ' + money(cost) : money(cost);
+    const us = upgradeState(s, g, { noRoom });
     const upP = up.querySelector('[data-p]');
-    if (upP.textContent !== upText) upP.textContent = upText;
-    up.classList.toggle('off', cost == null || s.cash < cost || (g.squad && noRoom));
-    up.classList.toggle('max', cost == null);
+    if (upP.textContent !== us.text) upP.textContent = us.text;
+    up.classList.toggle('off', !us.ok);
+    up.classList.toggle('max', us.max);
+    up.title = us.why || (g.squad ? up.title : '');
     const sellText = '+' + money(weaponRefund(w));
     const sellP = sell.querySelector('[data-p]');
     if (sellP.textContent !== sellText) sellP.textContent = sellText;

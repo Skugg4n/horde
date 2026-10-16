@@ -809,42 +809,78 @@ export function hvSoldierModel(seed = 1) {
 // åt vilket håll han lutar sig ut (bara crouch). recoil 0..1: geväret stöts bakåt.
 function hvReset(s) {
   s.body.position.set(0, 0, 0); s.body.rotation.set(0, 0, 0);
-  for (const j of [s.hipL, s.hipR, s.kneeL, s.kneeR, s.shL, s.shR, s.elL, s.elR, s.spine, s.head]) j.rotation.set(0, 0, 0);
+  const js = s._joints ??= [s.hipL, s.hipR, s.kneeL, s.kneeR, s.shL, s.shR, s.elL, s.elR, s.spine, s.head];
+  for (let i = 0; i < js.length; i++) js[i].rotation.set(0, 0, 0);
 }
 function aimArms(s) {
   s.shR.rotation.set(-1.25, 0, -0.35); s.elR.rotation.x = -1.15;      // bakre handen vid greppet
   s.shL.rotation.set(-1.45, 0, 0.32); s.elL.rotation.x = -0.35;       // främre handen under handskyddet
 }
-export function hvPose(s, stance, { lean = 0, recoil = 0 } = {}) {
+// 0.12.2 (speltestet: "de ligger och snurrar på marken"): mer liv i ställningarna, bara bild.
+//   twist   radianer: överkroppen vrids först mot målet, benen (roten) följer efter (knä, huk)
+//   crawl   fas eller -1: den liggande kryper runt höften när han vänder sig (benen saxar, armarna drar)
+//   breath  fas: andningen lyfter bröstet lite
+//   sway    -1..1: liten svajning och viktförskjutning mellan benen
+//   scan    radianer: huvudet spanar åt sidorna när han inte skjuter
+//   reload  0..1: omladdning (geväret tippas, vänsterhanden till magasinet), 0 = ingen
+// opts återanvänds av squad-view.js (ingen ny allokering per bildruta).
+export function hvPose(s, stance, { lean = 0, recoil = 0, twist = 0, crawl = -1, breath = 0, sway = 0, scan = 0, reload = 0 } = {}) {
   hvReset(s);
   const rf = s.rifle;
+  const br = Math.sin(breath) * 0.025;
   if (stance === 'prone') {
-    // på magen, huvudet framåt, geväret framför huvudet på höger sida
-    s.body.rotation.x = Math.PI / 2; s.body.position.set(0, 0.16, -0.95);
-    s.head.rotation.x = -1.1;
+    // på magen, huvudet framåt, geväret framför huvudet på höger sida. Kroppen ligger bakåt från
+    // roten; squad-view.js flyttar roten så att höften är vridpunkten.
+    s.body.rotation.x = Math.PI / 2; s.body.position.set(0, 0.16 + br * 0.4, -0.95);
+    s.head.rotation.set(-1.1, scan * 0.6, 0);
     s.hipL.rotation.z = 0.16; s.hipR.rotation.z = -0.2; s.kneeR.rotation.x = 0.3;
     s.shL.rotation.set(-2.7, 0, 0.35); s.elL.rotation.x = -0.25;
     s.shR.rotation.set(-2.45, 0, -0.45); s.elR.rotation.x = -0.9;
     rf.position.set(0.1, 0.42 - recoil * 0.06, -0.18); rf.rotation.set(-Math.PI / 2 + 0.06, 0, 0);
+    if (crawl >= 0) {
+      // kryper: benen saxar, armbågarna drar, bålen rullar lite
+      const c = Math.sin(crawl), d = Math.cos(crawl);
+      s.hipL.rotation.z = 0.16 + 0.35 * Math.max(0, c); s.hipR.rotation.z = -0.2 - 0.35 * Math.max(0, -c);
+      s.kneeL.rotation.x = 0.5 * Math.max(0, c); s.kneeR.rotation.x = 0.3 + 0.5 * Math.max(0, -c);
+      s.shL.rotation.z = 0.35 + 0.25 * d; s.shR.rotation.z = -0.45 + 0.25 * d;
+      s.body.rotation.y = 0.08 * c;
+    } else {
+      s.hipL.rotation.z += sway * 0.05; s.hipR.rotation.z += sway * 0.05;
+    }
+    if (reload > 0) {
+      const k = Math.sin(Math.PI * Math.min(1, reload));
+      rf.rotation.z = -0.7 * k; s.shL.rotation.set(-2.7 + 0.9 * k, 0, 0.35 - 0.4 * k); s.elL.rotation.x = -0.25 - 1.0 * k;
+    }
     return;
   }
   if (stance === 'kneel') {
     s.body.position.y = -0.47;
     s.hipL.rotation.x = -1.45; s.kneeL.rotation.x = 1.5;
     s.hipR.rotation.x = 0.25; s.kneeR.rotation.x = 1.75;
-    s.spine.rotation.x = 0.12; s.head.rotation.x = -0.05;
+    s.spine.rotation.x = 0.12 + br; s.head.rotation.x = -0.05;
   } else {
     // på huk, lutar sig ut runt hörnet
     s.body.position.y = -0.44;
     s.hipL.rotation.set(-1.5, 0, 0.12); s.kneeL.rotation.x = 1.6;
     s.hipR.rotation.set(-1.2, 0, -0.1); s.kneeR.rotation.x = 1.75;
     s.body.position.z = -0.12;
-    s.spine.rotation.set(0.35, 0, -lean * 0.42); s.head.rotation.set(-0.3, 0, lean * 0.3);
+    s.spine.rotation.set(0.35 + br, 0, -lean * 0.42); s.head.rotation.set(-0.3, 0, lean * 0.3);
   }
+  // viktförskjutning och svaj: bäckenet i sidled, ryggen motvikt
+  s.body.position.x = sway * 0.035; s.body.rotation.z = sway * 0.03; s.spine.rotation.z -= sway * 0.05;
+  // överkroppen först (benen följer i squad-view.js), huvudet spanar
+  s.spine.rotation.y = twist; s.head.rotation.y = scan;
   aimArms(s);
   // kolven vid axeln, pipan rakt fram (ryggens lutning tas bort så att den ligger vågrätt)
   rf.position.set(0.1, 0.46, 0.02 - recoil * 0.06);
   rf.rotation.set(-s.spine.rotation.x - recoil * 0.12, 0, 0);
+  if (reload > 0) {
+    // geväret ner och vridet, vänsterhanden till magasinet och tillbaka
+    const k = Math.sin(Math.PI * Math.min(1, reload));
+    rf.position.y -= 0.12 * k; rf.rotation.x += 0.55 * k; rf.rotation.z = -0.6 * k;
+    s.shL.rotation.set(-1.45 + 0.75 * k, 0, 0.32 - 0.2 * k); s.elL.rotation.x = -0.35 - 1.1 * k;
+    s.head.rotation.x += 0.35 * k; s.head.rotation.y = scan * (1 - k);
+  }
 }
 // Springer ut till sin plats, geväret snett över bröstet. phase växer med sträckan.
 export function hvRun(s, phase) {

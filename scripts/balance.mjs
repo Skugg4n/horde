@@ -397,14 +397,18 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roo
     // Helst en av planens första platser (den byggs ändan): den av dem som ser mest av öppningens väg.
     const op = ps.find(p => p.id === opener), on = new Set(op.cells);
     let bestN = 0;
-    keep.slice(0, 4).forEach(i => { const n = [...cp.sees[i]].filter(c => on.has(c)).length; if (n > bestN) { bestN = n; openerGun = cp.spots[i]; } });
+    // 0.12.2: våg 1 kommer från olika håll. Söderifrån (sigW, nära ishallen) som förut; från norr och
+    // öster möter människan dem där de kliver ur diset: pjäsen ser den första tredjedelen av vägen.
+    const early = opener !== 'sigW';
+    if (!early) keep.slice(0, 4).forEach(i => { const n = [...cp.sees[i]].filter(c => on.has(c)).length; if (n > bestN) { bestN = n; openerGun = cp.spots[i]; } });
     if (bestN < 4) {
-      const oc = coveragePlan(map, op.cells.map((c, i) => [c, 1 + i / op.cells.length]), { range: PLAN_RANGE, count: 1, decay: GN_DECAY, cacheKey: key + '|opener' });
+      const cells = early ? op.cells.slice(0, Math.ceil(op.cells.length * 0.35)).map((c, i, a) => [c, 2 - i / a.length]) : op.cells.map((c, i) => [c, 1 + i / op.cells.length]);
+      const oc = coveragePlan(map, cells, { range: PLAN_RANGE, count: 1, decay: GN_DECAY, cacheKey: key + '|opener' + (early ? 'E' : '') });
       openerGun = oc.spots[0] ?? null;
     }
     plan_openerSees = bestN;
   }
-  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, roofFacing: roofs.facings, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]), ...(openerGun != null ? { openerGun, openerSees: plan_openerSees } : {}) };
+  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, roofFacing: roofs.facings, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]), ...(openerGun != null ? { openerGun, openerSees: plan_openerSees, opener } : {}) };
   planCache.set(key, plan);
   return plan;
 }
@@ -513,7 +517,8 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   if (plan.openerGun != null && sim.wavesStarted === 0 && !og) buildNext(sim, [plan.openerGun], 'm249');
   // 0.12.0 (H102): i stället för att sälja den flyttas den upp till nästa lediga plats i planen (8 s utan
   // eld), så att linjen i norr får en pjäs till utan att 40 % av priset går förlorat.
-  if (og && !og.move && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === 'sigW') && !sim.zombies.some(z => !z.dead && z.spawn === 'sigW')) {
+  const oid = plan.opener ?? 'sigW';
+  if (og && !og.move && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === oid && q.wave === 0) && !sim.zombies.some(z => !z.dead && z.spawn === oid && z.wave === 0)) {
     const to = [...plan.guns].reverse().find(k => !sim.guns.some(g => g.cell === k) && checkMove(sim, og.id, k).ok);
     // naive (läser inte kartan) säljer som förut; smart flyttar
     if (to != null && sim.policy === 'smart') moveGun(sim, og.id, to); else sell(sim, og.id);
@@ -588,13 +593,16 @@ const NORR_ROW_ROOFS = (() => {
   const villas = gnestaNorr.lots.plots.filter(p => p.house).length;
   return i => i >= villas;
 })();
+// Ingången för dagens första grupp på Gnesta Norr (öppningen), sigW om våg 1 bara är hus.
+const norrOpener = day => gnestaNorr.days[day - 1].waves[0].groups[0]?.spawn ?? 'sigW';
 export const TOWN = {
   gnesta: { blocks: () => SMART_BLOCKS, planOpts: () => ({}), kits: GN_KITS, roofsDay: GN_ROOFS_DAY, maxTicks: MAX_TICKS },
   'gnesta-norr': {
     blocks: day => (day >= 5 ? [...NORR_BLOCKS, ...SMART_BLOCKS] : NORR_BLOCKS),
     // smart läser kartan (dödszonen, radhustaken, tegelmurarna); naive ställer allt efter sin egen väg
-    planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25, opener: 'sigW' }
-      : { roofs: 3, near: 0, lastLine: 0.25, opener: 'sigW' }),
+    // 0.12.2: öppningspjäsen möter dagens första grupp, varifrån den än kommer
+    planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25, opener: norrOpener(day) }
+      : { roofs: 3, near: 0, lastLine: 0.25, opener: norrOpener(day) }),
     kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
   },
 };

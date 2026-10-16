@@ -6,7 +6,7 @@ import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, maxSquads, MAX_LEVEL } from './stats.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
 import { emplacement } from './emplace.js';
-import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight } from './squad.js';
+import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight, inArc, RISE_TIME, SETTLE_TIME } from './squad.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 // Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
@@ -26,7 +26,25 @@ export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många 
 // föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
 // vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
 
-export function createSim({ map, day, cash, research = [], seed = 1 }) {
+// ---------- debugmenyns reglar (0.12.2) ----------
+// tweaks: multiplikatorer som debugmenyn ändrar live (zombiernas hp och fart, antalet i varje grupp,
+// pengar och forskning per död, nedräkningens sekunder, god mode). Standard är identitet: då räknar
+// simuleringen exakt som förut (balansproven kör alltid utan tweaks, tests/tweaks.test.js).
+// Lagras bara i 'horde.debug' i webbläsaren, aldrig i sparfilen.
+export const IDENTITY_TWEAKS = Object.freeze({ hp: 1, speed: 1, count: 1, cash: 1, intel: 1, countdown: null, god: false });
+export function normalizeTweaks(t) {
+  const out = { ...IDENTITY_TWEAKS };
+  if (!t || typeof t !== 'object') return out;
+  for (const k of ['hp', 'speed', 'count', 'cash', 'intel']) { const v = Number(t[k]); if (Number.isFinite(v) && v > 0) out[k] = v; }
+  const c = t.countdown == null || t.countdown === '' ? NaN : Number(t.countdown);
+  if (Number.isFinite(c) && c >= 0) out.countdown = c;
+  out.god = t.god === true;
+  return out;
+}
+export const tweaksActive = t => !!t && (['hp', 'speed', 'count', 'cash', 'intel'].some(k => t[k] !== 1) || t.countdown != null || t.god === true);
+const countdownOf = sim => sim.tweaks?.countdown ?? COUNTDOWN;
+
+export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
   const route = routeFor(map);
@@ -41,6 +59,7 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
     obstacles: {}, grenades: [], nextLine: 1,
     // husen vars dörrar slagits upp i dag (vilande smittade, H101)
     burst: [],
+    tweaks: normalizeTweaks(tweaks),
   };
 }
 
@@ -65,13 +84,20 @@ export function houseDoor(map, house, route) {
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
-  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) });
+  const kc = sim.tweaks?.count ?? 1;
+  // debug: spawn count × (gruppens tid behålls; identitet = exakt dagens data)
+  const nOf = n => kc === 1 ? n : Math.max(1, Math.round(n * kc));
+  // 0.12.2: group.toast = en rad när gruppens första kommer (vändningen sent i en våg)
+  for (const g of wave.groups) { const n = nOf(g.count), iv = kc === 1 ? g.interval : g.interval * g.count / n; for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * iv, type: g.type, wave: index, spawn: g.spawn, ...(g.toast && i === 0 ? { toast: g.toast } : {}), ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) }); }
   for (const d of sim.dayCfg.dormant ?? []) {
     if ((d.wave ?? 0) !== index) continue;
     const door = houseDoor(sim.map, d.house, sim.route);
-    for (let i = 0; i < d.count; i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
-    sim.burst.push(d.house);
-    sim.events.push({ t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false });
+    // 0.12.2: d.delay = sekunder in i vågen innan dörren slås upp (överraskningen sent i vågen)
+    const dl = d.delay ?? 0;
+    for (let i = 0; i < nOf(d.count); i++) sim.spawnQueue.push({ at: sim.time + dl + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
+    const ev = { t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false };
+    if (dl > 0) (sim.pendingBursts ??= []).push({ at: sim.time + dl, ev });
+    else { sim.burst.push(d.house); sim.events.push(ev); }
   }
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
@@ -79,6 +105,39 @@ function launch(sim) {
   sim.nextWaveIn = null;
   sim.events.push({ t: 'waveStart', index });
   return index;
+}
+
+// ---------- debugmenyn (0.12.2) ----------
+// Lägger till zombier mitt i en våg: count av type från ingången spawn (E4: vägens enda), räknas till
+// den senast startade vågen så att vågen inte är klar förrän de är döda. Bara under en våg.
+export function debugSpawn(sim, { type = 'walker', count = 1, spawn: spawnId = undefined } = {}) {
+  if (sim.phase !== 'wave' || !ZOMBIES[type]) return { ok: false, reason: 'fel läge' };
+  const n = Math.max(1, Math.min(500, Math.round(count)));
+  const wave = Math.max(0, sim.wavesStarted - 1);
+  for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + i * 0.25, type, wave, spawn: spawnId });
+  sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
+  return { ok: true, count: n };
+}
+// Slår upp dörren till ett hus nu (dagens vilande, eller vilket hus som helst på kartan): count
+// smittade väller ut som i launch. Bara under en våg.
+export function debugBurst(sim, house, { count = 4, type = 'walker' } = {}) {
+  if (sim.phase !== 'wave') return { ok: false, reason: 'fel läge' };
+  const door = houseDoor(sim.map, house, sim.route);
+  const wave = Math.max(0, sim.wavesStarted - 1);
+  for (let i = 0; i < count; i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type, wave, door: house, cell: door.cell });
+  sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
+  if (!sim.burst.includes(house)) sim.burst.push(house);
+  if (sim.pendingBursts) sim.pendingBursts = sim.pendingBursts.filter(b => b.ev.house !== house);
+  sim.events.push({ t: 'dormantBurst', house, x: door.x, z: door.z, ry: door.ry, intel: true });
+  return { ok: true };
+}
+// Hoppar till våg n (1 = första) före dagens första våg: vågorna före räknas som klara utan zombier.
+export function debugJumpWave(sim, n) {
+  if (sim.phase !== 'build' || sim.wavesStarted > 0) return { ok: false, reason: 'fel läge' };
+  const k = Math.max(0, Math.min(sim.dayCfg.waves.length - 1, Math.round(n) - 1));
+  for (let i = 0; i < k; i++) sim.cleared[i] = true;
+  sim.waveIndex = sim.wavesStarted = k;
+  return { ok: true, wave: k + 1 };
 }
 
 // Startar nästa våg utan bonus (första vågen, eller policyer som inte vill vänta).
@@ -98,7 +157,7 @@ export function earlyBonus(sim) {
   if (sim.nextWaveIn != null) return Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   const q = sim.spawnQueue;
   const spawnLeft = q.length ? Math.max(0, q[q.length - 1].at - sim.time) : 0;
-  return Math.round(((sim.dayCfg.overlap ?? COUNTDOWN) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
+  return Math.round(((sim.dayCfg.overlap ?? countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
 // Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
@@ -141,14 +200,15 @@ export function fogFactor(map, x, z) {
   return 1 + (FOG_SPEED - 1) * t * t * (3 - 2 * t);
 }
 // group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
-function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1 }) {
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1, toast = null }) {
+  if (toast) sim.events.push({ t: 'groupToast', text: toast, wave });
   const id = sim.nextId++;
-  const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1);
+  const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1) * (sim.tweaks?.hp ?? 1);
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
   const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : sim.route.spawn(sim.rng, spawnId, id);
   const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   if (lead > 0) {
-    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1);
+    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
     // 0.11.0: på en bana med dis stannar försprånget i diset (ingen dyker upp mitt i kartan)
     const fog = sim.route.kind === 'grid' && sim.map.surroundings?.crisp;
@@ -179,6 +239,7 @@ export function step(sim, dt) {
   }
   if (sim.phase !== 'wave') return;
   sim.time += dt;
+  if (sim.pendingBursts?.length) for (const b of sim.pendingBursts.filter(q => q.at <= sim.time)) { sim.pendingBursts.splice(sim.pendingBursts.indexOf(b), 1); sim.burst.push(b.ev.house); sim.events.push(b.ev); }
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
   // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
   const ov = sim.dayCfg.overlap;
@@ -214,11 +275,12 @@ function checkCleared(sim) {
     if (sim.spawnQueue.some(q => q.wave === k) || sim.zombies.some(z => !z.dead && z.wave === k)) continue;
     sim.cleared[k] = true;
     sim.waveIndex++;
-    sim.intelEarned += WAVE_INTEL;
-    sim.events.push({ t: 'waveCleared', index: k, intel: WAVE_INTEL });
+    const wi = WAVE_INTEL * (sim.tweaks?.intel ?? 1);
+    sim.intelEarned += wi;
+    sim.events.push({ t: 'waveCleared', index: k, intel: wi });
   }
   if (sim.waveIndex >= sim.dayCfg.waves.length) { sim.phase = 'won'; sim.events.push({ t: 'won' }); }
-  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, COUNTDOWN); }
+  else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, countdownOf(sim)); }
 }
 
 function moveZombies(sim, dt) {
@@ -246,7 +308,7 @@ function moveZombies(sim, dt) {
       }
     }
     // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
-    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
+    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
     z.v = speed;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
@@ -261,7 +323,7 @@ function moveZombies(sim, dt) {
 }
 function breach(sim, z) {
   const def = ZOMBIES[z.type];
-  sim.baseHp -= def.baseDamage;
+  if (!sim.tweaks?.god) sim.baseHp -= def.baseDamage;
   const p = zombiePos(sim, z);
   z.dead = true; z.breached = true; z.deadT = 99;
   sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });
@@ -679,14 +741,28 @@ function fireSquad(sim, dt, cells, g) {
   const st = weaponStats(g.weapon.type, g.weapon.level, sim.research);
   for (const s of g.soldiers) {
     s.cooldown -= dt;
-    if (s.down || s.run > 0) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); continue; }
-    const seen = s.sight.mask;
-    let target = null, best = -Infinity;
+    if (s.down || s.run > 0) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); s.rise = 0; s.risen = false; continue; }
+    const seen = s.sight.mask, prone = s.stance === 'prone' && !s.risen;
+    // 0.12.2: den liggande skjuter bara inom bågen runt skyddsriktningen (PRONE_ARC)
+    let target = null, best = -Infinity, out = null, bestOut = -Infinity;
     for (const [z, { p, k }] of cells) {
       if (z.dead || k < 0 || !seen[k]) continue;
       if (Math.hypot(p.x - s.x, p.z - s.z) > st.range) continue;
       const pr = sim.route.progress(z);
+      if (s.stance === 'prone' && !inArc(s, Math.atan2(p.z - s.z, p.x - s.x))) { if (pr > bestOut) { bestOut = pr; out = z; } continue; }
       if (pr > best) { best = pr; target = z; }
+    }
+    if (s.stance === 'prone') {
+      if (prone && !target && out) {
+        // reser sig på knä och vänder sig; skjuter först när han är uppe
+        s.rise = (s.rise ?? 0) + dt;
+        if (s.rise >= RISE_TIME - 1e-9) { s.risen = true; s.settle = 0; }
+      } else if (prone) s.rise = 0;
+      if (s.risen) {
+        if (out && (!target || bestOut > best)) { target = out; best = bestOut; }
+        s.settle = out ? 0 : (s.settle ?? 0) + dt;
+        if (s.settle >= SETTLE_TIME - 1e-9) { s.risen = false; s.rise = 0; }
+      } else if (!target) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); continue; }
     }
     s.targetId = target ? target.id : null;
     if (!target) { s.cooldown = Math.max(s.cooldown, 0); continue; }
@@ -812,8 +888,9 @@ function damage(sim, z, amount, p) {
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
-    sim.cash += def.bounty; sim.intelEarned += def.intel; sim.kills++;
-    sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty: def.bounty, intel: def.intel, x: p.x, z: p.z });
+    const bounty = def.bounty * (sim.tweaks?.cash ?? 1), intel = def.intel * (sim.tweaks?.intel ?? 1);
+    sim.cash += bounty; sim.intelEarned += intel; sim.kills++;
+    sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty, intel, x: p.x, z: p.z });
   }
 }
 

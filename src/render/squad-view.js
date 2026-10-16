@@ -14,6 +14,16 @@ import { KIND } from '../sim/placement.js';
 import { runTime } from '../sim/squad.js';
 
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+// 0.12.2 (speltestet: "de ligger och snurrar på marken"): den liggande vrider sig runt höften, högst
+// PRONE_TURN rad/s, och kryper medan han vänder. På knä och huk vrids överkroppen först (högst TWIST_MAX
+// från benen, TORSO_RATE) och benen följer (LEGS_RATE). Andning, svaj, viktförskjutning, huvudet som
+// spanar och en omladdning ibland när han inte skjuter. Allt deterministiskt per soldat, inga nya
+// objekt per bildruta (po återanvänds).
+const PRONE_TURN = Math.PI / 2, TORSO_RATE = 9, TWIST_MAX = 0.7, LEGS_RATE = 2.4;
+const HIP_BACK = 0.95;               // den liggandes höft ligger så långt bakom roten (hvPose)
+const RELOAD_TIME = 2.2, MAG = 20;   // Ak 4: 20 skott i magasinet
+const po = { lean: 0, recoil: 0, twist: 0, crawl: -1, breath: 0, sway: 0, scan: 0, reload: 0 };
+const rnd = e => { e.r = (Math.imul(e.r, 1664525) + 1013904223) >>> 0; return e.r / 4294967296; };
 const DOWN_TIME = 0.45;
 const LINES_MAX = 12;
 
@@ -56,7 +66,8 @@ export function createSquadView(scene) {
     const parts = hvSoldierModel(hashId(g.id) * 7 + s.i);
     horde.attach(parts);
     const ry = Math.atan2(Math.cos(s.face), Math.sin(s.face));
-    const e = { parts, x: g.x, z: g.z, ry, run: { t: 0, dur: s.run > 0 ? s.run : runTime(Math.hypot(s.x - g.x, s.z - g.z)) }, phase: 0, down: s.down ? 1 : 0, wasDown: s.down, recoil: 0, mv: s.mv };
+    const seed = hashId(g.id) * 7 + s.i;
+    const e = { parts, x: g.x, z: g.z, ry, aim: ry, t: (seed % 97) * 0.37, r: seed >>> 0, shots: 0, quiet: 0, rl: 0, nextIdle: 10 + (seed % 13), scan: 0, crawl: 0, run: { t: 0, dur: s.run > 0 ? s.run : runTime(Math.hypot(s.x - g.x, s.z - g.z)) }, phase: 0, down: s.down ? 1 : 0, wasDown: s.down, recoil: 0, mv: s.mv };
     if (s.down) { e.run = null; e.x = s.x; e.z = s.z; }
     return e;
   }
@@ -98,12 +109,45 @@ export function createSquadView(scene) {
           hvRun(parts, e.phase);
           if (k >= 1) e.run = null;
         } else {
-          e.x = s.x; e.z = s.z;
+          // ställningen: den liggande som rest sig för ett mål utanför bågen står på knä (sim)
+          const stance = s.stance === 'prone' && s.risen ? 'kneel' : s.stance;
+          const firing = s.targetId != null;
+          e.t += dt;
           // siktar mot målet, annars mot gatan han vaktar
-          const want = s.targetId != null ? s.angle : s.face;
-          e.ry += angleDiff(e.ry, Math.atan2(Math.cos(want), Math.sin(want))) * Math.min(1, dt * 10);
+          const want = firing ? s.angle : s.face, wantRy = Math.atan2(Math.cos(want), Math.sin(want));
+          po.crawl = -1; po.twist = 0;
+          if (stance === 'prone') {
+            // runt höften, högst PRONE_TURN rad/s; kryper medan han vänder
+            const d = angleDiff(e.ry, wantRy), step = Math.sign(d) * Math.min(Math.abs(d), PRONE_TURN * dt);
+            e.ry += step;
+            if (Math.abs(d) > 0.03) { e.crawl += Math.abs(step) * 9; po.crawl = e.crawl; }
+            e.aim = e.ry;
+          } else {
+            // överkroppen först, benen efter
+            e.aim += angleDiff(e.aim, wantRy) * Math.min(1, dt * TORSO_RATE);
+            const tw = angleDiff(e.ry, e.aim);
+            if (Math.abs(tw) > TWIST_MAX) e.ry += tw - Math.sign(tw) * TWIST_MAX;
+            e.ry += angleDiff(e.ry, e.aim) * Math.min(1, dt * LEGS_RATE);
+            po.twist = angleDiff(e.ry, e.aim);
+          }
+          // den liggandes höft står still på hans ruta; roten (huvudänden) ligger framför den
+          const tx = stance === 'prone' ? s.x + Math.sin(e.ry) * HIP_BACK : s.x, tz = stance === 'prone' ? s.z + Math.cos(e.ry) * HIP_BACK : s.z;
+          const k = dt > 0 ? Math.min(1, dt * 8) : 0;
+          e.x += (tx - e.x) * k; e.z += (tz - e.z) * k;
+          // tyst: omladdning efter ett magasin eller ibland av vana
+          e.quiet = firing ? 0 : e.quiet + dt;
+          if (e.rl > 0) e.rl = e.rl + dt / RELOAD_TIME >= 1 ? 0 : e.rl + dt / RELOAD_TIME;
+          else if ((e.shots >= MAG && e.quiet > 0.6) || (!firing && e.t > e.nextIdle)) { e.rl = 1e-3; e.shots = 0; e.nextIdle = e.t + 14 + rnd(e) * 16; }
+          if (firing) e.nextIdle = Math.max(e.nextIdle, e.t + 6);
+          e.scan += ((firing ? 0 : Math.sin(e.t * 0.55 + e.r % 7) * 0.55) - e.scan) * Math.min(1, dt * 3);
           if (dt > 0) e.recoil *= Math.exp(-dt * 18);
-          hvPose(parts, s.stance, { lean: s.stance === 'crouch' ? lean(e, sim.place, s) : 0, recoil: e.recoil < 0.02 ? 0 : e.recoil });
+          po.lean = stance === 'crouch' ? lean(e, sim.place, s) : 0;
+          po.recoil = e.recoil < 0.02 || e.rl > 0 ? 0 : e.recoil;
+          po.breath = e.t * (firing ? 3.2 : 2.1);
+          po.sway = (Math.sin(e.t * 0.37 + (e.r % 5)) * 0.7 + Math.sin(e.t * 0.11) * 0.3) * (firing ? 0.3 : 1);
+          po.scan = e.scan;
+          po.reload = e.rl;
+          hvPose(parts, stance, po);
         }
         parts.root.position.set(e.x, 0, e.z);
         parts.root.rotation.y = e.ry;
@@ -120,7 +164,7 @@ export function createSquadView(scene) {
   function fire(gunId, i) {
     const e = man(gunId, i);
     if (!e || e.run || e.down) return null;
-    e.recoil = 1;
+    e.recoil = 1; e.shots++; e.rl = 0;
     e.parts.root.updateMatrixWorld(true);
     return e.parts.muzzle;
   }

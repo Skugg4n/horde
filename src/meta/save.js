@@ -114,3 +114,14 @@ function keepCopy(storage, raw, base) {
     console.warn('Sparfilen kunde inte kopieras.', err);
   }
 }
+
+// 0.12.2: debugmenyns "Reset save". Sparfilen kopieras först till 'horde.save.backup' (eller .1, .2 ...
+// om en kopia redan finns, keepCopy skriver aldrig över), sedan sparas ett nytt framsteg. Inget raderas.
+export const BACKUP = 'horde.save.backup';
+export function resetSave(fresh, storage) {
+  const s = resolveStorage(storage);
+  let raw = null;
+  try { raw = s.getItem(KEY); } catch { /* läses inte: inget att kopiera */ }
+  if (raw != null) keepCopy(s, raw, BACKUP);
+  return saveProgress(fresh, s);
+}

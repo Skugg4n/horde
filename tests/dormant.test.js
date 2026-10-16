@@ -42,9 +42,27 @@ test('överraskningen: ett hus utan förvarning, först i en senare våg', () =>
   assert.equal(intelLine(gnesta.days[2]), '');
   assert.match(intelLine(gnesta.days[0]), /Intel: dormant infected reported on Sigtunavägen\./);
   assert.match(intelLine(gnestaNorr.days[0]), /Vikingavägen/);
+  // 0.12.2: Norr dag 4 och 5 har ett oannonserat hus sent i sista vågen
+  for (const n of [3, 4]) assert.ok(gnestaNorr.days[n].dormant.some(d => d.intel === false && d.wave > 0 && d.delay > 0));
   // varje hus finns, och gatan i texten är den närmaste namngivna
   for (const map of [gnesta, gnestaNorr]) for (const day of map.days) for (const d of day.dormant ?? []) {
-    assert.ok(d.count >= 3 && d.count <= 5);
+    // 0.12.2: upp till sex smittade, eller en till två bjässar (Norrs överraskningar sent i vågen)
+    if (d.type === 'brute') assert.ok(d.count >= 1 && d.count <= 2);
+    else assert.ok(d.count >= 3 && d.count <= 6);
+    // d.delay: dörren slås upp senare i vågen, men aldrig efter att vågen kommit ut
+    if (d.delay != null) assert.ok(d.delay > 0 && d.delay <= 60);
     houseDoor(map, d.house);
   }
+});
+
+// 0.12.2: ett hus med delay slås upp sent i vågen, inte när den börjar, och de kommer ut då.
+test('dörren med delay slås upp först efter delay sekunder in i vågen', () => {
+  const map = { ...gnestaNorr, days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'vikN' }] }],
+    dormant: [{ house: 'N-19', count: 3, type: 'walker', wave: 0, delay: 12, intel: false }] }] };
+  const sim = createSim({ map, day: 1, cash: 0, seed: 3 });
+  startWave(sim);
+  let burstAt = null;
+  for (let i = 0; i < 30 * 20; i++) { step(sim, 1 / 30); if (sim.events.some(e => e.t === 'dormantBurst')) burstAt ??= sim.time; }
+  assert.ok(burstAt > 11.9 && burstAt < 12.2, `dörren vid ${burstAt}`);
+  assert.equal(sim.zombies.filter(z => z.house === 'N-19').length, 3);
 });

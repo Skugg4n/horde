@@ -156,3 +156,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H134 | spel | Riktig förflyttning: besättningen springer synligt med vapnet längs vägsökningen och är sårbar på vägen. Infanteri/Hemvärnet (senare insatsstyrka MP5) snabbt; Ksp 90-lag (skytt + ammunitionsbärare) packar på några s och springer; Ksp 58 tre man, långsammare; Ksp 88 monterad kan EJ flyttas (bara säljas); Psg 90 skytt + observatör smyger.
 - [ ] H135 | vapen | "Bunker" = improviserad pillbox: EPA-traktor/gammal bil med svetsade plåtar, skottgluggar och Ksp i luckan (rost, olikfärgad plåt, LGF-skylt kvar). Snabb att bygga, tålig, ~90° skottglugg; kan krypa långsamt till ny plats. Ersätter betongbunker i H133.
 - [ ] H136 | ux | M = Move; minikartan flyttar till Tab. Waypoints: klick = flytta direkt (kortaste väg), Shift-klick lägger till waypoints (linje syns), slutpunkt + klicka-och-dra för riktning. Framtid: eld under förflyttning, språng skydd till skydd.
+
+## Efter speltestet av 0.12.1
+
+- [x] H127 | bugg | Upgrade grå med pengar nog (Ksp 88, $ 450, $ 1 264): classList.toggle med undefined; skälet står nu på knappen (0.12.2).
+- [x] H128 | banor | Gnesta North: en idé per dag, våg 1 från olika håll, lite svårare (0.12.2).
+- [x] H129 | grafik | Hemvärnet "ligger och snurrar": vrider sig runt höften, båge 120 grader, överkropp före ben, variation, liv (0.12.2).
+- [x] H130 | verktyg | Debugmeny: fem klick på versionen eller ?debug (0.12.2).
+- [ ] H131 | balans | South dag 1 och E4 kändes för lätta i speltestet med mycket forskning. Inte ändrat i 0.12.2.
+- [ ] H132 | balans | Speltesta North 0.12.2 i händerna: dag 3 (bjässar först) har en klippa i hp, dag 5 likaså (5,0 till 5,2).
