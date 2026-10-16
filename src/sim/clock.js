@@ -25,10 +25,12 @@ export function escapeAction({ menuOpen, mode, placing, panel, selected = false,
   if (repeat) return 'none';
   if (menuOpen) return 'menu-back';
   if (mode === 'research') return 'close-research';
+  // 0.12.1 (speltestet): på resultatskylten, introt och huvudmenyn gör Esc ingenting (pausmenyn lade
+  // sig över resultatet efter en förlust). Bara forskningen stängs med Esc (ovan).
+  if (mode !== 'play') return 'none';
   if (category && mode === 'play') return 'close-category';
   if (placing) return 'cancel-placing';
   if (panel || selected) return 'close-panel';
   if (justPlaced && mode === 'play') return 'none';
-  if (mode === 'menu') return 'none';
   return 'open-menu';
 }

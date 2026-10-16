@@ -52,8 +52,8 @@ test('Esc-prioritet: meny, forskning, placering, panel, och sist öppna menyn', 
   assert.equal(escapeAction({ ...base, placing: true, panel: true }), 'cancel-placing');
   assert.equal(escapeAction({ ...base, panel: true }), 'close-panel');
   assert.equal(escapeAction(base), 'open-menu');
-  assert.equal(escapeAction({ ...base, mode: 'intro' }), 'open-menu');
-  assert.equal(escapeAction({ ...base, mode: 'result' }), 'open-menu');
+  assert.equal(escapeAction({ ...base, mode: 'intro' }), 'none');
+  assert.equal(escapeAction({ ...base, mode: 'result' }), 'none');
   assert.equal(escapeAction({ ...base, mode: 'menu' }), 'none');
 });
 
@@ -81,4 +81,17 @@ test('Esc: öppen kategori före placeringen, inget pausmeny strax efter ett kö
   assert.equal(escapeAction({ ...base, justPlaced: true, placing: true }), 'cancel-placing');
   assert.equal(escapeAction({ ...base, justPlaced: true, panel: true }), 'close-panel');
   assert.equal(escapeAction(base), 'open-menu');
+});
+
+// 0.12.1 (speltestet av 0.12.0): Esc direkt efter att basen fallit öppnade pausmenyn ovanpå
+// resultatskylten. På resultat, intro och huvudmenyn gör Esc ingenting; forskningen stängs.
+test('Esc gör ingenting på resultat- och introskylten, stänger bara forskningen', () => {
+  const base = { menuOpen: false, placing: false, panel: false };
+  for (const mode of ['result', 'intro', 'menu']) {
+    assert.equal(escapeAction({ ...base, mode }), 'none', mode);
+    assert.equal(escapeAction({ ...base, mode, selected: true }), 'none', mode + ' med markering kvar');
+    assert.equal(escapeAction({ ...base, mode, justPlaced: true }), 'none', mode + ' strax efter ett köp');
+  }
+  assert.equal(escapeAction({ ...base, mode: 'research' }), 'close-research');
+  assert.equal(escapeAction({ ...base, mode: 'play' }), 'open-menu');
 });

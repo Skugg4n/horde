@@ -411,7 +411,9 @@ export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel,
   const head = won ? `Day ${day} cleared.` : 'The base fell.';
   // 0.10.1: överlevarnas lärdom fyller på en förlust så att den räcker till en nivå i forskningen
   const lead = won ? `You earned ${intelEarned} research points.`
-    : `You keep ${intelEarned} research points${lesson ? `, ${lesson} of them from what the survivors learned` : ''}. Spend them before you try again.`;
+    // 0.12.1 (speltestet): "You keep 141" stod kvar efter att poängen spenderats. Raden säger vad
+    // försöket gav; hur mycket som finns kvar står under Research points (ritas om efter forskningen).
+    : `Earned ${intelEarned} research points this attempt${lesson ? `, ${lesson} of them from what the survivors learned` : ''}. Research can help before you try again.`;
   const done = won && lastDay && outro ? `<p class="lead strong sector">${outro.text}</p>` : '';
   const main = won
     ? (lastDay ? (outro?.nextName ? `<button type="button" class="act main" data-a="nextmap"><span class="a">On to ${outro.nextName}</span><kbd>Enter</kbd></button>`
