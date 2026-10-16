@@ -66,5 +66,5 @@ Ordningen i förrådet styr inlärningskurvan. Spelaren kan inte köpa allt dire
 ## Öppna frågor till Ola
 
 1. Ska trupper kunna rekvireras mitt i en dag, som en dyr nödleverans med fördröjning, eller bara mellan dagarna?
-2. Ska sektorer kunna falla permanent, eller bara bli svårare?
+2. ~~Kan sektorer falla permanent?~~ BESLUT (Ola 2026-10-16): nej, de blir bara svårare.
 3. Ska svårighetsgrad finnas som val (till exempel "Hemvärnet" eller "Fallskärmsjägare"), eller räcker grinden?
