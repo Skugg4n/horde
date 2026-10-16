@@ -860,7 +860,7 @@ export const DAYS = [
     hints: { lines: ['Pick the civilian volunteers (2-1).', 'Drop them where they see the street.', 'Start the wave and cover the families.'], steps: ['pick:civ', 'gun', 'wave'] },
     objective: 'Hold until the civilians reach the ice rink.',
     // de civila: fem familjer i villorna öster om rondellen, ut när vågen börjar och in mot ishallen
-    evac: { need: 14, groups: [{ house: 'B4-13', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 9, wave: 0 }, { house: 'B4-02', count: 4, at: 16, wave: 0 },
+    evac: { need: 13, groups: [{ house: 'B4-13', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 9, wave: 0 }, { house: 'B4-02', count: 4, at: 16, wave: 0 },
       { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
     // 0.12.0 (H101, H110): vilande smittade i en villa längs stickgatan, ute när våg 1 börjar, så att
     // första skottet kommer tidigt (och de civila har något att vara rädda för).

@@ -298,6 +298,7 @@ function groundAt(cx, cy) {
   return groundRay.ray.intersectPlane(mmPlane, groundHit) ? { x: groundHit.x, z: groundHit.z } : null;
 }
 renderer.domElement.addEventListener('pointerdown', e => {
+  suppressClick = false;           // ett gammalt släpp utan klick ska inte äta nästa klick
   if (e.button !== 0 || mode !== 'play') return;
   if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
   if (!hasCone() || !spot || spot.key < 0 || (placing.move && e.shiftKey)) return;
@@ -1186,7 +1187,7 @@ function hudRects() {
     if (r.width) out.push({ x0: r.left - PAD, y0: r.top - PAD, x1: r.right + PAD, y1: r.bottom + PAD });
   }
   // Knappen och raden nere i mitten byter med fasen; hela den ytan hålls fri.
-  out.push({ x0: innerWidth / 2 - 320, y0: innerHeight - 90, x1: innerWidth / 2 + 320, y1: innerHeight });
+  out.push({ x0: innerWidth / 2 - 320, y0: innerHeight - (sim?.evac ? 140 : 90), x1: innerWidth / 2 + 320, y1: innerHeight });
   // Vågens rad uppe i mitten.
   out.push({ x0: innerWidth / 2 - 260, y0: 0, x1: innerWidth / 2 + 260, y1: 64 });
   return out;

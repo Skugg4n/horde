@@ -48,7 +48,7 @@ import { logs, naives } from './gnesta-logs.js';
 // och pillboxen dag 4, Ksp 88 dag 5 (banan lånar ut dem). Skjutvinklar och vridfart (H132), policyn
 // lägger spärren före första pjäsen, föredrar Ksp 58 framför Ksp 88 och vrider sysslolösa pjäser.
 // hp 2,4 / 4,3 / 3,6 / 2,5 dag 2 till 5. Se docs/balance-log.md, 0.13.0.
-const BEFORE = { hash: '890d4e5b', length: 45429 };
+const BEFORE = { hash: '41231870', length: 45379 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
