@@ -216,22 +216,56 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     bannerTimer = setTimeout(() => { bannerEl.hidden = true; }, secs * 1000);
   }
 
-  // Pil vid skärmkanten där horden kommer in. at: { x, y, angle, text? } i px och radianer, en
-  // lista av sådana (en per ingång), eller null.
+  // Etiketter där horden kommer in. at: en lista (en per ingång) av
+  //   { cands: [{ x, y, angle }], fallback: { x, y, angle }, lines: ['30 walkers'], sub, next }
+  // eller { x, y, angle, text } (E4: en pil vid skärmkanten), eller null.
+  // 0.11.0 (H091, speltestet av 0.10.2: etiketten klistrades mot skärmkanten och hamnade på hustak):
+  // kandidaterna är punkter på gatan längs hordens väg, från ingången och inåt. Etiketten ställs med
+  // mitten på den första där hela rutan ryms i bild, inte täcker gränssnittet och inte en annan
+  // etikett. Bara om ingen ryms används reserven vid kanten (vägen syns inte alls).
   const entryEl = root.querySelector('#entry');
   const entries = [entryEl];
-  function place(el, at) {
-    el.hidden = false;
-    const txt = at.text ?? 'Horde incoming';
+  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel'];
+  const PADE = 8;
+  function uiRects() {
+    const out = [];
+    for (const sel of UI_SEL) for (const n of root.querySelectorAll(sel)) {
+      if (n.hidden) continue;
+      const r = n.getBoundingClientRect();
+      if (r.width) out.push({ x0: r.left - PADE, y0: r.top - PADE, x1: r.right + PADE, y1: r.bottom + PADE });
+    }
+    return out;
+  }
+  const hits = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  function setText(el, at) {
     const t = el.querySelector('.txt');
-    if (t.textContent !== txt) t.textContent = txt;
-    // Hela pilen och texten ska rymmas i bild, med 12 px marginal, och inte under plåtarna uppe
-    // eller köpraden och knapparna nere (0.10.2).
-    const w = el.offsetWidth / 2 + 12, h = el.offsetHeight / 2 + 12;
-    el.style.left = Math.min(innerWidth - w, Math.max(w, at.x)) + 'px';
-    el.style.top = Math.min(innerHeight - h - 96, Math.max(h + 130, at.y)) + 'px';
-    el.querySelector('.chev').style.transform = `rotate(${at.angle}rad)`;
+    const html = at.lines ? `<span class="what">${at.lines.join(' · ')}</span>${at.sub ? `<span class="sub">${at.sub}</span>` : ''}` : (at.text ?? 'Horde incoming');
+    if (t.dataset.k !== html) { t.dataset.k = html; if (at.lines) t.innerHTML = html; else t.textContent = html; }
+  }
+  function placeAt(el, p, w, h) {
+    el.style.left = p.x + 'px';
+    el.style.top = p.y + 'px';
+    el.querySelector('.chev').style.transform = `rotate(${p.angle}rad)`;
+    return { x0: p.x - w / 2, y0: p.y - h / 2, x1: p.x + w / 2, y1: p.y + h / 2 };
+  }
+  function place(el, at, taken, ui) {
+    el.hidden = false;
+    setText(el, at);
     el.classList.toggle('next', !!at.next);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    for (const c of at.cands ?? []) {
+      const r = { x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 };
+      if (r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) continue;
+      if (ui.some(u => hits(r, u)) || taken.some(u => hits(r, u))) continue;
+      el.classList.remove('edge');
+      return placeAt(el, c, w, h);
+    }
+    // Reserven: vid skärmkanten, inom gränssnittets ram (som före 0.11.0).
+    el.classList.add('edge');
+    const f = at.fallback ?? at, hw = w / 2 + 12, hh = h / 2 + 12;
+    const p = { x: Math.min(innerWidth - hw, Math.max(hw, f.x)), y: Math.min(innerHeight - hh - 96, Math.max(hh + 130, f.y)), angle: f.angle };
+    while (taken.some(u => hits({ x0: p.x - w / 2, y0: p.y - h / 2, x1: p.x + w / 2, y1: p.y + h / 2 }, u))) p.y += h + 6;
+    return placeAt(el, p, w, h);
   }
   function entry(at) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];
@@ -240,7 +274,24 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
       el.removeAttribute('id'); el.classList.add('entry');
       entryEl.after(el); entries.push(el);
     }
-    entries.forEach((el, i) => { if (list[i]) place(el, list[i]); else el.hidden = true; });
+    const ui = list.length ? uiRects() : [], taken = [];
+    // nästa grupp först, så att den får den bästa platsen
+    const order = list.map((a, i) => i).sort((i, j) => (list[j].next ? 1 : 0) - (list[i].next ? 1 : 0));
+    for (const i of order) taken.push(place(entries[i], list[i], taken, ui));
+    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; });
+  }
+
+  // H092 (0.11.0, speltestet av 0.10.2: ingen ledtråd om R): en liten rad nere till höger, ovanför
+  // fartknappen, bara på stadsbanorna.
+  const routeKeyEl = document.createElement('div');
+  routeKeyEl.id = 'routekey'; routeKeyEl.className = 'plate'; routeKeyEl.hidden = true;
+  routeKeyEl.innerHTML = '<kbd>R</kbd><span>Horde route</span><b></b>';
+  root.appendChild(routeKeyEl);
+  function routeKey(show, on) {
+    routeKeyEl.hidden = !show;
+    if (!show) return;
+    const t = on ? 'on' : 'off', b = routeKeyEl.querySelector('b');
+    if (b.textContent !== t) { b.textContent = t; routeKeyEl.classList.toggle('off', !on); }
   }
 
   // Stegen för första dagen (banans egna rader). done: antal klara steg, null döljer rutan.
@@ -266,5 +317,5 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, cashDelta, early, bounty, shift };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift };
 }

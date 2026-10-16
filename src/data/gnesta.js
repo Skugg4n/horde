@@ -745,7 +745,7 @@ export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
 const LEAD_RUN = 20, LEAD_WALK = 62;
 export const DAYS = [
-  { n: 1, startCash: 900, hp: 4.3, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
+  { n: 1, startCash: 900, hp: 4.3, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. The red arrows on the street show where each group will walk before the wave; R hides and shows them. They're fresh here and take more to put down." },
     hints: { lines: ['Pick the barricade (1-1).', 'Block Sigtunavägen.', 'Watch them walk around the block.'], steps: ['pick:block', 'block', 'watch'] },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.7, 2, 'east1')] },
              { groups: [g('walker', 36, 0.45, 0, 'east1')] },

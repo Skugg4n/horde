@@ -112,4 +112,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H094 | grafik | Räckviddsringen och Hemvärnets ringar ritas ovanpå hustak.
 - [x] H095 | ux | Esc efter ett köp öppnar pausmenyn; "On the road"-texten ligger kvar.
 - [x] H096 | ux | Statistiken på köpkorten syns bara vid hovring.
-- [x] H097 | ux | Köpraden i kategorier med tvåstegs-snabbval: 1 Defenses (1-1 Barrier, 1-2 Wire, 1-3 Mines senare), 2 Guns (2-1 Ksp 90 ... 2-5 Psg 90), 3 Units (3-1 Hemvärnet). Olas förslag 2026-10-16.
+- [x] H097 | ux | Köpraden i kategorier med tvåstegs-snabbval: 1 Defenses (1-1 Barrier, 1-2 Wire, 1-3 Mines senare), 2 Units (2-1 Hemvärnet, 2-2 Ksp 90, 2-3 Ksp 88, 2-4 Ksp 58, 2-5 Ak 5 + Grt, 2-6 Psg 90). Olas förslag 2026-10-16, reviderat samma dag.
+- [ ] H098 | grafik | Även pjäserna (Ksp m.fl.) anpassar sig efter miljön: värnet byggs mot befintligt skydd (husknut, mur, häck, bil), sandsäckar bara där det saknas skydd, skytten i skydd, riktat mot hordens väg.
+- [ ] H099 | ux | Trupper bakom höga hus: diskret markör (silhuett genom vägg eller liten flagga) som bara syns när enheten är skymd, klickbar. Får inte förstöra det realistiska utseendet.

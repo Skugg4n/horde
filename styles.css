@@ -177,6 +177,17 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #f0a07a;
   background: var(--plate); border: 1px solid rgba(224,96,60,0.5); padding: 3px 10px; border-radius: 2px; white-space: nowrap;
 }
+/* 0.11.0 (H090, H091): vad som kommer, på gatan; ingångens namn mindre under */
+.entry .txt .what { display: block; }
+.entry .txt .sub { display: block; font-size: 10.5px; letter-spacing: 0.14em; font-weight: 500; opacity: 0.8; text-align: center; margin-top: 1px; }
+.entry .txt { text-align: center; }
+/* H092: R för hordens väg */
+#routekey { position: fixed; right: 16px; bottom: 66px; padding: 4px 9px; font-size: 12px; letter-spacing: 0.06em; display: flex; align-items: center; gap: 7px; pointer-events: none; color: var(--paper-dim); }
+#routekey[hidden] { display: none; }
+#routekey kbd { font: 500 11px 'IBM Plex Mono', monospace; padding: 0 5px; border: 1px solid rgba(233,223,201,0.4); border-radius: 2px; color: var(--paper); }
+#routekey b { font-weight: 600; color: #e0603c; text-transform: uppercase; font-size: 11px; }
+#routekey.off b { color: var(--paper-dim); }
+#ui:not([data-mode="play"]) #routekey { display: none; }
 /* 0.10.2: ingången som nästa grupp kommer från */
 .entry.next .txt { color: #fff1e6; background: rgba(150, 26, 10, 0.9); border-color: rgba(255, 140, 110, 0.7); }
 .note.warn { color: #fff1e6; top: 64px; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
@@ -394,12 +405,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
 #buildbar .k .guns { margin-left: 14px; }
 #buildbar .cards { display: flex; gap: 4px; }
-/* 0.11.0: kategorier med små rubriker (Defenses, Guns, Units), alltid på en rad; tvåstegsvalet
+/* 0.11.0: kategorier med små rubriker (Defenses, Units), alltid på en rad; tvåstegsvalet
    tänder kategorin och dämpar de andra */
 #buildbar .groups { display: flex; gap: 7px; flex-wrap: nowrap; }
 #buildbar .gh { font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper-dim); margin: 0 0 3px 1px; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
 #buildbar .gh kbd { font: 500 9px 'IBM Plex Mono', monospace; padding: 0 3px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; letter-spacing: 0; }
-#buildbar.choosing .grp:not(.open) { opacity: 0.4; }
+#buildbar.choosing .grp:not(.open) { opacity: 0.7; }
 #buildbar .grp.open .gh { color: var(--paper); }
 #buildbar .grp.open .gh kbd, #buildbar .grp.open .card kbd { background: var(--rust); border-color: var(--rust); color: var(--paper); }
 #buildbar .grp.armed .card { box-shadow: 0 0 0 1px rgba(181,83,42,0.7) inset; }

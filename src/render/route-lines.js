@@ -82,15 +82,15 @@ function material(color, opacity, dash) {
 function chevrons(color, opacity, period) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity }, uPeriod: { value: period }, uTime: { value: 0 } },
+    uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity }, uPeriod: { value: period }, uTime: { value: 0 }, uFloor: { value: 0.22 } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform vec3 uColor; uniform float uOpacity; uniform float uPeriod; uniform float uTime; varying vec2 vUv;
+    fragmentShader: `uniform vec3 uColor; uniform float uOpacity; uniform float uPeriod; uniform float uTime; uniform float uFloor; varying vec2 vUv;
       void main() {
         float cx = abs(vUv.x - 0.5) * 2.0;
         float t = fract(vUv.y / uPeriod - uTime) + cx * 0.42;
         float arm = smoothstep(0.44, 0.5, t) * (1.0 - smoothstep(0.66, 0.72, t));
         float edge = 1.0 - smoothstep(0.82, 1.0, cx);
-        float a = max(arm, 0.22) * edge;
+        float a = max(arm, uFloor) * edge;
         gl_FragColor = vec4(uColor, uOpacity * a);
         #include <colorspace_fragment>
       }`,
@@ -116,5 +116,11 @@ export function createRouteLines(scene) {
     m.geometry = ribbon(paths.map(p => soften(p)), WIDTH[layer], Y[layer]);
   }
   function update(dt) { for (const m of Object.values(layers)) m.material.uniforms.uTime.value += dt * 0.6; }
-  return { set, update, layers };
+  // 0.11.0 (H090, speltestet av 0.10.2: en inre gata syntes knappt före vågen): 1 före vågen, då
+  // vägarna är förhandsvisningen spelaren bygger efter; lägre under vågen, då horden själv syns.
+  function strength(k) {
+    const u = layers.now.material.uniforms;
+    u.uOpacity.value = 0.55 + 0.35 * k; u.uFloor.value = 0.22 + 0.2 * k;
+  }
+  return { set, update, strength, layers };
 }

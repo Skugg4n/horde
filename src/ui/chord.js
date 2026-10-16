@@ -1,13 +1,13 @@
 // Köpradens tvåstegs snabbval (0.11.0): ren tillståndsmaskin, ingen DOM, så att den går att testa.
 //
-//   första tangenten   väljer kategorin (1 Defenses, 2 Guns, 3 Units); kategorin öppnas
-//   andra tangenten    inom WINDOW sekunder väljer saken i kategorin ("2" sedan "1" = Ksp 90)
+//   första tangenten   väljer kategorin (1 Defenses, 2 Units); kategorin lyser, inget göms
+//   andra tangenten    inom WINDOW sekunder väljer saken i kategorin ("2" sedan "2" = Ksp 90)
 //   samma kategori     efter WINDOW: stänger kategorin igen
 //   Esc                stänger en öppen kategori (main.js frågar escape() först)
 //
 // Efter WINDOW står kategorin kvar öppen men ingenting väljs av sig själv, och nästa siffra räknas
 // som en första tangent igen: samma kategori stänger, en annan kategori byter. Inom WINDOW är "2"
-// följt av "2" alltså Ksp 88, inte att stänga. Klick på ett kort väljer direkt (main.js).
+// följt av "2" alltså Ksp 90, inte att stänga. Klick på ett kort väljer direkt (main.js).
 import { BUY_MENU } from '../data/shop.js';
 
 export const WINDOW = 2;

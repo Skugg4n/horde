@@ -491,13 +491,37 @@ function activeSpawns() {
   return { ids: sim.route.spawns.map(s => s.id).filter(id => ids.has(id)), next };
 }
 const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
-// Gnesta: en pil per ingång som används nu, där hordens väg från den kommer in i bild (eller vid
-// ingången om den syns), i gångriktningen. Under vågen bara för ingångar vars zombier inte syns än,
-// och för den som nästa grupp kommer från.
+// Vad som kommer från varje ingång (0.11.0, H090): "30 walkers", "50 runners". Före en våg (bygget
+// och nedräkningen): hela vågens grupper. Under vågen: de som ännu inte släppts, och med överlapp
+// nästa vågs grupper. Map ingång -> [[typ, antal], ...] i gruppernas ordning.
+const PLURAL = { walker: 'walkers', runner: 'runners', brute: 'brutes' };
+const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`;
+function comingBySpawn() {
+  const first = sim.route.spawns[0]?.id, out = new Map();
+  const add = (id, type, n) => {
+    if (!out.has(id)) out.set(id, new Map());
+    const m = out.get(id); m.set(type, (m.get(type) ?? 0) + n);
+  };
+  const waves = sim.dayCfg.waves;
+  if (sim.phase === 'build') {
+    for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
+  } else if (sim.phase === 'wave') {
+    for (const q of sim.spawnQueue) add(q.spawn ?? first, q.type, 1);
+    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
+    if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
+  }
+  return new Map([...out].map(([id, m]) => [id, [...m]]));
+}
+// Gnesta: en etikett per ingång som används nu, på gatan (H091): på första punkten längs hordens väg
+// från ingången där etiketten ryms i bild utan att täcka gränssnittet (hud.js väljer bland
+// kandidaterna). Ingången själv om den syns, annars där vägen kommer in i bild. Syns vägen inte alls:
+// vid kanten på linjen från mitten mot ingången. Under vågen bara för ingångar vars zombier inte
+// syns än, och för den som nästa grupp kommer från.
 function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
   const { ids, next } = activeSpawns();
+  const coming = comingBySpawn();
   const cx = innerWidth / 2, cy = innerHeight / 2;
   for (const id of ids) {
     const isNext = id === next;
@@ -508,27 +532,22 @@ function gridEntries() {
       if (!isNext && (seen || (!pending && !alive.length))) continue;
       if (isNext && !pending && seen) continue;
     }
-    const text = isNext ? `Next group · ${spawnName(id)}` : wave ? 'Horde incoming' : 'They come from here';
+    const counts = coming.get(id) ?? [];
+    const lines = counts.length ? counts.map(countText) : ['Horde incoming'];
     const cells = sim.route.paths([id])[0]?.cells ?? [];
-    let at = null;
-    for (let i = 0; i < cells.length; i++) {
-      const c = sim.route.cellCenter(cells[i]), s = onScreen(c.x, c.z, EDGE);
+    const cands = [];
+    for (let i = 0; i < cells.length && cands.length < 48; i += 2) {
+      const c = sim.route.cellCenter(cells[i]), s = onScreen(c.x, c.z, 0);
       if (!s.in) continue;
       const t = sim.route.cellCenter(cells[Math.min(i + 3, cells.length - 1)]), u = onScreen(t.x, t.z);
-      at = { x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI, text, next: isNext };
-      break;
+      cands.push({ x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI });
     }
-    if (!at) {
-      // vägen syns inte alls: vid kanten på linjen från mitten mot ingången
-      const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
-      const dx = s.sx - cx, dy = s.sy - cy;
-      const half = dy < 0 ? cy - 110 : cy - 120;
-      const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
-      at = { x: cx + dx * k, y: cy + dy * k, angle: Math.atan2(-dy, -dx) + Math.PI, text, next: isNext };
-    }
-    // två pilar på samma ställe: den senare flyttas ned en rad
-    while (out.some(o => Math.abs(o.x - at.x) < 220 && Math.abs(o.y - at.y) < 56)) at.y += 60;
-    out.push(at);
+    const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
+    const dx = s.sx - cx, dy = s.sy - cy;
+    const half = dy < 0 ? cy - 110 : cy - 120;
+    const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
+    const fallback = { x: cx + dx * k, y: cy + dy * k, angle: Math.atan2(-dy, -dx) + Math.PI };
+    out.push({ cands, fallback, lines, sub: spawnName(id), next: isNext });
   }
   return out;
 }
@@ -550,6 +569,8 @@ function updateRoutes() {
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
+  // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
+  routeLines.strength(sim.phase === 'build' ? 1 : 0.6);
   // Förhandsvisningen: hindret i handen (så går de om du lägger det här), eller ett utlagt hinder
   // som pekas på eller är valt (så går de om du river det).
   const holding = placing?.kind === 'obstacle' && spot && spot.key >= 0;
@@ -605,6 +626,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
     showRoute = !showRoute;
     note(uiRoot, showRoute ? 'Horde route shown (R)' : 'Horde route hidden (R)');
+    hud.routeKey(true, showRoute);
   }
 }, true);
 addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') { hud.shift(false); shiftHeld = false; } }, true);
@@ -854,6 +876,7 @@ function tick(now) {
 
   if (panel) panel.update(sim);
   hud.update(sim);
+  hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
   updateEntry();
   rig.active = mode === 'play' && !paused;
   const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
