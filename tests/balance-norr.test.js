@@ -130,7 +130,8 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // kniptång, bjässar först, löparsvärmar, vilande hus och oannonserade hus sent i vågen. Policyns
 // öppningspjäs möter dagens första grupp (scripts/balance.mjs norrOpener). Svårare: dag 1 bas kvar 15
 // (var 19), hp 2,8 / 3,1 / 3,25 / 4,6 / 5,1 med den tyngre formen. Se docs/balance-log.md, 0.12.2.
-const BEFORE = { hash: 'b4f7c1a4', length: 60476 };
+// Med Hemvärnets båge (samma ändring som för Gnesta) blev kvittot 2dd1da63 / 60500.
+const BEFORE = { hash: '2dd1da63', length: 60500 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;

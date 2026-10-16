@@ -57,6 +57,22 @@ export const COVER = {
   open: { score: 0, stance: 'prone', name: 'open grass' },
 };
 
+// 0.12.2 (speltestet: "de ligger och snurrar på marken"): ställningen följer fortfarande skyddet, men
+// inom gruppen varierar den (deterministiskt per ruta), så att en grupp aldrig ser klonad ut: vid en
+// husknut, bil eller mur på huk eller på knä, bakom häck och säckar på knä eller på huk, på öppet
+// gräs liggande eller på knä. Diket: alltid liggande.
+export const STANCE_ALT = { corner: 'kneel', car: 'kneel', wall: 'kneel', brick: 'kneel', sandbag: 'crouch', hedge: 'crouch', ditch: null, open: 'kneel' };
+export function stanceFor(cover, cell) {
+  const alt = STANCE_ALT[cover];
+  return alt && hash32(cell) % 3 === 0 ? alt : COVER[cover].stance;
+}
+function hash32(n) { let h = (n | 0) ^ 0x9e3779b9; h = Math.imul(h ^ (h >>> 16), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); return (h ^ (h >>> 16)) >>> 0; }
+// Liggande skjuter bara inom PRONE_ARC radianer runt sin skyddsriktning (face). Ett mål utanför:
+// han reser sig på knä (RISE_TIME s, skjuter inte under tiden) och vänder sig, eller tar nästa man
+// det. Står han på knä och inget mål utanför bågen syns på SETTLE_TIME s lägger han sig igen.
+export const PRONE_ARC = Math.PI * 2 / 3, RISE_TIME = 0.8, SETTLE_TIME = 3;
+export const inArc = (s, a) => Math.abs(Math.atan2(Math.sin(a - s.face), Math.cos(a - s.face))) <= PRONE_ARC / 2 + 1e-9;
+
 export const isSquad = type => !!WEAPONS[type]?.squad;
 // Antal man och liv per man: nivån, plus forskningen (0.10.0, H054): Bigger squad ger en eller två
 // man till, Hemvärnet veterans mer liv. research: Set eller lista med köpta nivåer.
@@ -151,7 +167,7 @@ export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed =
       }
       if (!seen) continue;
       const cover = coverOf(p, k, ctx);
-      cands.push({ cell: k, x: c.x, z: c.z, d, cover, stance: COVER[cover].stance, face: Math.atan2(fz, fx), sight, seen, exposed: exposed(p, k) });
+      cands.push({ cell: k, x: c.x, z: c.z, d, cover, stance: stanceFor(cover, k), face: Math.atan2(fz, fx), sight, seen, exposed: exposed(p, k) });
     }
   }
   const maxSeen = Math.max(1, ...cands.map(c => c.seen));
@@ -172,6 +188,12 @@ export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed =
     if (!best) break;
     picked.push(best); taken.push(best);
     used[best.cover] = (used[best.cover] || 0) + 1;
+  }
+  // aldrig tre eller fler i exakt samma ställning: den sista byter till skyddets andra ställning
+  const all = [...fixed, ...picked];
+  if (all.length >= 3 && all.every(c => c.stance === all[0].stance)) {
+    const last = [...picked].reverse().find(c => STANCE_ALT[c.cover]);
+    if (last) { const i = picked.indexOf(last); picked[i] = { ...last, stance: last.stance === COVER[last.cover].stance ? STANCE_ALT[last.cover] : COVER[last.cover].stance }; }
   }
   return picked;
 }

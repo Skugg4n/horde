@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, build, upgrade, squadPreview } from '../src/sim/sim.js';
-import { SQUAD, COVER, coverOf, squadSize, soldierHp } from '../src/sim/squad.js';
+import { SQUAD, COVER, coverOf, squadSize, soldierHp, STANCE_ALT } from '../src/sim/squad.js';
 import { weaponStats } from '../src/sim/stats.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { RESEARCH } from '../src/data/research.js';
@@ -84,5 +84,5 @@ test('Gnesta Norr: radhusens tegelmurar är skydd, och en grupp vid längorna ta
   for (const k of brick) { const r = build(sim, k, 'hv'); if (r.ok) { best = sim.guns.at(-1); break; } }
   assert.ok(best, 'en grupp går att ställa vid murarna');
   assert.ok(best.soldiers.some(s => s.cover === 'brick'), best.soldiers.map(s => s.cover).join(', '));
-  assert.ok(best.soldiers.every(s => s.stance === COVER[s.cover].stance));
+  assert.ok(best.soldiers.every(s => [COVER[s.cover].stance, STANCE_ALT[s.cover]].includes(s.stance)));
 });

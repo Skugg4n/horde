@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { gridFromAscii } from '../src/sim/grid.js';
 import { buildPlace, placementFor, sightFrom, KIND } from '../src/sim/placement.js';
 import { createSim, startWave, step, build, checkSpot, upgrade, sell, reinforce, reinforceCost, buyKit, squadPreview } from '../src/sim/sim.js';
-import { SQUAD, COVER, planSquad, coverOf, squadSize } from '../src/sim/squad.js';
+import { SQUAD, COVER, planSquad, coverOf, squadSize, STANCE_ALT } from '../src/sim/squad.js';
 import { buyState } from '../src/sim/buy.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { MAPS } from '../src/data/maps.js';
@@ -90,7 +90,8 @@ test('gruppen sprider ut sig: minst 3 m mellan soldaterna, även mellan grupper 
         assert.ok(dist(g, s) <= SQUAD.radius + 1e-9, 'inom markeringen');
         assert.equal(p.kind[s.cell], KIND.open);
         assert.equal(p.walk[s.cell], 0);
-        assert.equal(s.stance, COVER[s.cover].stance);
+        // 0.12.2: ställningen följer skyddet, med skyddets andra ställning som variation (STANCE_ALT)
+        assert.ok([COVER[s.cover].stance, STANCE_ALT[s.cover]].includes(s.stance), `${s.cover}: ${s.stance}`);
       }
     }
   }

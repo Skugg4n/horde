@@ -6,7 +6,7 @@ import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, maxSquads, MAX_LEVEL } from './stats.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
 import { emplacement } from './emplace.js';
-import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight } from './squad.js';
+import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight, inArc, RISE_TIME, SETTLE_TIME } from './squad.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 // Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
@@ -708,14 +708,28 @@ function fireSquad(sim, dt, cells, g) {
   const st = weaponStats(g.weapon.type, g.weapon.level, sim.research);
   for (const s of g.soldiers) {
     s.cooldown -= dt;
-    if (s.down || s.run > 0) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); continue; }
-    const seen = s.sight.mask;
-    let target = null, best = -Infinity;
+    if (s.down || s.run > 0) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); s.rise = 0; s.risen = false; continue; }
+    const seen = s.sight.mask, prone = s.stance === 'prone' && !s.risen;
+    // 0.12.2: den liggande skjuter bara inom bågen runt skyddsriktningen (PRONE_ARC)
+    let target = null, best = -Infinity, out = null, bestOut = -Infinity;
     for (const [z, { p, k }] of cells) {
       if (z.dead || k < 0 || !seen[k]) continue;
       if (Math.hypot(p.x - s.x, p.z - s.z) > st.range) continue;
       const pr = sim.route.progress(z);
+      if (s.stance === 'prone' && !inArc(s, Math.atan2(p.z - s.z, p.x - s.x))) { if (pr > bestOut) { bestOut = pr; out = z; } continue; }
       if (pr > best) { best = pr; target = z; }
+    }
+    if (s.stance === 'prone') {
+      if (prone && !target && out) {
+        // reser sig på knä och vänder sig; skjuter först när han är uppe
+        s.rise = (s.rise ?? 0) + dt;
+        if (s.rise >= RISE_TIME - 1e-9) { s.risen = true; s.settle = 0; }
+      } else if (prone) s.rise = 0;
+      if (s.risen) {
+        if (out && (!target || bestOut > best)) { target = out; best = bestOut; }
+        s.settle = out ? 0 : (s.settle ?? 0) + dt;
+        if (s.settle >= SETTLE_TIME - 1e-9) { s.risen = false; s.rise = 0; }
+      } else if (!target) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); continue; }
     }
     s.targetId = target ? target.id : null;
     if (!target) { s.cooldown = Math.max(s.cooldown, 0); continue; }

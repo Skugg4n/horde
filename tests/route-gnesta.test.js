@@ -39,7 +39,11 @@ import { logs, naives } from './gnesta-logs.js';
 // 0.12.1: bytt avsiktligt. Fem pjäser från början (var fyra), More positions ger en till per nivå och
 // Hemvärnet räknas inte mot pjäserna (eget tak, två grupper), efter speltestet av 0.12.0 (5 av 5 platser
 // och $ 900 till $ 1 150 som inte gick att använda). Inga hp ändrade. Se docs/balance-log.md, 0.12.1.
-const BEFORE = { hash: 'eee09f27', length: 39187 };
+// 0.12.2: bytt avsiktligt. Hemvärnet: den liggande skjuter bara inom 120 grader runt skyddet och reser
+// sig på knä för ett mål utanför (src/sim/squad.js PRONE_ARC), och ställningen varierar inom gruppen.
+// Gnestas egna data är orörda; bara seed 1 dag 4 och 5 ändras (bas 4 och 2 blev 5 och 4).
+// Se docs/balance-log.md, 0.12.2.
+const BEFORE = { hash: 'f36af1a6', length: 39183 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -49,6 +53,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.12.1', () => {
+test('Gnestas balanslogg är identisk med 0.12.2', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

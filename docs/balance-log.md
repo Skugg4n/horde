@@ -483,3 +483,9 @@ Resultat, smart över fem seeds (försök till vinst, bas kvar), före och efter
 Naive förlorar varje dag. Dag 5 har lägst bas kvar i snitt (3,2 mot 6,2 till 7,4). Första skottet inom 15 s varje dag, dagarna tar 320 till 532 s, flest levande 169. Kurvmålen i tests/balance-norr.test.js gäller oförändrade. Kvittot bytt avsiktligt: b4f7c1a4 / 60476 (var 4d717aee / 60032). E4 och Gnesta South är orörda.
 
 Öppet: South dag 1 och E4 kändes också för lätta i speltestet. De är inte ändrade här.
+
+### 0.12.2: Hemvärnets båge
+
+Liggande soldater skjuter bara inom 120 grader runt sin skyddsriktning. Ett mål utanför: han reser sig på knä på 0,8 s och vänder sig (skjuter inte under tiden), eller tar en annan man målet; utan mål utanför bågen i 3 s lägger han sig igen. Ställningen varierar deterministiskt per ruta inom skyddets två (huk eller knä vid husknut, bil och mur, knä eller huk bakom häck och säckar, liggande eller knä på öppet gräs, alltid liggande i diket). Bilden ändras mest; i simuleringen är det bara bågen.
+
+Effekt: E4 orörd. Gnesta South: seed 1 dag 4 bas 4 till 5, dag 5 2 till 4, allt annat lika; kvittot f36af1a6 / 39183 (var eee09f27 / 39187). Gnesta North (smart köper ingen grupp, naive gör det): kvittot 2dd1da63 / 60500 (var b4f7c1a4 / 60476 efter omgörningen ovan). Kurvmålen gäller.
