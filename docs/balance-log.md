@@ -348,3 +348,28 @@ Gnesta Norr (balanserad mot smart UTAN Hemvärnet, granskningen av 0.10):
 E4: nedräkningen och bonusen ändrar kassan; dag 1 och 2 som förut, dag 3 vinns på tredje försöket i alla fem seeds (var andra eller tredje). Nytt kvitto f3366f27/7775.
 
 Kvitton: E4 f3366f27/7775, Gnesta a2051b10/38970, Gnesta Norr f98cc27a/54733.
+
+## 0.10.2: putspasset efter speltestet av 0.10.1
+
+Speltestet (docs/playtests/2026-10-16-0.10.1.md): Gnesta dag 2 föll på två minuter (basen 20 till 2 i våg 1), första skottet kom efter 35 till 45 s, nedräkningen räckte till ett köp, Psg 90 kostade 420 forskning medan testaren tjänade ca 410 på 40 minuter, och ?debug gav alla vapen på Gnesta Norr.
+
+Regler (alla banor):
+- Nedräkningen 15 s (var 10). Bonusen 2 per sekund (var 3), så en hel nedräkning är värd 30 som förut.
+- group.lead (src/sim/sim.js): gruppen har redan gått så många sekunder när vågen startar och kliver upp ur diket längre in längs vägen, högst halva vägen (LEAD_MAX). Dagens första grupp delas: de första går före.
+- Psg 90 I kräver Ksp 88 I (var II) och kostar 180 (var 200). Vägen dit från noll: 280 (var 420). Med testarens takt (ca 10 i minuten) är det 25 till 30 minuter.
+- maxGuns läser antalet ur More positions (guns), samma siffror som förut.
+
+Gnesta:
+- Försprång: dag 1 de fem löparna 20 s, dag 2 till 5 de sex första vandrarna 62 s. Smart första skottet 14 till 19 s alla dagar (var 38 dag 1, 56 till 76 dag 2 till 5). Naive ser de första direkt.
+- Dag 2: hp 5,8 till 5,0; våg 1 6 + 24 vandrare från Sigtunavägen öst och 16 från Norra vägen efter 10 s (var 40 och 20 efter 4 s); våg 2 30 löpare (var 40); våg 3 50 + 30 vandrare och 50 löpare (var 60 + 40 och 60). Prövat: hp 4,6 (naive vann alla fem, 3 till 10 kvar), våg 3 med 40 löpare (naive vann alla fem), med 56 vandrare (naive förlorade två). Valt: naive klarar våg 1 med full bas i alla seeds och vinner dagen med 2 till 5 kvar i fyra av fem, smart 20 kvar. Dag 1 naive 9 till 20 kvar, så dag 2 är ett steg upp.
+- Dag 1 hp 4,3 orörd. Prövat 4,6 och 4,9 för att ge naive mindre kvar efter försprånget: smart föll till 2 till 6 kvar i en seed (klippa). Provet "naiv tar klart mer skada" kräver nu <= per seed och fortfarande minst 5 i snitt (smart 20, naive 13,2).
+- Smart (bas kvar, försök; naive första försöket): dag 1 20 (naive 9 till 20), dag 2 20 (naive 2 till 5, en förlust), dag 3 3 till 20 (seed 2 andra försöket; naive vinner fyra av fem med 1 till 3), dag 4 6 till 14 (naive förlorar), dag 5 4 till 9 (naive vinner två med 3). Dagarna 338 till 466 s.
+
+Gnesta Norr:
+- Försprång bara dag 1: de sex första från Vikingavägen norr 25 s. Första skottet 11 till 19 s (var 36 till 40). Prövat och förkastat: Dansutvägen väster 30 till 60 s (dag 4 ovinnbar för smart i fyra seeds av fem), dag 2 och 5 på Vikingavägen (pengarna kommer tidigare: dag 5 vanns med full bas i alla seeds och var inte längre svårast), dag 3 (bas kvar 17 i snitt mot gränsen 14; hp 4,2 och 4,4 i stället gav förluster i flera försök). Dag 2 till 5 har första skottet efter 30 till 42 s, som i 0.10.1.
+- Smart: dag 1 19 till 20 (naive förlorar alla), dag 2 7 till 20, dag 3 7 till 20, dag 4 6 till 8 (seed 1 andra försöket), dag 5 1 till 11. Oförändrat från 0.10.1 utom dag 1, inom kaoset.
+- ?debug-tabellen (src/data/arrival.js, norrArrival i scripts/balance.mjs): forskningen från de vunna försöken på E4 och Gnesta (2 050 poäng i seed 0), köpt i ordning från noll. 20 nivåer: Psg 90 I, Ksp 58 I och Ak 5 I, fem platser, Bigger budget III. Förut 23 nivåer med sex platser och Ksp 58 II. Smart vinner dag 1 med den. Prövat lägre: utan Psg 90 (60 % av poängen) förlorar smart dag 1 i alla seeds, så banan bärs av taket. Med Gnestas tabell (bara E4) förlorar smart dag 1 i alla seeds.
+
+E4: nedräkningen och bonusen ändrar kassan; dag 1 och 2 direkt, dag 3 på tredje försöket i alla fem seeds, som förut.
+
+Kvitton: E4 4d617fb6/7775, Gnesta 342091db/38829, Gnesta Norr bfdb2e9f/54742.

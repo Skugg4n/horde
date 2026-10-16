@@ -88,3 +88,18 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H072 | enheter | Senare: civila frivilliga (jaktgevär, hagel), billiga och svaga; en bana med bara civila innan militären kommer.
 - [ ] H073 | banor | Gnesta Norr: Fornminnesvägen + Vikingavägen, horden norrifrån (Dansutvägen), radhuslängor i gult tegel + mörkbrun panel, basen kvar vid ishallen. Referenser lokalt i ~/Projects/horde-refs/gnesta-norr/.
 - [ ] H074 | ljud | Skrikvariant B (lägre, hesare) att jämföra med; nuvarande skrik är standard (Ola: funkar bättre i livespelet).
+
+## Speltestet av 0.10.1 (0.10.2)
+
+- [x] H075 | balans | Gnesta dag 2 en vägg (bas 20 till 2 i våg 1): hp 5,0, mindre vågor, norra gruppen senare. Naive klarar våg 1 utan skada.
+- [x] H076 | ux | "They come from here" visar vågens ingångar där vägen kommer in i bild, och "Next group · <ingång>".
+- [x] H077 | grafik | Hordens väg som roströda pilar mot basen i stället för vita streck (lik vägmarkering). R kvar.
+- [x] H078 | tempo | Första skottet 15 till 20 s (försprång, group.lead), nedräkning 15 s, raden om överlapp på Gnesta Norr.
+- [x] H079 | ux | Köpraden på en rad ned till 1024 px, tips minst 13 px, "DMG · RNG · RATE" på alla vapen, fartknappen synlig under vågen.
+- [x] H080 | grafik | Hemvärnets ringar genom trädkronorna, Psg 90 på taket med signalduk och ring.
+- [x] H081 | forskning | Psg 90 via Ksp 88 I för 180 (vägen 280, var 420), texter som följer siffrorna med prov.
+- [x] H082 | debug | ?debug på Gnesta Norr: ankomsten för den som vinner varje dag direkt (20 nivåer, fem platser).
+- [ ] H083 | balans | Gnesta Norr dag 2 till 5 har fortfarande första skottet efter 30 till 42 s; försprång där gav klippor i policyn (docs/balance-log.md 0.10.2). Speltesta i händerna.
+- [ ] H084 | balans | ?debug-ankomsten på Gnesta Norr har ändå Ksp 58 I och Ak 5 I: forskningen fram till Gnesta dag 5 räcker till alla vapen (ca 2 000 poäng). Ska den snålas in krävs ett beslut om forskningstakten.
+- [ ] H085 | ux | Speltesta 0.10.2 i händerna: Gnesta dag 2, pilarna och nästa grupp, köpraden vid 1024 px.
+

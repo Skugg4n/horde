@@ -1,5 +1,21 @@
 # Ändringslogg
 
+## 0.10.2 (2026-10-16)
+
+Putspass efter speltestet av 0.10.1 (docs/playtests/2026-10-16-0.10.1.md).
+
+- Gnesta dag 2 är ett steg upp från dag 1, inte en vägg: hp-faktorn 5,0 (var 5,8), våg 1 46 vandrare med norra gruppen först efter 10 s (var 60), våg 2 30 löpare (var 40), våg 3 130 (var 160).
+- Pilarna "They come from here" visar ingångarna som används i vågen som är igång eller kommer härnäst, en pil per ingång, där hordens väg kommer in i bild och i gångriktningen. Ingången som nästa grupp kommer från står med namn: "Next group · Sigtunavägen öst".
+- Hordens väg är roströda pilar som flyter mot basen, svagt, från varje ingång som används nu. Förhandsvisningen när en spärr hålls över gatan är orange streck. R slår av och på som förut.
+- Tempo: de första i dagens första grupp har redan gått en bit när vågen startar, så första skottet kommer efter 15 till 20 s (var 35 till 45) på Gnesta och på Gnesta Norr dag 1. Nedräkningen mellan vågorna är 15 s (var 10); bonusen 2 per sekund som är kvar, så Next wave tidigt är fortfarande det snabba valet.
+- Gnesta Norr: första gången nästa våg räknas ned medan den förra fortfarande går står det "Waves overlap here. Keep the line."
+- Köpraden ryms på en rad ned till 1024 px (smalare kort). Tipset är minst 13 px och varje vapen har en statistikrad i samma form: "DMG 10 · RNG 19 m · RATE 7/s".
+- Fartknappen står nere till höger under hela dagen, även under vågen. Knappen och vågens rad ställer sig mellan köpraden och fartknappen och kortar sin text när de inte ryms.
+- Hemvärnets ringar syns genom trädkronorna, ljusare och med mörk kant. Psg 90 på ett tak ligger på en orange signalduk med en ljus ring runt.
+- Forskning: Psg 90 kräver Ksp 88 I (var II) och kostar 180 (var 200), vägen dit 280 i stället för 420. Texterna säger vad nivån gör: More positions "One more gun on every map: 5 instead of 4", Ksp 88 och betongbarriären att Gnesta lånar ut dem men att köpet gäller alla banor, granaternas skada och radie, budgetens "was $ 150". Ett nytt prov läser varje nivås siffror och kräver dem i texten.
+- ?debug på Gnesta Norr ger forskningen för en spelare som vinner varje dag på första försöket (20 nivåer, fem platser), inte smart policy med alla förluster (23 nivåer, sex platser).
+- Balans: nya kvitton för E4, Gnesta och Gnesta Norr, se docs/balance-log.md (0.10.2).
+
 ## 0.10.1 (2026-10-16)
 
 Rättningarna från granskningen av 0.10 (docs/reports/review-0.10.md) och speltestet av 0.10.0 (docs/playtests/2026-10-16-0.10.0.md), före publiceringen.
