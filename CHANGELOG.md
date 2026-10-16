@@ -15,7 +15,7 @@ Inlärningen steg för steg (docs/superpowers/specs/2026-10-16-onboarding-design
 - Hagstumosse: Gnesta South och North är samma plats och en sektor, med faserna Hagstumosse · Ishallen och Hagstumosse · Vikingavägen och en gemensam trupp. Vikingavägen öppnar efter Ishallen dag 5. Omplaceringen, garnisonen och trycket mellan dem är borta (vilande i koden). Gnesta Centrum står som grå platshållare på kartan. Sparfilen slår ihop trupperna, lagret och trycket (inga enheter förloras) och sparar en kopia under horde.save.v4.
 - Textgenomgången: introna är en rubrik och en rad, ledningens meddelande bara på kartan, resultatskylten utan RP före förrådet, E4 "secure" i stället för "fallen silent" och utan kryss, "Frontage full." i stället för "(research More positions)", raden om U är borta, "Only on the marked spots." på E4, "Next wave · 14 still out", vägetiketterna står kvar vid infarten med gatunamnet vid hovring, Return frågar "Return it? No RP back.", kartan visar enheterna som ikoner med antal och bara senaste meddelandet.
 - Balansen följer upplåsningen och förrådets lager: nya siffror för E4 dag 1 till 3 och South dag 1 och 2, nya fingeravtryck och kvitton (docs/balance-log.md, 0.16.0). Prov: tests/onboarding.test.js (schemat, texterna, sparfilens migrering, E4 dag 1, sammanslagningen) och nya prov i tests/operation.test.js (lagret, uppgraderingarna, garnisonen, skicka och ta tillbaka, varningen).
-- Skärmbilder: docs/onboarding-*.jpg.
+- Skärmbilder: docs/onboarding-*.png.
 
 ## 0.15.0 (2026-10-16)
 
