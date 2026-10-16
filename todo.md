@@ -203,3 +203,10 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H183 | balans | South dag 2 kostar den skickliga inget längre (tre Ksp 90 efter E4:s fulla bas). Ta med i passet för North (H168).
 - [ ] H184 | spel | Ett sätt att lägga förnödenheter mitt i striden (t.ex. laga spärren) i stället för att bara sänka överskottet. Bestäm med Ola först.
 - [ ] H185 | ux | Uppställningens kort glider åt vänster när en typ är slut (speltestet av 0.14.1); fasta platser som i förrådet.
+
+## Efter speltest 0.14.2 (2026-10-16)
+- [ ] H190 | ux | Gnesta dag 2 startar med ishallen utanför bild; basen faller osedd. Kameran ska visa basen vid dagstart på alla dagar, och basens hälsa ska synas när den tar skada utanför bild (kantpil).
+- [ ] H191 | ux | Vägetiketter står vid ishallen i stället för vid infarten, följer markören och täcker placerbar mark.
+- [ ] H192 | balans | E4 dag 2 för lätt ($550 över), dag 3 våg 3 stup (82 fiender, 20 till 5).
+- [ ] H193 | ux | VICTORY och "fallen silent" motsäger varandra fortfarande; felaktig text "Only on the road"; förrådets rullist klipper priser.
+- [ ] H194 | grafik | Frivilliga och Hemvärnet fortfarande små och svåra att hitta.
