@@ -505,8 +505,16 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   const lossLine = won
     ? (lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at the depot.</p>` : '<p class="note-line">No losses. Survivors gain experience.</p>')
     : '<p class="note-line">The day starts over with the force you went in with. The RP you earned are yours: spend them at the depot before you try again.</p>';
+  // 0.14.2 (speltestet av 0.14.1: "VICTORY" följt av "The roadblock at E4 has fallen silent" lästes fortfarande
+  // som en förlust): rubriken står ensam, sedan siffrorna, och sist sektorns berättelse som ett radiomeddelande
+  // från ledningen i en egen ruta, tydligt skild från resultatet.
   const done = sectorDone ? `<p class="lead strong">Day ${day} held. ${outro.name ?? 'The sector'} is done.</p>` : '';
-  const story = sectorDone ? `<p class="lead story">${outro.text}${outro.withdraw ? ' The army pulls back what is left of the roadblock, and the RP you spent on it are returned.' : ''}</p>` : '';
+  const story = sectorDone ? `<div class="radio"><div class="rh"><i></i>Radio · ${outro.from ?? 'Försvarsmakten'} to all units</div>
+      <p>${outro.text}${outro.withdraw ? ' The army pulls back what is left of the roadblock. The RP you spent on it are returned.' : ''}</p><div class="rf">Out.</div></div>` : '';
+  // 0.14.2 (speltestet: "Waves cleared 1 of 3" på Gnesta trots "Day 1 held"): en evakueringsdag tar slut när
+  // de civila är inne, så vågorna räknas inte där; i stället hur många som kom fram.
+  const waveFact = evac && won ? `<div><span>Civilians safe</span><b>${evac.safe} of ${evac.total}</b></div>`
+    : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">Operations map</span><kbd>Enter</kbd></button>`
     : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">Operations map</span></button>`;
@@ -516,12 +524,12 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     ${done}
     ${rpTable}
     ${lossLine}
-    ${story}
     <div class="facts">
       <div><span>Kills</span><b>${kills}</b></div>
-      <div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>
+      ${waveFact}
       <div><span>RP to spend</span><b>${totalRp}</b></div>
     </div>
+    ${story}
     <div class="acts">${main}</div>
     <button type="button" class="link" data-a="menu">To menu</button>`);
   on(p.el, '[data-a="retry"]', onRetry);

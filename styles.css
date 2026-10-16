@@ -716,7 +716,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 @keyframes arcflag { from { opacity: 0.75; } to { opacity: 1; } }
 /* 0.14.1: sektorns slut, VICTORY överst och berättelsen för sig under resultatet */
 .result.victory .h { color: #f2c46b; letter-spacing: 0.06em; text-transform: uppercase; font-size: 52px; }
-.sheet .lead.story { font-size: 15px; color: var(--paper-dim); font-style: italic; border-top: 1px solid var(--plate-edge); padding-top: 10px; margin-top: 4px; }
 /* 0.14.1: "Volunteers" ryms på kortet */
 #buildbar .card .n.long { font-size: 9px; letter-spacing: -0.03em; }
 
@@ -731,3 +730,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .ua > .mini { min-width: 0; height: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; }
 .depot .urow > select { position: absolute; top: 7px; right: 9px; max-width: 42%; }
 .depot .mini.gap { visibility: hidden; }
+/* 0.14.2: sektorns berättelse efter VICTORY som ett radiomeddelande (en egen ruta i skrivmaskinsstil) */
+.result.victory .h { margin-bottom: 14px; }
+.result .radio { text-align: left; margin: 16px 0 16px; padding: 10px 14px 9px; border: 1px solid rgba(159,196,106,0.45);
+  background: repeating-linear-gradient(0deg, rgba(159,196,106,0.05) 0 2px, transparent 2px 4px), rgba(14,18,10,0.7); border-radius: 2px; }
+.result .radio .rh { font: 600 11px 'IBM Plex Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #9fc46a; display: flex; align-items: center; gap: 8px; }
+.result .radio .rh i { width: 7px; height: 7px; border-radius: 50%; background: #9fc46a; box-shadow: 0 0 6px #9fc46a; animation: arcflag 1.2s ease-in-out infinite alternate; }
+.result .radio p { font: 14px/1.5 'IBM Plex Mono', monospace; color: #d8e3c4; margin: 7px 0 4px; letter-spacing: 0.01em; }
+.result .radio .rf { font: 11px 'IBM Plex Mono', monospace; color: rgba(159,196,106,0.7); letter-spacing: 0.14em; text-transform: uppercase; text-align: right; }

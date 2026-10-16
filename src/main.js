@@ -1321,7 +1321,7 @@ function finishDay() {
   showResult();
 }
 function showResult() {
-  const outro = map.outro ? { text: map.outro.text, withdraw: !!map.outro.withdraw, name: map.name } : null;
+  const outro = map.outro ? { text: map.outro.text, withdraw: !!map.outro.withdraw, name: map.name, from: FROM_NAME[map.outro.from ?? 'FM'] } : null;
   setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
     onRetry: () => showDepot(map.id, 'result', { day }),
