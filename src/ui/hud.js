@@ -49,7 +49,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   </div>
   <div id="hint" class="plate" hidden><ol></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
-  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button><button type="button" class="speed" data-k="speed">Speed <b data-k="speedx">1x</b><kbd>F</kbd></button></div>
+  <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button></div>
   <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
   <div id="banner" class="plate" hidden></div>
   <div id="entry" class="entry" hidden><div class="chev"><i></i><i></i><i></i></div><div class="txt">Horde incoming</div></div>`);
@@ -61,10 +61,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd'), nextLbl: $('nextlbl'), nextKey: $('nextkey') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
-  const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn = $('speed'), speedBtn2 = root.querySelector('#speedcd');
-  speedBtn.addEventListener('pointerdown', e => e.preventDefault());   // ta inte fokus från mellanslag
-  speedBtn.addEventListener('click', () => onSpeed && onSpeed());
-  speedBtn2.addEventListener('pointerdown', e => e.preventDefault());
+  // 0.10.2 (speltestet av 0.10.1: SPEED dolde sig bakom "Next wave: still 36 left" medan F fungerade):
+  // en enda fartknapp nere till höger, synlig under hela dagen (bygg, nedräkning och våg).
+  const waveBar = root.querySelector('#wavebar'), wLeft = $('wleft'), speedBtn2 = root.querySelector('#speedcd');
+  speedBtn2.addEventListener('pointerdown', e => e.preventDefault());   // ta inte fokus från mellanslag
   speedBtn2.addEventListener('click', () => onSpeed && onSpeed());
   el.next.addEventListener('pointerdown', e => e.preventDefault());
   el.next.addEventListener('click', () => onNext && onNext());
@@ -133,7 +133,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const counting = build && sim.nextWaveIn != null;
     set(el.go, counting ? 'Next wave' : 'Start wave');
     el.cd.hidden = !counting;
-    speedBtn2.hidden = !counting;
+    speedBtn2.hidden = !(build || wave);
     goBtn.classList.toggle('counting', counting);
     if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
     // Mitt i en våg går nästa att kalla tidigt så länge det finns en, men bara uttryckligen:
@@ -143,15 +143,42 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     if (canCall) {
       const n = waveLeft(sim), still = n > 0;
       // Överlapp (Gnesta Norr): nästa våg kommer av sig själv medan den här fortfarande är på väg.
-      const auto = sim.nextWaveIn != null ? `Next wave in ${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s` : null;
-      set(el.nextLbl, auto ?? (still ? `Next wave: still ${n} left` : 'Next wave'));
+      const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
+      // kort form när raden inte ryms (layoutBottom): antalet står redan i dagens plåt
+      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave: still ${n} left` : 'Next wave',
+        short: secs != null ? `Next in ${secs}s` : 'Next wave' };
+      set(el.nextLbl, waveBar.classList.contains('narrow') ? nextText.short : nextText.long);
       set(el.nextKey, still ? 'Shift+Space' : 'Space');
       el.next.classList.toggle('still', still);
       const showBonus = !still || shiftDown || nextHover;
       el.nextCd.hidden = !showBonus;
       if (showBonus) set(el.nextCd, '+' + money(earlyBonus(sim)) + ' early');
     }
+    layoutBottom();
   }
+
+  // Knappen och vågens rad nere i mitten (0.10.2): mitt i fönstret om de ryms där, annars mellan
+  // köpraden (--bar-r) och fartknappen. Ryms vågens rad inte ens då döljs dess "N left" (dagens
+  // plåt uppe till vänster säger samma sak), så att ingenting hamnar utanför fönstret.
+  let layoutKey = '', nextText = { long: '', short: '' };
+  function layoutBottom() {
+    const barR = parseFloat(document.documentElement.style.getPropertyValue('--bar-r')) || 0;
+    const sp = speedBtn2.hidden ? 0 : speedBtn2.offsetWidth;
+    const k = [innerWidth, barR, sp, goBtn.hidden, waveBar.hidden, el.go.textContent, el.cd.textContent, nextText.long, el.nextCd.hidden, el.next.hidden].join('|');
+    if (k === layoutKey) return;
+    layoutKey = k;
+    const lo = barR ? barR + 14 : 14, hi = innerWidth - (sp ? sp + 32 : 14);
+    for (const node of [goBtn, waveBar]) {
+      if (node.hidden) continue;
+      node.classList.remove('narrow');
+      if (node === waveBar) set(el.nextLbl, nextText.long);
+      let w = node.offsetWidth;
+      if (w > hi - lo) { node.classList.add('narrow'); if (node === waveBar) set(el.nextLbl, nextText.short); w = node.offsetWidth; }
+      const c = Math.min(Math.max(innerWidth / 2, lo + w / 2), hi - w / 2);
+      node.style.left = Math.round(Math.max(lo + w / 2, c)) + 'px';
+    }
+  }
+  addEventListener('resize', () => { layoutKey = ''; });
 
   // Bonus för tidigt kall: "+$ 20 early" under kassan.
   function early(amount) {
@@ -163,10 +190,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   }
 
   // Fart 1x, 2x eller 3x. Lyser rost när den är över 1x.
-  const speedX = $('speedx'), speedX2 = $('speedx2');
+  const speedX2 = $('speedx2');
   function setSpeed(x) {
-    set(speedX, x + 'x');
-    speedBtn.classList.toggle('on', x > 1);
     set(speedX2, x + 'x');
     speedBtn2.classList.toggle('on', x > 1);
   }
@@ -200,11 +225,13 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const txt = at.text ?? 'Horde incoming';
     const t = el.querySelector('.txt');
     if (t.textContent !== txt) t.textContent = txt;
-    // Hela pilen och texten ska rymmas i bild, med 12 px marginal.
+    // Hela pilen och texten ska rymmas i bild, med 12 px marginal, och inte under plåtarna uppe
+    // eller köpraden och knapparna nere (0.10.2).
     const w = el.offsetWidth / 2 + 12, h = el.offsetHeight / 2 + 12;
     el.style.left = Math.min(innerWidth - w, Math.max(w, at.x)) + 'px';
-    el.style.top = Math.min(innerHeight - h, Math.max(h, at.y)) + 'px';
+    el.style.top = Math.min(innerHeight - h - 96, Math.max(h + 130, at.y)) + 'px';
     el.querySelector('.chev').style.transform = `rotate(${at.angle}rad)`;
+    el.classList.toggle('next', !!at.next);
   }
   function entry(at) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];

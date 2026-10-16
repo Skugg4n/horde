@@ -119,13 +119,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase;
 }
 #wavebar .left b { font: 600 20px 'IBM Plex Mono', monospace; margin-right: 4px; }
-#wavebar .speed {
-  display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
-  border: 1px solid rgba(233,223,201,0.3); border-radius: 2px; background: rgba(233,223,201,0.06);
-  letter-spacing: 0.1em; text-transform: uppercase;
-}
 #speedcd {
-  position: fixed; bottom: 18px; left: calc(50% + 250px);
+  position: fixed; bottom: 18px; right: 18px;
   display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
   font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase;
 }
@@ -133,7 +128,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #speedcd b { font: 600 15px 'IBM Plex Mono', monospace; min-width: 2ch; }
 #speedcd.on { background: var(--rust); border-color: rgba(233,223,201,0.45); }
 #speedcd kbd { font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: none; padding: 2px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85; }
-#wavebar .speed:hover, #wavebar .next:hover { background: rgba(233,223,201,0.12); }
+#wavebar .next:hover, #speedcd:hover { background: rgba(233,223,201,0.12); }
+#wavebar.narrow .left { display: none; }
+#go.narrow { gap: 8px; padding-left: 16px; padding-right: 16px; }
+#go.narrow kbd { display: none; }
+#wavebar.narrow { padding-left: 8px; }
 #wavebar .next {
   display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer;
   border: 1px solid rgba(217,164,65,0.5); border-radius: 2px; background: rgba(217,164,65,0.08);
@@ -147,8 +146,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .cd { font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: 0.02em; text-transform: none; color: #f2d18a; }
 #go .cd[hidden] { display: none; }
 #go.counting { font-size: 18px; padding: 11px 22px 12px; }
-#wavebar .speed b { font: 600 15px 'IBM Plex Mono', monospace; min-width: 2ch; }
-#wavebar .speed.on { background: var(--rust); border-color: rgba(233,223,201,0.45); }
 #wavebar kbd {
   font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: none;
   padding: 2px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85;
@@ -180,6 +177,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #f0a07a;
   background: var(--plate); border: 1px solid rgba(224,96,60,0.5); padding: 3px 10px; border-radius: 2px; white-space: nowrap;
 }
+/* 0.10.2: ingången som nästa grupp kommer från */
+.entry.next .txt { color: #fff1e6; background: rgba(150, 26, 10, 0.9); border-color: rgba(255, 140, 110, 0.7); }
 .note.warn { color: #fff1e6; top: 64px; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
 #res .delta {
   position: absolute; left: 0; top: 100%; margin-top: 2px; font: 600 13px 'IBM Plex Mono', monospace;
@@ -262,7 +261,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui[data-mode="intro"] .dim { background: rgba(16, 12, 8, 0.3); }
 #ui[data-mode="menu"] #day, #ui[data-mode="menu"] #res,
 #ui[data-mode="research"] #day, #ui[data-mode="research"] #res,
-#ui:not([data-mode="play"]) #go { display: none; }
+#ui:not([data-mode="play"]) #go, #ui:not([data-mode="play"]) #speedcd, #ui:not([data-mode="play"]) #wavebar { display: none; }
 
 .sheet {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -398,18 +397,22 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
 /* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
 /* 0.10.1: smal rad, små kort (ikon, namn, pris); pekaren fäller ut kortet uppåt (.more) */
-#buildbar .card { width: 74px; padding: 5px 6px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+/* 0.10.2: 66 px, så att åtta kort ryms på en rad ned till 1024 px (speltestet av 0.10.1: Hemvärnet ensamt på rad två) */
+#buildbar .card { width: 66px; padding: 5px 5px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
 #buildbar .card svg:not(.lock) { height: 17px; margin: 0 0 2px; width: 70%; }
-#buildbar .card .n { font-size: 11px; white-space: nowrap; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; }
+#buildbar .card .n { font-size: 10.5px; white-space: nowrap; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
 #buildbar .card .p { font-size: 12px; margin-top: 1px; white-space: nowrap; }
+/* 0.10.2: "Need $ 370" ryms i det smalare kortet med radens smala stil i stället för mono */
+#buildbar .card .p { font-family: inherit; font-weight: 600; letter-spacing: 0.01em; }
 #buildbar .card .more {
-  display: none; position: absolute; left: -1px; bottom: calc(100% + 6px); width: 190px; padding: 7px 9px 8px; z-index: 3;
+  display: none; position: absolute; left: -1px; bottom: calc(100% + 6px); width: 236px; padding: 8px 10px 9px; z-index: 3;
   background: rgba(24,22,19,0.96); border: 1px solid var(--plate-edge); border-radius: 2px; pointer-events: none;
 }
 #buildbar .card:hover .more, #buildbar .card:focus-visible .more { display: block; }
-#buildbar .card .more .r { font-size: 12px; letter-spacing: 0.02em; color: var(--paper); }
-#buildbar .card .more .st { font: 500 11px 'IBM Plex Mono', monospace; color: #d9a441; margin-top: 3px; }
-#buildbar .card .why { font-size: 11px; letter-spacing: 0.02em; color: var(--paper-dim); line-height: 14px; margin-top: 3px; }
+/* 0.10.2: tipset minst 13 px (var 11 till 12), och en statistikrad i samma form för varje vapen */
+#buildbar .card .more .r { font-size: 14px; letter-spacing: 0.02em; color: var(--paper); line-height: 18px; }
+#buildbar .card .more .st { font: 500 13px 'IBM Plex Mono', monospace; color: #d9a441; margin-top: 4px; white-space: nowrap; }
+#buildbar .card .why { font-size: 13px; letter-spacing: 0.02em; color: var(--paper-dim); line-height: 17px; margin-top: 4px; }
 #buildbar .card .why:empty { display: none; }
 #buildbar .card.off { opacity: 0.55; filter: grayscale(0.85); cursor: not-allowed; }
 #buildbar .card.poor { opacity: 0.7; }
@@ -434,7 +437,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ghosttip[hidden] { display: none; }
 @media (max-width: 760px) {
   #buildbar { left: 16px; bottom: 80px; }
-  #buildbar .card { width: 74px; }
+  #buildbar .card { width: 66px; }
   #hint { bottom: 230px; }
 }
 
@@ -492,7 +495,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 @media (min-width: 761px) {
   #buildbar { max-width: calc(100vw - 420px); }
   #buildbar .cards { flex-wrap: wrap; }
-  #go { left: max(50%, calc(var(--bar-r, 580px) + 140px)); }
-  #wavebar { left: max(50%, calc(var(--bar-r, 580px) + 300px)); white-space: nowrap; }
-  #speedcd { left: calc(max(50%, calc(var(--bar-r, 580px) + 140px)) + 250px); }
+  /* 0.10.2: #go och #wavebar placeras av hud.js (layoutBottom) mellan köpraden och fartknappen */
+  #wavebar, #go { white-space: nowrap; }
 }

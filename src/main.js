@@ -343,6 +343,13 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach();
+  // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
+  // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
+  const ovKey = 'overlap-' + map.id;
+  if (sim.dayCfg.overlap != null && sim.phase === 'wave' && sim.nextWaveIn != null && !hintSeen(progress, ovKey)) {
+    note(uiRoot, 'Waves overlap here. Keep the line.');
+    progress = markHintSeen(progress, ovKey); save();
+  }
   // Granattillsatsens små smällar skakar inte bilden, bara granatlådans.
   if (evs.some(e => e.t === 'blast' && e.kind !== 'grt')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
   for (const ev of evs) {
@@ -454,50 +461,72 @@ function updateEntry() {
   hud.entry(entryAt);
 }
 
-// Ingångarna som dagens vågor använder (standard: banans första).
-function daySpawns() {
-  const first = sim.route.spawns?.[0]?.id;
-  return [...new Set(sim.dayCfg.waves.flatMap(w => w.groups.map(g => g.spawn ?? first)))];
+// Ingångarna som används nu (0.10.2, speltestet av 0.10.1: båda "They come from here" pekade österut
+// medan första gruppen kom söderifrån, och dagens alla ingångar visades). Före en våg: den vågens
+// ingångar. Under en våg: de som har zombier kvar att släppa eller på väg, och med överlapp nästa
+// vågs. next: ingången som nästa grupp kommer från. Ordning: banans.
+function activeSpawns() {
+  const first = sim.route.spawns[0]?.id, waves = sim.dayCfg.waves;
+  const ids = new Set();
+  let next = null;
+  const firstOf = w => [...w.groups].sort((a, b) => a.delay - b.delay)[0];
+  if (sim.phase === 'build') {
+    const w = waves[sim.wavesStarted];
+    if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next = firstOf(w).spawn ?? first; }
+  } else if (sim.phase === 'wave') {
+    for (const q of sim.spawnQueue) ids.add(q.spawn ?? first);
+    for (const z of sim.zombies) if (!z.dead) ids.add(z.spawn);
+    if (sim.spawnQueue.length) next = sim.spawnQueue[0].spawn ?? first;
+    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
+    if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next ??= firstOf(w).spawn ?? first; }
+  }
+  return { ids: sim.route.spawns.map(s => s.id).filter(id => ids.has(id)), next };
 }
-// Gnesta: en pil per ingång. Under vågen där zombier från den är på väg men inte syns
-// ("Horde incoming"); före vågen vid kanten för ingångar som ligger utanför bild.
+const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
+// Gnesta: en pil per ingång som används nu, där hordens väg från den kommer in i bild (eller vid
+// ingången om den syns), i gångriktningen. Under vågen bara för ingångar vars zombier inte syns än,
+// och för den som nästa grupp kommer från.
 function gridEntries() {
-  const out = [], wave = sim.phase === 'wave', build = sim.phase === 'build';
-  if (!wave && !build) return out;
-  const first = sim.route.spawns[0].id, active = daySpawns();
+  const out = [], wave = sim.phase === 'wave';
+  if (!wave && sim.phase !== 'build') return out;
+  const { ids, next } = activeSpawns();
   const cx = innerWidth / 2, cy = innerHeight / 2;
-  for (const sp of sim.route.spawns) {
-    if (!active.includes(sp.id)) continue;
-    let text = 'Horde incoming';
+  for (const id of ids) {
+    const isNext = id === next;
     if (wave) {
-      const pending = sim.spawnQueue.some(q => (q.spawn ?? first) === sp.id);
-      const alive = sim.zombies.filter(z => !z.dead && z.spawn === sp.id);
-      if (!pending && !alive.length) continue;
-      if (alive.some(z => onScreen(z.x, z.z, 10).in)) continue;
-    } else text = 'They come from here';
-    const s = onScreen(sp.x, sp.z, EDGE);
-    if (s.in) {
-      if (!wave) continue;
-      // ingången syns: pilen vid den, i riktning längs vägen in
-      const path = sim.route.paths([sp.id])[0];
-      const c = path && sim.route.cellCenter(path.cells[Math.min(3, path.cells.length - 1)]);
-      const t = c ? onScreen(c.x, c.z) : { sx: cx, sy: cy };
-      out.push({ x: s.sx, y: s.sy, angle: Math.atan2(t.sy - s.sy, t.sx - s.sx) + Math.PI, text });
-      continue;
+      const pending = sim.spawnQueue.some(q => (q.spawn ?? sim.route.spawns[0].id) === id);
+      const alive = sim.zombies.filter(z => !z.dead && z.spawn === id);
+      const seen = alive.some(z => onScreen(z.x, z.z, 10).in);
+      if (!isNext && (seen || (!pending && !alive.length))) continue;
+      if (isNext && !pending && seen) continue;
     }
-    // utanför bild: vid kanten på linjen från mitten mot ingången, fri från plåtarna uppe och
-    // knappen nere (större marginal där)
-    const dx = s.sx - cx, dy = s.sy - cy;
-    const half = dy < 0 ? cy - 110 : cy - 120;
-    const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
-    let x = cx + dx * k, y = cy + dy * k;
-    if (y > innerHeight - 160 && Math.abs(x - cx) < 380) x = cx + (x < cx ? -380 : 380);
-    out.push({ x, y, angle: Math.atan2(-dy, -dx) + Math.PI, text });
+    const text = isNext ? `Next group · ${spawnName(id)}` : wave ? 'Horde incoming' : 'They come from here';
+    const cells = sim.route.paths([id])[0]?.cells ?? [];
+    let at = null;
+    for (let i = 0; i < cells.length; i++) {
+      const c = sim.route.cellCenter(cells[i]), s = onScreen(c.x, c.z, EDGE);
+      if (!s.in) continue;
+      const t = sim.route.cellCenter(cells[Math.min(i + 3, cells.length - 1)]), u = onScreen(t.x, t.z);
+      at = { x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI, text, next: isNext };
+      break;
+    }
+    if (!at) {
+      // vägen syns inte alls: vid kanten på linjen från mitten mot ingången
+      const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
+      const dx = s.sx - cx, dy = s.sy - cy;
+      const half = dy < 0 ? cy - 110 : cy - 120;
+      const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
+      at = { x: cx + dx * k, y: cy + dy * k, angle: Math.atan2(-dy, -dx) + Math.PI, text, next: isNext };
+    }
+    // två pilar på samma ställe: den senare flyttas ned en rad
+    while (out.some(o => Math.abs(o.x - at.x) < 220 && Math.abs(o.y - at.y) < 56)) at.y += 60;
+    out.push(at);
   }
   return out;
 }
 
-// Hordens väg på Gnesta: svagt band för vägen som gäller nu, rost för förhandsvisningen när
+// Hordens väg på Gnesta: rostfärgade pilar (chevroner) som flyter mot basen för vägen som gäller nu
+// (0.10.2: de vita strecken såg ut som vägmarkering), och en orange streckad förhandsvisning när
 // pekaren står på en gata (eller en ruta är vald): så går de om du spärrar här.
 const cellWorld = k => { const c = sim.route.cellCenter(k); return [c.x, c.z]; };
 let nowPaths = null;
@@ -507,7 +536,8 @@ let showRoute = true;
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
   if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); return null; }
-  const ids = daySpawns();
+  // 0.10.2: från varje ingång som används nu (activeSpawns), som pilarna
+  const ids = activeSpawns().ids;
   const obsKey = Object.keys(sim.obstacles).join(',');
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }

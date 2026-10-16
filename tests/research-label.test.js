@@ -34,9 +34,11 @@ test('köpkorten: svenskt namn, vad den gör, skada och räckvidd', async () => 
     const words = it.role.split(/[\s·,]+/).filter(Boolean).length;
     assert.ok(words >= 2 && words <= 5, `${it.id}: "${it.role}"`);
     assert.ok(head.includes(' · '), head);
-    if (it.kind === 'gun') assert.match(stats, /^Damage \d+( ×4)? · Range \d+ m$/, it.id);
+    // 0.10.2: samma form för varje vapen, så att korten går att jämföra
+    if (it.kind === 'gun') assert.match(stats, /^DMG \d+( ×\d)? · RNG \d+ m · RATE \d+(\.\d)?\/s$/, it.id);
   }
   assert.equal(cardLines(shopItem('ksp58'))[0], 'Ksp 58 · General MG · 7.62');
-  assert.equal(cardLines(shopItem('ksp58'))[1], 'Damage 10 · Range 19 m');
+  assert.equal(cardLines(shopItem('ksp58'))[1], 'DMG 10 · RNG 19 m · RATE 7/s');
+  assert.equal(cardLines(shopItem('psg90'))[1], 'DMG 90 · RNG 34 m · RATE 0.6/s');
   assert.ok(!/\\u2014/.test(JSON.stringify(SHOP)));
 });

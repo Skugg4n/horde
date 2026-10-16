@@ -11,7 +11,7 @@ import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../met
 import { ICONS } from './icons.js';
 import { SHOP, shopItem, hotkey } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
-import { COVER, SQUAD } from '../sim/squad.js';
+import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
 
 const REASONS = {
@@ -82,13 +82,17 @@ const LOCK = '<svg class="lock" viewBox="0 0 16 16"><path d="M4.5 7V5a3.5 3.5 0 
 const itemName = (it) => (it.kind === 'gun' ? WEAPONS[it.id].name : OBSTACLES[it.id].name);
 // Kortets namn: kort form där den finns (Ak 5 + Grt), hela namnet i tipset och panelen.
 const itemShort = (it) => { const d = it.kind === 'gun' ? WEAPONS[it.id] : OBSTACLES[it.id]; return d.short ?? d.name; };
-// Kortets rader (0.10.1): "Ksp 58 · General MG · 7.62" och "Damage 10 · Range 19 m" (med forskningen).
+// Kortets rader (0.10.1): "Ksp 58 · General MG · 7.62" och statistiken (med forskningen).
+// 0.10.2 (speltestet: "jag vet inte om 4 är mycket"): samma form för varje vapen så att korten går
+// att jämföra, "DMG 10 · RNG 19 m · RATE 7/s". Hemvärnet: skada per soldat gånger antalet.
+const num = x => (Math.abs(x - Math.round(x)) < 0.05 ? String(Math.round(x)) : x.toFixed(1));
+export function cardStats(type, research = []) {
+  const st = weaponStats(type, 1, research), w = WEAPONS[type];
+  return `DMG ${Math.round(st.damage)}${w.squad ? ' ×' + squadSize(1, research) : ''} · RNG ${Math.round(st.range)} m · RATE ${num(st.rate)}/s`;
+}
 export function cardLines(it, research = []) {
   const head = `${itemShort(it)} · ${it.role}`;
-  if (it.kind === 'gun') {
-    const st = weaponStats(it.id, 1, research), w = WEAPONS[it.id];
-    return [head, `Damage ${Math.round(st.damage)}${w.squad ? ' ×4' : ''} · Range ${Math.round(st.range)} m`];
-  }
+  if (it.kind === 'gun') return [head, cardStats(it.id, research)];
   const o = OBSTACLES[it.id];
   return [head, o.kind === 'block' ? 'Takes blows, then breaks' : `Slows by ${Math.round((1 - o.slow) * 100)} %, wears out`];
 }

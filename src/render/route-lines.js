@@ -1,11 +1,13 @@
-// Hordens väg som svaga band på gatan (Gnesta). Två lager: vägen som gäller nu (ljus, svag) och
-// förhandsvisningen när pekaren står på en gata (rost): "de går runt kvarteret".
+// Hordens väg på gatan (Gnesta). Två lager: vägen som gäller nu och förhandsvisningen när pekaren
+// står på en gata: "de går runt kvarteret".
+// 0.10.2 (speltestet av 0.10.1: de vita strecken såg ut som vägmarkering): vägen som gäller nu är
+// roströda pilar (chevroner) som flyter mot basen, svagt; förhandsvisningen orange streck.
 // Varje lager är en enda mesh som byggs om bara när vägen ändras.
 import * as THREE from 'three';
-import { PALETTE } from './kit.js';
 
 // 0.10.1: vägen som gäller nu bredare och tydligare (den ligger kvar hela dagen)
-const WIDTH = { now: 0.7, preview: 0.6 };
+// 0.10.2: bredare igen, så att pilarna syns som pilar i spelets zoom
+const WIDTH = { now: 1.8, preview: 0.6 };
 const Y = { now: 0.09, preview: 0.1 };
 
 // Rutnätets trappsteg tas bort (Ramer-Douglas-Peucker), sedan rundas hörnen av (Chaikin), så
@@ -75,11 +77,31 @@ function material(color, opacity, dash) {
       }`,
   });
 }
+// Pilar längs bandet: v (meter längs vägen) ökar från ingången mot basen, så spetsen pekar mot
+// basen och mönstret flyter dit med uTime. Ett svagt band under binder ihop pilarna.
+function chevrons(color, opacity, period) {
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity }, uPeriod: { value: period }, uTime: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform vec3 uColor; uniform float uOpacity; uniform float uPeriod; uniform float uTime; varying vec2 vUv;
+      void main() {
+        float cx = abs(vUv.x - 0.5) * 2.0;
+        float t = fract(vUv.y / uPeriod - uTime) + cx * 0.42;
+        float arm = smoothstep(0.44, 0.5, t) * (1.0 - smoothstep(0.66, 0.72, t));
+        float edge = 1.0 - smoothstep(0.82, 1.0, cx);
+        float a = max(arm, 0.22) * edge;
+        gl_FragColor = vec4(uColor, uOpacity * a);
+        #include <colorspace_fragment>
+      }`,
+  });
+}
 
+const THREAT = 0xc2321c, PREVIEW = 0xe8823a;
 export function createRouteLines(scene) {
   const layers = {
-    now: new THREE.Mesh(new THREE.BufferGeometry(), material(PALETTE.paper, 0.62, 2.4)),
-    preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PALETTE.rust, 0.85, 2.0)),
+    now: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(THREAT, 0.55, 2.6)),
+    preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PREVIEW, 0.85, 2.0)),
   };
   for (const [k, m] of Object.entries(layers)) { m.renderOrder = 4; m.frustumCulled = false; m.visible = false; m.name = 'route-' + k; scene.add(m); }
   const keys = { now: '', preview: '' };
