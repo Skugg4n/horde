@@ -1,5 +1,32 @@
 # Ändringslogg
 
+## 0.16.1 (2026-10-17)
+
+Polish efter speltesterna av 0.14.2 och 0.16.0 (docs/playtests/2026-10-17-0.16.0.md, "SPELBART: NEJ"), todo H190 till H194 och H214 till H216.
+
+Speltestet av 0.16.0:
+- Hagstumosse · Ishallen dag 1 (evakueringen). Där varje hus väg går in på hordens väg ligger röda fläckar på den gula linjen, och de föreslagna platserna för de frivilliga pulserar (gula hörn) före första vågen (src/sim/evac-danger.js). Lektionen säger "Red: the horde meets their line here." och "Volunteers. Cover the crossing.", och pekar på platserna när de frivilliga hålls i handen. Våg 2:s löpare kommer 12 s senare (22 i stället för 10), så att sista gruppen hinner förbi korsningen. Den som följer tipset får in 17 till 18 av 20 (prov: tests/evac-danger.test.js); den som ställer alla vid ishallen förlorar fortfarande.
+- En ingång som inte använts tidigare sägs före vågen: "They're also coming from Södertälje." (eller "along Norra vägen"), hordens väg därifrån blinkar och minikartan pingar ingången. Raden tar plats direkt även när andra rader står.
+- E4:s sista vågor är jämnare: dag 1 14 / 22 / 32 (var 40), dag 2 20 / 44 / 60 (var 40 / 68), dag 3 se H192.
+- Operationskartan säger när förrådet öppnar ("Depot · Opens after Ishallen day 2", grå) i stället för att inte visa något.
+- Lektionsplåten ställs där den inte täcker målet, infarternas etiketter, evakueringsrutan, köpradens utfällda kort, ledningens rad, sektorskortet eller PAUSED. Ett 'show' säger "Click or Enter". Evakueringsrutan står under DAY uppe till vänster i stället för mitt i stridszonen.
+- Ett klick med en enhet i handen som inte träffar någon ruta säger varför vid pekaren ("Outside the map").
+- Köpradens rubrik är DEPLOY före första vågen och DEFENCES under dagen (bytte förut mellan DEPLOY och SUPPLIES när enheterna tog slut).
+- "Field manual: Evacuation" på förlustskylten öppnar uppslaget Evacuation (öppnade det första).
+- Manualen: Wire säger inte längre något om bjässarna två dagar före dem; Evacuation nämner de röda fläckarna.
+
+Todo:
+- H190: dagens kamera tar alltid med hela basen (ishallens fyra hörn, på E4 vägspärren) och vägen så långt den ryms (120, 90, 60 eller 30 m) med plats för HUD:en. När basen tar skada utanför bild står en röd pil vid skärmkanten mot basen med basens hälsa som pulserar; klick på pilen, B eller Home flyttar kameran till basen.
+- H191: infarternas etiketter står vid infarten i bildkanten och undviker öppen mark där enheter får stå (bara nära infarten; hellre över mark vid kanten än långt inne vid basen). Med en enhet i handen tonas de ned och släpper igenom klick.
+- H192: E4 dag 3 har två klungor bjässar i våg 2 och 26 i fyra klungor i våg 3 (var 4 och 36 i fem): basen 20 till 18 till 10 i stället för 20 till 20 till 7. Bounty 0,4 till 0,3. Balansskriptet lägger överskottet på fler trådar längre ned i stammen. Kvar efter dagen 170 till 200 dollar (var 420 till 470). Prov i tests/e4-tempo.test.js.
+- H193: redan löst i 0.16.0 ("Sector E4 is secure", "Only on the marked spots.", förrådets rullister); förrådets priser kontrollerade i 1100 x 720, inget klipps.
+- H194: över varje grupp frivilliga (gult, VOL) och Hemvärnet (grönt, HV) står ett märke med hur många som står, som lyser när gruppen skjuter. Klick väljer gruppen.
+- H215: Ishallen dag 3 och 4 ger halva respektive 0,3 förnödenheter per dödad: samma utfall i alla seeds, överskottet för den skickliga 480 till 560 och 700 (var 1 200 och 2 200).
+- H216: Show me flyttar kameran till målet när det ligger utanför bild; Veterans och Losses har bilder.
+- H214 (speltesta inlärningen med människor) kvar: kräver riktiga spelare.
+
+Balansen: nya fingeravtryck för hela kampanjen och nytt kvitto för E4 dag 2 (docs/balance-log.md, 0.16.1). Kampanjens mål håller: normal inom 1 till 3 försök, skilled allt på första.
+
 ## 0.16.0 (2026-10-16)
 
 Inlärningen steg för steg (docs/superpowers/specs/2026-10-16-onboarding-design.md, Olas beslut och tilläggen), och Hagstumosse som en sektor (Olas beslut samma dag).

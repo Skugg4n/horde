@@ -751,3 +751,38 @@ skilled alla seeds 1 på varje dag
 Kampanjens mål håller: normal inom 1 till 4 försök (som mest 3, South dag 5), skilled allt på första försöket. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt. Simuleringens kvitto: E4 dag 2 be6e026f till cf609061 (infanteriet står vid bommen från början, hp 3,2), South dag 3 3b601645 till db5f4217 (de vilande husen); North dag 2 står kvar.
 
 Kvar att speltesta: överskottet av förnödenheter på South dag 3 och 4 för den skickliga (tidiga kall ger bonus, men förnödenheter på enheten kommer först dag 5); South dag 5 är nu den svåraste för normal (2 till 3 försök).
+
+## 0.16.1: E4:s sista vågor, Ishallen dag 1 och överskottet på Ishallen dag 3 och 4
+
+Underlag: speltesterna av 0.14.2 och 0.16.0 (docs/playtests/2026-10-17-0.16.0.md) och todo H192, H215. Uppmätt per våg med policyerna i scripts/balance.mjs, fem seeds.
+
+E4 före (normal och skilled spelar E4 lika):
+- Dag 1: 14 / 22 / 40 fiender, basen 19 till 20.
+- Dag 2: 20 / 40 / 68, basen 20, 20, 13 till 16 (all skada i våg 3), 283 till 289 dollar över.
+- Dag 3: 26 / 20 / 82 (36 bjässar), basen 20, 20, 7 till 11 (all skada i våg 3, 9 till 13 på en våg), 420 till 470 dollar över.
+
+Ändrat och varför:
+- Dag 1 våg 3: 22 + 18 till 20 + 12 vandrare (32). Sista vågen var nästan dubbla den näst sista, och tre minuter utan något att göra.
+- Dag 2: våg 2 löparna 13 till 15 per grupp (44), våg 3 sex klungor löpare till fem (60). Nu 20, 18, 16: skadan kommer i två vågor i stället för en.
+- Dag 3: våg 2 får två klungor bjässar (7 från Nyköping vid 10 s, 6 från Södertälje vid 28 s) och 16 löpare från påfarten; våg 3 26 bjässar i fyra klungor (7, 7, 6, 6) i stället för 36 i fem. Basen 20, 18 till 20, 10 till 13. Ingen våg tar mer än 10.
+- Dag 3 bounty 0,4 till 0,3, och policyn lägger pengarna på två trådar till längre ned i stammen (21 och 25 m) när det finns mer än tre trådars pengar (det en människa gör mitt i vågen). Kvar efter dagen 170 till 200 dollar. Trådarna är sänkan; de ger lite (basen ungefär densamma), men pengarna har något att gå till.
+
+Ishallen dag 1 (evakueringen):
+- Uppmätt: med de frivilliga utställda där tipset säger (de föreslagna platserna i src/sim/evac-danger.js, en per korsning och en på den långa biten mot ishallen) dog sista gruppen (B3-12) i våg 2 när löparna kom ikapp den vid ishallen: 13 till 14 av 20 framme, en seed av fem på gränsen.
+- Våg 2:s löpare kommer 22 s in i vågen i stället för 10. Den som följer tipset får in 17 till 18 av 20 i alla seeds; den som ställer alla frivilliga vid ishallen förlorar fortfarande (avsikten står kvar: de frivilliga ska täcka korsningen).
+
+Ishallen dag 3 och 4 (H215):
+- Förnödenheterna på enheten kommer först dag 5, så dag 3 och 4 har bara hindren att lägga pengar på. Skilled slutade med 1 185 till 1 265 och 2 225 dollar, normal med 750 till 830 och 1 335 till 1 395.
+- Bounty dag 3 0,5 och dag 4 0,3. Utfallen är oförändrade i alla seeds (försök, bas och förluster); överskottet skilled 478 till 558 och 702, normal 69 till 151 och 167 till 229.
+
+Resultat (fem seeds, försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 2 1 2 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 1 3 1 2 1 1 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt (E4 dag 1 till 3 och Ishallen dag 1 ändrade, resten bärs vidare via RP). Simuleringens kvitto: E4 dag 2 cf609061 till bfc5d385; South dag 3 och North dag 2 står kvar.
+
