@@ -56,3 +56,17 @@ test('Esc-prioritet: meny, forskning, placering, panel, och sist öppna menyn', 
   assert.equal(escapeAction({ ...base, mode: 'result' }), 'open-menu');
   assert.equal(escapeAction({ ...base, mode: 'menu' }), 'none');
 });
+
+// 0.10.1 (speltestet): ett tryck gör exakt en sak. En markering utan panel avmarkeras i stället för
+// att menyn öppnas, och en upprepning medan tangenten hålls nere gör ingenting.
+test('Esc gör en sak per tryck: markering först, ingen upprepning', () => {
+  const base = { menuOpen: false, mode: 'play', placing: false, panel: false };
+  assert.equal(escapeAction({ ...base, selected: true }), 'close-panel');
+  assert.equal(escapeAction({ ...base, placing: true, repeat: true }), 'none');
+  assert.equal(escapeAction({ ...base, repeat: true }), 'none');
+  // två tryck i rad med en placering: först avbryts den, sedan (nytt läge) öppnas menyn
+  const first = escapeAction({ ...base, placing: true, selected: true });
+  assert.equal(first, 'cancel-placing');
+  assert.equal(escapeAction({ ...base, selected: true }), 'close-panel');
+  assert.equal(escapeAction(base), 'open-menu');
+});

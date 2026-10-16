@@ -67,7 +67,25 @@ export function createRig({ camera, map, fill, dom }) {
   addEventListener('blur', onBlur);
   addEventListener('resize', apply);
 
+  // Introsvep (0.10.1): kameran glider från ingången till basen; ett klick, hjul eller en tangent
+  // hoppar till slutet.
+  let tour = null;
+  function endTour() { if (!tour) return; const t = tour; tour = null; target.set(t.to.x, 0, t.to.z); view = t.to.view; apply(); t.done?.(); }
+  const onSkip = () => { if (tour && active) endTour(); };
+  dom.addEventListener('pointerdown', onSkip, true);
+  dom.addEventListener('wheel', onSkip, true);
+  addEventListener('keydown', onSkip, true);
+
   function update(dt) {
+    if (tour) {
+      tour.t = Math.min(1, tour.t + dt / tour.dur);
+      const k = tour.t < 0.15 ? 0 : (tour.t - 0.15) / 0.85, e = k * k * (3 - 2 * k);
+      target.set(tour.from.x + (tour.to.x - tour.from.x) * e, 0, tour.from.z + (tour.to.z - tour.from.z) * e);
+      view = tour.from.view + (tour.to.view - tour.from.view) * e;
+      apply();
+      if (tour.t >= 1) endTour();
+      return;
+    }
     if (!keys.size) return;
     let ux = 0, uy = 0;
     for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
@@ -76,6 +94,19 @@ export function createRig({ camera, map, fill, dom }) {
     apply();
   }
   function setShake(x, z) { shake.set(x, 0, z); apply(); }
+  // Mitten och zoomen som får med alla punkter (världens x, z) med pad meter marginal, inom
+  // zoomgränserna. Får de inte plats blir det största zoomen runt mitten.
+  function fit(points, pad = 8) {
+    const cx = points.reduce((a, p) => a + p[0], 0) / points.length, cz = points.reduce((a, p) => a + p[1], 0) / points.length;
+    const a = innerWidth / innerHeight;
+    let need = zMin;
+    for (const [x, z] of points) {
+      const dx = x - cx, dz = z - cz;
+      const sx = Math.abs(dx * R.x + dz * R.z) + pad, sy = Math.abs((dx * D.x + dz * D.z) * PITCH) + pad;
+      need = Math.max(need, (2 * sx) / a, 2 * sy);
+    }
+    return { x: cx, z: cz, view: Math.min(zMax, Math.max(zMin, a < 1 ? need / 1.5 : need)) };
+  }
   function goHome() { target.copy(home); view = cam.view; apply(); }
   function dispose() {
     dom.removeEventListener('pointerdown', onDown);
@@ -86,6 +117,9 @@ export function createRig({ camera, map, fill, dom }) {
     removeEventListener('keyup', onKey);
     removeEventListener('blur', onBlur);
     removeEventListener('resize', apply);
+    dom.removeEventListener('pointerdown', onSkip, true);
+    dom.removeEventListener('wheel', onSkip, true);
+    removeEventListener('keydown', onSkip, true);
   }
   apply();
   return {
@@ -96,6 +130,11 @@ export function createRig({ camera, map, fill, dom }) {
     get target() { return target; },
     get view() { return view; },
     focus(x, z, v) { target.set(x, 0, z); if (v) view = Math.min(zMax, Math.max(zMin, v)); apply(); },
+    fit,
+    // Svep från from till to ({ x, z, view }) på dur sekunder; done när det är klart eller överhoppat.
+    tour(from, to, dur, done) { tour = { from, to, t: 0, dur, done }; target.set(from.x, 0, from.z); view = from.view; apply(); },
+    get touring() { return !!tour; },
+    skipTour: endTour,
   };
 }
 

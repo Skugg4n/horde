@@ -389,19 +389,28 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet .note-line { font-size: 14px; letter-spacing: 0.03em; color: var(--paper-dim); margin: -6px 0 14px; }
 
 /* Vapenkorten nere till vänster: välj ett kort, ställ ut pjäsen på kartan */
-#buildbar { position: fixed; bottom: 18px; left: 18px; padding: 8px 10px 10px; }
+#buildbar { position: fixed; bottom: 14px; left: 14px; padding: 5px 7px 7px; }
 #buildbar[hidden] { display: none; }
-#buildbar .k { font-size: 11px; letter-spacing: 0.22em; color: var(--paper-dim); margin: 0 0 6px 2px; }
+#buildbar .k { font-size: 10px; letter-spacing: 0.22em; color: var(--paper-dim); margin: 0 0 4px 2px; }
 #buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
 #buildbar .k .guns { margin-left: 14px; }
-#buildbar .cards { display: flex; gap: 6px; }
+#buildbar .cards { display: flex; gap: 4px; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
 /* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
-#buildbar .card { width: 96px; padding: 7px 7px 8px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
-#buildbar .card svg:not(.lock) { height: 26px; margin: 2px 0 3px; }
-#buildbar .card .n { font-size: 12px; white-space: nowrap; letter-spacing: 0.02em; }
-#buildbar .card .p { font-size: 13px; }
-#buildbar .card .why { font-size: 11px; letter-spacing: 0.02em; color: var(--paper-dim); min-height: 28px; line-height: 14px; }
+/* 0.10.1: smal rad, små kort (ikon, namn, pris); pekaren fäller ut kortet uppåt (.more) */
+#buildbar .card { width: 74px; padding: 5px 6px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
+#buildbar .card svg:not(.lock) { height: 17px; margin: 0 0 2px; width: 70%; }
+#buildbar .card .n { font-size: 11px; white-space: nowrap; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; }
+#buildbar .card .p { font-size: 12px; margin-top: 1px; white-space: nowrap; }
+#buildbar .card .more {
+  display: none; position: absolute; left: -1px; bottom: calc(100% + 6px); width: 190px; padding: 7px 9px 8px; z-index: 3;
+  background: rgba(24,22,19,0.96); border: 1px solid var(--plate-edge); border-radius: 2px; pointer-events: none;
+}
+#buildbar .card:hover .more, #buildbar .card:focus-visible .more { display: block; }
+#buildbar .card .more .r { font-size: 12px; letter-spacing: 0.02em; color: var(--paper); }
+#buildbar .card .more .st { font: 500 11px 'IBM Plex Mono', monospace; color: #d9a441; margin-top: 3px; }
+#buildbar .card .why { font-size: 11px; letter-spacing: 0.02em; color: var(--paper-dim); line-height: 14px; margin-top: 3px; }
+#buildbar .card .why:empty { display: none; }
 #buildbar .card.off { opacity: 0.55; filter: grayscale(0.85); cursor: not-allowed; }
 #buildbar .card.poor { opacity: 0.7; }
 #buildbar .card.poor .p, #buildbar .card.poor .why { color: #e0563a; }
@@ -413,8 +422,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 #hint li.now { color: var(--paper); font-weight: 600; }
 #buildbar .card kbd {
-  position: absolute; top: 6px; right: 7px; font: 500 10px 'IBM Plex Mono', monospace;
-  padding: 1px 5px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; color: var(--paper-dim);
+  position: absolute; top: 4px; right: 4px; font: 500 9px 'IBM Plex Mono', monospace;
+  padding: 0 4px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; color: var(--paper-dim);
 }
 #ui:not([data-mode="play"]) #buildbar { display: none; }
 /* Skälet vid pekaren när platsen inte går ("On the road") */
@@ -425,7 +434,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ghosttip[hidden] { display: none; }
 @media (max-width: 760px) {
   #buildbar { left: 16px; bottom: 80px; }
-  #buildbar .card { width: 96px; }
+  #buildbar .card { width: 74px; }
   #hint { bottom: 230px; }
 }
 
@@ -481,7 +490,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
    fönstret inte är brett nog för att de ska stå fritt i mitten. 0.8.0: sju kort; köpradens
    högerkant mäts (--bar-r, panels.js) och raden bryts i två när fönstret är smalt. */
 @media (min-width: 761px) {
-  #buildbar { max-width: calc(100vw - 600px); }
+  #buildbar { max-width: calc(100vw - 420px); }
   #buildbar .cards { flex-wrap: wrap; }
   #go { left: max(50%, calc(var(--bar-r, 580px) + 140px)); }
   #wavebar { left: max(50%, calc(var(--bar-r, 580px) + 300px)); white-space: nowrap; }

@@ -15,12 +15,15 @@ export function advance(st, frameDt, { playing, paused, mul = 1, dt, maxPerSpeed
 }
 
 // Vad Esc gör, i prioritetsordning: menyn (eller dess fråga) stängs först, sedan forskningsskylten,
-// placeringen, en öppen panel, och först därefter öppnas menyn. På huvudmenyn finns ingen meny.
-export function escapeAction({ menuOpen, mode, placing, panel }) {
+// placeringen, en öppen panel eller en markering, och först därefter öppnas menyn. På huvudmenyn
+// finns ingen meny. Ett tryck gör exakt en sak (0.10.1): en markering utan panel räknas som en panel,
+// och en upprepning medan tangenten hålls nere gör ingenting (repeat).
+export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false }) {
+  if (repeat) return 'none';
   if (menuOpen) return 'menu-back';
   if (mode === 'research') return 'close-research';
   if (placing) return 'cancel-placing';
-  if (panel) return 'close-panel';
+  if (panel || selected) return 'close-panel';
   if (mode === 'menu') return 'none';
   return 'open-menu';
 }

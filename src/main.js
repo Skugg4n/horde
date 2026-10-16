@@ -501,6 +501,9 @@ function gridEntries() {
 // pekaren står på en gata (eller en ruta är vald): så går de om du spärrar här.
 const cellWorld = k => { const c = sim.route.cellCenter(k); return [c.x, c.z]; };
 let nowPaths = null;
+// 0.10.1 (speltestet: "när barrikaden står där är vägen borta"): vägen som gäller nu ligger kvar hela
+// dagen från varje ingång som dagen använder, tydligare än förut. R slår av och på den.
+let showRoute = true;
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
   if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); return null; }
@@ -508,7 +511,7 @@ function updateRoutes() {
   const obsKey = Object.keys(sim.obstacles).join(',');
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
-  routeLines.set('now', nowPaths.map(p => p.cells.map(cellWorld)), nowKey);
+  routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
   // Förhandsvisningen: hindret i handen (så går de om du lägger det här), eller ett utlagt hinder
   // som pekas på eller är valt (så går de om du river det).
   const holding = placing?.kind === 'obstacle' && spot && spot.key >= 0;
@@ -538,13 +541,13 @@ function updateRoutes() {
 addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
-    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel });
+    e.preventDefault();
+    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing, panel: !!panel, selected: !!selected, repeat: e.repeat });
     if (what === 'menu-back') menu.back();
     else if (what === 'close-research') sheetAction('close');
     else if (what === 'cancel-placing') stopPlacing();
     else if (what === 'close-panel') { closePanel(); hovered = null; }
     else if (what === 'open-menu') menu.show();
-    else { closePanel(); hovered = null; }
     return;
   }
   // Medan menyn är öppen gör spelets tangenter ingenting.
@@ -558,6 +561,10 @@ addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
   if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
+  if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
+    showRoute = !showRoute;
+    note(uiRoot, showRoute ? 'Horde route shown (R)' : 'Horde route hidden (R)');
+  }
 }, true);
 addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') { hud.shift(false); shiftHeld = false; } }, true);
 addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
@@ -612,8 +619,30 @@ function startDay(n) {
   hud.reset();
   hud.setSpeed(speed);
   entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
+  const frame = dayFrame();
+  if (frame) rig.focus(frame.x, frame.z, frame.view);
   hinting = n === 1 && !hintSeen(progress, map.id) && !!map.days[0].hints; hintDone = 0;
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => setMode('play')));
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }));
+}
+// Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
+// vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
+function dayFrame() {
+  if (sim.route.kind !== 'grid') return null;
+  const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
+  const cells = sim.route.paths([first])[0]?.cells ?? [];
+  if (!cells.length) return null;
+  const k = Math.max(0, cells.length - 1 - Math.round(120 / sim.route.grid.size));
+  const p = sim.route.cellCenter(cells[k]), b = sim.route.base;
+  return rig.fit([[b.x, b.z], [p.x, p.z]]);
+}
+// Gnesta Norr (map.camera.intro): ett kort svep från ingången i norr ner till basen när spelaren
+// går till linjen. Klick, hjul eller tangent hoppar över.
+function introPan(frame) {
+  if (!frame || !map.camera.intro) return;
+  const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
+  const sp = sim.route.spawns.find(q => q.id === first);
+  if (!sp) return;
+  rig.tour({ x: sp.x, z: sp.z, view: 40 }, frame, map.camera.intro);
 }
 // Första dagens steg: bockas av i tur och ordning (ett senare steg som är gjort bockar av de
 // före). När alla är gjorda försvinner rutan och banan minns att tipsen är visade.
@@ -736,7 +765,7 @@ function placePanel() {
 }
 
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { get worlds() { return worlds; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 

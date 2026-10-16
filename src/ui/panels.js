@@ -82,6 +82,16 @@ const LOCK = '<svg class="lock" viewBox="0 0 16 16"><path d="M4.5 7V5a3.5 3.5 0 
 const itemName = (it) => (it.kind === 'gun' ? WEAPONS[it.id].name : OBSTACLES[it.id].name);
 // Kortets namn: kort form där den finns (Ak 5 + Grt), hela namnet i tipset och panelen.
 const itemShort = (it) => { const d = it.kind === 'gun' ? WEAPONS[it.id] : OBSTACLES[it.id]; return d.short ?? d.name; };
+// Kortets rader (0.10.1): "Ksp 58 · General MG · 7.62" och "Damage 10 · Range 19 m" (med forskningen).
+export function cardLines(it, research = []) {
+  const head = `${itemShort(it)} · ${it.role}`;
+  if (it.kind === 'gun') {
+    const st = weaponStats(it.id, 1, research), w = WEAPONS[it.id];
+    return [head, `Damage ${Math.round(st.damage)}${w.squad ? ' ×4' : ''} · Range ${Math.round(st.range)} m`];
+  }
+  const o = OBSTACLES[it.id];
+  return [head, o.kind === 'block' ? 'Takes blows, then breaks' : `Slows by ${Math.round((1 - o.slow) * 100)} %, wears out`];
+}
 const itemDesc = (it, sim) => {
   if (it.kind === 'gun') { const w = WEAPONS[it.id], st = weaponStats(it.id, 1, sim.research); return `${w.short ? w.name + '. ' : ''}${w.desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
   const o = OBSTACLES[it.id];
@@ -104,10 +114,17 @@ export function buildBar(root, actions) {
   }
   addEventListener('resize', () => { barR = -1; measure(); });
   function render(sim) {
-    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="cards">${SHOP.map((it, i) => `
-      <button type="button" class="card buy" data-id="${it.id}" title="${itemDesc(it, sim)}">
+    // 0.10.1: en smal rad med små kort (namn och pris); pekaren över ett kort fäller ut det uppåt
+    // med vad saken gör, skada och räckvidd, och varför det inte går (speltestet: raden tog en
+    // fjärdedel av kartan).
+    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="cards">${SHOP.map((it, i) => {
+      const [role, stats] = cardLines(it, sim.research);
+      return `
+      <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
         <kbd>${hotkey(i)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
-        <div class="p" data-price></div><div class="why" data-why></div></button>`).join('')}</div>`;
+        <div class="p" data-price></div>
+        <div class="more"><div class="r">${role}</div><div class="st">${stats}</div><div class="why" data-why></div></div></button>`;
+    }).join('')}</div>`;
     cards.clear();
     for (const b of el.querySelectorAll('.card')) {
       cards.set(b.dataset.id, { btn: b, price: b.querySelector('[data-price]'), why: b.querySelector('[data-why]'), state: null });
@@ -136,7 +153,8 @@ export function buildBar(root, actions) {
         c.price.innerHTML = LOCK + ' Locked';
         set(c.why, 'Research: ' + (researchNode(st.research)?.name ?? itemName(shopItem(id))));
       } else {
-        set(c.price, money(st.cost));
+        // för dyrt: beloppet som fattas syns på det lilla kortet också
+        set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : money(st.cost));
         set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? 'All positions taken' : '');
       }
     }
@@ -382,12 +400,14 @@ function researchRows() {
   }
   return rows.sort((a, b) => b.length - a.length);
 }
-function researchState(progress, node) {
+// 0.10.1 (speltestet): nivån som köps härnäst skrivs "Level 2", inte "II", som lästes som nivån man
+// redan har (och verkade hoppa mellan I och II på samma kort). Pricken visar vad som är köpt.
+export function researchState(progress, node) {
   const next = nextTier(progress, node.id);
   if (!next) return { cls: 'bought', text: 'Maxed', effect: node.tiers[node.tiers.length - 1].effect };
   const c = canBuyResearch(progress, node.id);
   const effect = next.data.effect;
-  const label = node.tiers.length > 1 ? `${ROMAN[next.tier]}: ` : '';
+  const label = node.tiers.length > 1 ? `Level ${next.tier}: ` : '';
   if (c.ok) return { cls: 'buy', text: `${label}Buy (${next.data.cost})`, effect };
   if (c.reason === 'kräver') {
     const need = next.data.requires.filter(r => !hasTier(progress, r)).map(reqName);

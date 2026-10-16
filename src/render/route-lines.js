@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { PALETTE } from './kit.js';
 
-const WIDTH = { now: 0.45, preview: 0.6 };
+// 0.10.1: vägen som gäller nu bredare och tydligare (den ligger kvar hela dagen)
+const WIDTH = { now: 0.7, preview: 0.6 };
 const Y = { now: 0.09, preview: 0.1 };
 
 // Rutnätets trappsteg tas bort (Ramer-Douglas-Peucker), sedan rundas hörnen av (Chaikin), så
@@ -77,7 +78,7 @@ function material(color, opacity, dash) {
 
 export function createRouteLines(scene) {
   const layers = {
-    now: new THREE.Mesh(new THREE.BufferGeometry(), material(PALETTE.paper, 0.5, 2.4)),
+    now: new THREE.Mesh(new THREE.BufferGeometry(), material(PALETTE.paper, 0.62, 2.4)),
     preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PALETTE.rust, 0.85, 2.0)),
   };
   for (const [k, m] of Object.entries(layers)) { m.renderOrder = 4; m.frustumCulled = false; m.visible = false; m.name = 'route-' + k; scene.add(m); }

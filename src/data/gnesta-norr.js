@@ -520,7 +520,8 @@ export const gnestaNorr = {
   id: 'gnesta-norr', name: 'Gnesta Norr', version: NORR_VERSION,
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
-  camera: { target: [8, -62], view: 58, zoom: [24, 68], pan: { x0: -100, x1: 96, z0: -176, z1: 66 } },
+  // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
+  camera: { target: [8, -62], view: 58, zoom: [24, 68], pan: { x0: -100, x1: 96, z0: -176, z1: 66 }, intro: 4.5 },
   shadowBounds: { x0: -118, x1: 98, z0: -180, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,

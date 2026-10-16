@@ -17,10 +17,20 @@ const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const DOWN_TIME = 0.45;
 const LINES_MAX = 12;
 
+// 0.10.1 (speltestet: m/90 på Gnestas gräs syns knappt): en svag ring i gruppens färg under varje
+// soldat som står, oavsett markering. Kamouflaget är kvar; ringen säger "här ligger en av våra".
+const MARK_MAX = 96, MARK_COLOR = '#b9d3dc';
+
 export function createSquadView(scene) {
   const horde = createHorde(scene);
   const squads = new Map();         // gunId -> { men: Map(i -> e) }
   let sim = null;
+  const markGeo = new THREE.RingGeometry(0.42, 0.62, 24); markGeo.rotateX(-Math.PI / 2);
+  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.42, depthWrite: false });
+  const marks = new THREE.InstancedMesh(markGeo, markM, MARK_MAX);
+  marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 3; marks.castShadow = false; marks.name = 'hv-marks';
+  scene.add(marks);
+  const mm = new THREE.Matrix4();
 
   function lean(e, p, s) {
     // åt vilket håll han lutar sig ut: bort från huset eller bilen bredvid (sett från hans håll)
@@ -47,6 +57,7 @@ export function createSquadView(scene) {
     sim = next;
     horde.begin();
     const alive = new Set();
+    let nm = 0;
     for (const g of sim.guns) {
       if (!g.squad) continue;
       alive.add(g.id);
@@ -86,8 +97,10 @@ export function createSquadView(scene) {
         parts.root.position.set(e.x, 0, e.z);
         parts.root.rotation.y = e.ry;
         horde.draw(parts);
+        if (!s.down && nm < MARK_MAX) { mm.makeTranslation(e.x, 0.06, e.z); marks.setMatrixAt(nm++, mm); }
       }
     }
+    marks.count = nm; marks.instanceMatrix.needsUpdate = true;
     for (const [id, sq] of squads) if (!alive.has(id)) { for (const e of sq.men.values()) horde.release(e.parts); squads.delete(id); }
     horde.end();
   }
@@ -139,9 +152,9 @@ export function createSquadView(scene) {
     for (const sq of squads.values()) for (const e of sq.men.values()) horde.release(e.parts);
     squads.clear();
     horde.clear();
-    lines.visible = false; rings.count = 0;
+    lines.visible = false; rings.count = 0; marks.count = 0;
   }
-  return { sync, fire, position, show, clear, horde };
+  return { sync, fire, position, show, clear, horde, marks };
 }
 
 function hashId(id) {
