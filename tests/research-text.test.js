@@ -17,7 +17,7 @@ for (const node of RESEARCH) {
   test(`forskningen ${node.name}: texten följer siffrorna på varje nivå`, () => {
     node.tiers.forEach((t, i) => {
       const e = t.effect, at = `${node.name} ${i + 1}: "${e}"`;
-      assert.ok(e && !/—/.test(e), at);
+      assert.ok(e && !/\u2014/.test(e), at);
       // multiplikatorer: procent, eller "twice"/"three times" för hela gånger
       for (const [k, verb] of [['damage', 'harder'], ['rate', 'faster'], ['hp', null], ['durability', null], ['gDamage', 'harder'], ['gRadius', 'wider']]) {
         const m = t[k];
