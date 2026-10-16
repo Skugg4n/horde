@@ -110,5 +110,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H092 | ux | Ingen ledtråd om R (hordens väg); visa i HUD eller dagintro.
 - [ ] H093 | tempo | Gnesta Norr: första skottet ~50 s och våg 2 startar innan våg 1 nått vapnen (se H083).
 - [ ] H094 | grafik | Räckviddsringen och Hemvärnets ringar ritas ovanpå hustak.
-- [ ] H095 | ux | Esc efter ett köp öppnar pausmenyn; "On the road"-texten ligger kvar.
-- [ ] H096 | ux | Statistiken på köpkorten syns bara vid hovring.
+- [x] H095 | ux | Esc efter ett köp öppnar pausmenyn; "On the road"-texten ligger kvar.
+- [x] H096 | ux | Statistiken på köpkorten syns bara vid hovring.
+- [x] H097 | ux | Köpraden i kategorier med tvåstegs-snabbval: 1 Defenses (1-1 Barrier, 1-2 Wire, 1-3 Mines senare), 2 Guns (2-1 Ksp 90 ... 2-5 Psg 90), 3 Units (3-1 Hemvärnet). Olas förslag 2026-10-16.
