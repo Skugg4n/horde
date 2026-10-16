@@ -56,17 +56,21 @@ export const MAPS = {
     arsenal: ['block', 'wire', 'inf', 'm249', 'm2', 'epa'],
     unlocks: ['inf', 'm2', 'epa'],
     days: [
-      { n: 1, supplies: 300, startCash: 700, hp: 1.8, intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 roadblock south of Gnesta. Place a Ksp 90 by the road: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
+      // 0.14.1 (speltestet av 0.14.0: dag 1 under två minuter med orörd bas, dag 2 våg 3 ett stup från 34 till
+      // 74 fiender där basen föll från 20 till 0 på sekunder): dag 1 längre och lite tyngre, dag 2:s löpare
+      // fördelade, så att våg 2 tar mer och våg 3 kommer i två klungor. Kurvan är densamma: dag 1 övningen,
+      // dag 2 löparna, dag 3 bjässarna (docs/balance-log.md, 0.14.1).
+      { n: 1, supplies: 300, startCash: 700, hp: 3.0, intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 roadblock south of Gnesta. Place a Ksp 90 by the road: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
         // Tipsen första gången: rader och stegen som bockar av dem (main.js updateHint).
         hints: { lines: ['Pick the Ksp 90 (2-2).', 'Place it by the road. Drag to aim.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
-        waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
-      { n: 2, supplies: 350, startCash: 800, hp: 3.2, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
-        waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 12, interval: 1.1, delay: 0 }, { type: 'runner', count: 22, interval: 0.9, delay: 4 }] },
-                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 56, interval: 0.3, delay: 3 }] } ] },
-      { n: 3, supplies: 400, startCash: 1200, hp: 1.2, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
+        waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.2, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 22, interval: 0.8, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 22, interval: 0.6, delay: 0 }, { type: 'walker', count: 18, interval: 0.5, delay: 18 }] } ] },
+      { n: 2, supplies: 350, startCash: 800, hp: 4.4, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
+        waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 8 }] },
+                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'runner', count: 26, interval: 0.6, delay: 4 }] },
+                 { groups: [{ type: 'walker', count: 20, interval: 0.7, delay: 0 }, { type: 'runner', count: 16, interval: 0.6, delay: 3 }, { type: 'runner', count: 16, interval: 0.6, delay: 20 }, { type: 'runner', count: 16, interval: 0.6, delay: 38 }] } ] },
+      { n: 3, supplies: 400, startCash: 1200, hp: 1.15, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
         waves: [ { groups: [{ type: 'walker', count: 18, interval: 0.9, delay: 0 }, { type: 'runner', count: 8, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }, { type: 'brute', count: 4, interval: 4, delay: 8 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }, { type: 'runner', count: 26, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },

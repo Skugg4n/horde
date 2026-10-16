@@ -856,11 +856,13 @@ const ARSENAL = [
 ];
 export const DAYS = [
   { n: 1, supplies: 350, startCash: 700, hp: 2.8, arsenal: ARSENAL[0], squads: 4,
-    intro: { title: 'Day 1: Civilians', text: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard, and they are not here yet. Hunters and neighbours take up their rifles. Families are still in the houses east of the roundabout: hold until the civilians reach the ice rink. Block a street and the horde walks around the block. The red arrows show where each group will walk; V hides and shows them." },
-    hints: { lines: ['Pick the civilian volunteers (2-1).', 'Drop them where they see the street.', 'Start the wave and cover the families.'], steps: ['pick:civ', 'gun', 'wave'] },
+    intro: { title: 'Day 1: Civilians', text: "The E4 roadblock has fallen silent and the Home Guard is not here yet. Your volunteers are hunters and neighbours. Civilians (yellow) leave the houses east of the roundabout and walk to the ice rink along the yellow line. Cover them." },
+    hints: { lines: ['Pick the volunteers (2-1).', 'Drop them where they see the yellow line.', 'Start the wave and cover the civilians.'], steps: ['pick:civ', 'gun', 'wave'] },
     objective: 'Hold until the civilians reach the ice rink.',
     // de civila: fem familjer i villorna öster om rondellen, ut när vågen börjar och in mot ishallen
-    evac: { need: 13, groups: [{ house: 'B4-13', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 9, wave: 0 }, { house: 'B4-02', count: 4, at: 16, wave: 0 },
+    // 0.14.1 (speltestet av 0.14.0: familjerna dog utanför bild långt österut): husen närmare rondellen
+    // (B3-03 och B3-02 i stället för B4-13 och B4-02), så att hela vägen ryms i dagens kamera (main.js dayFrame).
+    evac: { need: 13, groups: [{ house: 'B3-03', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 9, wave: 0 }, { house: 'B3-02', count: 4, at: 16, wave: 0 },
       { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
     // 0.12.0 (H101, H110): vilande smittade i en villa längs stickgatan, ute när våg 1 börjar, så att
     // första skottet kommer tidigt (och de civila har något att vara rädda för).

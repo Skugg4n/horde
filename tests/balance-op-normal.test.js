@@ -33,8 +33,24 @@ test('normal: basen tar skada, ribban är hög hela vägen', () => {
   assert.ok(mean <= 15, `snitt bas kvar ${mean.toFixed(1)}`);
 });
 
+// 0.14.1 (granskningen av 0.14, Critical 2b): vakterna som bar genom speltesterna, tillbaka.
+//   En förlorad dag rasar gradvis: minst 60 s från första skadan på basen till fallet.
+//   Högst cirka 250 levande zombier samtidigt (prestandan på Retina).
+//   Första skottet inom 60 s.
+//   En vunnen dag tar 200 till 600 s i staden; E4 är övningen och får vara kortare (minst 120 s).
+test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd', () => {
+  for (const [i, r] of rs.entries()) for (const x of r.log) {
+    const where = `seed ${i}: ${x.mapId} dag ${x.day} försök ${x.attempt}`;
+    if (!x.won && x.fallTime != null) assert.ok(x.fallTime >= 60, `${where}: föll på ${x.fallTime} s`);
+    assert.ok(x.peak < 250, `${where}: ${x.peak} levande`);
+    assert.ok(x.firstShot != null && x.firstShot <= 60, `${where}: första skottet ${x.firstShot}`);
+    if (x.won) { const min = x.mapId === 'riksvagen' ? 120 : 200; assert.ok(x.time >= min && x.time <= 600, `${where}: ${x.time} s`); }
+  }
+});
+
 // Kvittot per kampanjsteg. 0.14.0: första kvittot.
-const BEFORE = {"riksvagen 1":"e063a9bf","riksvagen 2":"9d6e5cda","riksvagen 3":"837c7022","gnesta 1":"362f99f8","gnesta 2":"b81c29d0","gnesta 3":"ba97f23d","gnesta 4":"70f11c9c","gnesta 5":"b58eb5da","gnesta-norr 1":"e9743ca4","gnesta-norr 2":"e64f5487","gnesta-norr 3":"7e0b2ea0","gnesta-norr 4":"cd9ccddb","gnesta-norr 5":"49414fce"};
+// 0.14.1: alla steg nya, avsiktligt (E4:s tempo och de civilas hus på Gnesta dag 1; kampanjen bär det vidare).
+const BEFORE = {"riksvagen 1":"8d6e8ac3","riksvagen 2":"779295e2","riksvagen 3":"617a8114","gnesta 1":"f3f24737","gnesta 2":"0164978b","gnesta 3":"7589de7d","gnesta 4":"b401b1bf","gnesta 5":"9f4f23ab","gnesta-norr 1":"23e2be14","gnesta-norr 2":"bb830068","gnesta-norr 3":"56832d9f","gnesta-norr 4":"c6741b51","gnesta-norr 5":"6645e9f3"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

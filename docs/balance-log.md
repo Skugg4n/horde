@@ -559,3 +559,44 @@ Osäkert och värt ett speltest:
 - Gnesta North hp 7 och 12: bjässarna blir sega (12 x 560). Fler zombier i stället för hp kan kännas bättre.
 - Frontbredden är ny och inte i specen. Den håller styrkan i schack; speltesta om 8 och 9 känns rätt.
 - E4 dag 1 är lätt för alla (bas 20). Den är övningen.
+
+## 0.14.1: E4:s tempo, de civilas hus, simuleringens kvitto och vakterna
+
+Efter granskningen av 0.14 (docs/reports/review-0.14.md) och speltestet av 0.14.0 (docs/playtests/2026-10-16-0.14.0.md).
+
+Ändringar:
+- E4 dag 1 (speltestet: under två minuter, basen orörd): hp 1,8 till 3,0, vågorna 8 / 12 / 20 till 14 / 22 / 22 + 18 vandrare (den andra klungan 18 s in i våg 3). Fortfarande bara vandrare: dagen lär ut pjäsen och vinkeln.
+- E4 dag 2 (speltestet: våg 3 ett stup från 34 till 74 fiender, basen 20 till 0 på sekunder): hp 3,2 till 4,4, och löparna fördelade. Våg 1 får 6 löpare (en förvarning), våg 2 14 vandrare och 26 löpare (intervall 0,6), våg 3 20 vandrare och 48 löpare i tre klungor om 16 (3, 20 och 38 s in, intervall 0,6) i stället för 56 med 0,3 s mellanrum. Prövat och förkastat: hp 3,6 (ingen skada alls, löparna i strömmar dödas lätt), 4,7 och 4,9 (förlusterna kommer tillbaka med fall på 4 till 8 s, samma stup), 5,2 (den skickliga förlorar).
+- E4 dag 3: hp 1,2 till 1,15. Med 1,2 och de nya dagarna före förlorade den normala dag 3 i en seed med fall på 28 s (bjässarna i våg 3); 1,1 var för lätt för alla.
+- Gnesta South dag 1, de civila (speltestet: familjerna dog utanför bild långt österut): husen B4-13 och B4-02 (60 och 43 m öster om rondellen, 168 och 152 m att gå) byts mot B3-03 och B3-02 (12 och 13 m, 102 och 116 m att gå). Hela vägen ryms nu i dagens kamera (main.js dayFrame ramar in husen och ishallen). Den skickliga räddar 18 av 20 (var 15 till 16), den normala 14 till 16 (var 16 till 17); de vilande i B2-02 kliver ut närmare deras väg. need 13 står kvar.
+- Gnesta South dag 2: hp 3,7 prövades för att den skickliga ska ta skada igen (se nedan) och förkastades: den normala förlorade då första försöket i tre seeds av fem.
+
+Resultat, försök till vinst per kampanjsteg (E = E4, S = Gnesta South, N = Gnesta North):
+
+```
+skilled  E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0-4  1  1  1  1  1  1  1  1  1  1  1  1  1   (alla fem seeds)
+
+normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0    1  1  1  1  1  3  1  3  1  2  1  1  1
+seed 1    1  1  1  1  1  3  2  2  1  1  1  1  1
+seed 2    1  1  1  2  1  3  2  3  1  1  1  1  1
+seed 3    1  1  1  1  1  3  1  3  1  2  1  1  1
+seed 4    1  1  1  1  1  3  1  3  1  1  1  1  1
+```
+
+E4 per våg (bas efter våg 1, 2, 3), den normala: dag 1 20 / 20 / 13 till 19 (var 20 / 20 / 20), dag 2 20 / 20 / 8 till 15 (var 20 / 20 / 3 till 6), dag 3 20 / 20 / 3 till 6. Dagarna tar 140, 145 och 189 s (var 83, 115 och 190). Den skickliga: dag 1 bas 18 till 20, dag 2 17 till 20, dag 3 9 till 20. Skadan kommer fortfarande i våg 3 (kurvan inom dagen), men ingen dag faller på några sekunder.
+
+Fingeravtrycken per kampanjsteg (balance-op-skilled och balance-op-normal) är alla nya, avsiktligt: E4:s tempo och de civilas hus ändrades, och kampanjen bär RP, enheter och erfarenhet vidare, så varje steg efter rör sig också. Därför finns nu ett kvitto som inte går genom ekonomin:
+
+- tests/sim-receipt.test.js (granskningen, Critical 2a): fast styrka (kärntrupper med nivåer), fast forskning, fasta rutor och spärrar, en dag per bana (E4 dag 2, Gnesta South dag 3, Gnesta North dag 2), utan RP och utan policy, hashat på utfall, bas, vågor, dödade, tid, pengar, toppen och räknade händelser. Första kvittot togs före E4:s nya tempo; E4 dag 2 bytte avsiktligt från 39a99c7f till a773fa93 när vågorna ändrades, och South dag 3 och North dag 2 stod kvar genom hela 0.14.1 (också genom de civilas klättring, RP-räknaren och idleOutside). Den fasta styrkan förlorar E4 dag 2 och North dag 2 och vinner South dag 3; det är ett kvitto, inte ett mål.
+- Vakterna tillbaka i balance-op-normal (Critical 2b): en förlorad dag rasar gradvis (minst 60 s från första skadan till fallet; nu 142 till 256 s), högst 250 levande samtidigt (nu högst 219, North dag 5), första skottet inom 60 s (nu högst 18 s), en vunnen dag 200 till 600 s i staden och 120 till 600 s på E4 (övningen; nu 139 till 575 s).
+
+Ändrat i proven: den skickliga tar inte längre alltid skada på E4 dag 2 och 3 (den kan hålla övningen orörd när stupet är borta; kurvan där mäts på den normala), och South dag 2 kostar den skickliga något i två seeds av fem (var fem av fem): E4:s längre dagar och fler räddade civila ger henne mer RP in i Gnesta. North dag 4 kostar fortfarande alltid något.
+
+Balansskriptet: loggens rader har basen efter varje våg (waveBase), som inte räknas in i fingeravtrycket.
+
+Osäkert och värt ett speltest:
+- E4 dag 2 i en människas händer: stupet var en klunga på 56 löpare med 0,3 s mellanrum. Nu tre klungor; policyerna föll aldrig, men en spelare som står i en meny när klungan kommer kan fortfarande tappa mycket på kort tid.
+- E4 dag 1 hp 3,0 ligger nära en tröskel: 2,8 gav ingen skada alls, 3,2 tog den normala till 9 till 11.
+- Den skickliga på South dag 2 (se ovan). Nästa balanspass bör ta Norths hp-faktorer (granskningens rekommendation 1) och South dag 2 tillsammans.

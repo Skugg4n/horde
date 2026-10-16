@@ -736,7 +736,9 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
         const f = finishDay(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
         log.push({ mapId, day, attempt, won: r.won, baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
           lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
-          ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime) });
+          ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime),
+          // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
+          waveBase: r.waveLog.map(w => w.baseHp) });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -754,7 +756,8 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d))))]; }));
+  const strip = ({ waveBase, ...r }) => (void waveBase, r);
+  return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
