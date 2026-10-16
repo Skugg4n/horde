@@ -1,5 +1,28 @@
 # Ändringslogg
 
+## 0.10.1 (2026-10-16)
+
+Rättningarna från granskningen av 0.10 (docs/reports/review-0.10.md) och speltestet av 0.10.0 (docs/playtests/2026-10-16-0.10.0.md), före publiceringen.
+
+- Hemvärnet: gruppen blir aldrig mindre än spelaren betalar för. Kollen vid placeringen räknar med Bigger squad (en grupp på sex man får inte läggas där bara fem får plats), och en uppgradering som ger en man till nekas när han inte får plats ("No room for one more rifleman here"), utan att något dras.
+- Fil-vakten gäller alla rutnät (Gnesta också): ingen zombie väljer en siktpunkt uppströms, och ett nytt prov säger till om en levande zombie står still i 10 s utan att slå på något.
+- Laddningsskydd: hela modulgrafen laddas med ?v=VERSION genom en import-karta i index.html (scripts/importmap.mjs skriver den, ett prov säger till när den inte stämmer), och ett fel när sidan laddas visar "A new version was loaded." med en knapp som laddar om.
+- Skärmbilderna i docs krympta till högst 1200 px och under 250 kB, med samma namn. De stora originalen är borttagna även ur grenens opublicerade historik.
+- Kortare dagar: nedräkningen mellan vågorna är 10 s (var 5), med bonus 3 per sekund som är kvar. Gnestas ingångar ligger längre in längs vägarna och första vågen börjar med fem löpare, så första skottet kommer efter knappt 40 s (var 110). Dag 4 och 5 på Gnesta och alla dagar på Gnesta Norr låter nästa våg börja medan den förra fortfarande är på väg. Zombierna på Gnesta Norr går en fjärdedel fortare (vägen är 400 m). En dag är nu 4 till 8 minuter vid 1x (var 7 till 20).
+- Ishallens dörrar: de som når entrén tar sig in en i taget (en per 3,2 s) och går att skjuta medan de bankar på dörrarna. Basen faller aldrig på några sekunder.
+- En förlust lär något: ett förlorat försök ger alltid minst 60 forskningspoäng (resultatskylten säger hur mycket som kom från det de överlevande lärde sig), nog för en nyttig nivå.
+- Gnesta har Ksp 88 från dag 1, som barrikaden. En spelare utan forskning (?debug&fresh) vinner dag 1 på andra eller tredje försöket.
+- Gnesta Norr är balanserad mot en spelare som inte köper Hemvärnet, med mjukare hp-faktorer (2,8 till 5,0, var 3,7 till 9,0). Den som köper gruppen varje dag klarar dag 1 till 3; dag 4 är svår för den spelaren (todo H064).
+- ?debug ger forskningen en typisk spelare har när banan låses upp (src/data/arrival.js), så att Gnesta och Gnesta Norr spelas som de är balanserade. ?debug&fresh behåller noll forskning.
+- Vägen horden tar ligger kvar på kartan hela dagen från varje ingång, tydligare än förut. R slår av och på den.
+- Kameran börjar dagen med ishallens entré och vägen från dagens första ingång i bild. På Gnesta Norr sveper den från ingången i norr ner till basen när spelaren går till linjen (klick, hjul eller tangent hoppar över).
+- Köpraden är en smal rad med små kort (ikon, namn, pris eller "Need $ X"); pekaren fäller ut kortet med vad saken gör, skada och räckvidd: "Ksp 58 · General MG · 7.62", "Damage 10 · Range 19 m".
+- Hemvärnets soldater har en svag ring på marken under sig, så att de syns på Gnestas gräs. Kamouflaget är kvar.
+- Forskningen skriver nästa nivå "Level 2: 80" i stället för "II: 80", som lästes som nivån man redan har.
+- Esc gör en sak per tryck: kortet i handen, sedan en markering, sedan menyn. Att hålla tangenten nere gör ingenting mer.
+- Nya zombier kliver upp ur marken (ingångarna ligger inne i staden nu, inte vid dimkanten).
+- Balans: nya kvitton för E4, Gnesta och Gnesta Norr, med siffror, prövade varianter och skäl i docs/balance-log.md (0.10.1).
+
 ## 0.10.0 (2026-10-16)
 
 Bana 3: Gnesta Norr. Samma stad som Gnesta, dimman har dragit sig undan norrut. Basen är kvar vid ishallens entré, men horden kommer mest norrifrån.

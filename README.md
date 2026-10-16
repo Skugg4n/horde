@@ -2,7 +2,7 @@
 
 Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr på E4 i dagsljus: ställ ut kulsprutor där de ser vägen (hus skymmer), lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
 
-Version 0.10.0: tre banor, E4 (dag 1 till 3), Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar; basen är ishallens entré) och Gnesta Norr (dag 1 till 5, låses upp när Gnesta dag 5 är klar; horden kommer norrifrån förbi radhusen), ett köpflöde (välj i köpraden, ställ ut på kartan), befästa positioner, fri placering med siktlinjer, Försvarsmaktens vapen (Ksp 90, Ksp 58, Ksp 88, Ak 5 med granattillsats och Psg 90, som också kan ligga på hustak), Hemvärnet (en grupp som själv tar skydd, med egen forskning), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
+Version 0.10.1: tre banor, E4 (dag 1 till 3), Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar; basen är ishallens entré) och Gnesta Norr (dag 1 till 5, låses upp när Gnesta dag 5 är klar; horden kommer norrifrån förbi radhusen), ett köpflöde (välj i köpraden, ställ ut på kartan), befästa positioner, fri placering med siktlinjer, Försvarsmaktens vapen (Ksp 90, Ksp 58, Ksp 88, Ak 5 med granattillsats och Psg 90, som också kan ligga på hustak), Hemvärnet (en grupp som själv tar skydd, med egen forskning), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
 
 Player text in English (owner decision 2026-10-15). Docs stay Swedish.
 
@@ -14,7 +14,7 @@ python3 -m http.server 8141 --directory ~/Projects/horde
 
 Öppna sedan http://localhost:8141/. Inget byggsteg: vanliga ES-moduler, Three.js 0.160 hämtas via importmap.
 
-Tangenter: 1-0 tar upp en sak ur köpraden (klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, Esc stänger panelen.
+Tangenter: 1-0 tar upp en sak ur köpraden (klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, R visar och döljer hordens väg (Gnesta), Esc gör en sak per tryck (släpper kortet, stänger panelen, sist pausmenyn).
 
 Felsökning: med http://localhost:8141/?debug finns `window.__horde` i konsolen (simuleringen, renderaren med `renderer.info`, scenen och kameran).
 

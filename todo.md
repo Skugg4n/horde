@@ -74,9 +74,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 ## Gnesta Norr 0.10.0
 
-- [ ] H058 | balans | Speltesta Gnesta Norr: dag 3 till 5 tar cirka 1000 s speltid och hp-faktorn är 7 till 9 (bjässarna blir mycket sega). Kortare vägar in eller färre men tuffare vågor?
+- [x] H058 | balans | Speltesta Gnesta Norr: dag 3 till 5 tar cirka 1000 s speltid och hp-faktorn är 7 till 9 (bjässarna blir mycket sega). Kortare vägar in eller färre men tuffare vågor? (0.10.1: takt 1,25, överlapp, hp 2,8 till 5,0, dagarna 4 till 7,5 minuter. Speltest i händerna kvar.)
 - [ ] H059 | balans | Gnesta Norrs kurva har klippor i både hp och pengar (docs/balance-log.md 0.10.0). Speltesta dag 4 och 5 i händerna.
 - [ ] H060 | gnesta-norr | De östligaste radhusen vid Östra Storgatan och garagelängorna finns inte än (spökhusen inne i spelytan togs bort). Lägg till som riktiga längor om det behövs.
-- [ ] H061 | sim | Fil-vakten (laneGuard i src/sim/route.js) gäller bara Gnesta Norr. Pröva den på Gnesta och E4 med nya kvitton.
+- [x] H061 | sim | Fil-vakten (laneGuard i src/sim/route.js) gäller bara Gnesta Norr. Pröva den på Gnesta och E4 med nya kvitton. (0.10.1: global på alla rutnät, E4 har inget rutnät; prov tests/stuck.test.js.)
 - [ ] H062 | ux | Valsvägen och Hambovägen är återvändsgator som horden aldrig använder. Speltesta om de ska få en roll (t.ex. en ingång senare).
 - [ ] H063 | grafik | Radhusens framsida ligger i skugga under takfoten i spelets ljus; de vita dörrarna syns som grå. Pröva lite ljusare eller kortare takfot.
+- [ ] H064 | balans | Gnesta Norr för den som köper Hemvärnet varje dag och forskar i gruppen först: dag 1 till 3 går, dag 4 förloras i alla sex försök (Östra Storgatan bakom linjen, köerna vid dörrarna når ingen). Ge gruppen något pjäserna inte har (granskningen av 0.10, Balance recommendations 1).
+- [ ] H065 | balans | Klipporna i hp finns kvar men är mjukare: Gnesta Norr dag 3 vinns vid 3,9 och förloras vid 4,2 (docs/balance-log.md 0.10.1). Flytta tryck från hp till sammansättning före 0.11.
+- [ ] H066 | ux | Speltesta 0.10.1 i händerna: ny spelare på Gnesta dag 1 (?debug&fresh), dörrarna, överlappet på Gnesta Norr och den nya köpraden.
