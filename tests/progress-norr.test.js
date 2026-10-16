@@ -16,7 +16,8 @@ test('menyn har tre banor i ordning: E4, Gnesta, Gnesta Norr med fem dagar', () 
   assert.equal(MAPS['gnesta-norr'].days.length, 5);
   for (const d of MAPS['gnesta-norr'].days) {
     assert.match(d.intro.title, /^Day \d: /);
-    assert.ok(d.intro.text.length > 40);
+    // 0.16.0 (inlärningen, designen avsnitt 2.2): en rad, högst 12 ord
+    assert.ok(d.intro.text.length > 10 && d.intro.text.split(/\s+/).length <= 12, d.intro.text);
     assert.doesNotMatch(d.intro.text + d.intro.title, /\u2014/, 'inget tankstreck');
   }
 });

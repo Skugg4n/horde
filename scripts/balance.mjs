@@ -10,7 +10,7 @@
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
 import { fileURLToPath } from 'node:url';
-import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage } from '../src/sim/sim.js';
+import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
@@ -675,16 +675,21 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
   const map = cfg.map, T = TOWN[mapId], isTown = !!T;
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
-  let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks ? T.blocks(day) : [] });
+  // 0.16.0: barrikaderna är upplåsta från South dag 2 (src/meta/unlocks.js); före det spärrar ingen
+  const canBlock = !cfg.allow || cfg.allow.includes('block');
+  let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
-  if (isTown && P.blocks && P.plan !== 'smart') {
+  if (isTown && P.blocks && canBlock && P.plan !== 'smart') {
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
     plan = { ...own, lines: plan.lines, wire: plan.wire };
   }
   const builder = !isTown ? () => greedyBuild(sim, plan.guns)
     : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
+  // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) ställs ut när den kommit fram
+  const lateReady = () => sim.reserve?.some(u => u.arrive && canDeploy(sim, u));
   const think = () => {
     if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); deployAll(sim, plan); }
+    else if (lateReady()) deployAll(sim, plan);
     builder();
     if (P.supplies) spendSupplies(sim);
   };
@@ -714,12 +719,15 @@ function requisitionPolicy(p, mapId) {
       if (kind === 'unit') {
         if (!released.includes(id) || unitsIn(p, mapId).filter(u => u.type === id).length >= n) break;
         const r = requisition(p, id, mapId);
+        // 0.16.0: inget släppt (lagret är tomt) eller rekvisitionen inte upplåst än: nästa mål
+        if (!r.ok && (r.reason === 'none' || r.reason === 'locked')) break;
         if (!r.ok) return p;
         p = r.progress;
       } else if (kind === 'lvl') {
         const low = unitsIn(p, mapId).filter(u => u.type === id && u.level < n).sort((a, b) => a.level - b.level || a.uid - b.uid)[0];
         if (!low) break;
         const r = levelUp(p, low.uid);
+        if (!r.ok && r.reason === 'locked') break;
         if (!r.ok) return p;
         p = r.progress;
       } else if (kind === 'up') {

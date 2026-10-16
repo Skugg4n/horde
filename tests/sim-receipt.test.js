@@ -20,7 +20,8 @@ export const RECEIPT_DAYS = {
   'E4 day 2': {
     map: 'riksvagen', day: 2, cash: 350, research: ['block.1'],
     core: [unit(1, 'inf', 1, 4), unit(2, 'm249', 2), unit(3, 'm249', 1), unit(4, 'epa', 1)],
-    guns: [[1674, 'epa'], [2466, 'm249'], [2854, 'm249'], [1771, 'inf']], lines: [], wire: [],
+    // 0.16.0: infanteriet står vid bommen från början (dagens preset), så det ställs inte ut här
+    guns: [[1674, 'epa'], [2466, 'm249'], [2854, 'm249']], lines: [], wire: [],
   },
   'Gnesta South day 3': {
     map: 'gnesta', day: 3, cash: 500, research: ['block.1', 'grenade.1', 'ksp58.1', 'ak5.1'],
@@ -61,9 +62,12 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.15.0: E4 dag 2 e007577b till be6e026f, avsiktligt: banan är trafikplatsen vid Lästringe (ett rutnät, två
 // ingångar dag 2, hp 3,6), och pjäsernas rutor är e4Plan(2) på den nya kartan. Den fasta styrkan vinner med 13
 // kvar (docs/balance-log.md 0.15.0). South dag 3 och North dag 2 står kvar.
+// 0.16.0: E4 dag 2 be6e026f till cf609061 och South dag 3 3b601645 till db5f4217, avsiktligt (inlärningen,
+// docs/balance-log.md 0.16.0): infanteriet står vid bommen från början, E4 dag 2 har hp 3,2 och färre
+// förnödenheter per dödad, och de vilande husen är South dag 3:s begrepp (förut dag 1 och 2). North dag 2 står kvar.
 const RECEIPTS = {
-  'E4 day 2': 'be6e026f',
-  'Gnesta South day 3': '3b601645',
+  'E4 day 2': 'cf609061',
+  'Gnesta South day 3': 'db5f4217',
   'Gnesta North day 2': 'b50f3d9a',
 };
 

@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newCampaign, finishDay, requisition, canRequisition, levelUp, refill, refillCost, returnUnit, reassign, releasedTypes, opStartConfig,
-  rpForAttempt, attemptFactor, lossesOf, canReturn, sectorStatus, buyUpgrade, upgradeState, unitsIn, vetOf, debugReach, syncOperation, PRESSURE_HP } from '../src/meta/operation.js';
+  rpForAttempt, attemptFactor, lossesOf, canReturn, stockOf, sectorStatus, buyUpgrade, upgradeState, unitsIn, vetOf, debugReach, syncOperation, PRESSURE_HP } from '../src/meta/operation.js';
 import { mapState, mapUnlocked, abandonDay } from '../src/meta/progress.js';
 import { UNIT_RP, LEVEL_RP, REFILL_RP, VET_WINS } from '../src/data/depot.js';
 import { createSim, build, startWave, step, upgrade, sell, reinforce, dayReport, buySupply, checkSpot, gunStats, deployPhase, placeAcross } from '../src/sim/sim.js';
@@ -12,6 +12,8 @@ import { MAPS } from '../src/data/maps.js';
 import { STRAIGHT } from './fixtures/straight-road.js';
 import { SUPPLIES, VETERAN } from '../src/data/weapons.js';
 
+// E4 utan dagens förberedelser (infanteriet vid bommen, de markerade platserna, den sena Ksp 90): mekaniken för sig.
+const E4_PLAIN = { ...MAPS.riksvagen, days: MAPS.riksvagen.days.map(d => ({ ...d, preset: undefined, late: undefined, spots: undefined })) };
 const win = (p, mapId, day, report = { units: [] }) => finishDay(p, { mapId, day, won: true, intelEarned: 50, report }).progress;
 const openSpots = (map, n) => { const pl = placementFor(map), out = []; for (let k = 0; k < pl.n && out.length < n; k++) if (pl.kind[k] === KIND.open && Math.abs(pl.center(k).z) < 12 && Math.abs(pl.center(k).x) < 20 && out.every(q => Math.hypot(pl.center(q).x - pl.center(k).x, pl.center(q).z - pl.center(k).z) > 8)) out.push(k); return out; };
 
@@ -25,54 +27,62 @@ test('ny kampanj: Försvarsmakten ger vägspärren på E4, ett meddelande i inko
   assert.equal(p.rp, 0);
 });
 
-test('leveranserna kommer pö om pö: pillboxen dag 2, Ksp 88 dag 3, och vägspärren tystnar efter dag 3', () => {
+test('leveranserna kommer pö om pö: Ksp 88 och pillboxen dag 3, och vägspärren tystnar efter dag 3', () => {
   let p = newCampaign();
   p = win(p, 'riksvagen', 1);
-  assert.ok(unitsIn(p, 'riksvagen').some(u => u.type === 'epa'));
+  assert.ok(!unitsIn(p, 'riksvagen').some(u => u.type === 'epa'), '0.16.0: dag 2 är taggtråden, ingen ny trupp');
   p = win(p, 'riksvagen', 2);
   assert.ok(unitsIn(p, 'riksvagen').some(u => u.type === 'm2'));
-  const r = requisition({ ...p, rp: 0 }, 'inf', 'riksvagen');
-  assert.equal(r.ok, false, 'inga RP');
-  p = { ...p, rp: 1000 };
-  p = requisition(p, 'inf', 'riksvagen').progress;
-  const before = p.rp;
+  assert.ok(unitsIn(p, 'riksvagen').some(u => u.type === 'epa'));
+  // 0.16.0: förrådet är inte öppet på E4 (det kommer efter South dag 2)
+  assert.equal(requisition({ ...p, rp: 1000 }, 'inf', 'riksvagen').reason, 'locked');
   p = win(p, 'riksvagen', 3);
   assert.equal(sectorStatus(p, 'riksvagen'), 'silent');
   assert.equal(unitsIn(p, 'riksvagen').length, 0, 'armén drar sig tillbaka');
-  // det rekvirerade infanteriet ger tillbaka sina RP; dagens RP läggs till
-  assert.ok(p.rp >= before + UNIT_RP.inf);
-  // Gnesta South: de civila från MCF, inget infanteri att rekvirera där
   assert.deepEqual(unitsIn(p, 'gnesta').map(u => u.type), ['civ', 'civ', 'civ']);
   assert.deepEqual(releasedTypes(p, 'gnesta'), ['civ']);
-  assert.equal(canRequisition(p, 'inf', 'gnesta').reason, 'not released');
+  assert.equal(canRequisition(p, 'inf', 'gnesta').reason, 'locked');
   assert.ok(p.op.inbox.some(m => m.from === 'MCF'));
 });
 
-test('rekvisition, nivå, påfyllnad, tillbaka till förrådet (cirka 50 %) och omplacering', () => {
-  let p = { ...newCampaign(), rp: 2000 };
-  const r = requisition(p, 'm249', 'riksvagen');
+// 0.16.0 (Olas tillägg: knapphet i rekvisitionen): RP är priset, leveransernas lager är taket. Förrådet öppnar
+// i inlärningens takt: nivåer efter South dag 2, rekvisition efter dag 3, Return och omplacering efter dag 4.
+test('rekvisition ur lagret, nivå, påfyllnad, tillbaka till förrådet (cirka 50 %) och omplacering', () => {
+  let p = { ...debugReach(newCampaign(), 'gnesta', 3), rp: 2000 };
+  assert.equal(canRequisition(p, 'm249', 'gnesta').reason, 'locked', 'efter South dag 2 bara nivåer');
+  const hv = unitsIn(p, 'gnesta').find(x => x.type === 'hv');
+  assert.equal(levelUp(p, hv.uid).ok, true);
+  p = { ...debugReach(newCampaign(), 'gnesta', 4), rp: 2000 };
+  assert.equal(stockOf(p, 'gnesta', 'm249'), 1, 'en Ksp 90 släppt dag 3');
+  const r = requisition(p, 'm249', 'gnesta');
   assert.equal(r.ok, true);
   p = r.progress;
   assert.equal(p.rp, 2000 - UNIT_RP.m249);
+  assert.equal(stockOf(p, 'gnesta', 'm249'), 0);
+  assert.equal(canRequisition(p, 'm249', 'gnesta').reason, 'none', 'inget mer släppt, hur mycket RP som helst');
+  assert.equal(canRequisition(p, 'ksp58', 'gnesta').ok, true, 'Ksp 58 släppt dag 4');
   const u = p.op.units.find(x => x.uid === r.uid);
   p = levelUp(p, u.uid).progress;
   assert.equal(p.op.units.find(x => x.uid === r.uid).level, 2);
   assert.equal(p.rp, 2000 - UNIT_RP.m249 - LEVEL_RP.m249[0]);
+  assert.equal(returnUnit(p, r.uid).reason, 'locked', 'Return kommer med sektorerna');
+  // efter South dag 4: Return (tillbaka i lagret) och omplacering
+  p = debugReach(p, 'gnesta', 5);
   const back = returnUnit(p, r.uid);
   assert.equal(back.refund, Math.round((UNIT_RP.m249 + LEVEL_RP.m249[0]) * 0.5));
+  assert.equal(stockOf(back.progress, 'gnesta', 'm249'), stockOf(p, 'gnesta', 'm249') + 1, 'en rekvirerad enhet går tillbaka till lagret');
   // gruppen: nivå 2 ger en femte man; stupade fylls på för RP
-  const inf = unitsIn(p, 'riksvagen').find(x => x.type === 'inf');
-  p = levelUp(p, inf.uid).progress;
-  assert.equal(p.op.units.find(x => x.uid === inf.uid).men, 5);
-  p = { ...p, op: { ...p.op, units: p.op.units.map(x => (x.uid === inf.uid ? { ...x, men: 2 } : x)) } };
-  assert.equal(refillCost(p, p.op.units.find(x => x.uid === inf.uid)), 3 * REFILL_RP.inf);
-  p = refill(p, inf.uid).progress;
-  assert.equal(p.op.units.find(x => x.uid === inf.uid).men, 5);
+  const g = unitsIn(p, 'gnesta').find(x => x.type === 'hv');
+  p = levelUp(p, g.uid).progress;
+  assert.equal(p.op.units.find(x => x.uid === g.uid).men, 5);
+  p = { ...p, op: { ...p.op, units: p.op.units.map(x => (x.uid === g.uid ? { ...x, men: 2 } : x)) } };
+  assert.equal(refillCost(p, p.op.units.find(x => x.uid === g.uid)), 3 * REFILL_RP.hv);
+  p = refill(p, g.uid).progress;
+  assert.equal(p.op.units.find(x => x.uid === g.uid).men, 5);
   // omplacering: bara till en öppen sektor där typen är släppt
-  assert.equal(reassign(p, inf.uid, 'gnesta').ok, false);
-  p = debugReach(p, 'gnesta-norr', 3);
   const civ = p.op.units.find(x => x.type === 'civ');
   assert.equal(reassign(p, civ.uid, 'gnesta-norr').ok, true);
+  assert.equal(reassign(p, civ.uid, 'riksvagen').ok, false);
 });
 
 test('förluster följer bara med vid vinst; förlust börjar om med samma styrka och behåller RP', () => {
@@ -108,8 +118,8 @@ test('erfarenhet: en stjärna efter tre vunna dagar ute, blygsamt bättre träff
   // E4 har tystnat: enheten är borta, men räknaren fungerade fram till dess
   assert.equal(vetOf({ wins: VET_WINS }), 1);
   assert.equal(vetOf({ wins: VET_WINS - 1 }), 0);
-  const sim = createSim({ map: MAPS.riksvagen, day: 1, cash: 0, core: [{ uid: 1, type: 'm249', level: 1, vet: 1 }, { uid: 2, type: 'm249', level: 1 }] });
-  const [a, b] = openSpots(MAPS.riksvagen, 2);
+  const sim = createSim({ map: E4_PLAIN, day: 1, cash: 0, core: [{ uid: 1, type: 'm249', level: 1, vet: 1 }, { uid: 2, type: 'm249', level: 1 }] });
+  const [a, b] = openSpots(E4_PLAIN, 2);
   assert.equal(build(sim, a, 'm249', { uid: 1 }).ok, true);
   assert.equal(build(sim, b, 'm249', { uid: 2 }).ok, true);
   const s1 = gunStats(sim, sim.guns[0]), s2 = gunStats(sim, sim.guns[1]);
@@ -118,8 +128,8 @@ test('erfarenhet: en stjärna efter tre vunna dagar ute, blygsamt bättre träff
 });
 
 test('uppställningen: kärntrupperna ur reserven gratis före första vågen, inte efter; ingen handel med trupp i striden', () => {
-  const sim = createSim({ map: MAPS.riksvagen, day: 1, cash: 500, core: [{ uid: 7, type: 'inf', level: 2, men: 3 }, { uid: 8, type: 'm249', level: 2 }] });
-  const [a, b, c] = openSpots(MAPS.riksvagen, 3);
+  const sim = createSim({ map: E4_PLAIN, day: 1, cash: 500, core: [{ uid: 7, type: 'inf', level: 2, men: 3 }, { uid: 8, type: 'm249', level: 2 }] });
+  const [a, b, c] = openSpots(E4_PLAIN, 3);
   assert.equal(buyState(sim, 'm249').state, 'ok');
   assert.equal(buyState(sim, 'm249').cost, 0);
   assert.equal(buyState(sim, 'ksp58').state, 'absent', 'inget i reserven');
@@ -135,7 +145,7 @@ test('uppställningen: kärntrupperna ur reserven gratis före första vågen, i
   assert.equal(reinforce(sim, sim.guns[1].id).ok, false);
   startWave(sim);
   assert.equal(deployPhase(sim), false);
-  const sim2 = createSim({ map: MAPS.riksvagen, day: 1, cash: 0, core: [{ uid: 1, type: 'm249', level: 1 }] });
+  const sim2 = createSim({ map: E4_PLAIN, day: 1, cash: 0, core: [{ uid: 1, type: 'm249', level: 1 }] });
   startWave(sim2);
   assert.equal(checkSpot(sim2, c, 'm249').reason, 'uppställd');
   assert.equal(buyState(sim2, 'm249').state, 'absent');
@@ -191,17 +201,29 @@ test('trycket: en sektor man inte försvarar blir svårare men faller aldrig', (
   assert.equal(mapState(q, 'gnesta').unlockedDay, 5, 'sektorn står kvar');
 });
 
-test('förrådets uppgraderingar: forskningens nivåer köps med RP när typen är släppt', () => {
-  let p = { ...newCampaign(), rp: 1000 };
-  assert.equal(upgradeState(p, 'm249Rate').ok, true);
-  assert.equal(upgradeState(p, 'psg90').reason, 'locked');
-  assert.equal(upgradeState(p, 'm2').reason, 'locked');
+// 0.16.0 (Olas tillägg): uppgraderingarna syns efter South dag 4, bara för det man har eller fått släppt, och
+// bara de nivåer ledningen släppt.
+test('förrådets uppgraderingar: bara för det man har, i ledningens takt', () => {
+  let p = { ...newCampaign(), rp: 5000 };
+  assert.equal(upgradeState(p, 'm249Rate').reason, 'locked', 'inget förråd på E4');
+  p = { ...debugReach(p, 'gnesta', 5), rp: 5000 };
+  assert.equal(upgradeState(p, 'm249Rate').ok, true, 'Ksp 90 rate I släppt dag 4');
+  assert.equal(upgradeState(p, 'wireTough').ok, true);
+  assert.equal(upgradeState(p, 'psg90').reason, 'locked', 'Psg 90 II inte släppt än');
+  assert.equal(upgradeState(p, 'hvVeterans').reason, 'locked', 'inte släppt');
   p = buyUpgrade(p, 'm249Rate').progress;
   assert.ok(p.research.includes('m249Rate.1'));
-  p = debugReach(p, 'riksvagen', 3);
-  assert.equal(upgradeState(p, 'm2').tier, 2, 'Ksp 88 I kommer med leveransen, förrådet säljer II');
+  assert.equal(upgradeState(p, 'm249Rate').reason, 'cap', 'nivå II väntar på ledningen');
+  // North dag 2 släpper nivå II
+  p = debugReach(p, 'gnesta-norr', 2);
+  assert.equal(upgradeState(p, 'm249Rate').tier, 2);
+  assert.equal(upgradeState(p, 'psg90').ok, true);
+  // inga uppgraderingar för typer man inte har: Ak 5 utan Ak 5
+  const q = { ...p, op: { ...p.op, units: p.op.units.filter(u => u.type !== 'ak5') } };
+  assert.equal(upgradeState(q, 'ak5').reason, 'locked');
   // dagens start: kärntrupperna i sektorn, förnödenheterna och trycket
-  const cfg = opStartConfig(p, 3, 'riksvagen');
+  const r = debugReach(newCampaign(), 'riksvagen', 3);
+  const cfg = opStartConfig(r, 3, 'riksvagen');
   assert.deepEqual(cfg.core.map(u => u.type).sort(), ['epa', 'inf', 'm2', 'm249', 'm249']);
   assert.equal(cfg.hpMul, 1);
 });
@@ -230,21 +252,23 @@ test('RP-avtagandet räknar förluster, inte Restart day eller Main menu', () =>
 });
 
 test('Return: en skänkt enhet som är sektorns sista nekas, annars säger svaret vad som händer', () => {
-  let p = newCampaign();
-  const [inf, a, b] = unitsIn(p, 'riksvagen');
-  assert.deepEqual(canReturn(p, a.uid), { ok: true, refund: 0, left: 2, given: true });
-  p = returnUnit(p, a.uid).progress;
-  p = returnUnit(p, b.uid).progress;
-  const last = returnUnit(p, inf.uid);
+  let p = debugReach(newCampaign(), 'gnesta', 5);
+  const [a, b] = unitsIn(p, 'gnesta').filter(u => u.type === 'civ');
+  const n = unitsIn(p, 'gnesta').length;
+  assert.deepEqual(canReturn(p, a.uid), { ok: true, refund: 0, left: n - 1, given: true });
+  for (const u of unitsIn(p, 'gnesta').slice(1)) p = returnUnit(p, u.uid).progress;
+  const lastU = unitsIn(p, 'gnesta')[0];
+  const last = returnUnit(p, lastU.uid);
   assert.equal(last.ok, false);
   assert.equal(last.reason, 'last');
-  assert.equal(unitsIn(last.progress, 'riksvagen').length, 1, 'sektorn behåller sin sista enhet');
+  assert.equal(unitsIn(last.progress, 'gnesta').length, 1, 'sektorn behåller sin sista enhet');
   // en köpt enhet ger RP tillbaka och får lämnas även om den är den sista
   p = { ...p, rp: 500 };
-  const r = requisition(p, 'm249', 'riksvagen'); p = r.progress;
-  p = returnUnit(p, inf.uid).progress;
+  const r = requisition(p, 'm249', 'gnesta'); p = r.progress;
+  p = returnUnit(p, lastU.uid).progress;
   const c = canReturn(p, r.uid);
   assert.equal(c.ok, true); assert.equal(c.left, 0); assert.ok(c.refund > 0);
+  void b;
 });
 
 test('avsändaren står en gång: inget meddelande börjar med sitt eget namn, och hela myndighetsnamnet', async () => {

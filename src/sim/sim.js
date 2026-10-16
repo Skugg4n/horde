@@ -53,12 +53,19 @@ const countdownOf = sim => sim.tweaks?.countdown ?? COUNTDOWN;
 // Inget tak för pjäserna: man ställer ut det man har. dayReport säger vad som blev kvar. Utan core är
 // allt som förut (köp med pengar), så att mekanikens prov fungerar.
 // hpMul: sektorns tryck (zombiernas hp). bountyMul: förnödenheter per dödad (operationen: mindre, inga trupper att köpa).
-export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1 }) {
+// 0.16.0 (inlärningen, src/meta/unlocks.js): allow är det som är upplåst den dagen ('wire', 'block', 'car',
+// 'rotate', 'aim', 'move', 'early', 'unitSupplies' ...), null betyder allt (proven och provbanorna). Det som
+// inte är upplåst nekas, så att balansens policy spelar samma spel som spelaren.
+// Dagens data kan ha: preset (enheter som redan står ute när dagen börjar, { type, at: [x, z] }: infanteriet vid
+// bommen och den svetsade pillboxen på E4), late (en enhet av typen kommer först efter vågen wave: E4 dag 1:s
+// andra Ksp 90) och spots (de markerade platserna, [[x, z]]: bara där får nya enheter ställas ut).
+export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1, allow = null }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
   const route = routeFor(map);
   const coreMode = Array.isArray(core);
-  return {
+  const sim = {
+    allow: allow ? new Set(allow) : null,
     core: coreMode, reserve: coreMode ? core.map(u => ({ ...u })) : null, deployed: [], hpMul, bountyMul, earlyCalls: 0,
     // waveIndex: antal klarade vågor. wavesStarted: antal startade (vågor kan gå samtidigt
     // när nästa kallas tidigt). nextWaveIn: sekunder kvar av nedräkningen, null = väntar på spelaren.
@@ -74,6 +81,27 @@ export function createSim({ map, day, cash, research = [], seed = 1, tweaks = nu
     // 0.13.0 (H105): evakueringen (dayCfg.evac): de civila på väg till ishallen
     civilians: [], evac: dayCfg.evac ? { total: evacTotal(dayCfg.evac), safe: 0, lost: 0, need: dayCfg.evac.need, out: 0 } : null,
   };
+  if (coreMode) setupCore(sim);
+  return sim;
+}
+export const allowed = (sim, f) => !sim.allow || sim.allow.has(f);
+// Dagens förberedda enheter (preset), de som kommer senare (late) och de markerade platserna (spots).
+function setupCore(sim) {
+  const d = sim.dayCfg;
+  for (const l of d.late ?? []) {
+    // den sämsta av typen kommer sist (nextReserve tar den bästa först)
+    const cands = sim.reserve.filter(u => u.type === l.type && !u.arrive);
+    const u = cands.sort((a, b) => a.level - b.level || (a.men ?? 0) - (b.men ?? 0) || b.uid - a.uid)[0];
+    if (u && cands.length > 1) u.arrive = l.wave;
+  }
+  for (const pr of d.preset ?? []) {
+    if (!sim.reserve.some(u => u.type === pr.type && !u.arrive)) continue;
+    const key = sim.place.keyAt(pr.at[0], pr.at[1]);
+    const r = build(sim, key, pr.type, pr.facing != null ? { facing: pr.facing } : {});
+    const g = r.ok && sim.guns.find(x => x.id === r.id);
+    if (g) { delete g.building; g.preset = true; }
+  }
+  if (d.spots) sim.marked = new Set(d.spots.map(([x, z]) => sim.place.keyAt(x, z)).filter(k => k >= 0));
 }
 
 // Zombiens läge och riktning. Rutten vet hur (polylinje för E4, rutnät för Gnesta).
@@ -254,6 +282,8 @@ export const waveLeft = sim => sim.spawnQueue.length + sim.zombies.filter(z => !
 // Shift+Space (stack: true, standard för policyerna).
 export function callNextWave(sim, { stack = true } = {}) {
   if (!canAct(sim) || !hasNextWave(sim)) return { ok: false, bonus: 0 };
+  // 0.16.0: Next wave med bonus är upplåst från South dag 3; före det går nedräkningen av sig själv
+  if (!allowed(sim, 'early')) return { ok: false, bonus: 0, reason: 'låst' };
   if (!stack && sim.phase === 'wave') {
     const left = waveLeft(sim);
     if (left > 0) return { ok: false, bonus: 0, reason: 'kvar', left };
@@ -371,6 +401,7 @@ function checkCleared(sim) {
     const wi = WAVE_INTEL * (sim.tweaks?.intel ?? 1);
     sim.intelEarned += wi;
     sim.events.push({ t: 'waveCleared', index: k, intel: wi });
+    for (const u of sim.reserve ?? []) if (u.arrive === sim.waveIndex) sim.events.push({ t: 'arrived', type: u.type, uid: u.uid });
   }
   // 0.13.0: en evakueringsdag vinns bara när de civila är framme (checkEvac); vågorna fortsätter tills dess
   if (sim.waveIndex >= sim.dayCfg.waves.length) { if (sim.evac) sim.phase = 'wave'; else { sim.phase = 'won'; sim.events.push({ t: 'won' }); } }
@@ -545,18 +576,24 @@ export const canAct = sim => sim.phase === 'build' || sim.phase === 'wave';
 // ---------- kärntrupperna (0.14.0) ----------
 // Uppställningen: före första vågen (ingen våg startad, ingen nedräkning).
 export const deployPhase = sim => sim.phase === 'build' && sim.wavesStarted === 0;
-// Nästa enhet av typen i reserven: den med uid, annars högst nivå, sedan erfarenhet, sedan flest man.
+// 0.16.0: en enhet som kommer senare (late) är framme när vågen före den är klar, och går då att ställa ut
+// resten av dagen (E4 dag 1: "A second Ksp 90. Place it too.").
+export const arrived = (sim, u) => !u.arrive || sim.waveIndex >= u.arrive;
+export const canDeploy = (sim, u) => !!u && arrived(sim, u) && (deployPhase(sim) || (!!u.arrive && canAct(sim)));
+// Nästa enhet av typen i reserven som är framme: den med uid, annars högst nivå, sedan erfarenhet, sedan flest man.
 export function nextReserve(sim, type, uid = null) {
   if (!sim.reserve) return null;
-  if (uid != null) return sim.reserve.find(u => u.uid === uid && u.type === type) ?? null;
+  if (uid != null) return sim.reserve.find(u => u.uid === uid && u.type === type && arrived(sim, u)) ?? null;
   let best = null;
   for (const u of sim.reserve) {
-    if (u.type !== type) continue;
+    if (u.type !== type || !arrived(sim, u)) continue;
     if (!best || u.level > best.level || (u.level === best.level && ((u.vet ?? 0) > (best.vet ?? 0) || ((u.vet ?? 0) === (best.vet ?? 0) && (u.men ?? 0) > (best.men ?? 0))))) best = u;
   }
   return best;
 }
-export const reserveCount = (sim, type) => (sim.reserve ? sim.reserve.filter(u => u.type === type).length : 0);
+export const reserveCount = (sim, type) => (sim.reserve ? sim.reserve.filter(u => u.type === type && arrived(sim, u)).length : 0);
+// Enheter i reserven som går att ställa ut just nu (uppställningen, eller en sen enhet som kommit fram).
+export const readyCount = (sim, type) => (sim.reserve ? sim.reserve.filter(u => u.type === type && canDeploy(sim, u)).length : 0);
 // Gruppens storlek när den ställs ut: kärntruppens man (förlusterna följer med), annars nivå 1.
 const deployCount = (u, sim, type) => u.men ?? squadSize(u.level ?? 1, sim.research, type);
 export const deployMen = (sim, type) => (sim.core ? (nextReserve(sim, type)?.men ?? squadSize(nextReserve(sim, type)?.level ?? 1, sim.research, type)) : squadSize(1, sim.research, type));
@@ -573,6 +610,7 @@ export function buySupply(sim, id, what) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
   const g = gunOf(sim, id), sp = SUPPLIES[what];
   if (!g || !sp) return { ok: false, reason: 'okänd' };
+  if (!allowed(sim, 'unitSupplies')) return { ok: false, reason: 'ej upplåst' };
   if (what === 'sandbags' && !g.squad) return { ok: false, reason: 'okänd' };
   if (g.weapon[what]) return { ok: false, reason: 'redan' };
   if (sim.cash < sp.cost) return { ok: false, reason: 'pengar' };
@@ -623,8 +661,9 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   // och bara i uppställningen (före första vågen). En flytt gäller en enhet som redan står ute.
   const moving = ignore != null || moved != null;
   if (sim.core && type && !moving) {
-    if (!nextReserve(sim, type)) return { ok: false, reason: 'reserv' };
-    if (!deployPhase(sim)) return { ok: false, reason: 'uppställd' };
+    const u = nextReserve(sim, type);
+    if (!u) return { ok: false, reason: 'reserv' };
+    if (!canDeploy(sim, u)) return { ok: false, reason: 'uppställd' };
   } else if (!sim.core && type && !moving && !inArsenal(type, sim.map, sim.dayCfg)) return { ok: false, reason: 'ej här' };
   if (!moving && capFull(sim, type)) return { ok: false, reason: sim.core ? 'front' : isSquad(type) ? 'fulltHv' : 'fullt' };
   if (ignore != null) {
@@ -633,6 +672,8 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   }
   const p = sim.place;
   if (!p.valid(key)) return { ok: false, reason: 'utanför' };
+  // 0.16.0: E4 dag 1, bara de markerade platserna
+  if (sim.marked && !moving && !sim.marked.has(key)) return { ok: false, reason: 'markerad' };
   const kind = p.kind[key];
   if (kind !== KIND.open && !onRoof(sim, key, type)) return { ok: false, reason: kind === KIND.house && WEAPONS[type]?.roof ? 'kant' : KIND_REASON[kind] || 'okänd' };
   const c = p.center(key);
@@ -696,7 +737,8 @@ export function build(sim, key, type, opts = {}) {
   }
   const def = WEAPONS[type];
   const base = baseSight(sim, key, type);
-  const sight = withCone(sim, key, type, base, opts.facing ?? null);
+  // 0.16.0: sikta-dra är upplåst från E4 dag 3; före det vänds pjäsen mot hordens väg
+  const sight = withCone(sim, key, type, base, allowed(sim, 'aim') ? opts.facing ?? null : null);
   // 0.12.0 (H098): värnet på marken vänds mot hordens väg och byggs mot skyddet som redan står där
   const emplace = roof || def.vehicle ? null : emplacement(sim.place, key, sight.keys, hordeWeight(sim));
   const g = { id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(sight.facing != null ? { facing: sight.facing } : {}), ...(emplace ? { emplace } : {}),
@@ -800,6 +842,7 @@ export const crewPathTo = (sim, from, key, via = []) => crewRoute(sim.place, fro
 export function checkMove(sim, id, key, via = [], { path = true } = {}) {
   const g = gunOf(sim, id);
   if (!g) return { ok: false, reason: 'tom' };
+  if (!allowed(sim, 'move')) return { ok: false, reason: 'låst' };
   if (!canMoveType(g.weapon.type)) return { ok: false, reason: 'fast' };
   if (g.move || (g.squad && g.soldiers.some(s => s.path))) return { ok: false, reason: 'flyttar' };
   if (g.building > 0) return { ok: false, reason: 'bygger' };
@@ -888,6 +931,7 @@ export function checkRotate(sim, id) {
   const g = gunOf(sim, id);
   if (!g) return { ok: false, reason: 'tom' };
   if (g.squad || !WEAPONS[g.weapon.type].cone) return { ok: false, reason: 'flexibel' };
+  if (!allowed(sim, 'rotate')) return { ok: false, reason: 'låst' };
   if (g.move) return { ok: false, reason: 'flyttar' };
   return { ok: true };
 }
@@ -936,7 +980,7 @@ export function buyKit(sim, id) {
   if (!g) return { ok: false, reason: 'okänd' };
   const w = g.weapon;
   if (g.squad) return { ok: false, reason: 'okänd' };
-  if (!grenadeStats(sim.research)) return { ok: false, reason: 'ej upplåst' };
+  if (!grenadeStats(sim.research) || !allowed(sim, 'unitSupplies')) return { ok: false, reason: 'ej upplåst' };
   if (w.kit) return { ok: false, reason: 'redan' };
   if (sim.cash < GRENADE_KIT.cost) return { ok: false, reason: 'pengar' };
   sim.cash -= GRENADE_KIT.cost;
@@ -958,6 +1002,7 @@ function canPlace(sim, cell, type, keys) {
   if (!sim.route.validCell(cell)) return { ok: false, reason: 'okänd' };
   if (keys.length === 1 && keys[0] === cell && sim.obstacles[cell]) return { ok: false, reason: 'upptagen' };
   if (!OBSTACLES[type] || !obstacleUnlocked(type, sim.research, sim.map)) return { ok: false, reason: 'ej upplåst' };
+  if (!allowed(sim, 'supplies') || !allowed(sim, type)) return { ok: false, reason: 'ej upplåst' };
   if (!sim.core && !inArsenal(type, sim.map, sim.dayCfg)) return { ok: false, reason: 'ej här' };
   if (keys.length < 1) return { ok: false, reason: 'upptagen' };
   // En spärr på levande zombier skulle låsa in dem i betongen: nekas.

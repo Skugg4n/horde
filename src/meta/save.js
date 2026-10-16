@@ -3,6 +3,7 @@
 import { newProgress, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
 import { newCampaign, migrateToV4, syncOperation } from './operation.js';
 import { MAPS } from '../data/maps.js';
+import { withLessons } from './lessons.js';
 
 const KEY = 'horde.save';
 const BROKEN = 'horde.save.broken';
@@ -74,8 +75,9 @@ export function loadProgress(storage) {
     parsed = null;
   }
   if (isValidMaps(parsed, SAVE_VERSION)) {
-    const p = { ...newProgress(), ...parsed };
-    return syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } });
+    // 0.16.0: en sparfil utan lektioner räknar allt fram till den längst spelade dagen som sett (lessons.js)
+    const p = { ...newProgress(), lessons: undefined, ...parsed };
+    return withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } }));
   }
   // Äldre versioner: kopian behålls som den var (horde.save.v1, .v2, .v3; skrivs aldrig över), och
   // framsteget flyttas steg för steg till v3 och sedan v4 (0.14.0, operation.js migrateToV4).
@@ -85,7 +87,7 @@ export function loadProgress(storage) {
   else if (isValidV1(parsed)) { keepCopy(s, raw, V1_COPY); v3 = migrateV1(parsed); }
   if (v3) {
     const p = migrateToV4({ ...v3, maps: { ...newProgress().maps, ...v3.maps } });
-    return { ...p, maps: { ...newProgress().maps, ...p.maps } };
+    return withLessons({ ...p, lessons: undefined, maps: { ...newProgress().maps, ...p.maps } });
   }
   console.warn('Sparfilen gick inte att läsa. Den sparas under horde.save.broken.');
   keepCopy(s, raw, BROKEN);

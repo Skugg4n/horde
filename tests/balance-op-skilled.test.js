@@ -50,7 +50,10 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // 0.14.2: alla steg nya, avsiktligt (E4:s spärr, dag 2 och 3, skogsbrynet på Gnesta; docs/balance-log.md 0.14.2).
 // 0.15.0: alla steg nya, avsiktligt: E4 är trafikplatsen vid Lästringe (ett rutnät med avfarten, påfarten dag 2
 // och nya hp 3,2, 3,6 och 1,2); kampanjen bär det vidare in i Gnesta (docs/balance-log.md 0.15.0).
-const BEFORE = {"riksvagen 1":"c7f15884","riksvagen 2":"384a5344","riksvagen 3":"47b51d81","gnesta 1":"9d1805ee","gnesta 2":"76a95833","gnesta 3":"ef6cf407","gnesta 4":"2317bbcb","gnesta 5":"0773be63","gnesta-norr 1":"496de750","gnesta-norr 2":"5e7facda","gnesta-norr 3":"0d919035","gnesta-norr 4":"d0ed974a","gnesta-norr 5":"7ab570f7"};
+// 0.16.0: alla steg nya, avsiktligt: inlärningen (E4 dag 1 utan förnödenheter med infanteriet vid bommen och den
+// andra Ksp 90 efter våg 1, pillboxen dag 3, barrikaderna från South dag 2, förrådet i steg från South dag 2,
+// knappheten i rekvisitionen och uppgraderingarna i ledningens takt; docs/balance-log.md 0.16.0).
+const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"dcd56fd8","riksvagen 3":"f6952dce","gnesta 1":"a4860f79","gnesta 2":"c778c38c","gnesta 3":"5d7e4a8d","gnesta 4":"de9e95d2","gnesta 5":"9740db9b","gnesta-norr 1":"7272c5a0","gnesta-norr 2":"cafd7a9e","gnesta-norr 3":"805a5161","gnesta-norr 4":"c348ef85","gnesta-norr 5":"4a2e1dbd"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

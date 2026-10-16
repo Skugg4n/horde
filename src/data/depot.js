@@ -67,40 +67,59 @@ export const RETIRED_NODES = ['positions', 'hvPlatoon'];
 export const UNLOCK_TIERS = ['m2.1', 'ksp58.1', 'psg90.1', 'ak5.1'];
 
 const NORTH_ALL = ['civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
+// 0.16.0 (Olas tillägg: knapphet i rekvisitionen): ledningen släpper ett bestämt antal per leverans. stock: så
+// många av typen som går att rekvirera i sektorn (RP är priset, leveranserna taket; sektorns frontbredd står
+// kvar). ups: förrådets uppgraderingar som släpps, upp till nivån (pö om pö, som trupperna). Rekvisitionen syns
+// först efter South dag 3 och uppgraderingarna efter South dag 4 (src/meta/unlocks.js), så lagret från de
+// tidigare leveranserna väntar där. Ledningens meddelanden är högst 20 ord (designen, avsnitt 2.2).
+// Inlärningen (designen avsnitt 3): E4 dag 1 har bara pjäsen och infanteriet, dag 2 taggtråden och dag 3 Ksp 88
+// och pillboxen, som står svetsad från början.
 export const RELEASES = [
   // ---------- E4: arméns vägspärr ----------
   { id: 'e4-1', map: 'riksvagen', day: 1, from: 'FM',
-    text: 'We hold the E4 roadblock at the Lästringe off-ramp, south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
+    text: 'Hold the E4 roadblock at Lästringe. You have an infantry squad and two Ksp 90 teams.',
     grant: [{ type: 'inf' }, { type: 'm249', count: 2 }], unlock: ['inf', 'm249'], tiers: ['block.1'] },
   { id: 'e4-2', map: 'riksvagen', day: 2, from: 'FM',
-    text: 'Engineers have welded an EPA pillbox at the roadblock. Runners reported on the E4.',
-    grant: [{ type: 'epa' }], unlock: ['epa'] },
+    text: 'Runners reported on the E4. The trucks brought barbed wire.' },
   { id: 'e4-3', map: 'riksvagen', day: 3, from: 'FM',
-    text: 'A mounted Ksp 88 has reached the roadblock. Brutes on the road tonight.',
-    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
+    text: 'A mounted Ksp 88 and a welded EPA pillbox reach the roadblock. Brutes tonight.',
+    grant: [{ type: 'm2' }, { type: 'epa' }], unlock: ['m2', 'epa'], tiers: ['m2.1'] },
   // ---------- Gnesta South ----------
   { id: 'gn-1', map: 'gnesta', day: 1, from: 'MCF',
-    text: 'Hunters and neighbours in Gnesta are organised into three groups of volunteers. Civilians are still in the houses east of the roundabout.',
+    text: 'Hunters and neighbours in Gnesta form three groups of volunteers. Civilians are still in their houses.',
     grant: [{ type: 'civ', count: 3 }], unlock: ['civ'] },
   { id: 'gn-2', map: 'gnesta', day: 2, from: 'MCF',
-    text: 'Hemvärnet is released to Gnesta: one squad and two Ksp 90 teams. Crates of hand grenades came with them.',
+    text: 'Hemvärnet is released to Gnesta: one squad and two Ksp 90 teams, with hand grenades.',
     grant: [{ type: 'hv' }, { type: 'm249', count: 2 }], unlock: ['hv', 'm249'], tiers: ['grenade.1'] },
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'FM',
-    text: 'A Ksp 58 team and an Ak 5 grenadier are released for Gnesta. The forest road is open.',
-    grant: [{ type: 'ksp58' }, { type: 'ak5' }], unlock: ['ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'] },
+    text: 'A Ksp 58 team and an Ak 5 grenadier for Gnesta. One more Ksp 90 team can be requisitioned.',
+    grant: [{ type: 'ksp58' }, { type: 'ak5' }], unlock: ['ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'], stock: { m249: 1 } },
   { id: 'gn-4', map: 'gnesta', day: 4, from: 'MCF',
-    text: 'Fuel and an A-tractor are secured. Your engineers welded a pillbox, and Försvarsmakten sends a Psg 90 sniper.',
-    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'] },
+    text: 'A welded pillbox and a Psg 90 sniper for Gnesta. Försvarsmakten releases one Ksp 58 team.',
+    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'], stock: { ksp58: 1 },
+    ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
   { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
-    text: 'A mounted Ksp 88 is released for Gnesta. Everything we have is coming.',
-    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
+    text: 'A mounted Ksp 88 for Gnesta. One more Ksp 58 team and a Ksp 90 team are released.',
+    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'], stock: { ksp58: 1, m249: 1 },
+    ups: { grenade: 2, ksp58: 2 } },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'They are circling north of the ice rink. Gnesta North is a sector now: reassign what you can spare from Gnesta South, or requisition.',
-    grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL },
+    text: 'They are circling north of the ice rink. Reassign what you can spare from Gnesta South.',
+    grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL, stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
+    ups: { m2: 2, budget: 1 } },
+  { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',
+    text: 'New kit at the depot: faster Ksp 90 feeds, Psg 90 optics and better concrete.',
+    ups: { m249Rate: 2, psg90: 2, block: 2, hvSquad: 1 } },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, from: 'FM',
-    text: 'An infantry squad is released for Gnesta North. Regulars, Ak 5, body armour.',
-    grant: [{ type: 'inf' }], unlock: ['inf'] },
+    text: 'An infantry squad for Gnesta North: regulars, Ak 5, body armour. One more Psg 90 is released.',
+    grant: [{ type: 'inf' }], unlock: ['inf'], stock: { inf: 1, psg90: 1, ksp58: 1 },
+    ups: { ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
+  { id: 'gnn-4', map: 'gnesta-norr', day: 4, from: 'FM',
+    text: 'The depot has the last Ksp 90 and Psg 90 upgrades, and heavier Ksp 88 rounds.',
+    ups: { m249Rate: 3, psg90: 3, m2: 3, wireTough: 2, hvVeterans: 1 } },
+  { id: 'gnn-5', map: 'gnesta-norr', day: 5, from: 'FM',
+    text: 'Everything we have left is at the depot. Hold the town.',
+    ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

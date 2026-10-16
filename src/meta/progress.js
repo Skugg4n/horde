@@ -12,10 +12,10 @@ import { ARRIVAL } from '../data/arrival.js';
 // v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
 // är per bana (maps). mapId är banan som spelas nu.
 export const SAVE_VERSION = 4;
-export const emptyOp = () => ({ units: [], nextUid: 1, released: [], inbox: [], seq: 0, pressure: {}, closed: [] });
+export const emptyOp = () => ({ units: [], nextUid: 1, released: [], inbox: [], seq: 0, pressure: {}, closed: [], stock: {} });
 // Ett tomt framsteg utan leveranser. Ett nytt spel är src/meta/operation.js newCampaign (leveranserna för E4 dag 1).
 export function newProgress() {
-  return { v: SAVE_VERSION, mapId: 'riksvagen', rp: 0, research: [], maps: { riksvagen: newMapState() }, op: emptyOp() };
+  return { v: SAVE_VERSION, mapId: 'riksvagen', rp: 0, research: [], maps: { riksvagen: newMapState() }, op: emptyOp(), lessons: { seen: [], mode: 'on', read: [] } };
 }
 const newMapState = () => ({ unlockedDay: 1, attempts: {} });
 

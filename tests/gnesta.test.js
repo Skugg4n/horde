@@ -98,7 +98,9 @@ test('dagarna öppnar ingångarna i tur och ordning', () => {
   assert.ok(spawnsOf(gnesta.days[2]).has('forest'));
   assert.ok(!types(gnesta.days[2]).has('brute') && types(gnesta.days[3]).has('brute'));
   assert.equal(spawnsOf(gnesta.days[4]).size, 3);
-  assert.match(gnesta.days[0].intro.text, /Block a street and the horde walks around the block/);
+  // 0.16.0: en rad per dag, dagens enda begrepp (designen avsnitt 3)
+  assert.match(gnesta.days[0].intro.text, /civilians/);
+  assert.match(gnesta.days[1].intro.text, /Block a street/);
 });
 
 test('sporthallen och parkeringen ligger inte på någon väg', () => {

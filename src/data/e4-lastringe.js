@@ -298,20 +298,28 @@ export const RAILS = (() => {
 // 0.15.0: dag 1 är minsta möjliga (en väg, infanteriet och Ksp 90; onboardingen görs om separat),
 // dag 2 öppnar påfarten (den andra grenen), dag 3 är den stora stöten med bjässarna från båda hållen.
 const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
+// 0.16.0 (inlärningen, docs/superpowers/specs/2026-10-16-onboarding-design.md): ett begrepp per dag. Infanteriet
+// står vid bommen från början (preset, visas men sägs inte), dag 1 har de markerade platserna för Ksp 90 (spots)
+// och den andra Ksp 90 kommer efter första vågen (late). Dag 3 står pillboxen redan svetsad vid spärren.
+// Introt är en rubrik och en rad (högst 12 ord); resten lär lektionerna ut (src/data/lessons.js).
+const INF_AT = [1, -13], EPA_AT = [7, -13];
+export const E4_SPOTS = [[3, -3], [-1, 1], [-15, 13], [-29, 17]];
 export const DAYS = [
-  { n: 1, supplies: 300, startCash: 700, hp: 3.2,
-    intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 off-ramp at Lästringe. The dead come along the motorway from Nyköping and up the ramp. Place a Ksp 90 by the ramp: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
-    hints: { lines: ['Pick the Ksp 90 (2-2).', 'Place it by the ramp. Drag to aim.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
+  { n: 1, supplies: 300, startCash: 700, hp: 2.8,
+    intro: { title: 'Day 1: The roadblock', text: 'Hold the E4 at Lästringe.' },
+    preset: [{ type: 'inf', at: INF_AT }], late: [{ type: 'm249', wave: 1 }], spots: E4_SPOTS,
     waves: [ { groups: [g('walker', 14, 1.2, 0, 'nykoping')] },
              { groups: [g('walker', 22, 0.8, 0, 'nykoping')] },
              { groups: [g('walker', 22, 0.6, 0, 'nykoping'), g('walker', 18, 0.5, 18, 'nykoping')] } ] },
-  { n: 2, supplies: 350, startCash: 800, hp: 3.6,
-    intro: { title: 'Day 2: Runners', text: 'Fast and fragile, and now from both sides. A second group comes from Södertälje and up the on-ramp. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
+  { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6,
+    intro: { title: 'Day 2: Runners', text: 'Runners on the E4. Wire buys you time.' },
+    preset: [{ type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 6, 1.2, 8, 'nykoping')] },
              { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 13, 0.8, 4, 'sodertalje'), g('runner', 13, 0.8, 22, 'nykoping')] },
              { groups: [g('walker', 20, 0.7, 0, 'nykoping'), ...[3, 14, 25, 36, 47, 58].map((delay, i) => g('runner', 8, 0.8, delay, i % 2 ? 'sodertalje' : 'nykoping'))] } ] },
-  { n: 3, supplies: 400, startCash: 1200, hp: 1.2, bounty: 0.5,
-    intro: { title: 'Day 3: Brutes', text: 'Big and tough, from both directions. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
+  { n: 3, supplies: 200, startCash: 1200, hp: 1.0, bounty: 0.4,
+    intro: { title: 'Day 3: Brutes', text: 'Brutes tonight. The Ksp 88 hits hard.' },
+    preset: [{ type: 'epa', at: EPA_AT }, { type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 18, 0.9, 0, 'nykoping'), g('runner', 8, 1.2, 5, 'sodertalje')] },
              { groups: [g('walker', 16, 1.0, 0, 'nykoping'), g('brute', 4, 4, 8, 'nykoping')] },
              { groups: [g('walker', 20, 0.8, 0, 'nykoping'), g('runner', 26, 0.5, 4, 'sodertalje'), g('brute', 7, 1.5, 8, 'nykoping'),

@@ -18,6 +18,7 @@ import { researchNode } from '../data/research.js';
 import { newProgress, emptyOp, mapState, mapUnlocked, startConfig, dayResult, migrateV3 } from './progress.js';
 import { tierOf, tierData, MAX_LEVEL } from '../sim/stats.js';
 import { squadSize } from '../sim/squad.js';
+import { hasMeta, featuresFor } from './unlocks.js';
 
 // ---------- konstanter ----------
 export const PRESSURE_HP = 0.06;      // zombiernas hp per tryckpunkt i en sektor
@@ -34,8 +35,23 @@ export const EVAC_RP = 2;
 export const SUPPLY_BOUNTY = 0.5;
 
 const isSquadType = type => !!WEAPONS[type]?.squad;
-const withOp = p => (p.op ? p : { ...p, op: emptyOp() });
-const copyOp = p => ({ ...p.op, units: p.op.units.map(u => ({ ...u })), released: [...p.op.released], inbox: [...p.op.inbox], pressure: { ...p.op.pressure }, closed: [...p.op.closed] });
+const withOp = p => (p.op ? (p.op.stock ? p : { ...p, op: { ...p.op, stock: stockFromReleases(p) } }) : { ...p, op: emptyOp() });
+const copyOp = p => ({ ...p.op, units: p.op.units.map(u => ({ ...u })), released: [...p.op.released], inbox: [...p.op.inbox], pressure: { ...p.op.pressure }, closed: [...p.op.closed],
+  stock: Object.fromEntries(Object.entries(p.op.stock ?? {}).map(([k, v]) => [k, { ...v }])) });
+// 0.16.0: lagret för en sparfil från före knappheten: leveransernas lager minus det som redan rekvirerats
+// (enheter som inte var givna) i varje sektor.
+function stockFromReleases(p) {
+  const out = {};
+  for (const r of RELEASES) if (r.stock && p.op.released.includes(r.id) && !p.op.closed.includes(r.map)) {
+    const s = out[r.map] ??= {};
+    for (const [t, n] of Object.entries(r.stock)) s[t] = (s[t] ?? 0) + n;
+  }
+  for (const u of p.op.units) if (!u.granted && u.sector && out[u.sector]?.[u.type] != null) out[u.sector][u.type] = Math.max(0, out[u.sector][u.type] - 1);
+  return out;
+}
+// Förrådets delar i inlärningens takt (src/meta/unlocks.js): nivåer och påfyllnad, rekvisition, uppgraderingar,
+// omplacering och Return. Ett framsteg utan den delen nekas med 'locked' (förrådet visar den inte).
+const depotOpen = (p, f) => hasMeta(p, f);
 
 // ---------- enheter ----------
 // { uid, type, level, men (bara grupper), sector (null = otilldelad), wins, spent (RP), granted }
@@ -73,6 +89,7 @@ function applyRelease(p, r) {
   for (const t of r.tiers ?? []) if (!research.includes(t)) research.push(t);
   const sector = op.closed.includes(r.map) ? null : r.map;
   for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) op.units.push(newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true }));
+  if (sector && r.stock) { const st = op.stock[sector] ??= {}; for (const [t, n] of Object.entries(r.stock)) st[t] = (st[t] ?? 0) + n; }
   op.released.push(r.id);
   op.inbox.push({ id: r.id, from: r.from, text: r.text, seq: op.seq++, unread: true });
   return { ...p, research, op };
@@ -119,7 +136,22 @@ export function releasedTypes(p, sector) {
   for (const r of RELEASES) if (r.map === sector && p.op.released.includes(r.id)) for (const t of r.unlock ?? []) if (!out.includes(t)) out.push(t);
   return out;
 }
-const releasedAnywhere = (p, type) => SECTORS.some(s => releasedTypes(p, s.id).includes(type));
+// 0.16.0: lagret, så många av typen som ledningen släppt för rekvisition i sektorn och som inte tagits än.
+export const stockOf = (p, sector, type) => p.op.stock?.[sector]?.[type] ?? 0;
+// Typerna förrådet visar under Requisition för sektorn: de som någon leverans haft lager av, i köpradens ordning.
+export function stockTypes(p, sector) {
+  const out = [];
+  for (const r of RELEASES) if (r.map === sector && r.stock && p.op.released.includes(r.id)) for (const t of Object.keys(r.stock)) if (!out.includes(t)) out.push(t);
+  return out;
+}
+// Uppgraderingarna som ledningen släppt: högsta nivån per uppgradering.
+export function releasedUps(p) {
+  const out = {};
+  for (const r of RELEASES) if (r.ups && p.op.released.includes(r.id)) for (const [id, n] of Object.entries(r.ups)) out[id] = Math.max(out[id] ?? 0, n);
+  return out;
+}
+// Har spelaren typen: en enhet någonstans, eller lager att rekvirera i en öppen sektor.
+const hasType = (p, type) => p.op.units.some(u => u.type === type) || SECTORS.some(s => !sectorClosed(p, s.id) && stockOf(p, s.id, type) > 0);
 export const unreadCount = p => p.op.inbox.filter(m => m.unread).length;
 export function markRead(p) {
   if (!unreadCount(p)) return p;
@@ -132,8 +164,9 @@ export function markRead(p) {
 const fail = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 const poor = (p, cost) => fail('rp', { cost, need: cost - p.rp });
 export function canRequisition(p, type, sector) {
+  if (!depotOpen(p, 'requisition')) return fail('locked');
   if (!sectorOpen(p, sector)) return fail('closed');
-  if (!releasedTypes(p, sector).includes(type)) return fail('not released');
+  if (!releasedTypes(p, sector).includes(type) || stockOf(p, sector, type) < 1) return fail('none');
   const cost = UNIT_RP[type];
   if (p.rp < cost) return poor(p, cost);
   return { ok: true, cost };
@@ -144,6 +177,7 @@ export function requisition(p, type, sector) {
   const op = copyOp(p);
   const u = newUnit(op.nextUid++, type, 1, sector, p.research, { spent: c.cost });
   op.units.push(u);
+  op.stock[sector][type]--;
   return { ok: true, uid: u.uid, cost: c.cost, progress: { ...p, rp: p.rp - c.cost, op } };
 }
 // Nästa nivå för en enhet: pris, eller null vid högsta nivån.
@@ -151,6 +185,7 @@ export const levelCost = u => (u.level >= MAX_LEVEL ? null : LEVEL_RP[u.type]?.[
 export function canLevelUp(p, uid) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
+  if (!depotOpen(p, 'levels')) return fail('locked');
   const cost = levelCost(u);
   if (cost == null) return fail('max');
   if (p.rp < cost) return poor(p, cost);
@@ -173,6 +208,7 @@ export function refillCost(p, u) {
 export function canRefill(p, uid) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
+  if (!depotOpen(p, 'levels')) return fail('locked');
   const cost = refillCost(p, u);
   if (!cost) return fail('full');
   if (p.rp < cost) return poor(p, cost);
@@ -192,6 +228,7 @@ export const returnValue = u => Math.round(u.spent * RETURN_RATE);
 export function canReturn(p, uid) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
+  if (!depotOpen(p, 'sectors')) return fail('locked');
   const refund = returnValue(u), left = u.sector == null ? null : unitsIn(p, u.sector).length - 1;
   if (refund === 0 && left === 0) return fail('last', { refund, left });
   return { ok: true, refund, left, given: refund === 0 };
@@ -199,13 +236,16 @@ export function canReturn(p, uid) {
 export function returnUnit(p, uid) {
   const c = canReturn(p, uid);
   if (!c.ok) return { ...c, progress: p };
-  const back = c.refund, op = copyOp(p);
+  const back = c.refund, op = copyOp(p), u = unitOf(p, uid);
   op.units = op.units.filter(x => x.uid !== uid);
+  // 0.16.0: en rekvirerad enhet går tillbaka till sektorns lager (en given går tillbaka till ledningen)
+  if (!u.granted && u.sector && op.stock[u.sector]?.[u.type] != null) op.stock[u.sector][u.type]++;
   return { ok: true, refund: back, progress: { ...p, rp: p.rp + back, op } };
 }
 export function canReassign(p, uid, sector) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
+  if (!depotOpen(p, 'sectors')) return fail('locked');
   if (u.sector === sector) return fail('same');
   if (sector != null) {
     if (!sectorOpen(p, sector)) return fail('closed');
@@ -223,6 +263,8 @@ export function reassign(p, uid, sector) {
 
 // ---------- förrådets uppgraderingar ----------
 // { id, node, tier (1-baserad), cost, ok, reason } för nästa nivå i varje uppgradering, eller null när allt är köpt.
+// 0.16.0 (Olas tillägg): bara det man har eller fått släppt, och bara de nivåer ledningen släppt. Det som inte
+// syns i förrådet har reason 'locked' (förrådet visar det inte; balansens policy hoppar över det).
 export function upgradeState(p, id) {
   const up = UPGRADES.find(x => x.id === id), node = researchNode(id);
   if (!up || !node) return null;
@@ -230,8 +272,12 @@ export function upgradeState(p, id) {
   if (t >= node.tiers.length) return { id, node, tier: null, cost: null, ok: false, reason: 'max' };
   const tier = t + 1, cost = node.tiers[t].cost;
   const needs = up.needs;
-  if (needs?.startsWith('tier:')) { if (!p.research.includes(needs.slice(5))) return { id, node, tier, cost, ok: false, reason: 'locked' }; }
-  else if (needs && !releasedAnywhere(p, needs)) return { id, node, tier, cost, ok: false, reason: 'locked' };
+  const hidden = { id, node, tier, cost, ok: false, reason: 'locked' };
+  if (!depotOpen(p, 'upgrades')) return hidden;
+  if (needs?.startsWith('tier:')) { if (!p.research.includes(needs.slice(5))) return hidden; }
+  else if (needs && !hasType(p, needs)) return hidden;
+  const cap = releasedUps(p)[id] ?? 0;
+  if (tier > cap) return t >= up.from && t > 0 ? { id, node, tier: null, cost: null, ok: false, reason: 'cap', have: t } : hidden;
   if (p.rp < cost) return { id, node, tier, cost, ok: false, reason: 'rp', need: cost - p.rp };
   return { id, node, tier, cost, ok: true };
 }
@@ -265,7 +311,11 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   const d = base.map.days[day - 1];
   const core = unitsIn(p, mapId).filter(u => u.men == null || u.men > 0)
     .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}) }));
-  return { ...base, cash: (d.supplies ?? d.startCash) + supplyBonus(p.research), core, hpMul: hpFromPressure(pressureOf(p, mapId)), bountyMul: SUPPLY_BOUNTY * (d.bounty ?? 1) };
+  // 0.16.0: det som är upplåst i dag (src/meta/unlocks.js). Utan förnödenheter (E4 dag 1) är kassan tom och
+  // de dödade ger inget.
+  const allow = [...featuresFor(mapId, day)], supplies = allow.includes('supplies');
+  return { ...base, cash: supplies ? (d.supplies ?? d.startCash) + supplyBonus(p.research) : 0, core, hpMul: hpFromPressure(pressureOf(p, mapId)),
+    bountyMul: supplies ? SUPPLY_BOUNTY * (d.bounty ?? 1) : 0, allow };
 }
 // RP för ett försök. base: det simuleringen räknade (dödade, vågor, lärdomen vid förlust). report:
 // src/sim/sim.js dayReport. Bonusarna bara vid vinst.
