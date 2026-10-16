@@ -126,6 +126,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H108 | vapen | Prickskyttens skjutsektor: kon 60-90° som väljs/vrids vid placering; belönar att ligga längst bort på en gata och sikta längs den.
 
 ## Efter 0.11.0
-- [ ] H098 | tempo | Gnesta South: policyns första skott 52 till 54 s sedan ingångarna flyttade ut i diset (vägen inne på kartan är längre). Speltesta om en spelare ställer en pjäs vid kartkanten, annars kortare väg in eller fler löpare först.
-- [ ] H099 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen?
-- [ ] H100 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot.
+- [ ] H110 | tempo | Gnesta South: policyns första skott 52 till 54 s sedan ingångarna flyttade ut i diset (vägen inne på kartan är längre). Speltesta om en spelare ställer en pjäs vid kartkanten, annars kortare väg in eller fler löpare först.
+- [ ] H111 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen?
+- [ ] H112 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot.
