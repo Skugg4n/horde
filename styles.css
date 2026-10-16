@@ -190,7 +190,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui:not([data-mode="play"]) #routekey { display: none; }
 /* 0.10.2: ingången som nästa grupp kommer från */
 .entry.next .txt { color: #fff1e6; background: rgba(150, 26, 10, 0.9); border-color: rgba(255, 140, 110, 0.7); }
-.note.warn { color: #fff1e6; top: 64px; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
+.note.warn { color: #fff1e6; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
 #res .delta {
   position: absolute; left: 0; top: 100%; margin-top: 2px; font: 600 13px 'IBM Plex Mono', monospace;
   opacity: 0; transform: translateY(-4px); transition: opacity 0.2s, transform 0.2s; white-space: nowrap;
@@ -381,8 +381,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #hint.dodge { opacity: 0.12; pointer-events: none; }
 .entry { transition: opacity 0.2s; }
 
+/* 0.14.1: notiserna staplas i en kolumn i stället för att ritas ovanpå varandra (panels.js note) */
+#notes { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; z-index: 5; }
 .note {
-  position: fixed; top: 18px; left: 50%; transform: translateX(-50%); padding: 8px 14px;
+  position: relative; padding: 8px 14px; white-space: nowrap; max-width: calc(100vw - 32px);
   font-size: 14px; color: #f0a07a; pointer-events: none;
 }
 
@@ -605,6 +607,16 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #evac .n { font-size: 16px; letter-spacing: 0.06em; margin-top: 3px; }
 #evac .n b { font: 600 20px 'IBM Plex Mono', monospace; color: #f2c46b; }
 #evac .n .lost { color: #e0866a; }
+/* 0.14.1: stapeln (framme gult, strecket vid så många som behövs, förlorade rött från höger) */
+#evac .evbar { position: relative; height: 6px; margin: 6px auto 0; width: 260px; max-width: 70vw; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
+#evac .evbar .safe { position: absolute; left: 0; top: 0; bottom: 0; background: #f2c46b; }
+#evac .evbar .lostbar { position: absolute; right: 0; top: 0; bottom: 0; background: #c2321c; }
+#evac .evbar .need { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #e9dfc9; }
+.civlost { position: fixed; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; z-index: 3;
+  font: 600 13px 'IBM Plex Mono', monospace; color: #fff1e6; background: rgba(150, 26, 10, 0.9); border: 1px solid rgba(255,140,110,0.7); padding: 2px 8px; border-radius: 2px;
+  animation: civlost 2.6s ease-out forwards; }
+.civlost::before { content: '✕ '; color: #f2c46b; }
+@keyframes civlost { 0% { opacity: 0; transform: translate(-50%, -30%); } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -160%); } }
 /* 0.13.0: pjäspanelens rader för den monterade Ksp 88 och pillboxens pansar */
 .panel .info.mounted { font-size: 13px; color: var(--paper-dim); margin-top: 8px; }
 .panel .info.armour { font-size: 13px; color: var(--paper); margin-top: 8px; letter-spacing: 0.04em; }
@@ -668,7 +680,19 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .req span { grid-column: 1; font-size: 12px; color: var(--paper-dim); }
 .depot .req i { grid-column: 2; grid-row: 1 / span 2; align-self: center; font: normal 13px 'IBM Plex Mono', monospace; color: #d9a441; }
 .depot .req.off { opacity: 0.5; border-color: var(--plate-edge); }
-.depot .dmsg { min-height: 1.3em; font-size: 14px; color: #e0603c; margin-top: 8px; opacity: 0; transition: opacity 0.2s; }
+/* 0.14.1 (speltestet av 0.14.0: förrådet hoppade under pekaren): förrådet står fast upptill, kolumnerna har
+   fast höjd och rullar själva, och meddelandet (eller frågan) har en rad som alltid finns. */
+.sheet.depot { top: 16px; transform: translateX(-50%); }
+.depot .oh, .opmap .oh { padding-right: 56px; }
+.depot .cols { height: min(58vh, 540px); max-height: none; align-content: start; }
+.depot .cols section { min-height: 0; }
+.depot .dmsg { min-height: 30px; display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; font-size: 14px; color: #e0603c; margin-top: 8px; opacity: 0; transition: opacity 0.2s; }
+.depot .dmsg.ask { color: var(--paper); }
+.depot .mini.warn { border-color: rgba(224,96,60,0.8); background: rgba(181,83,42,0.35); }
+.depot .mini.sel { border-color: #f2c46b; }
+.flow { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; font: 500 12px Oswald, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-dim); }
+.flow .on { color: var(--paper); }
+.flow i { font-style: normal; opacity: 0.6; }
 .depot .dmsg.show { opacity: 1; }
 .depot .dmsg.good { color: #9fc46a; }
 .rptab { display: inline-flex; flex-direction: column; gap: 2px; min-width: 260px; margin: 0 auto 10px; text-align: left; }
@@ -678,3 +702,20 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .rptab .tot b { color: #d9a441; font-size: 16px; }
 .lead.arrived { font-size: 15px; color: #c8bfa8; }
 #buildbar.deploy .k { color: #9fc46a; }
+
+/* 0.14.1: punkten där pjäsen hamnar medan man drar för att sikta (main.js aimLine) */
+#aimtip { position: fixed; transform: translate(-50%, calc(-100% - 18px)); padding: 3px 8px; pointer-events: none; white-space: nowrap;
+  font: 600 11px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #9fd28a; border-color: rgba(159,210,138,0.6); }
+#aimtip[hidden] { display: none; }
+/* 0.14.1: pjäsen har mål utanför vinkeln: rad i panelen och en gul flagga över pjäsen (main.js updateArcFlags) */
+.panel .info.outside { color: #f2c46b; font-weight: 600; letter-spacing: 0.03em; margin: 0 0 6px; }
+.arcflag { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; padding: 1px 5px 2px;
+  font: 700 12px 'IBM Plex Mono', monospace; line-height: 1.2; color: #1d1913; background: #f2c46b; border: 1px solid #fff1c9; border-radius: 2px;
+  animation: arcflag 1s ease-in-out infinite alternate; }
+.arcflag::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 8px; background: #f2c46b; }
+@keyframes arcflag { from { opacity: 0.75; } to { opacity: 1; } }
+/* 0.14.1: sektorns slut, VICTORY överst och berättelsen för sig under resultatet */
+.result.victory .h { color: #f2c46b; letter-spacing: 0.06em; text-transform: uppercase; font-size: 52px; }
+.sheet .lead.story { font-size: 15px; color: var(--paper-dim); font-style: italic; border-top: 1px solid var(--plate-edge); padding-top: 10px; margin-top: 4px; }
+/* 0.14.1: "Volunteers" ryms på kortet */
+#buildbar .card .n.long { font-size: 9px; letter-spacing: -0.03em; }

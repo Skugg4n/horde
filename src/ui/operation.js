@@ -12,7 +12,7 @@ import { SECTORS, UNIT_RP, FROM_NAME, SUPPLY_BUDGET } from '../data/depot.js';
 import { ROMAN } from '../data/research.js';
 import { mapState } from '../meta/progress.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, releasedTypes, maxMen, vetOf, levelCost, refillCost, returnValue,
-  upgradeList, canRequisition, sectorOpen, openSectors, canReassign } from '../meta/operation.js';
+  upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn } from '../meta/operation.js';
 import { shopItem } from '../data/shop.js';
 
 const STATUS = {
@@ -116,7 +116,7 @@ function sectorCard(p, id) {
   }
   return `<div class="sc-h"><b>${esc(s.name)}</b><span class="tag" style="color:${STATUS[st].color}">${STATUS[st].text}</span></div>
     ${lines.map(l => `<p>${l}</p>`).join('')}
-    ${day ? `<button type="button" class="act main" data-a="go"><span class="a">Day ${day}: to deployment</span><kbd>Enter</kbd></button>` : ''}`;
+    ${day ? `<button type="button" class="act main" data-a="go"><span class="a">Day ${day}: Requisition</span><kbd>Enter</kbd></button>` : ''}`;
 }
 
 // handlers: { onGo(mapId), onDepot(mapId), onMenu(), onSeen() }
@@ -138,7 +138,8 @@ export function opMapSheet(root, progress, handlers) {
           <ul>${inbox.map(m => `<li class="${m.unread ? 'new' : ''}"><b>${esc(FROM_NAME[m.from] ?? m.from)}</b>${esc(m.text)}</li>`).join('') || '<li>No messages.</li>'}</ul></div>
       </div>
     </div>
-    <div class="acts"><button type="button" class="act" data-a="depot"><span class="a">Depot</span><span class="p">Requisition · units · upgrades</span></button>
+    <div class="flow"><span class="on">Operations map</span><i>›</i><span>Requisition</span><i>›</i><span>Deploy</span></div>
+    <div class="acts"><button type="button" class="act" data-a="depot"><span class="a">Depot</span><span class="p">Browse units and upgrades</span></button>
       <button type="button" class="act" data-a="menu"><span class="a">Main menu</span></button></div>`;
   const cv = el.querySelector('canvas'), card = el.querySelector('[data-card]');
   const renderCard = () => {
@@ -157,7 +158,8 @@ export function opMapSheet(root, progress, handlers) {
 }
 
 // ---------- förrådet ----------
-const STATE_TEXT = { rp: 'Not enough RP', closed: 'Sector closed', 'not released': 'Not released here', max: 'Max level', full: 'At full strength', locked: 'Not released yet' };
+const STATE_TEXT = { rp: 'Not enough RP', closed: 'Sector closed', 'not released': 'Not released here', max: 'Max level', full: 'At full strength', locked: 'Not released yet',
+  last: 'The last unit here was given by command: returning it leaves the sector empty with no RP back.' };
 const upgradeText = (st) => {
   const t = st.node.tiers[(st.tier ?? st.node.tiers.length) - 1];
   if (st.id === 'budget') return `Every day starts with $ ${Math.round(t.cash * SUPPLY_BUDGET)} more supplies.`;
@@ -165,8 +167,10 @@ const upgradeText = (st) => {
 };
 const upgradeName = id => ({ budget: 'Supply budget' })[id] ?? null;
 
-// handlers: { act(kind, ...args) -> { ok, reason, progress }, onDone() }. sector: sektorn som visas först.
-export function depotSheet(root, progress0, sector0, handlers) {
+// handlers: { act(kind, ...args) -> { ok, reason, progress }, onDone(), onDeploy() }. sector: sektorn som visas först.
+// 0.14.1 (speltestet av 0.14.0: förrådet var lätt att gå förbi): deploy = { day } när förrådet är steget
+// mellan kartan och dagen; då är huvudknappen Deploy (Enter) och Operations map går tillbaka (Esc).
+export function depotSheet(root, progress0, sector0, handlers, { deploy = null } = {}) {
   const el = document.createElement('div');
   el.className = 'sheet plate depot';
   root.appendChild(el);
@@ -174,13 +178,25 @@ export function depotSheet(root, progress0, sector0, handlers) {
   let p = progress0;
   const tabs = () => [...openSectors(p), ...(p.op.units.some(u => u.sector == null) ? [null] : [])];
   let sector = sector0 !== undefined && tabs().includes(sector0) ? sector0 : tabs()[0] ?? null;
-  let msg = '', msgGood = false;
+  let msg = '', msgGood = false, confirm = null;
   function act(kind, ...args) {
     const r = handlers.act(kind, ...args);
     if (r.progress) p = r.progress;
     msg = r.ok ? (r.text ?? 'Done.') : (STATE_TEXT[r.reason] ?? 'Not possible.');
     msgGood = !!r.ok;
+    confirm = null;
     render();
+  }
+  // 0.14.1 (granskningen av 0.14, Important 4): Return frågar först och säger vad som händer.
+  function askReturn(uid) {
+    const u = p.op.units.find(x => x.uid === uid), c = canReturn(p, uid);
+    if (!u) return;
+    if (!c.ok) { msg = STATE_TEXT[c.reason] ?? 'Not possible.'; msgGood = false; confirm = null; render(); return; }
+    const where = u.sector ? MAPS[u.sector].name : null;
+    const back = c.given ? 'Given by command, so no RP back.' : `+${c.refund} RP back.`;
+    const left = where ? (c.left ? ` ${where} keeps ${c.left} unit${c.left > 1 ? 's' : ''}.` : ` ${where} will have no units left.`) : '';
+    confirm = { uid, text: `Return ${name(u.type)} L${u.level}? ${back}${left}` };
+    msg = ''; render();
   }
   function unitRow(u) {
     const max = maxMen(u, p.research), lc = levelCost(u), rc = refillCost(p, u);
@@ -191,7 +207,7 @@ export function depotSheet(root, progress0, sector0, handlers) {
       <div class="ua">
         ${lc != null ? `<button type="button" class="mini ${p.rp < lc ? 'off' : ''}" data-a="lvl">Level ${ROMAN[u.level + 1]} <i>${rp(lc)}</i></button>` : '<span class="mini max">Max level</span>'}
         ${rc ? `<button type="button" class="mini ${p.rp < rc ? 'off' : ''}" data-a="refill">Refill <i>${rp(rc)}</i></button>` : ''}
-        <button type="button" class="mini" data-a="return" title="${u.granted && !u.spent ? 'Send it back to command. It was given, so no RP back.' : 'Back to the depot for about half of the RP spent on it'}">Return${returnValue(u) ? ` <i>+${returnValue(u)}</i>` : ''}</button>
+        ${canReturn(p, u.uid).ok ? `<button type="button" class="mini ${confirm?.uid === u.uid ? 'sel' : ''}" data-a="return" title="${u.granted && !u.spent ? 'Send it back to command. It was given, so no RP back.' : 'Back to the depot for about half of the RP spent on it'}">Return${returnValue(u) ? ` <i>+${returnValue(u)}</i>` : ''}</button>` : '<span class="mini max" title="The last unit here was given by command. Returning it would leave the sector empty with no RP back.">Last unit</span>'}
         ${others.length ? `<select data-a="move"><option value="">Reassign…</option>${others.map(s => `<option value="${s}">${esc(MAPS[s].name)}</option>`).join('')}</select>` : ''}
       </div></div>`;
   }
@@ -200,7 +216,8 @@ export function depotSheet(root, progress0, sector0, handlers) {
     const types = sector ? releasedTypes(p, sector) : [];
     const ups = upgradeList(p).filter(Boolean).filter(st => st.reason !== 'locked');
     el.innerHTML = `
-      <div class="oh"><div class="h">Depot</div><div class="rp"><span>Requisition points</span><b>${p.rp}</b></div></div>
+      <div class="oh"><div class="h">${deploy ? 'Requisition' : 'Depot'}</div><div class="rp"><span>Requisition points</span><b>${p.rp}</b></div></div>
+      ${deploy ? `<div class="flow"><span>Operations map</span><i>›</i><span class="on">Requisition</span><i>›</i><span>Deploy day ${deploy.day}</span></div>` : ''}
       <div class="tabs">${tabs().map(s => `<button type="button" class="tab ${s === sector ? 'on' : ''}" data-tab="${s ?? ''}">${s ? esc(MAPS[s].name) : 'Unassigned'} <span>${p.op.units.filter(u => u.sector === s).length}</span></button>`).join('')}</div>
       <div class="cols">
         <section><h4>${sector ? 'Units in ' + esc(MAPS[sector].name) : 'Unassigned units'}</h4>${here.map(unitRow).join('') || '<p class="muted">None. Requisition below, or reassign from another sector.</p>'}
@@ -212,19 +229,23 @@ export function depotSheet(root, progress0, sector0, handlers) {
         <section><h4>Depot upgrades</h4>${ups.map(st => `<button type="button" class="req ${st.ok ? '' : 'off'}" data-up="${st.id}" ${st.tier == null ? 'disabled' : ''}>
           <b>${esc(upgradeName(st.id) ?? st.node.name)}${st.tier ? ` ${ROMAN[st.tier]}` : ''}</b><span>${esc(st.tier == null ? 'Maxed.' : upgradeText(st))}</span><i>${st.tier == null ? 'Max' : rp(st.cost)}</i></button>`).join('')}</section>
       </div>
-      <div class="dmsg ${msg ? 'show' : ''} ${msgGood ? 'good' : ''}">${esc(msg)}</div>
-      <div class="acts"><button type="button" class="act main" data-a="done"><span class="a">Done</span><kbd>Esc</kbd></button></div>`;
+      <div class="dmsg ${msg || confirm ? 'show' : ''} ${msgGood ? 'good' : ''} ${confirm ? 'ask' : ''}">${confirm ? `<span>${esc(confirm.text)}</span><button type="button" class="mini warn" data-a="yes">Return</button><button type="button" class="mini" data-a="no">Keep</button>` : esc(msg)}</div>
+      <div class="acts">${deploy ? `<button type="button" class="act main" data-a="deploy"><span class="a">Deploy · Day ${deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">Operations map</span><kbd>Esc</kbd></button>`
+        : '<button type="button" class="act main" data-a="done"><span class="a">Done</span><kbd>Esc</kbd></button>'}</div>`;
     for (const b of el.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { sector = b.dataset.tab || null; msg = ''; render(); });
     for (const r of el.querySelectorAll('.urow')) {
       const uid = Number(r.dataset.uid);
       r.querySelector('[data-a="lvl"]')?.addEventListener('click', () => act('level', uid));
       r.querySelector('[data-a="refill"]')?.addEventListener('click', () => act('refill', uid));
-      r.querySelector('[data-a="return"]')?.addEventListener('click', () => act('return', uid));
+      r.querySelector('[data-a="return"]')?.addEventListener('click', () => askReturn(uid));
       r.querySelector('[data-a="move"]')?.addEventListener('change', e => { if (e.target.value) act('reassign', uid, e.target.value); });
     }
     for (const b of el.querySelectorAll('[data-req]')) b.addEventListener('click', () => act('requisition', b.dataset.req, sector));
     for (const b of el.querySelectorAll('[data-up]')) b.addEventListener('click', () => act('upgrade', b.dataset.up));
     el.querySelector('[data-a="done"]').addEventListener('click', () => handlers.onDone());
+    el.querySelector('[data-a="deploy"]')?.addEventListener('click', () => handlers.onDeploy?.(sector));
+    el.querySelector('[data-a="yes"]')?.addEventListener('click', () => act('return', confirm.uid));
+    el.querySelector('[data-a="no"]')?.addEventListener('click', () => { confirm = null; render(); });
   }
   render();
   return { el, close: () => el.remove(), progress: () => p };

@@ -36,7 +36,7 @@ export const WEAPONS = {
   inf:   { id: 'inf', name: 'Infantry squad', short: 'Infantry', desc: 'Regular army: four soldiers with Ak 5. Better shots and tougher than the Home Guard, and they cost more. Drop the marker and they find cover.',
            cost: 450, range: 17, rate: 1.6, damage: 7, accuracy: 0.84, squad: true, upgradeCost: [300, 400], men: [4, 5, 5], hp: [45, 60, 75], speed: 4.5 },
   // 0.13.0 (H105): civila frivilliga, jaktgevär och hagelbössor. Billiga och svaga, samma skydds-AI.
-  civ:   { id: 'civ', name: 'Civilian volunteers', short: 'Civilians', desc: 'Hunters and neighbours with rifles and shotguns. Cheap and brave, but they are not soldiers.',
+  civ:   { id: 'civ', name: 'Volunteers', short: 'Volunteers', desc: 'Hunters and neighbours with rifles and shotguns. Cheap and brave, but they are not soldiers.',
            cost: 120, range: 12, rate: 0.9, damage: 6, accuracy: 0.6, squad: true, upgradeCost: [90, 140], men: [4, 4, 5], hp: [18, 22, 26], speed: 3.6 },
   // 0.13.0 (H135): improviserad pillbox. En EPA-traktor med svetsade plåtar och en Ksp 58 i luckan.
   // hp per nivå (zombierna slår på den), build = sekunder innan den skjuter, kryper i en fjärdedel av

@@ -7,8 +7,8 @@ import * as THREE from 'three';
 
 // 0.10.1: vägen som gäller nu bredare och tydligare (den ligger kvar hela dagen)
 // 0.10.2: bredare igen, så att pilarna syns som pilar i spelets zoom
-const WIDTH = { now: 1.8, preview: 0.6 };
-const Y = { now: 0.09, preview: 0.1 };
+const WIDTH = { now: 1.8, preview: 0.6, evac: 1.1 };
+const Y = { now: 0.09, preview: 0.1, evac: 0.115 };
 
 // Rutnätets trappsteg tas bort (Ramer-Douglas-Peucker), sedan rundas hörnen av (Chaikin), så
 // att bandet följer gatan i stället för att slingra sig ruta för ruta.
@@ -97,14 +97,17 @@ function chevrons(color, opacity, period) {
   });
 }
 
-const THREAT = 0xc2321c, PREVIEW = 0xe8823a;
+// 0.14.1 (speltestet av 0.14.0: "jag såg aldrig en enda civil"): de civilas väg till ishallen, gula pilar
+const THREAT = 0xc2321c, PREVIEW = 0xe8823a, EVAC = 0xf2c46b;
 export function createRouteLines(scene) {
   const layers = {
     now: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(THREAT, 0.55, 2.6)),
     preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PREVIEW, 0.85, 2.0)),
+    evac: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(EVAC, 0.8, 2.2)),
   };
   for (const [k, m] of Object.entries(layers)) { m.renderOrder = 4; m.frustumCulled = false; m.visible = false; m.name = 'route-' + k; scene.add(m); }
-  const keys = { now: '', preview: '' };
+  const keys = { now: '', preview: '', evac: '' };
+  layers.evac.renderOrder = 5;
   // paths: [{ cells: [x, z][] }] i världskoordinater. key: ändras när vägen ändras.
   function set(layer, paths, key) {
     const m = layers[layer];

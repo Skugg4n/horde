@@ -929,7 +929,7 @@ export function createView(scene, initialSim) {
     syncZombies(dt);
     syncSlots(dt);
     squadView.sync(sim, dt);
-    civilians.sync(sim, dt);
+    civilians.sync(sim, dt, viewH);
     syncRoute();
     syncCells();
     syncCellMarks();

@@ -158,7 +158,7 @@ export function buildBar(root, actions) {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
       <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
-        <kbd>${hotkeyOf(it.id, menu)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
+        <kbd>${hotkeyOf(it.id, menu)}</kbd>${ICONS[it.id] || ''}<div class="n${itemShort(it).length > 8 ? ' long' : ''}">${itemShort(it)}</div>
         <div class="p" data-price></div><div class="cs">${cardCompact(it, sim.research)}</div>
         <div class="more"><div class="r">${role}</div><div class="st">${stats}</div><div class="why" data-why></div></div></button>`;
     }).join('')}</div></div>`).join('')}</div>`;
@@ -234,7 +234,7 @@ export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '');
+  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -248,7 +248,9 @@ export function gunPanel(root, gunId, sim, actions) {
       : `<button type="button" class="act" data-a="kit"><span class="a">${GRENADE_KIT.name}</span><span class="p" data-p></span></button>`;
     // 0.14.0: en kärntrupp uppgraderas i förrådet mellan dagarna och säljs inte; förnödenheterna köps här
     const core = w.uid != null;
-    ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
+    // 0.14.1 (granskningen av 0.14, Important 5): målen står utanför vinkeln (simuleringens idleOutside)
+    const outside = g.idleOutside ? '<p class="info outside">Target outside arc. Press R to rotate.</p>' : '';
+    ui.body.innerHTML = `${outside}${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
         ${core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`}
         ${canMoveType(w.type) ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : ''}
@@ -476,7 +478,7 @@ export function dayIntro(root, dayCfg, cash, onGo, { arrived = '', op = null } =
     <div class="h">${dayCfg.intro.title}</div>
     <p class="lead">${dayCfg.intro.text}</p>${dayCfg.objective ? `<p class="lead strong objective">${dayCfg.objective}</p>` : ''}${arrived}${intelLine(dayCfg)}
     ${tail}
-    <button type="button" class="act main" data-a="go"><span class="a">To deployment</span><kbd>Enter</kbd></button>`);
+    <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;
 }
@@ -486,7 +488,10 @@ export function dayIntro(root, dayCfg, cash, onGo, { arrived = '', op = null } =
 // styrka man gick in med. rp: src/meta/operation.js rpForAttempt. losses: [{ name, men, destroyed }].
 // outro: sektorns slut när sista dagen är vunnen.
 export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, lastDay, outro = null, lostBy = null, evac = null, losses = [] }, { onRetry, onOpMap, onMenu }) {
-  const head = won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : 'The line broke.';
+  // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
+  // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
+  const sectorDone = won && lastDay && outro;
+  const head = sectorDone ? 'Victory' : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : 'The line broke.';
   const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians reached the ice rink${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   const rows = [];
   if (rp) {
@@ -500,16 +505,18 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   const lossLine = won
     ? (lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at the depot.</p>` : '<p class="note-line">No losses. Survivors gain experience.</p>')
     : '<p class="note-line">The day starts over with the force you went in with. The RP you earned are yours: spend them at the depot before you try again.</p>';
-  const done = won && lastDay && outro ? `<p class="lead strong sector">${outro.text}</p>` : '';
+  const done = sectorDone ? `<p class="lead strong">Day ${day} held. ${outro.name ?? 'The sector'} is done.</p>` : '';
+  const story = sectorDone ? `<p class="lead story">${outro.text}${outro.withdraw ? ' The army pulls back what is left of the roadblock, and the RP you spent on it are returned.' : ''}</p>` : '';
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">Operations map</span><kbd>Enter</kbd></button>`
-    : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span></button><button type="button" class="act" data-a="opmap"><span class="a">Operations map</span><kbd>Enter</kbd></button>`;
-  const p = plate(root, 'result' + (won ? ' won' : ' lost'), `
+    : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">Operations map</span></button>`;
+  const p = plate(root, 'result' + (won ? ' won' : ' lost') + (sectorDone ? ' victory' : ''), `
     <div class="h">${head}</div>
     ${evacLine}
     ${done}
     ${rpTable}
     ${lossLine}
+    ${story}
     <div class="facts">
       <div><span>Kills</span><b>${kills}</b></div>
       <div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>
@@ -537,10 +544,36 @@ export function mainMenu(root, { started, rp, onContinue, onNew, version }) {
 }
 
 // Liten notis som försvinner av sig själv.
-export function note(root, text, cls = '') {
+// 0.14.1 (speltestet av 0.14.0: "Barricade do..." och "Barricade failing" ovanpå varandra): notiserna
+// staplas i en kolumn uppe i mitten, högst NOTE_MAX åt gången; fler väntar i kö och kommer när en går.
+// Samma text som redan syns visas inte två gånger (den står kvar lite längre i stället).
+const NOTE_MAX = 3, NOTE_MS = 3200;
+const noteQueue = [];
+function noteStack(root) {
+  let st = root.querySelector('#notes');
+  if (!st) { st = document.createElement('div'); st.id = 'notes'; root.appendChild(st); }
+  return st;
+}
+function showNote(root, text, cls) {
+  const st = noteStack(root);
   const el = document.createElement('div');
   el.className = 'note plate ' + cls;
   el.textContent = text;
-  root.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
+  st.appendChild(el);
+  el._t = setTimeout(() => dropNote(root, el), NOTE_MS);
 }
+function dropNote(root, el) {
+  el.remove();
+  const st = noteStack(root);
+  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls); }
+}
+export function note(root, text, cls = '') {
+  const st = noteStack(root);
+  const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
+  if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), NOTE_MS); return; }
+  if (noteQueue.some(q => q.text === text)) return;
+  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  showNote(root, text, cls);
+}
+// Tömmer kön (skyltarna täcker skärmen, main.js setMode).
+export function clearNoteQueue() { noteQueue.length = 0; }

@@ -856,7 +856,7 @@ const ARSENAL = [
 ];
 export const DAYS = [
   { n: 1, supplies: 350, startCash: 700, hp: 2.8, arsenal: ARSENAL[0], squads: 4,
-    intro: { title: 'Day 1: Civilians', text: "The E4 roadblock has fallen silent and the Home Guard is not here yet. Your volunteers are hunters and neighbours. Civilians (yellow) leave the houses east of the roundabout and walk to the ice rink along the yellow line. Cover them." },
+    intro: { title: 'Day 1: Civilians', text: "The E4 roadblock has fallen silent and the Home Guard is not here yet. Your volunteers are hunters and neighbours. Civilians (yellow) leave the houses east of the roundabout and walk to the ice rink along the yellow line. Cover them. Block a street and the horde walks around the block." },
     hints: { lines: ['Pick the volunteers (2-1).', 'Drop them where they see the yellow line.', 'Start the wave and cover the civilians.'], steps: ['pick:civ', 'gun', 'wave'] },
     objective: 'Hold until the civilians reach the ice rink.',
     // de civila: fem familjer i villorna öster om rondellen, ut när vågen börjar och in mot ishallen

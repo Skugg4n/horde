@@ -7,11 +7,20 @@ import { earlyBonus, hasNextWave, waveLeft } from '../sim/sim.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
 const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'] };
+// 0.14.1 (speltestet av 0.14.0: "Wave 2: 13 walkers" medan räknaren sa "22 left"): de vilande i husen
+// (dayCfg.dormant) hör till vågen de slås upp i, både i raden och i räknaren, så att siffrorna stämmer.
+export function waveGroups(dayCfg, index) {
+  const wave = dayCfg.waves[index];
+  if (!wave) return [];
+  return [...wave.groups.map(g => ({ type: g.type, count: g.count })),
+    ...(dayCfg.dormant ?? []).filter(d => (d.wave ?? 0) === index).map(d => ({ type: d.type ?? 'walker', count: d.count }))];
+}
+export const waveSize = (dayCfg, index) => waveGroups(dayCfg, index).reduce((a, g) => a + g.count, 0);
 export function waveText(dayCfg, index) {
   const wave = dayCfg.waves[index];
   if (!wave) return '';
   const counts = new Map();
-  for (const g of wave.groups) counts.set(g.type, (counts.get(g.type) || 0) + g.count);
+  for (const g of waveGroups(dayCfg, index)) counts.set(g.type, (counts.get(g.type) || 0) + g.count);
   const parts = [...counts].map(([t, n]) => {
     const w = PLURAL[t] || [ZOMBIES[t]?.name.toLowerCase() ?? t, ZOMBIES[t]?.name.toLowerCase() ?? t];
     return `${n} ${n === 1 ? w[0] : w[1]}`;
@@ -23,7 +32,7 @@ export function waveText(dayCfg, index) {
 // (flera när nästa kallats tidigt). Annars: nästa våg som startar.
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
-  const size = k => waves[k].groups.reduce((a, g) => a + g.count, 0);
+  const size = k => waveSize(sim.dayCfg, k);
   const running = sim.phase === 'wave' || sim.phase === 'lost';
   const i = Math.min(running ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
   let total = size(i), left = total;
@@ -115,7 +124,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(el.day, String(sim.day).padStart(2, '0'));
     set(el.wave, `Wave ${c.wave} of ${c.of}`);
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
-    set(el.left, sim.phase === 'lost' ? '' : `${c.left} left`);
+    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : `${c.left} of ${c.total} left`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);

@@ -55,6 +55,8 @@ export function createPicker(camera, dom, getTargets, groundPick = () => null, o
   });
 
   return {
+    // 0.14.1: vad som ligger under en punkt nu, utan att vänta på nästa bildruta (main.js pointerdown)
+    pickAt: (clientX, clientY) => hitAt(clientX, clientY),
     onPick(cb) { pickCbs.push(cb); },
     onHover(cb) { hoverCbs.push(cb); },
   };

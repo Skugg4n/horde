@@ -13,7 +13,7 @@ const TRAIL = 6;              // så många gamla lägen per zombie
 const C = {
   bg: '#14160f', grid: 'rgba(160,170,130,0.10)', label: 'rgba(200,205,170,0.45)', road: 'rgba(205,200,175,0.42)', path: 'rgba(205,200,175,0.25)',
   bldg: 'rgba(120,125,105,0.35)', edge: 'rgba(233,223,201,0.35)', horde: '#e0452c', own: '#8fc4e8', base: '#d9a441', block: '#d9a441', wire: 'rgba(217,164,65,0.7)',
-  view: 'rgba(233,223,201,0.85)', ping: '#e0341e',
+  view: 'rgba(233,223,201,0.85)', ping: '#e0341e', civ: '#f2c46b',
 };
 
 export function createMinimap(root, { onPan, visible = true } = {}) {
@@ -169,7 +169,7 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
       const h = sim.map.lots?.plots.find(p => p.id === d.house)?.house;
       if (h) ping(X(h.x), Z(h.z), clock + 0.3);
     }
-    for (const a of alerts) ping(X(a.x), Z(a.z), clock, a.kind === 'barricade' ? C.block : C.ping);
+    for (const a of alerts) ping(X(a.x), Z(a.z), clock, a.kind === 'barricade' ? C.block : a.kind === 'civ' || a.kind === 'arc' ? C.civ : C.ping);
     // kamerans ruta
     if (view) {
       g.strokeStyle = C.view; g.lineWidth = 1; g.beginPath();
@@ -193,9 +193,11 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
     update(dt, state) {
       clock += dt;
       if (!on || !state?.sim) return;
-      if (state.sim.map !== mapRef) setMap(state.sim.map, state.sim);
+      // 0.14.1 (speltestet: E4:s karta syntes de första sekunderna i Gnesta): ny bana ritas direkt
+      const fresh = state.sim.map !== mapRef;
+      if (fresh) setMap(state.sim.map, state.sim);
       acc += dt;
-      if (acc < 1 / HZ && !state.force) return;
+      if (acc < 1 / HZ && !state.force && !fresh) return;
       acc = 0;
       draw(state);
     },

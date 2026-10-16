@@ -17,9 +17,19 @@ export function createCivilians(scene) {
   const marks = new THREE.InstancedMesh(markGeo, markM, MARK_MAX);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 6; marks.castShadow = false;
   scene.add(marks);
+  // 0.14.1 (speltestet av 0.14.0: "jag såg aldrig en enda civil"): en gul romb över huvudet som syns genom
+  // husen och mellan zombierna, så att man ser var de civila går.
+  const tagGeo = new THREE.OctahedronGeometry(0.34, 0); tagGeo.scale(1, 1.5, 1);
+  const tagM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95 });
+  const tags = new THREE.InstancedMesh(tagGeo, tagM, MARK_MAX);
+  tags.count = 0; tags.frustumCulled = false; tags.renderOrder = 9; tags.castShadow = false;
+  scene.add(tags);
   const mm = new THREE.Matrix4();
+  let bob = 0;
 
-  function sync(sim, dt) {
+  // viewH: kamerans höjd i meter (view.js setZoom); romben hålls ungefär lika stor på skärmen på varje zoom.
+  function sync(sim, dt, viewH = 52) {
+    const k = Math.max(1, viewH / 40);
     horde.begin();
     const seen = new Set();
     let nm = 0;
@@ -44,7 +54,11 @@ export function createCivilians(scene) {
         if (mv > 1e-4) e.ry += angleDiff(e.ry, Math.atan2(e.x - px, e.z - pz)) * Math.min(1, dt * 12);
         e.phase += mv * 2.6;
         hvRun(parts, e.phase);
-        if (nm < MARK_MAX) { mm.makeTranslation(e.x, 0.06, e.z); marks.setMatrixAt(nm++, mm); }
+        if (nm < MARK_MAX) {
+          mm.makeTranslation(e.x, 0.06, e.z); marks.setMatrixAt(nm, mm);
+          mm.makeScale(k, k, k).setPosition(e.x, 2.2 + 0.35 * k + 0.12 * Math.sin(bob * 4 + c.id), e.z); tags.setMatrixAt(nm, mm);
+          nm++;
+        }
       }
       parts.root.position.set(e.x, 0, e.z);
       parts.root.rotation.y = e.ry;
@@ -52,11 +66,13 @@ export function createCivilians(scene) {
     }
     for (const [id, e] of people) if (!seen.has(id)) { horde.release(e.parts); people.delete(id); }
     marks.count = nm; marks.instanceMatrix.needsUpdate = true;
+    tags.count = nm; tags.instanceMatrix.needsUpdate = true;
+    bob += dt;
     horde.end();
   }
   function clear() {
     for (const e of people.values()) horde.release(e.parts);
-    people.clear(); horde.clear(); marks.count = 0;
+    people.clear(); horde.clear(); marks.count = 0; tags.count = 0;
   }
   return { sync, clear };
 }

@@ -10,7 +10,7 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -24,7 +24,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType } from './sim/sim.js';
+import { barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND } from './sim/placement.js';
@@ -48,6 +48,7 @@ const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
+const TEST = new URLSearchParams(location.search).has('test');
 // Laddningsskydd (index.html): huvudfilen och version.js ska vara samma version. Skiljer de sig har en
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
@@ -129,7 +130,7 @@ async function loadMap(id) {
     sim = createSim(withTweaks(opStartConfig(progress, day, map.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
     view.setSim(sim);
     stage.resize(); rig.apply(); rig.goHome();
-    routeKeys.now = routeKeys.preview = null;
+    routeKeys.now = routeKeys.preview = routeKeys.evac = null;
     sightCache.clear();
     // en bildruta med den nya banan innan skylten tas bort
     await nextFrame();
@@ -137,7 +138,7 @@ async function loadMap(id) {
   })();
   try { await loadingMap; } finally { loadingMap = null; }
 }
-const routeKeys = { now: null, preview: null };
+const routeKeys = { now: null, preview: null, evac: null };
 
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go({ stack: true }) });
 // ---------- minikartan (0.12.0, H100) ----------
@@ -288,6 +289,11 @@ function turnAim(dir) {
 // 0.13.0 (H132): klicka och dra för att sikta (hjulet zoomar igen, Q och E vrider fortfarande i handen).
 // Ett vanligt klick ger riktningen mot hordens väg. Dragningen börjar på pekarens ruta, som står kvar
 // medan man drar; släppet ställer ut pjäsen (eller flytten, eller Rotate) med den riktningen.
+// 0.14.1 (speltestet av 0.14.0: "enheten hamnade där jag släppte"): rutan tas från själva trycket. Förut
+// gällde rutan som pekaren senast räknats på (en gång per bildruta); i låg bildtakt, eller när pekaren
+// flyttats och tryckts i samma bildruta, var den gammal eller saknades, och då tog släppets klick över och
+// ställde pjäsen där man släppte. Medan man drar står "Unit here" vid pjäsens punkt och en linje går
+// därifrån till pekaren.
 const AIM_DRAG_PX = 10;
 let aim = null, suppressClick = false;
 const groundRay = new Raycaster(), groundNdc = new Vector2(), groundHit = new Vector3();
@@ -301,7 +307,10 @@ renderer.domElement.addEventListener('pointerdown', e => {
   suppressClick = false;           // ett gammalt släpp utan klick ska inte äta nästa klick
   if (e.button !== 0 || mode !== 'play') return;
   if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
-  if (!hasCone() || !spot || spot.key < 0 || (placing.move && e.shiftKey)) return;
+  if (!hasCone() || (placing.move && e.shiftKey)) return;
+  const here = picker.pickAt(e.clientX, e.clientY);
+  if (here?.kind === 'spot') spot = spotFor(here.id, here.x, here.z, here.roof, here.rt);
+  if (!spot || spot.key < 0) return;
   aim = { sp: spot, x: spot.x, z: spot.z, sx: e.clientX, sy: e.clientY, drag: false };
   rig.panLock = true;
 }, true);
@@ -322,6 +331,17 @@ addEventListener('pointerup', () => {
   if (placing) { spot = a.sp; placeHere(a.sp.key); }
 });
 const takeSuppress = () => { const s0 = suppressClick; suppressClick = false; return s0; };
+const aimTip = document.createElement('div');
+aimTip.id = 'aimtip'; aimTip.className = 'plate'; aimTip.hidden = true; aimTip.textContent = 'Unit here';
+uiRoot.appendChild(aimTip);
+// Medan man drar för att sikta: linjen från pjäsens punkt till pekaren, och "Unit here" vid punkten.
+function aimLine() {
+  if (!aim?.drag || aim.rotate || !placing) { aimTip.hidden = true; return null; }
+  const p = toScreen(aim.x, aim.z);
+  aimTip.hidden = false; aimTip.style.left = p.sx + 'px'; aimTip.style.top = p.sy + 'px';
+  const g = groundAt(pointer.x, pointer.y);
+  return g ? { pts: [[aim.x, aim.z], [g.x, g.z]], ok: true, via: [] } : null;
+}
 
 // ---------- Rotate (0.13.0, H132) ----------
 // R eller panelens Rotate: skjutvinkeln följer pekaren runt pjäsen; klick (eller dra och släpp) vrider
@@ -439,8 +459,10 @@ function squadKeys(men, r) {
 // 0.12.0 (speltestet av 0.11.0: "placeringen misslyckas utan synligt skäl"): skälet står alltid vid
 // pekaren, både medan saken hålls över en ruta som inte går och en stund efter ett klick som nekades
 // (förut kom klickets skäl uppe i skärmens topp).
-let tipFlash = null;     // { text, until }
-function flashTip(text) { tipFlash = { text, until: performance.now() + 1800 }; }
+// 0.14.1 (speltestet av 0.14.0: "Tile already taken" långt från klicket): skälet står där pekaren var när
+// det hände (pekaren följs i hela fönstret, inte bara över scenen) och flyttar inte med efteråt.
+let tipFlash = null;     // { text, until, x, y }
+function flashTip(text) { tipFlash = { text, until: performance.now() + 1800, x: pointer.x, y: pointer.y }; }
 function updateGhostTip() {
   const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
   const show = !!flash || (placing && spot && !spot.ok);
@@ -457,9 +479,12 @@ function updateGhostTip() {
   if (!show) return;
   const t = flash ?? reasonText(spot.reason);
   if (ghostTip.textContent !== t) ghostTip.textContent = t;
-  ghostTip.style.left = pointer.x + 'px'; ghostTip.style.top = pointer.y + 'px';
+  const at = flash ? tipFlash : pointer;
+  ghostTip.style.left = at.x + 'px'; ghostTip.style.top = at.y + 'px';
 }
-renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
+renderer.domElement.addEventListener('pointermove', e => { shiftHeld = e.shiftKey; });
+addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; }, true);
+addEventListener('pointerdown', e => { pointer.x = e.clientX; pointer.y = e.clientY; }, true);
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
 renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; ghostWhere.hidden = true; spot = null; });
 renderer.domElement.addEventListener('contextmenu', e => { if (placing || rotating) { e.preventDefault(); stopPlacing(); rotating = null; } });
@@ -573,11 +598,11 @@ const pipEls = new Map();
 // 0.12.0 (H118, speltestet av 0.11.0: $ 1 180 kvar som inte gick att använda): när alla platser är
 // tagna och kassan räcker till en uppgradering säger spelet det en gång per dag.
 let spareTold = false;
-let civToldAt = -Infinity, builtTold = false;
+let civToldAt = -Infinity, builtTold = false, climbTold = false;
 // 0.13.0 (H105): uppdraget med de civila uppe i mitten: hur många som är framme och hur många som behövs.
 const evacEl = document.createElement('div');
 evacEl.id = 'evac'; evacEl.className = 'plate'; evacEl.hidden = true;
-evacEl.innerHTML = '<div class="t"></div><div class="n"></div>';
+evacEl.innerHTML = '<div class="t"></div><div class="n"></div><div class="evbar"><i class="safe"></i><i class="lostbar"></i><i class="need"></i></div>';
 uiRoot.appendChild(evacEl);
 let evacKey = '';
 function updateEvac() {
@@ -587,9 +612,28 @@ function updateEvac() {
   const k = `${ev.safe}|${ev.lost}|${ev.out}`;
   if (k === evacKey) return;
   evacKey = k;
+  // 0.14.1 (speltestet av 0.14.0: "0 of 13 safe · 20 on the way" sa inte vem som var 20): en stapel med
+  // de framme (gula), strecket vid så många som behövs, och de förlorade av så många som får falla.
   evacEl.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the civilians reach the ice rink.';
-  const left = ev.total - ev.safe - ev.lost;
-  evacEl.querySelector('.n').innerHTML = `<b>${ev.safe}</b> of ${ev.need} safe · ${left} on the way${ev.lost ? ` · <span class="lost">${ev.lost} lost (max ${ev.total - ev.need})</span>` : ''}`;
+  const maxLost = ev.total - ev.need;
+  evacEl.querySelector('.n').innerHTML = `Evacuated <b>${ev.safe}</b> / ${ev.need} needed · <span class="${ev.lost ? 'lost' : ''}">Lost ${ev.lost} / ${maxLost}</span>`;
+  const pct = n => (100 * n / ev.total).toFixed(2) + '%';
+  evacEl.querySelector('.safe').style.width = pct(ev.safe);
+  evacEl.querySelector('.need').style.left = pct(ev.need);
+  evacEl.querySelector('.lostbar').style.width = pct(ev.lost);
+}
+// En civil har fallit: ett märke där det hände (vid skärmkanten om platsen är utanför bild) och en ping.
+function civilianLost(ev) {
+  alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'civ' });
+  const p = toScreen(ev.x, ev.z), m = 40;
+  const off = p.sx < m || p.sx > innerWidth - m || p.sy < m || p.sy > innerHeight - m;
+  const el = document.createElement('div');
+  el.className = 'civlost' + (off ? ' off' : '');
+  el.textContent = off ? 'Civilian lost, off screen' : 'Civilian lost';
+  el.style.left = Math.max(m + 60, Math.min(innerWidth - m - 60, p.sx)) + 'px';
+  el.style.top = Math.max(m + 20, Math.min(innerHeight - m - 20, p.sy)) + 'px';
+  uiRoot.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
 }
 function updateSpare() {
   // 0.14.0: med kärntrupperna går överskottet till förnödenheter
@@ -617,6 +661,29 @@ function updatePips() {
     tmpV.set(p.x, p.y, p.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === id);
+  }
+}
+
+// ---------- mål utanför vinkeln (0.14.1, granskningen av 0.14, Important 5) ----------
+// En liten gul flagga "R" över en pjäs som stått sysslolös med zombier i sikte men utanför vinkeln
+// (simuleringens idleOutside), en ping på minikartan första gången och klick väljer pjäsen.
+const arcFlags = new Map(), arcPinged = new Map();
+function updateArcFlags() {
+  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.idleOutside) : [];
+  const ids = new Set(want.map(g => g.id));
+  for (const [id, el] of arcFlags) if (!ids.has(id)) { el.remove(); arcFlags.delete(id); }
+  for (const g of want) {
+    let el = arcFlags.get(g.id);
+    if (!el) {
+      el = document.createElement('button'); el.type = 'button'; el.className = 'arcflag'; el.textContent = 'R';
+      el.title = 'Target outside arc. Press R to rotate.';
+      const id = g.id;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
+      pips.appendChild(el); arcFlags.set(g.id, el);
+      if (time - (arcPinged.get(g.id) ?? -Infinity) > 12) { arcPinged.set(g.id, time); alerts.push({ x: g.x, z: g.z, until: time + 4, kind: 'arc' }); }
+    }
+    tmpV.set(g.x, (g.y ?? 0) + 2.6, g.z).project(camera);
+    el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
   }
 }
 
@@ -708,8 +775,9 @@ function handleEvents() {
     else if (ev.t === 'obstacleBroken' && OBSTACLES[ev.type]?.kind === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     // 0.13.0: de civila, pillboxen och lagen på väg
-    else if (ev.t === 'civilianDown') { if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } alerts.push({ x: ev.x, z: ev.z, until: time + 5, kind: 'house' }); }
-    else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first family is inside the ice rink.');
+    else if (ev.t === 'civilianDown') { if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } civilianLost(ev); }
+    else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first civilians are inside the ice rink.');
+    else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
     else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
@@ -939,10 +1007,17 @@ let nowPaths = null;
 let showRoute = true;
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
-  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); return null; }
+  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); return null; }
   // 0.10.2: från varje ingång som används nu (activeSpawns), som pilarna
   const ids = activeSpawns().ids;
   const obsKey = Object.keys(sim.obstacles).join(',');
+  // 0.14.1 (speltestet av 0.14.0): de civilas väg från varje dörr till ishallen, gul, tills evakueringen är avgjord
+  const ev = sim.evac && !evacOutcome(sim.evac) ? sim.dayCfg.evac : null;
+  if (ev) {
+    const houses = [...new Set(ev.groups.map(g => g.house))], eKey = obsKey + '|' + houses.join(',');
+    if (routeKeys.evac !== eKey) { routeKeys.evac = eKey; routeKeys.evacPaths = houses.map(h => { const d = houseDoor(sim.map, h, sim.route); return [[d.x, d.z], ...sim.route.pathFrom(d.cell).map(cellWorld)]; }); }
+    routeLines.set('evac', routeKeys.evacPaths, eKey);
+  } else routeLines.set('evac', null);
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
@@ -1002,7 +1077,8 @@ addEventListener('keydown', e => {
   }
   // en Enter gör en sak (skylten byts i samma tryck: else if)
   if (e.key === 'Enter' && !e.repeat) {
-    const a = { intro: 'go', result: 'opmap', opmap: 'go', menu: 'continue' }[mode];
+    // 0.14.1: förrådet som steg (Deploy), och på förlustskylten är Try again det markerade valet
+    const a = { intro: 'go', result: lastResult?.won === false ? 'retry' : 'opmap', opmap: 'go', menu: 'continue', depot: 'deploy' }[mode];
     if (a && !menu.isOpen()) { e.preventDefault(); sheetAction(a); }
   }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
@@ -1064,6 +1140,7 @@ function setMode(m, makeSheet) {
   // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna. 0.14.0: utanför striden
   // tas alla bort (operationskartan och förrådet täcker skärmen).
   for (const n of uiRoot.querySelectorAll(m === 'play' ? '.note.warn' : '.note')) n.remove();
+  if (m !== 'play') { clearNoteQueue(); for (const n of uiRoot.querySelectorAll('.civlost')) n.remove(); }
   hovered = null;
   mode = m;
   uiRoot.dataset.mode = m;
@@ -1093,9 +1170,16 @@ function showOpMap() {
     onSeen: () => { progress = markRead(progress); save(); },
   }));
 }
+// 0.14.1 (speltestet av 0.14.0: förrådet var ett sidospår man gick förbi, och två "To deployment" i rad):
+// kartan -> Requisition (förrådet för sektorn, steget i flödet) -> Deploy -> dagens intro -> linjen.
 function goSector(id) {
   const d = nextDay(progress, id);
   if (!d) return;
+  showDepot(id, 'opmap', { day: d });
+}
+function deploySector(id) {
+  const d = nextDay(progress, id);
+  if (!d) { showOpMap(); return; }
   progress = selectMap(progress, id); save();
   loadMap(id).then(() => { hud.reset(); startDay(d); });
 }
@@ -1107,17 +1191,17 @@ const DEPOT_ACTS = {
   reassign: (p, uid, sector) => { const r = reassign(p, uid, sector); return { ...r, text: r.ok ? `Reassigned to ${MAPS[sector].name}.` : null }; },
   upgrade: (p, id) => { const r = buyUpgrade(p, id); return { ...r, text: r.ok ? 'Upgrade bought.' : null }; },
 };
-let depotFrom = 'opmap';
-function showDepot(sector, from = 'opmap') {
-  depotFrom = from;
+function showDepot(sector, from = 'opmap', deploy = null) {
+  void from;
   setMode('depot', () => depotSheet(uiRoot, progress, sector, {
     act: (kind, ...args) => {
       const r = DEPOT_ACTS[kind](progress, ...args);
       if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
       return r;
     },
-    onDone: () => (depotFrom === 'result' ? showResult() : showOpMap()),
-  }));
+    onDone: () => showOpMap(),
+    onDeploy: () => deploySector(sector),
+  }, { deploy }));
 }
 // Leveransen som hör till dagen (meddelandet i introt), eller ingenting.
 function releaseLine(mapId, n) {
@@ -1129,7 +1213,7 @@ function startDay(n) {
   if (!cfg) { showOpMap(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; reserveWarned = false;
+  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
@@ -1145,6 +1229,13 @@ function startDay(n) {
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
 function dayFrame() {
   if (sim.route.kind !== 'grid') return null;
+  // 0.14.1 (speltestet av 0.14.0: "familjerna dog utanför bild"): en evakueringsdag börjar med hela de
+  // civilas väg i bild, från husen till ishallen.
+  if (sim.dayCfg.evac) {
+    const b = sim.route.base, pts = [[b.x, b.z]];
+    for (const g of sim.dayCfg.evac.groups) { const d = houseDoor(sim.map, g.house, sim.route); pts.push([d.x, d.z]); }
+    return rig.fit(pts);
+  }
   const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
   const cells = sim.route.paths([first])[0]?.cells ?? [];
   if (!cells.length) return null;
@@ -1197,9 +1288,10 @@ function finishDay() {
   showResult();
 }
 function showResult() {
-  const outro = map.outro ? { text: map.outro.text } : null;
+  const outro = map.outro ? { text: map.outro.text, withdraw: !!map.outro.withdraw, name: map.name } : null;
   setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro }, {
-    onRetry: () => startDay(day),
+    // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
+    onRetry: () => showDepot(map.id, 'result', { day }),
     onOpMap: () => showOpMap(),
     onMenu: showMenu,
   }));
@@ -1279,13 +1371,17 @@ function placePanel() {
   el.style.top = best.y + 'px';
 }
 
+// 0.14.1 (speltestet av 0.14.0: utan ?debug gick klockan inte att driva): med ?test finns bara klockan och
+// läget, inget låses upp och inget ändras i framsteget. ?debug har allt nedan.
+function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } }
+if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; } };
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
 if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
-  advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
+  advance: advanceSim };
 
 // ---------- debugmenyn (0.12.2, Olas önskan) ----------
 // Fem snabba klick på versionsnumret (hörnet eller menyn) öppnar den; med ?debug finns knappen DEBUG.
@@ -1413,6 +1509,7 @@ function tick(now) {
   updateEntry();
   updateBarricades(paused ? 0 : frameDt);
   updatePips();
+  updateArcFlags();
   updateSpare();
   if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
   rig.active = mode === 'play' && !paused;
@@ -1427,7 +1524,7 @@ function tick(now) {
   view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,
-    route: moveRoute() });
+    route: aimLine() ?? moveRoute() });
   view.setZoom(rig.view);
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
