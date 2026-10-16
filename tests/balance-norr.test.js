@@ -119,9 +119,10 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // 0.11.0: bytt avsiktligt. Öppningen söderifrån varje dag (en liten grupp på Sigtunavägen, policyn
 // ställer en Ksp 90 vid parkeringen och säljer den när norr börjat), ingångarna i diset, startkassan
 // +250, nya hp-faktorer och dag 4:s första våg mindre. Se docs/balance-log.md, 0.11.0.
-// 0.12.0: bytt avsiktligt. Vilande smittade i en villa på Vikingavägen dag 1 (H101), och Gnesta-kampanjen
-// före är ändrad. Se docs/balance-log.md, 0.12.0.
-const BEFORE = { hash: 'bd61aa95', length: 72506 };
+// 0.12.0: bytt avsiktligt. Vilande smittade i en villa på Vikingavägen dag 1 (H101), öppningen ur diset
+// (H115), smart flyttar öppningens Ksp 90 i stället för att sälja den (H102), sikten med höjd och Psg 90
+// med sektor (H106-H108), hp 2,8 / 3,1 / 4,05 / 4,1 / 5,45. Se docs/balance-log.md, 0.12.0.
+const BEFORE = { hash: '3d553082', length: 66951 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;

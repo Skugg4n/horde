@@ -515,7 +515,8 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   // eld), så att linjen i norr får en pjäs till utan att 40 % av priset går förlorat.
   if (og && !og.move && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === 'sigW') && !sim.zombies.some(z => !z.dead && z.spawn === 'sigW')) {
     const to = [...plan.guns].reverse().find(k => !sim.guns.some(g => g.cell === k) && checkMove(sim, og.id, k).ok);
-    if (to != null && !process.env.NOMOVE) moveGun(sim, og.id, to); else sell(sim, og.id);
+    // naive (läser inte kartan) säljer som förut; smart flyttar
+    if (to != null && sim.policy === 'smart') moveGun(sim, og.id, to); else sell(sim, og.id);
   }
   lay(plan.lines, 'block');
   let saving = false;
@@ -555,6 +556,7 @@ function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, p
   if (policy !== 'smart' && policy !== 'naive') throw new Error('okänd policy ' + policy);
   const cfg = startConfig(progress, day, mapId);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
+  sim.policy = policy;
   // hv (Gnesta Norr): spelaren som köper Hemvärnet varje dag (HV_NORR), i stället för banans policy
   if (hv) sim.hvPolicy = HV_NORR;
   const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { ...T.planOpts(day, policy), blocks: policy === 'smart' ? T.blocks(day) : [] });

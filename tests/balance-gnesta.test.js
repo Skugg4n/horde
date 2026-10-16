@@ -27,9 +27,12 @@ test('dag 1: smart vinner direkt, naiv tar klart mer skada', () => {
   assert.ok(smart - nv >= 5, `bas kvar: smart ${smart}, naiv ${nv}`);
 });
 
-test('dag 2: smart vinner på 1 till 2 försök, naiv förlorar ibland', () => {
-  logs.forEach((log, i) => assert.ok(winIdx(log, 2) >= 0 && winIdx(log, 2) <= 1, `seed ${i}: index ${winIdx(log, 2)}`));
-  assert.ok(naives.some(n => !n[1].won), 'naiv ska förlora dag 2 i minst en seed');
+// 0.12.0 (H118, speltestet av 0.11.0: dag 2 gick inte att vinna på två försök för en människa): dag 2
+// är mjukare. Smart vinner direkt, och även naiv (aldrig en barrikad) vinner i alla seeds, med mindre
+// kvar än dag 1. En vettig människa ligger mellan dem.
+test('dag 2: smart vinner direkt, och naiv vinner också (en människa ska klara den inom två försök)', () => {
+  logs.forEach((log, i) => assert.equal(winIdx(log, 2), 0, `seed ${i}: index ${winIdx(log, 2)}`));
+  naives.forEach((n, i) => assert.ok(n[1].won && n[1].baseHp >= 2, `seed ${i}: naiv dag 2 ${n[1].won ? n[1].baseHp : 'förlust'}`));
 });
 
 // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dagen förlorad på två minuter): dag 2 är ett
@@ -37,7 +40,7 @@ test('dag 2: smart vinner på 1 till 2 försök, naiv förlorar ibland', () => {
 // klart mindre kvar än dag 1.
 test('dag 2: ett steg upp från dag 1, inte en vägg', () => {
   naives.forEach((n, i) => assert.ok(n[1].waveLog[0].baseHp >= 17, `seed ${i}: naiv efter våg 1 ${n[1].waveLog[0].baseHp}`));
-  assert.ok(naives.filter(n => n[1].won).length >= 3, `naiv vinner dag 2 i ${naives.filter(n => n[1].won).length} av 5`);
+  assert.equal(naives.filter(n => n[1].won).length, 5, `naiv vinner dag 2 i ${naives.filter(n => n[1].won).length} av 5`);
   const d1 = mean(naives.map(n => n[0].baseHp)), d2 = mean(naives.map(n => n[1].baseHp));
   assert.ok(d2 <= d1 - 4, `naiv bas kvar dag 1 ${d1}, dag 2 ${d2}`);
 });
@@ -121,7 +124,10 @@ test('Psg 90 på taken: planen väljer tak som ser den tvingade vägen, policyn 
     assert.equal(plan.roofs.length, 2);
     for (const [i, k] of plan.roofs.entries()) {
       assert.ok(p.roof[k] > 0, 'ett tak');
-      assert.ok(plan.roofCov[i] >= 40, `dag ${d}: taket ser ${plan.roofCov[i]} rutor av vägen`);
+      // 0.12.0 (H106-H108): en utsiktspunkt, och sektorn (75 grader) ser en bit av den tvingade vägen
+      assert.ok(p.perch[k] > 0, 'en utsiktspunkt');
+      assert.ok(plan.roofCov[i] >= 15, `dag ${d}: taket ser ${plan.roofCov[i]} rutor av vägen`);
+      assert.ok(Number.isFinite(plan.roofFacing[i]));
     }
     const before = tries(logs[0], d)[0].before;
     let guns = [];

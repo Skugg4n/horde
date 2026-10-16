@@ -33,8 +33,10 @@ import { logs, naives } from './gnesta-logs.js';
 // dagar (var sex vandrare), dag 2 hp 5,9 (var 5,0), dag 4 4,85 (var 5,1), dag 5 4,3 (var 4,0) och
 // våg 3 något mindre. Se docs/balance-log.md, 0.11.0.
 // 0.12.0: bytt avsiktligt. Vilande smittade i husen (H101): dag 1 och 2 två villor vid stickgatorna
-// (första skottet inom 15 s), överraskningen dag 3 i våg 2, dag 2 hp 6,1 (var 5,9). Se docs/balance-log.md, 0.12.0.
-const BEFORE = { hash: '91ef5357', length: 44595 };
+// (första skottet inom 15 s), överraskningen dag 3 i våg 2. Sikten räknas med husens höjd för alla pjäser
+// (H107), Psg 90 bara på utsiktspunkter med en skjutsektor (H106, H108). Dag 2 hp 5,7 (var 5,9), dag 5
+// 4,0 (var 4,3). Se docs/balance-log.md, 0.12.0.
+const BEFORE = { hash: '94964f8b', length: 41808 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
