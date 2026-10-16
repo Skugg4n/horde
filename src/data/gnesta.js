@@ -794,7 +794,8 @@ export const DAYS = [
 ];
 
 export const gnesta = {
-  id: 'gnesta', name: 'Gnesta', version: GNESTA_VERSION,
+  id: 'gnesta', name: 'Gnesta South', version: GNESTA_VERSION,
+  outro: { text: "Gnesta South holds. They're circling north. Hold Fornminnesvägen and Vikingavägen.", next: 'gnesta-norr' },
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
   // Längst ut 84 m igen (0.11.0, Olas önskan; 68 m i 0.5.2 till 0.10.2). Utzoomad ritas horden lite
   // större (view.js setZoom), och en taktisk minikarta kommer.

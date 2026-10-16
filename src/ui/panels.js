@@ -380,14 +380,17 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 
 // lastDay: sista dagen på banan; då leder vinsten till menyn.
 // cashLeft: pengar kvar när dagen tog slut. De följer inte med, så det sägs ut på vinstskylten.
-export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, mapName = '' }, { onRetry, onNext, onResearch, onMenu }) {
+// outro (0.11.0): sektorns slut, { text, nextName } när sista dagen är vunnen; nextName leder
+// direkt till nästa sektors dag 1 (onNextMap).
+export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel, day, kills, wavesCleared, waves, lastDay, cashLeft = 0, outro = null }, { onRetry, onNext, onNextMap, onResearch, onMenu }) {
   const head = won ? `Day ${day} cleared.` : 'The base fell.';
   // 0.10.1: överlevarnas lärdom fyller på en förlust så att den räcker till en nivå i forskningen
   const lead = won ? `You earned ${intelEarned} research points.`
     : `You keep ${intelEarned} research points${lesson ? `, ${lesson} of them from what the survivors learned` : ''}. Spend them before you try again.`;
-  const done = won && lastDay ? `<p class="lead strong">${mapName} cleared. More maps coming.</p>` : '';
+  const done = won && lastDay && outro ? `<p class="lead strong sector">${outro.text}</p>` : '';
   const main = won
-    ? (lastDay ? `<button type="button" class="act main" data-a="menu"><span class="a">To menu</span></button>`
+    ? (lastDay ? (outro?.nextName ? `<button type="button" class="act main" data-a="nextmap"><span class="a">On to ${outro.nextName}</span><kbd>Enter</kbd></button>`
+                                  : `<button type="button" class="act main" data-a="menu"><span class="a">To menu</span></button>`)
                : `<button type="button" class="act main" data-a="next"><span class="a">Next day</span></button>`)
     : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span></button>`;
   const p = plate(root, 'result' + (won ? ' won' : ' lost'), `
@@ -401,9 +404,10 @@ export function dayResultPanel(root, { won, intelEarned, lesson = 0, totalIntel,
       <div><span>Research points</span><b>${totalIntel}</b></div>
     </div>
     <div class="acts">${main}<button type="button" class="act" data-a="research"><span class="a">Research</span></button></div>
-    ${won && lastDay ? '' : `<button type="button" class="link" data-a="menu">To menu</button>`}`);
+    ${won && lastDay && !outro?.nextName ? '' : `<button type="button" class="link" data-a="menu">To menu</button>`}`);
   on(p.el, '[data-a="retry"]', onRetry);
   on(p.el, '[data-a="next"]', onNext);
+  on(p.el, '[data-a="nextmap"]', onNextMap);
   on(p.el, '[data-a="research"]', onResearch);
   for (const b of p.el.querySelectorAll('[data-a="menu"]')) b.addEventListener('click', onMenu);
   return p;
@@ -490,7 +494,7 @@ export function mainMenu(root, progress, { onDay, onResearch, onMap, version, de
     <div class="logo">HORDE</div>
     <div class="maps">${maps}</div>
     <div class="days ${map.days.length > 3 ? 'five' : ''}">${days}</div>
-    ${allDone ? `<p class="lead strong">${map.name} cleared. More maps coming.</p>` : ''}
+    ${allDone && map.outro ? `<p class="lead strong">${map.outro.text}</p>` : ''}
     <div class="acts"><button type="button" class="act" data-a="research"><span class="a">Research</span><span class="p">You have ${progress.intel}</span></button></div>
     <div class="v">v${version}</div>`);
   for (const b of p.el.querySelectorAll('.day:not(.locked)')) b.addEventListener('click', () => onDay(Number(b.dataset.day)));

@@ -10,7 +10,9 @@ import { MAPS } from '../src/data/maps.js';
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), _m: m }; };
 
 test('menyn har tre banor i ordning: E4, Gnesta, Gnesta Norr med fem dagar', () => {
-  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['E4', 'Gnesta', 'Gnesta Norr']);
+  // 0.11.0: sektornamnen (Olas önskan), id:na oförändrade
+  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Gnesta South', 'Gnesta North']);
+  assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr']);
   assert.equal(MAPS['gnesta-norr'].days.length, 5);
   for (const d of MAPS['gnesta-norr'].days) {
     assert.match(d.intro.title, /^Day \d: /);

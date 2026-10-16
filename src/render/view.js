@@ -417,8 +417,8 @@ export function createView(scene, initialSim) {
   const ringM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.5, depthWrite: false });
   const selRing = new THREE.Mesh(new THREE.RingGeometry(2.05, 2.3, 48), ringM);
   selRing.rotation.x = -Math.PI / 2; selRing.position.y = 0.06; selRing.visible = false;
-  const rangeM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.45, depthWrite: false });
-  const rangeFillM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.06, depthWrite: false });
+  const rangeM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const rangeFillM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.06, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const range = new THREE.Group();
   const rangeEdge = new THREE.Mesh(new THREE.RingGeometry(0.988, 1, 128), rangeM);
   const rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 96), rangeFillM);

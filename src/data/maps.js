@@ -36,7 +36,10 @@ function e4Place(props, path) {
 export const MAPS = {
   riksvagen: {
     id: 'riksvagen',
-    name: 'E4',
+    // 0.11.0 (Olas önskan): sektornamnen i banvalet och på skyltarna; id:na är oförändrade.
+    name: 'Sector E4',
+    // Sektorns slut (0.11.0): texten på vinstskylten efter sista dagen och banan den leder till.
+    outro: { text: 'Sector E4 is secure. The horde is moving on Gnesta. Civilians are trapped in the ice rink. Hold Gnesta South.', next: 'gnesta' },
     camera: { target: [-2, 0], view: 25 },
     path: [[27, 0], [-12, 0]],
     // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång, utan mellanrum.

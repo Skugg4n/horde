@@ -22,17 +22,18 @@ const LINES_MAX = 12;
 const MARK_MAX = 96, MARK_COLOR = '#b9d3dc';
 
 export function createSquadView(scene) {
-  const horde = createHorde(scene);
+  const horde = createHorde(scene, { glow: true });
   const squads = new Map();         // gunId -> { men: Map(i -> e) }
   let sim = null;
-  // 0.10.2 (speltestet av 0.10.1: soldaterna försvann i trädskugga): ringen ritas ovanpå allt (ingen
-  // djuptest), så att den syns genom trädkronorna, ljusare, och med en mörk kant för ljust gräs.
+  // 0.10.2 (speltestet av 0.10.1: soldaterna försvann i trädskugga): ringen ritades ovanpå allt.
+  // H094 (0.11.0, speltestet av 0.10.2: ringarna syntes ovanpå hustaken): djuptest igen, med en liten
+  // förskjutning mot kameran så att den inte flimrar mot marken; i skugga syns gruppen på hjälmbandet.
   const markGeo = new THREE.RingGeometry(0.42, 0.62, 24); markGeo.rotateX(-Math.PI / 2);
-  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.8, depthTest: false, depthWrite: false });
+  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const marks = new THREE.InstancedMesh(markGeo, markM, MARK_MAX);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 6; marks.castShadow = false; marks.name = 'hv-marks';
   const edgeGeo = new THREE.RingGeometry(0.32, 0.74, 24); edgeGeo.rotateX(-Math.PI / 2);
-  const edgeM = new THREE.MeshBasicMaterial({ color: 0x0c0d0b, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false });
+  const edgeM = new THREE.MeshBasicMaterial({ color: 0x0c0d0b, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const edges = new THREE.InstancedMesh(edgeGeo, edgeM, MARK_MAX);
   edges.count = 0; edges.frustumCulled = false; edges.renderOrder = 5; edges.castShadow = false; edges.name = 'hv-marks-edge';
   scene.add(edges, marks);

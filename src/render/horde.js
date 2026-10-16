@@ -17,9 +17,17 @@ const START = 256;   // instanser per del från början; växer med fördubbling
 
 // Ett gemensamt material för alla delar. Färgen kommer per instans, så materialet är vitt.
 // Samma värden som mat() i byggsatsen (matt, platt skuggning).
-function hordeMaterial() {
+// glow (0.11.0, Hemvärnet): delar med nästan vit färg (hjälmbandet) lyser svagt, så att de syns i skugga.
+function hordeMaterial({ glow = false } = {}) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0, flatShading: true });
   m.userData.own = true;
+  if (glow) {
+    m.onBeforeCompile = sh => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n#ifdef USE_INSTANCING_COLOR\n  totalEmissiveRadiance += vColor.rgb * step(0.8, min(min(vColor.r, vColor.g), vColor.b)) * 0.55;\n#endif');
+    };
+    m.customProgramCacheKey = () => 'horde-glow';
+  }
   return m;
 }
 
@@ -47,8 +55,8 @@ function grow(scene, material, b, cap) {
   scene.add(m);
 }
 
-export function createHorde(scene) {
-  const material = hordeMaterial();
+export function createHorde(scene, { glow = false } = {}) {
+  const material = hordeMaterial({ glow });
   const live = new Map();     // geometri + skugga → batch (levande och fallande)
   const dead = new Map();     // geometri → batch (liggande kroppar, ingen skugga)
   let corpsesDirty = true;

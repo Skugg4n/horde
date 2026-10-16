@@ -625,6 +625,7 @@ addEventListener('keydown', e => {
     else if (r.t === 'category' || r.t === 'close') audio.ui('click');
   }
   if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
+  if (e.key === 'Enter' && mode === 'result' && !e.repeat) { e.preventDefault(); sheetAction('nextmap'); }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
   if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
@@ -742,9 +743,13 @@ function finishDay() {
   showResult();
 }
 function showResult() {
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel, mapName: map.name }, {
+  const next = map.outro?.next && MAPS[map.outro.next];
+  const outro = map.outro ? { text: map.outro.text, nextName: next?.name ?? null } : null;
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel, outro }, {
     onRetry: () => startDay(day),
     onNext: () => startDay(day + 1),
+    // 0.11.0: sektorns slut leder rakt in i nästa sektors dag 1 (den är upplåst av vinsten)
+    onNextMap: () => { if (!next) return; progress = selectMap(progress, next.id); save(); loadMap(next.id).then(() => { hud.reset(); startDay(1); }); },
     onResearch: () => showResearch('result'),
     onMenu: showMenu,
   }));

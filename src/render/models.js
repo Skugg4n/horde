@@ -289,7 +289,8 @@ export function grenadeModel() {
 // 0.10.2 (speltestet av 0.10.1: "skytten själv är svår att se"): skytten på taket ligger på en orange
 // signalduk, med en ljus ring runt som ritas ovanpå taket (ingen djuptest), så att platsen syns i
 // spelets zoom även på ett mörkt tak.
-const ROOF_RING = new THREE.MeshBasicMaterial({ color: 0xf0d7a8, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+// H094 (0.11.0): djuptest igen (ringen låg ovanpå grannarnas tak), med förskjutning mot kameran.
+const ROOF_RING = new THREE.MeshBasicMaterial({ color: 0xf0d7a8, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const ROOF_RING_GEO = (() => { const g = new THREE.RingGeometry(1.35, 1.55, 28); g.rotateX(-Math.PI / 2); return g; })();
 function roofMarker(group) {
   const tarp = box(1.9, 0.03, 1.3, mat(0xc8642a), -0.1, 0.02, 0);
@@ -777,6 +778,10 @@ export function hvSoldierModel(seed = 1) {
     strap.rotation.x = -0.06; s.spine.add(strap);
     s.spine.add(box(0.05, b.torsoH * 0.8, 0.02, belt, x, b.torsoH / 2, -td(b.torsoH / 2) - 0.012));
   }
+  // H094 (0.11.0): ett ljust band runt hjälmen, som lyser svagt (squad-view.js glow), så att gruppen
+  // syns i skugga utan ringar som ritas ovanpå taken
+  const band = mesh(geo('cylinder', b.head * 0.64, b.head * 0.64, 0.04, 12, 1, true), mat(P.hvBand), 0, 0.07 + b.head * 0.72 + 0.03, 0.03);
+  band.castShadow = false; s.head.add(band);
   // hjälmöverdraget: lappar ovanpå hjälmen
   for (let i = 0; i < 4; i++) { const t = sbox(r(0.07, 0.11), 0.012, r(0.05, 0.09), cam[1 + (i % 3)], r(-0.06, 0.06), 0.07 + b.head * 0.72 + b.head * 0.62 * 0.85 - 0.012, 0.03 + r(-0.06, 0.06)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
   const metal = mat(P.gunMetal, METAL);
@@ -851,12 +856,13 @@ export function hvDown(s, t) {
 // ligga. Samma gröna och röda spökmaterial som pjäserna. setSquadGhost flyttar plattorna.
 export function squadGhost(radius, max = 6) {
   const g = new THREE.Group();
-  // Ritas ovanpå husen och häckarna (depthTest av), så att ringen och platserna syns i kvarteret.
-  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false });
+  // H094 (0.11.0, speltestet av 0.10.2: ringarna ritades ovanpå hustaken): djuptest med förskjutning
+  // mot kameran, så att husen skymmer ringen som allt annat på marken.
+  const m = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   m.userData.own = true;
   const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.14, radius, 72), m);
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.07; g.add(ring);
-  const fillM = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.08, depthWrite: false, depthTest: false });
+  const fillM = new THREE.MeshBasicMaterial({ color: GHOST_OK, transparent: true, opacity: 0.08, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   fillM.userData.own = true;
   const fill = new THREE.Mesh(new THREE.CircleGeometry(radius, 72), fillM);
   fill.rotation.x = -Math.PI / 2; fill.position.y = 0.06; g.add(fill);

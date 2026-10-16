@@ -548,7 +548,8 @@ export const NORR_TOWN = {
 };
 
 export const gnestaNorr = {
-  id: 'gnesta-norr', name: 'Gnesta Norr', version: NORR_VERSION,
+  id: 'gnesta-norr', name: 'Gnesta North', version: NORR_VERSION,
+  outro: { text: 'Gnesta holds, for now. More sectors coming.' },
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
