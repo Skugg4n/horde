@@ -14,6 +14,12 @@ import { SUPPLIES, VETERAN } from '../src/data/weapons.js';
 
 // E4 utan dagens förberedelser (infanteriet vid bommen, de markerade platserna, den sena Ksp 90): mekaniken för sig.
 const E4_PLAIN = { ...MAPS.riksvagen, days: MAPS.riksvagen.days.map(d => ({ ...d, preset: undefined, late: undefined, spots: undefined })) };
+// Två skilda platser aktiva samtidigt finns inte i kampanjen än (E4 tystnar innan Hagstumosse öppnar): proven för
+// omplaceringen och trycket öppnar E4 igen med egna enheter, som en senare sektor (Mölnbo) skulle vara.
+// e4Day: E4:s nästa dag (3: en dag kvar, så att trycket där står kvar; 4: klar men inte tillbakadragen, så att
+// Hagstumosse samtidigt är öppen och enheter kan skickas mellan dem).
+const twoPlaces = (p, e4Day = 4) => ({ ...p, maps: { ...p.maps, riksvagen: { ...p.maps.riksvagen, unlockedDay: e4Day } }, op: { ...p.op, closed: p.op.closed.filter(id => id !== 'riksvagen'),
+  units: [...p.op.units, ...[0, 1, 2].map(i => ({ uid: 800 + i, type: 'm249', level: 1, sector: 'riksvagen', wins: 0, spent: 0, granted: true }))] } });
 const win = (p, mapId, day, report = { units: [] }) => finishDay(p, { mapId, day, won: true, intelEarned: 50, report }).progress;
 const openSpots = (map, n) => { const pl = placementFor(map), out = []; for (let k = 0; k < pl.n && out.length < n; k++) if (pl.kind[k] === KIND.open && Math.abs(pl.center(k).z) < 12 && Math.abs(pl.center(k).x) < 20 && out.every(q => Math.hypot(pl.center(q).x - pl.center(k).x, pl.center(q).z - pl.center(k).z) > 8)) out.push(k); return out; };
 
@@ -79,9 +85,9 @@ test('rekvisition ur lagret, nivå, påfyllnad, tillbaka till förrådet (cirka 
   assert.equal(refillCost(p, p.op.units.find(x => x.uid === g.uid)), 3 * REFILL_RP.hv);
   p = refill(p, g.uid).progress;
   assert.equal(p.op.units.find(x => x.uid === g.uid).men, 5);
-  // omplacering: bara till en öppen sektor där typen är släppt
+  // 0.16.0 (Olas beslut): Ishallen och Vikingavägen är samma sektor, Hagstumosse; ingen omplacering mellan dem
   const civ = p.op.units.find(x => x.type === 'civ');
-  assert.equal(reassign(p, civ.uid, 'gnesta-norr').ok, true);
+  assert.equal(reassign(p, civ.uid, 'gnesta-norr').reason, 'same');
   assert.equal(reassign(p, civ.uid, 'riksvagen').ok, false);
 });
 
@@ -183,26 +189,29 @@ test('dagens rapport: stupade, förlorade enheter och bonusunderlaget', () => {
   assert.equal(r.baseIntact, true);
 });
 
-test('trycket: en sektor man inte försvarar blir svårare men faller aldrig', () => {
+test('trycket: faserna i Hagstumosse delar trupp och har inget tryck mellan sig; en annan plats blir svårare men faller aldrig', async () => {
+  const { openSectors, currentMap, reassignActive } = await import('../src/meta/operation.js');
   let p = debugReach(newCampaign(), 'gnesta', 5);
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), true, 'Gnesta North öppnar efter South dag 4');
-  assert.equal(sectorStatus(p, 'gnesta-norr'), 'holding');
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'Vikingavägen öppnar efter Ishallen dag 5');
+  assert.deepEqual(openSectors(p), ['gnesta']);
+  assert.equal(reassignActive(p), false, 'en plats: ingen omplacering');
+  const before = unitsIn(p, 'gnesta').map(u => u.uid);
   p = win(p, 'gnesta', 5);
-  assert.equal(p.op.pressure['gnesta-norr'], 1);
-  assert.equal(sectorStatus(p, 'gnesta'), 'held');
-  assert.ok(Math.abs(opStartConfig(p, 1, 'gnesta-norr').hpMul - (1 + PRESSURE_HP)) < 1e-9);
-  // många dagar på en annan sektor: hotad, men aldrig fallen
-  let q = debugReach(newCampaign(), 'gnesta', 4);
-  q = { ...q, maps: { ...q.maps, gnesta: { ...q.maps.gnesta, unlockedDay: 5 } } };
-  q = syncOperation(q);
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), true);
+  assert.equal(currentMap(p, 'gnesta'), 'gnesta-norr');
+  assert.deepEqual(p.op.pressure, {}, 'inget tryck mellan faserna');
+  assert.equal(sectorStatus(p, 'gnesta'), 'holding');
+  for (const uid of before) assert.ok(unitsIn(p, 'gnesta-norr').some(u => u.uid === uid), 'trupperna följer med');
+  assert.equal(opStartConfig(p, 1, 'gnesta-norr').hpMul, 1);
+  // två skilda platser: den man inte strider i blir svårare, hotad, men faller aldrig
+  let q = twoPlaces(p, 3);
+  assert.equal(reassignActive(q), true, 'två skilda platser med dagar kvar: då syns omplaceringen');
   for (let i = 0; i < 9; i++) q = finishDay(q, { mapId: 'gnesta-norr', day: 1, won: true, intelEarned: 0, report: { units: [] } }).progress;
-  assert.equal(sectorStatus(q, 'gnesta'), 'threatened');
-  assert.ok(q.op.pressure.gnesta <= 5);
-  assert.equal(mapState(q, 'gnesta').unlockedDay, 5, 'sektorn står kvar');
+  assert.equal(sectorStatus(q, 'riksvagen'), 'threatened');
+  assert.ok(q.op.pressure.riksvagen <= 5);
+  void PRESSURE_HP;
 });
 
-// 0.16.0 (Olas tillägg): uppgraderingarna syns efter South dag 4, bara för det man har eller fått släppt, och
-// bara de nivåer ledningen släppt.
 test('förrådets uppgraderingar: bara för det man har, i ledningens takt', () => {
   let p = { ...newCampaign(), rp: 5000 };
   assert.equal(upgradeState(p, 'm249Rate').reason, 'locked', 'inget förråd på E4');
@@ -278,4 +287,48 @@ test('avsändaren står en gång: inget meddelande börjar med sitt eget namn, o
     assert.ok(!r.text.startsWith(FROM_NAME[r.from]), r.id);
     assert.ok(!/\bMCF\b/.test(r.text), r.id);
   }
+});
+
+// 0.16.0 (Olas fråga om Reassign): förrådets rad om garnisonen säger exakt det trycket gör i finishDay.
+test('garnisonen: under den rekommenderade stiger trycket dubbelt så fort, och förrådet säger just det', async () => {
+  const { pressureGain, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED } = await import('../src/meta/operation.js');
+  let p = twoPlaces(debugReach(newCampaign(), 'gnesta', 5), 3);
+  assert.equal(unitsIn(p, 'riksvagen').length, garrisonOf('riksvagen'));
+  assert.equal(pressureGain(p, 'riksvagen'), 1);
+  assert.equal(win(p, 'gnesta', 5).op.pressure.riksvagen, 1, 'full garnison: en punkt');
+  // under garnisonen: lika många punkter som pressureGain säger, och som förrådets rad säger
+  p = { ...p, op: { ...p.op, units: p.op.units.filter(u => u.uid !== 800) } };
+  assert.equal(pressureGain(p, 'riksvagen'), PRESSURE_UNDERMANNED);
+  assert.equal(win(p, 'gnesta', 5).op.pressure.riksvagen, PRESSURE_UNDERMANNED);
+  assert.equal(garrisonLine('riksvagen'), `Below ${garrisonOf('riksvagen')}: pressure rises ${PRESSURE_UNDERMANNED} a day instead of 1.`);
+});
+
+// 0.16.0 (Olas speltest: skickade bort trupperna från sektorn som stred härnäst): ångra gratis före Deploy, och
+// en varning när sektorn som strider har färre än garnisonen.
+test('skicka och ta tillbaka gratis före Deploy; varningen när nästa strid har för få', async () => {
+  const { sendUnit, bringBack, deployWarning, garrisonOf } = await import('../src/meta/operation.js');
+  let p = { ...twoPlaces(debugReach(newCampaign(), 'gnesta', 5)), rp: 300 };
+  const rp0 = p.rp, south = unitsIn(p, 'gnesta');
+  assert.ok(south.length >= garrisonOf('gnesta'));
+  assert.equal(deployWarning(p, 'gnesta'), null);
+  // bara typer som är släppta på E4 går dit: Ksp 90-lagen
+  const kspa = south.filter(u => u.type === 'm249');
+  assert.ok(kspa.length >= 2);
+  let log = [];
+  for (const u of kspa) { const r = sendUnit(p, log, u.uid, 'riksvagen'); assert.equal(r.ok, true, r.reason); p = r.progress; log = r.log; }
+  assert.equal(unitsIn(p, 'gnesta').length, south.length - kspa.length);
+  assert.equal(p.rp, rp0, 'inget kostar');
+  const back = bringBack(p, log, kspa[0].uid);
+  assert.equal(back.ok, true);
+  assert.equal(back.progress.op.units.find(u => u.uid === kspa[0].uid).sector, 'gnesta');
+  assert.equal(back.log.length, log.length - 1);
+  let q = p, l = log;
+  for (const e of [...log]) { const r = bringBack(q, l, e.uid); q = r.progress; l = r.log; }
+  assert.deepEqual(unitsIn(q, 'gnesta').map(u => u.uid).sort(), south.map(u => u.uid).sort(), 'alla tillbaka, ingen förlorad');
+  assert.deepEqual(l, []);
+  // varningen: nästa strid med färre än garnisonen
+  const thin = { ...q, op: { ...q.op, units: q.op.units.filter(u => u.sector !== 'gnesta' || u.uid === south[0].uid) } };
+  assert.equal(deployWarning(thin, 'gnesta-norr'), `Hagstumosse · Vikingavägen has 1 of ${garrisonOf('gnesta')} recommended units. Deploy anyway?`);
+  const a = sendUnit(q, [], kspa[0].uid, 'riksvagen'), b = sendUnit(a.progress, a.log, kspa[0].uid, 'gnesta');
+  assert.deepEqual(b.log, []);
 });

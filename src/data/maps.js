@@ -12,7 +12,8 @@ export const MAPS = {
     version: E4.E4_VERSION,
     // Sektorns slut (0.11.0): texten på vinstskylten efter sista dagen och banan den leder till.
     // 0.13.0 (H104): sektorsövergången. Vägspärren tystnar, Gnesta har bara sitt Hemvärn.
-    outro: { text: 'The roadblock at E4 has fallen silent. Gnesta has only its Home Guard.', next: 'gnesta', withdraw: true },
+    // 0.16.0 (textgenomgången, speltestet av 0.14.2: VICTORY bredvid "fallen silent" lästes som en förlust)
+    outro: { text: 'Sector E4 is secure. The horde is moving on Gnesta. Civilians are trapped in the Hagstumosse ice rink.', next: 'gnesta', withdraw: true },
     // 0.15.0 (Olas önskan: "känns som amerikansk öken, inte Sörmland"): banan är trafikplats 137 Lästringe
     // (src/data/e4-lastringe.js). Ett rutnät som Gnesta: kameran går att panorera och zooma, och längst ut
     // ryms hela trafikplatsen på en skärm i 1440 x 900 (camera-rig.js crispView).

@@ -1,7 +1,7 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
 import { newProgress, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
-import { newCampaign, migrateToV4, syncOperation } from './operation.js';
+import { newCampaign, migrateToV4, syncOperation, needsPoolMerge } from './operation.js';
 import { MAPS } from '../data/maps.js';
 import { withLessons } from './lessons.js';
 
@@ -10,6 +10,7 @@ const BROKEN = 'horde.save.broken';
 const V1_COPY = 'horde.save.v1';     // kopia av en v1-sparfil, sparas när den läses första gången
 const V2_COPY = 'horde.save.v2';     // kopia av en v2-sparfil (0.4.x), likadant
 const V3_COPY = 'horde.save.v3';     // kopia av en v3-sparfil (0.5.0 till 0.13.x), likadant (0.14.0)
+const V4_COPY = 'horde.save.v4';     // 0.16.0: kopia av en v4-fil där Gnesta North var en egen sektor (Hagstumosse slås ihop)
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -76,6 +77,7 @@ export function loadProgress(storage) {
   }
   if (isValidMaps(parsed, SAVE_VERSION)) {
     // 0.16.0: en sparfil utan lektioner räknar allt fram till den längst spelade dagen som sett (lessons.js)
+    if (needsPoolMerge(parsed)) keepCopy(s, raw, V4_COPY);
     const p = { ...newProgress(), lessons: undefined, ...parsed };
     return withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } }));
   }

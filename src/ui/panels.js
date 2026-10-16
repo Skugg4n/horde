@@ -7,12 +7,12 @@ import { OBSTACLES } from '../data/obstacles.js';
 import { weaponStats, upgradeCost, MAX_LEVEL, weaponRefund, lineRefund, grenadeStats, tierOf } from '../sim/stats.js';
 import { researchNode } from '../data/research.js';
 import { ICONS } from './icons.js';
-import { SHOP, BUY_MENU, shopItem, hotkeyOf, dayMenu } from '../data/shop.js';
+import { SHOP, BUY_MENU, shopItem, hotkeyOf, dayMenu, usesChords } from '../data/shop.js';
 import { inArsenal } from '../sim/stats.js';
 import { buyState, inBar } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
-import { movePhase, gunCount, canMoveType, frontage } from '../sim/sim.js';
+import { movePhase, gunCount, canMoveType, frontage, allowed } from '../sim/sim.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -24,8 +24,9 @@ const REASONS = {
   'brant': 'Roof too steep. Try a flat roof or the ridge by a chimney',
   'brant-skorsten': 'Roof too steep, try the ridge by the chimney',
   'nära': 'Too close to another gun',
-  'fullt': 'All gun positions taken (research More positions)',
-  'fulltHv': 'All squads out (research More squads)',
+  // 0.16.0 (textgenomgången): forskningen finns inte längre
+  'fullt': 'Frontage full.',
+  'fulltHv': 'Frontage full.',
   'skog': 'In the forest',
   'vatten': 'In the water',
   'hinder': 'Something in the way',
@@ -56,7 +57,11 @@ const REASONS = {
   // 0.14.0 (Operation Södermanland)
   'reserv': 'None of those left in reserve',
   'uppställd': 'Units deploy before the first wave',
-  'front': 'Frontage full: command allows no more units here',
+  'front': 'Frontage full.',
+  // 0.16.0 (inlärningen)
+  'markerad': 'Only on the marked spots.',
+  'markerad-hinder': 'Only on the marked spots.',
+  'låst': 'Not yet.',
   'depå': 'Between days, at the depot',
 };
 export function reasonText(r) {
@@ -152,9 +157,13 @@ export function buildBar(root, actions) {
     // 0.14.0: med kärntrupperna är Units reserven att ställa ut (bara i uppställningen), Defenses förnödenheterna
     const menu = dayMenu(id => inBar(sim, id));
     const deploy = sim.core && menu.some(c => c.id === 'units');
+    // 0.16.0 (Olas beslut 3): en rad kort med en siffra var; kategorierna och tvåstegsvalet bara med fler än 9
+    // kort. Frontbreddens räknare kommer med frontbredden (North dag 3).
+    const chords = usesChords(menu), counter = !sim.core || allowed(sim, 'frontage');
     el.classList.toggle('deploy', deploy);
-    el.innerHTML = `<div class="k">${sim.core ? (deploy ? 'DEPLOY' : 'SUPPLIES') : 'BUY'} <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span></div><div class="groups">${menu.map((c, ci) => `
-      <div class="grp" data-cat="${ci + 1}"><div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div><div class="cards">${c.items.map(x => {
+    el.classList.toggle('flat', !chords);
+    el.innerHTML = `<div class="k">${sim.core ? (deploy ? 'DEPLOY' : 'SUPPLIES') : 'BUY'}${counter ? ` <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
+      <div class="grp" data-cat="${ci + 1}">${chords ? `<div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div>` : ''}<div class="cards">${c.items.map(x => {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
       <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
@@ -174,7 +183,7 @@ export function buildBar(root, actions) {
   function update(sim, holding, show, openCat = null, armed = false) {
     el.hidden = !show;
     if (!show) return;
-    const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day + '|' + (sim.core ? sim.wavesStarted > 0 : '') + '|' + (sim.reserve ? [...new Set(sim.reserve.map(u => u.type))].sort().join(',') : '');
+    const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day + '|' + (sim.core ? sim.wavesStarted > 0 : '') + '|' + (sim.reserve ? [...new Set(sim.reserve.map(u => u.type))].sort().join(',') : '') + '|' + dayMenu(id => inBar(sim, id)).flatMap(c => c.items.map(i => i.id)).join(',');
     if (k !== key || barR < 0) { key = k; render(sim); catKey = ''; measure(); }
     const ck = openCat + ':' + armed;
     if (ck !== catKey) {
@@ -182,7 +191,8 @@ export function buildBar(root, actions) {
       el.classList.toggle('choosing', openCat != null);
       for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', !!armed && Number(gEl.dataset.cat) === openCat); }
     }
-    set(el.querySelector('[data-n]'), sim.core ? `${sim.guns.length} / ${Number.isFinite(frontage(sim)) ? frontage(sim) : '-'}` : `${gunCount(sim)} / ${sim.maxGuns}`);
+    const nEl = el.querySelector('[data-n]');
+    if (nEl) set(nEl, sim.core ? `${sim.guns.length} / ${Number.isFinite(frontage(sim)) ? frontage(sim) : '-'}` : `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
       const sk = st.state + ':' + st.need + ':' + (holding === id) + ':' + (st.count ?? '');
@@ -202,7 +212,7 @@ export function buildBar(root, actions) {
         // 0.14.0: en kärntrupp kostar inget; kortet säger hur många som väntar i reserven
         const unit = st.count != null;
         set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : unit ? `×${st.count} ready` : money(st.cost));
-        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? (sim.core ? REASONS.front : WEAPONS[id]?.squad ? 'All squads out' : 'All gun positions taken') : unit ? 'Your unit. Free to deploy before the first wave.' : '');
+        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? REASONS.front : unit ? 'Your unit. Place it on the map.' : '');
       }
     }
   }
@@ -240,8 +250,10 @@ export function gunPanel(root, gunId, sim, actions) {
   function render(s, g) {
     if (g.squad) { renderSquad(s, g); return; }
     const w = g.weapon, def = WEAPONS[w.type];
-    const gs = grenadeStats(s.research);
-    ui.head.innerHTML = `<div class="t">${def.name}${w.vet ? ' <span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}${w.ammo ? ' · Extra ammo' : ''}${def.cone ? ` · ${def.cone}° arc` : ''}</div>`;
+    // 0.16.0 (inlärningen): panelens knappar kommer när de är upplåsta. Före E4 dag 3 bara namn och hälsa.
+    const can = f => allowed(s, f);
+    const gs = can('unitSupplies') ? grenadeStats(s.research) : null;
+    ui.head.innerHTML = `<div class="t">${def.name}${w.vet ? ' <span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}${w.ammo ? ' · Extra ammo' : ''}${def.cone && can('rotate') ? ` · ${def.cone}° arc` : ''}</div>`;
     // Granatlådan: en rad till när Grenades är forskat. Med låda står det vad den gör i stället.
     const kitRow = !gs ? '' : w.kit
       ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute, where it can see.</p>`
@@ -250,13 +262,16 @@ export function gunPanel(root, gunId, sim, actions) {
     const core = w.uid != null;
     // 0.14.1 (granskningen av 0.14, Important 5): målen står utanför vinkeln (simuleringens idleOutside)
     const outside = g.idleOutside ? '<p class="info outside">Target outside arc. Press R to rotate.</p>' : '';
-    ui.body.innerHTML = `${outside}${statLine(weaponStats(w.type, w.level, s.research))}
-      <div class="acts">
-        ${core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`}
-        ${canMoveType(w.type) ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : ''}
-        ${def.cone ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : ''}
-        ${core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`}
-      </div>${def.mounted ? `<p class="info mounted">${core ? "Mounted, can't move." : "Mounted, can't move. Sell it to free the spot."}</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}<div class="acts kitrow">${kitRow}${supplyRow(w, false)}</div>${core ? '<p class="info kit">Levels are bought at the depot, between days.</p>' : ''}`;
+    const minimal = core && !can('rotate');
+    const acts = [
+      core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
+      canMoveType(w.type) && can('move') ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : '',
+      def.cone && can('rotate') ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : '',
+      core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
+    ].join('');
+    ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}`
+      : `${can('rotate') ? outside : ''}${statLine(weaponStats(w.type, w.level, s.research))}
+      ${acts ? `<div class="acts">${acts}</div>` : ''}${def.mounted && (!core || can('move')) ? `<p class="info mounted">${core ? "Mounted, can't move." : "Mounted, can't move. Sell it to free the spot."}</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}${can('unitSupplies') ? `<div class="acts kitrow">${kitRow}${supplyRow(w, false)}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     wireSupplies();
     const kit = ui.body.querySelector('[data-a="kit"]');
@@ -313,13 +328,17 @@ export function gunPanel(root, gunId, sim, actions) {
     const core = w.uid != null;
     ui.head.innerHTML = `<div class="t">${WEAPONS[w.type].name}${w.vet ? ' <span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}</div><div class="sub">Squad · Level ${w.level} of ${MAX_LEVEL} · ${standing} of ${g.soldiers.length} standing${w.sandbags ? ' · Dug in' : ''}</div>`;
     const gunName = { hv: 'Ak 4', inf: 'Ak 5', civ: 'Rifles' }[w.type] ?? 'Rifles';
-    ui.body.innerHTML = `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>
+    // 0.16.0 (textgenomgången): förklaringen om de stupade står inte i stridspanelen längre (tips när det
+    // händer första gången, och Field manual); knapparna kommer när de är upplåsta
+    const can = f => allowed(s, f), minimal = core && !can('rotate');
+    const acts = [
+      core ? '' : `<button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
+      can('move') ? '<button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>' : '',
+      core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
+    ].join('');
+    ui.body.innerHTML = minimal ? '' : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>
       <ul class="men">${men}</ul>
-      <div class="acts">
-        ${core ? '' : `<button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`}
-        <button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>
-        ${core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`}
-      </div>${!core && standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}<div class="acts kitrow">${supplyRow(w, true)}</div>${core ? `<p class="info kit">${standing < g.soldiers.length ? 'The fallen are replaced at the depot (RP), and only stay lost if you win the day.' : 'Levels and replacements are bought at the depot, between days.'}</p>` : ''}`;
+      ${acts ? `<div class="acts">${acts}</div>` : ''}${!core && standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}${can('unitSupplies') ? `<div class="acts kitrow">${supplyRow(w, true)}</div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
     wireSupplies();
     upB?.addEventListener('click', () => { const r = actions.upgrade(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
@@ -329,7 +348,7 @@ export function gunPanel(root, gunId, sim, actions) {
       else actions.close();
     });
     if (rf) rf.addEventListener('click', () => { const r = actions.reinforce(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
-    ui.body.querySelector('[data-a="move"]').addEventListener('click', () => actions.startMove(gunId));
+    ui.body.querySelector('[data-a="move"]')?.addEventListener('click', () => actions.startMove(gunId));
     actions.range({ x: g.x, z: g.z, r: SQUAD.radius, id: g.id });
   }
 
@@ -468,16 +487,13 @@ export function arrivedLine(map, day) {
   const fresh = now.filter(id => !before.includes(id)).map(id => WEAPONS[id]?.name ?? OBSTACLES[id]?.name).filter(Boolean);
   return fresh.length ? `<p class="lead arrived">New today: ${fresh.join(', ')}.</p>` : '';
 }
-// 0.14.0: introt säger förnödenheterna, kärntrupperna som väntar i reserven och trycket i sektorn.
-// op: { units, pressure (procent tuffare), supplies }.
-export function dayIntro(root, dayCfg, cash, onGo, { arrived = '', op = null } = {}) {
-  const tail = op
-    ? `<p class="note-line">Supplies: ${money(cash)}. ${op.units ? `${op.units} unit${op.units > 1 ? 's' : ''} in reserve: deploy them before the first wave.` : 'No units here: requisition at the depot.'}</p>${op.pressure ? `<p class="lead intel">The sector is under pressure: they are ${op.pressure} % tougher here.</p>` : ''}`
-    : `<p class="note-line">New day: you start with ${money(cash)} and no guns out. Research carries over.</p>`;
+// 0.16.0 (inlärningen, designen avsnitt 2.2 och 6): introt är en rubrik och en rad, högst 12 ord. Ledningens
+// meddelande står bara på kartan, förnödenheterna och reserven i HUD:en, och lektionerna lär ut resten.
+export function dayIntro(root, dayCfg, cash, onGo) {
+  void cash;
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
-    <p class="lead">${dayCfg.intro.text}</p>${dayCfg.objective ? `<p class="lead strong objective">${dayCfg.objective}</p>` : ''}${arrived}${intelLine(dayCfg)}
-    ${tail}
+    <p class="lead">${dayCfg.intro.text}</p>
     <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;
@@ -487,7 +503,10 @@ export function dayIntro(root, dayCfg, cash, onGo, { arrived = '', op = null } =
 // och vad som händer med styrkan: vid vinst står förlusterna kvar, vid förlust börjar dagen om med den
 // styrka man gick in med. rp: src/meta/operation.js rpForAttempt. losses: [{ name, men, destroyed }].
 // outro: sektorns slut när sista dagen är vunnen.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, lastDay, outro = null, lostBy = null, evac = null, losses = [] }, { onRetry, onOpMap, onMenu }) {
+// 0.16.0 (inlärningen): RP syns först när förrådet öppnar (showRp), på E4 bara VICTORY och radion. next: knappen
+// efter en vunnen dag ('Operations map', eller 'Next day' innan kartan är upplåst). manualHint: efter en förlust
+// ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
@@ -500,23 +519,24 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     if (rp.factor < 1) rows.push([`Attempt ${attempt}: ×${rp.factor}`, rp.earned - rp.base - rp.objective]);
     for (const b of rp.bonuses) rows.push([b.label, b.rp]);
   }
-  const rpTable = rp ? `<div class="rptab">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v >= 0 ? '+' : ''}${v}</b></div>`).join('')}<div class="tot"><span>Requisition points</span><b>+${rp.total}</b></div></div>` : '';
+  if (!showRp) rows.length = 0;
+  const rpTable = rp && showRp ? `<div class="rptab">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v >= 0 ? '+' : ''}${v}</b></div>`).join('')}<div class="tot"><span>Requisition points</span><b>+${rp.total}</b></div></div>` : '';
   const lost = losses.filter(l => l.men || l.destroyed);
   const lossLine = won
-    ? (lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at the depot.</p>` : '<p class="note-line">No losses. Survivors gain experience.</p>')
-    : '<p class="note-line">The day starts over with the force you went in with. The RP you earned are yours: spend them at the depot before you try again.</p>';
+    ? (!depot ? '' : lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at the depot.</p>` : '')
+    : `<p class="note-line">The day starts over with the force you went in with.${showRp && depot ? ' Spend your RP at the depot first.' : ''}</p>${manualHint ? `<button type="button" class="link mhint" data-a="manual">Field manual: ${manualHint.title}</button>` : ''}`;
   // 0.14.2 (speltestet av 0.14.1: "VICTORY" följt av "The roadblock at E4 has fallen silent" lästes fortfarande
   // som en förlust): rubriken står ensam, sedan siffrorna, och sist sektorns berättelse som ett radiomeddelande
   // från ledningen i en egen ruta, tydligt skild från resultatet.
   const done = sectorDone ? `<p class="lead strong">Day ${day} held. ${outro.name ?? 'The sector'} is done.</p>` : '';
   const story = sectorDone ? `<div class="radio"><div class="rh"><i></i>Radio · ${outro.from ?? 'Försvarsmakten'} to all units</div>
-      <p>${outro.text}${outro.withdraw ? ' The army pulls back what is left of the roadblock. The RP you spent on it are returned.' : ''}</p><div class="rf">Out.</div></div>` : '';
+      <p>${outro.text}</p><div class="rf">Out.</div></div>` : '';
   // 0.14.2 (speltestet: "Waves cleared 1 of 3" på Gnesta trots "Day 1 held"): en evakueringsdag tar slut när
   // de civila är inne, så vågorna räknas inte där; i stället hur många som kom fram.
   const waveFact = evac && won ? `<div><span>Civilians safe</span><b>${evac.safe} of ${evac.total}</b></div>`
     : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
   const main = won
-    ? `<button type="button" class="act main" data-a="opmap"><span class="a">Operations map</span><kbd>Enter</kbd></button>`
+    ? `<button type="button" class="act main" data-a="opmap"><span class="a">${next}</span><kbd>Enter</kbd></button>`
     : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">Operations map</span></button>`;
   const p = plate(root, 'result' + (won ? ' won' : ' lost') + (sectorDone ? ' victory' : ''), `
     <div class="h">${head}</div>
@@ -524,17 +544,18 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     ${done}
     ${rpTable}
     ${lossLine}
-    <div class="facts">
+    ${sectorDone && !showRp ? '' : `<div class="facts">
       <div><span>Kills</span><b>${kills}</b></div>
       ${waveFact}
-      <div><span>RP to spend</span><b>${totalRp}</b></div>
-    </div>
+      ${showRp ? `<div><span>RP to spend</span><b>${totalRp}</b></div>` : ''}
+    </div>`}
     ${story}
     <div class="acts">${main}</div>
     <button type="button" class="link" data-a="menu">To menu</button>`);
   on(p.el, '[data-a="retry"]', onRetry);
   on(p.el, '[data-a="opmap"]', onOpMap);
   on(p.el, '[data-a="menu"]', onMenu);
+  on(p.el, '[data-a="manual"]', () => onManual?.(manualHint?.id));
   return p;
 }
 

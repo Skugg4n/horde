@@ -102,7 +102,8 @@ test('Gnesta dag 1 är evakueringen och E4 har inget Hemvärn', () => {
   assert.ok(d1.evac.need <= d1.evac.groups.reduce((a, g) => a + g.count, 0));
   assert.ok(!MAPS.riksvagen.arsenal.includes('hv'));
   for (const t of ['inf', 'm249', 'm2', 'epa']) assert.ok(MAPS.riksvagen.arsenal.includes(t), t);
-  assert.match(MAPS.riksvagen.outro.text, /The roadblock at E4 has fallen silent\. Gnesta has only its Home Guard\./);
+  // 0.16.0 (textgenomgången och Olas namn): säkrad, inte tystnad; Hagstumosse är nästa sektor
+  assert.match(MAPS.riksvagen.outro.text, /^Sector E4 is secure\..*Hagstumosse/);
   void gnestaPlan; void daySpawns;
 });
 

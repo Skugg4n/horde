@@ -7,7 +7,7 @@
 //           'show' hård paus, släpps med klick, Enter eller Space
 //           'caption' ingen paus, tonas bort efter 4 s (bara Tips: On)
 //   when    när steget börjar (main.js lessonCond): 'start' före första vågen, 'afterWave1' efter första
-//           vågen, 'ready:TYP' en enhet av typen har kommit fram, 'placing:TYP' i handen, 'placed:TYP' utställd,
+//           vågen, 'arrived:TYP' en sen enhet av typen har kommit fram, 'placing:TYP' i handen, 'placed:TYP' utställd,
 //           'obstacle:TYP' ett hinder av typen ligger ute, 'ping' första pingen på minikartan, 'chords'
 //           köpraden har kategorier. Flera villkor med '&'.
 //   done    villkoret som släpper ett 'step' (samma språk; '|' betyder eller). 'placed:TYP:N' minst N.
@@ -21,7 +21,7 @@ export const LESSONS = {
     { id: 'e4-1.pick', kind: 'step', when: 'start', done: 'placing:m249|placed:m249', target: { ui: '#buildbar .card[data-id="m249"]' }, text: 'Your Ksp 90. Click it.', manual: 'place' },
     { id: 'e4-1.spot', kind: 'step', when: 'placing:m249', done: 'placed:m249', target: { world: 'marked' }, text: 'Click a marked spot by the road.' },
     { id: 'e4-1.start', kind: 'step', when: 'placed:m249', done: 'waveStarted', target: { ui: '#go' }, text: 'Ready. Start the wave.', keys: ['Space'], manual: 'start' },
-    { id: 'e4-1.second', kind: 'step', when: 'ready:m249', done: 'placing:m249|placed:m249:2', target: { ui: '#buildbar .card[data-id="m249"]' }, text: 'A second Ksp 90. Place it too.' },
+    { id: 'e4-1.second', kind: 'step', when: 'arrived:m249', done: 'placing:m249|placed:m249:2', target: { ui: '#buildbar .card[data-id="m249"]' }, text: 'A second Ksp 90. Place it too.' },
   ],
   'e4-2': [
     { id: 'e4-2.supplies', kind: 'show', when: 'start', target: { ui: '#res .cash-box' }, text: 'Supplies. Spend them on defences during the day.', manual: 'supplies' },
@@ -67,9 +67,11 @@ export const LESSONS = {
     { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },
   ],
   'after-gn-4': [
-    { id: 'after-gn-4.north', kind: 'show', when: 'opmap', target: { ui: '.opmap canvas' }, text: 'Two sectors now. The one you skip gets tougher.', manual: 'sectors' },
     { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
-    { id: 'after-gn-4.reassign', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="move"]' }, text: 'Reassign units between sectors here. It costs nothing.' },
+  ],
+  // 0.16.0 (Olas beslut, "Gnesta = en sektor"): samma plats, kartan vidgas, trupperna följer med
+  'after-gn-5': [
+    { id: 'after-gn-5.north', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Same district, wider map. Your units carry over.', manual: 'sectors' },
   ],
   'gn-5': [
     { id: 'gn-5.sup', kind: 'show', when: 'start', target: { world: 'gun' }, text: 'Click a unit: ammo, sandbags or a grenade kit.', manual: 'unitSupplies' },
@@ -151,7 +153,7 @@ export const MANUAL = [
   { id: 'depot', group: 'Operation', title: 'The depot', text: 'Train your units a level, refill the fallen, requisition what command has released, and buy upgrades. Only between days.' },
   { id: 'requisition', group: 'Operation', title: 'Requisition', text: 'Command releases a fixed number of units for each sector. RP is the price. What is not released cannot be bought.' },
   { id: 'upgrades', group: 'Operation', title: 'Upgrades', text: 'An upgrade improves every unit of that type you have. Command releases them a few at a time.' },
-  { id: 'sectors', group: 'Operation', title: 'Sectors', text: 'Units can be reassigned between open sectors for free. A sector you neglect grows tougher.' },
+  { id: 'sectors', group: 'Operation', title: 'Sectors', text: 'A sector is one place with one force. Hagstumosse starts at the ice rink and widens north to Vikingavägen; your units carry over. Separate sectors, like E4, have their own.' },
   { id: 'pings', group: 'Operation', title: 'Pings', text: 'A ping on the map means trouble there: a barricade failing, a civilian down, a gun aimed wrong. Click it to look.' },
   { id: 'frontage', group: 'Operation', title: 'Frontage', text: 'Only so many units fit on the line in a sector. Choose who goes; the rest wait in reserve.' },
   { id: 'early', group: 'Operation', title: 'Call early', text: 'Call the next wave before the countdown ends for bonus supplies. Mid-wave it stacks the waves.', keys: ['Space'] },

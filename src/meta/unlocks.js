@@ -19,7 +19,7 @@
 //   move                 Move (M) och waypoints, South dag 4
 //   upgrades             förrådets uppgraderingar, efter South dag 4
 //   unitSupplies         ammunition, sandsäckar och granatlådor på enheten, South dag 5
-//   sectors              två sektorer: tryck, omplacering och Return, efter South dag 4 (då öppnar North)
+//   return               Return till förrådet, efter South dag 4. ('sectors': vilande, se src/data/depot.js SECTORS)
 //   pings, frontage      minikartans pingar framhävda (North dag 2), frontbredden och reserven (North dag 3)
 import { MAPS } from '../data/maps.js';
 import { mapState, mapUnlocked } from './progress.js';
@@ -36,11 +36,12 @@ export const STAGES = [
   { id: 'gn-3', map: 'gnesta', day: 3, adds: ['dormant', 'early'] },
   { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition'] },
   { id: 'gn-4', map: 'gnesta', day: 4, adds: ['move'] },
-  // Gnesta North öppnar när South dag 4 är vunnen (0.14.0), så två sektorer är öppna samtidigt: trycket och
-  // omplaceringen kommer då, på kartan, medan uppgraderingarna kommer i förrådet (designen lade dem mellan
-  // South 4 och 5 respektive 5 och North, men North finns redan efter dag 4).
-  { id: 'after-gn-4', after: ['gnesta', 4], adds: ['upgrades', 'sectors'] },
+  // 0.16.0: Return till förrådet kommer med uppgraderingarna. Omplaceringen och trycket mellan sektorerna
+  // ('sectors') är vilande tills två skilda platser är aktiva samtidigt (Hagstumosse är en sektor).
+  { id: 'after-gn-4', after: ['gnesta', 4], adds: ['upgrades', 'return'] },
   { id: 'gn-5', map: 'gnesta', day: 5, adds: ['unitSupplies'] },
+  // Hagstumosse · Vikingavägen: samma sektor, kartan vidgas norrut (Olas beslut 2026-10-16, "Gnesta = en sektor")
+  { id: 'after-gn-5', after: ['gnesta', 5], adds: [] },
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: [] },
   { id: 'gnn-2', map: 'gnesta-norr', day: 2, adds: ['pings'] },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },

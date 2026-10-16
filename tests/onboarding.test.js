@@ -43,7 +43,9 @@ test('mellan dagarna: kartan efter E4, förrådet efter South dag 2, och sedan e
   p = debugReach(p, 'gnesta', 4);
   assert.ok(metaFeatures(p).has('requisition') && !metaFeatures(p).has('upgrades'));
   p = debugReach(p, 'gnesta', 5);
-  assert.ok(metaFeatures(p).has('upgrades') && metaFeatures(p).has('sectors'));
+  assert.ok(metaFeatures(p).has('upgrades') && metaFeatures(p).has('return'));
+  // 0.16.0 (Olas beslut, "Gnesta = en sektor"): omplaceringen mellan sektorer är vilande
+  assert.ok(!metaFeatures(p).has('sectors'));
 });
 
 test('texterna: högst 12 ord per steg och tips, 40 per uppslag, inga tankstreck', () => {
@@ -149,4 +151,28 @@ test('E4 dag 3: pillboxen står svetsad från början; South dag 5: förnödenhe
   const k = [...Array(s5.place.n).keys()].find(q => build(s5, q, 'm249').ok);
   assert.ok(k != null);
   assert.equal(buySupply(s5, s5.guns[0].id, 'ammo').ok, true);
+});
+
+// 0.16.0 (Olas beslut, "Gnesta = en sektor"): Gnesta South och North blir Hagstumosse med en gemensam trupp.
+test('sparfilen: South och North slås ihop till Hagstumosse, ingen enhet förloras, kopian sparas', () => {
+  let p = debugReach(newCampaign(), 'gnesta', 5);
+  const units = p.op.units.map(u => ({ ...u }));
+  // en sparfil från 0.15: hälften av trupperna omplacerade till North, lager och tryck per bana
+  const old = { ...p, maps: { ...p.maps, 'gnesta-norr': { unlockedDay: 2, attempts: { 1: 1 } } },
+    op: { ...p.op, units: units.map((u, i) => (u.sector === 'gnesta' && i % 2 ? { ...u, sector: 'gnesta-norr' } : u)), stock: { gnesta: { m249: 1 }, 'gnesta-norr': { ksp58: 2, m249: 1 } }, pressure: { 'gnesta-norr': 2, gnesta: 1 } } };
+  delete old.lessons;
+  const s = memory(), raw = JSON.stringify(old);
+  s.setItem('horde.save', raw);
+  const q = loadProgress(s);
+  assert.equal(s.getItem('horde.save.v4'), raw, 'kopian av den gamla filen');
+  assert.ok(q.op.units.length >= units.length, 'inga enheter förlorade (Vikingavägens leverans kommer till)');
+  assert.ok(!q.op.units.some(u => u.sector === 'gnesta-norr'));
+  for (const u of units) assert.ok(q.op.units.some(x => x.uid === u.uid), 'uid ' + u.uid);
+  assert.equal(q.op.stock.gnesta.m249, 2);
+  assert.ok(q.op.stock.gnesta.ksp58 >= 2);
+  assert.equal(q.op.stock['gnesta-norr'], undefined);
+  assert.equal(q.op.pressure['gnesta-norr'], undefined, 'inget tryck mellan faserna');
+  // Vikingavägen spelades redan (öppnade efter dag 4 före 0.16.0): står kvar öppen
+  assert.deepEqual(q.maps['gnesta-norr'], { unlockedDay: 2, attempts: { 1: 1 } });
+  assert.equal(loadProgress(s).op.units.length, q.op.units.length, 'en andra läsning ändrar inget');
 });

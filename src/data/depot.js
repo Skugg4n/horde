@@ -17,17 +17,24 @@
 // pillboxen och Ksp 88), Gnesta South dag 1 de civila, Hemvärnet och Ksp 90 dag 2, Ksp 58 och Ak 5 dag 3,
 // Psg 90 och pillboxen dag 4, Ksp 88 dag 5, och infanteriet på Gnesta North från dag 3.
 
+// 0.16.0 (Olas beslut 2026-10-16, "Gnesta = en sektor"): Gnesta South och Gnesta North är samma plats, stadsdelen
+// Hagstumosse (ishallen, Sigtunavägen, Fornminnesvägen och Vikingavägen). En sektor med två faser och en gemensam
+// trupp: maps är banorna i ordning (id:na är oförändrade, så sparfilerna fungerar). Enheternas sector är sektorns
+// id ('gnesta'); en sparfil med enheter i 'gnesta-norr' flyttas hit (src/meta/operation.js poolOf).
+// Omplaceringen och garnisonen finns kvar i koden men visas bara när två skilda platser är aktiva samtidigt.
 export const SECTORS = [
   // x, y: platsen på operationskartan (0..1 över kartans yta, src/ui/operation.js)
-  { id: 'riksvagen', name: 'Sector E4', short: 'E4', x: 0.60, y: 0.50 },
-  { id: 'gnesta', name: 'Gnesta South', short: 'Gnesta S', x: 0.47, y: 0.33 },
-  { id: 'gnesta-norr', name: 'Gnesta North', short: 'Gnesta N', x: 0.45, y: 0.24 },
+  { id: 'riksvagen', name: 'Sector E4', short: 'E4', x: 0.60, y: 0.50, maps: ['riksvagen'] },
+  { id: 'gnesta', name: 'Hagstumosse', full: 'Hagstumosse · Gnesta', short: 'Hagstumosse', x: 0.46, y: 0.29, maps: ['gnesta', 'gnesta-norr'] },
   // senare sektorer, gråa platshållare
+  { id: 'centrum', name: 'Gnesta Centrum', short: 'Centrum', x: 0.49, y: 0.21, placeholder: true },
   { id: 'molnbo', name: 'Mölnbo', short: 'Mölnbo', x: 0.62, y: 0.15, placeholder: true },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
-export const sectorOf = id => SECTORS.find(s => s.id === id) ?? null;
+// Sektorn en bana hör till ('gnesta-norr' -> 'gnesta').
+export const poolOf = mapId => SECTORS.find(s => s.maps?.includes(mapId))?.id ?? mapId;
+export const sectorOf = id => SECTORS.find(s => s.id === id) ?? SECTORS.find(s => s.maps?.includes(id)) ?? null;
 
 // Rekvisition: pris i RP per enhet (ungefär halva det gamla priset i pengar). Kärntrupperna
 // följer med mellan dagarna, så styrkan växer av sig själv; priset håller tillväxten i takt med dagarna.
@@ -38,6 +45,10 @@ export const LEVEL_RP = { civ: [40, 60], hv: [80, 120], inf: [120, 160], m249: [
 export const REFILL_RP = { civ: 8, hv: 15, inf: 25 };
 // Tillbaka till förrådet: ungefär hälften av det som lagts på enheten.
 export const RETURN_RATE = 0.5;
+// 0.16.0 (Olas fråga om Reassign: "behöver jag ingen kvar i South?"): sektorns rekommenderade garnison. En öppen
+// sektor med färre enheter än så får trycket att stiga dubbelt så fort när man strider någon annanstans
+// (src/meta/operation.js pressureGain); en sektor faller aldrig (Olas beslut).
+export const GARRISON = 3;
 // Erfarenhet: en stjärna efter så många vunna dagar ute. Blygsamt (src/sim/sim.js gunStats).
 export const VET_WINS = 3;
 
@@ -104,14 +115,14 @@ export const RELEASES = [
     ups: { grenade: 2, ksp58: 2 } },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'They are circling north of the ice rink. Reassign what you can spare from Gnesta South.',
+    text: 'The fog lifts. They are circling north of the ice rink, up Vikingavägen.',
     grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL, stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
     ups: { m2: 2, budget: 1 } },
   { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',
     text: 'New kit at the depot: faster Ksp 90 feeds, Psg 90 optics and better concrete.',
     ups: { m249Rate: 2, psg90: 2, block: 2, hvSquad: 1 } },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, from: 'FM',
-    text: 'An infantry squad for Gnesta North: regulars, Ak 5, body armour. One more Psg 90 is released.',
+    text: 'An infantry squad for Hagstumosse: regulars, Ak 5, body armour. One more Psg 90 is released.',
     grant: [{ type: 'inf' }], unlock: ['inf'], stock: { inf: 1, psg90: 1, ksp58: 1 },
     ups: { ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
   { id: 'gnn-4', map: 'gnesta-norr', day: 4, from: 'FM',

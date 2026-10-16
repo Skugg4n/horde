@@ -84,6 +84,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   const shift = on => { shiftDown = !!on; };
   const resPlate = root.querySelector('#res');
 
+  // 0.16.0 (inlärningen, designen avsnitt 4): HUD:ens delar syns när de är upplåsta. supplies: mätaren,
+  // speed: fartknappen, early: Next wave med bonus (före det går nedräkningen av sig själv).
+  let feat = { supplies: true, speed: true, early: true };
+  const features = f => { feat = { ...feat, ...f }; };
   let last = { cash: null, hp: null };
   let deltaTimer = 0;
   const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
@@ -129,6 +133,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
 
     const cash = Math.round(sim.cash);
     if (cash !== last.cash) { set(el.cash, money(cash)); last.cash = cash; }
+    const cashBox = resPlate.querySelector('.cash-box');
+    if (cashBox.hidden === feat.supplies) cashBox.hidden = !feat.supplies;
 
     const hp = Math.max(0, sim.baseHp);
     if (hp !== last.hp) { set(el.hp, String(hp)); last.hp = hp; }
@@ -140,21 +146,26 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(wLeft, String(c.left));
     // Nedräkning till nästa våg: "Next wave (Space) 4s · +$ 20". Före våg 1: "Start wave".
     const counting = build && sim.nextWaveIn != null;
-    set(el.go, counting ? 'Next wave' : 'Start wave');
+    // 0.16.0: före Next wave med bonus (South dag 3) är nedräkningen bara en nedräkning, ingen knapp
+    const passive = counting && !feat.early;
+    set(el.go, counting ? (passive ? 'Next wave in' : 'Next wave') : 'Start wave');
     el.cd.hidden = !counting;
-    speedBtn2.hidden = !(build || wave);
+    el.key.hidden = passive;
+    speedBtn2.hidden = !(build || wave) || !feat.speed;
     goBtn.classList.toggle('counting', counting);
-    if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
+    goBtn.classList.toggle('auto', passive);
+    if (counting) set(el.cd, passive ? `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s` : `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
     // Mitt i en våg går nästa att kalla tidigt så länge det finns en, men bara uttryckligen:
     // klick på knappen eller Shift+Space. Knappen säger hur många som är kvar och är dämpad.
-    const canCall = wave && hasNextWave(sim);
+    const canCall = wave && hasNextWave(sim) && feat.early;
     el.next.hidden = !canCall;
     if (canCall) {
       const n = waveLeft(sim), still = n > 0;
       // Överlapp (Gnesta Norr): nästa våg kommer av sig själv medan den här fortfarande är på väg.
       const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
       // kort form när raden inte ryms (layoutBottom): antalet står redan i dagens plåt
-      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave: still ${n} left` : 'Next wave',
+      // 0.16.0 (textgenomgången, speltestet av 0.14.2: "NEXT WAVE: STILL 14 LEFT" lät konstigt)
+      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave · ${n} still out` : 'Next wave',
         short: secs != null ? `Next in ${secs}s` : 'Next wave' };
       set(el.nextLbl, waveBar.classList.contains('narrow') ? nextText.short : nextText.long);
       set(el.nextKey, still ? 'Shift+Space' : 'Space');
@@ -262,6 +273,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // Reserven vid kanten undviker också gränssnittet, inte bara de andra etiketterna.
   const UNIT_PAD = 16;
   const coversUnit = (r, units) => units.some(u => u.x > r.x0 - UNIT_PAD && u.x < r.x1 + UNIT_PAD && u.y > r.y0 - UNIT_PAD && u.y < r.y1 + UNIT_PAD);
+  // 0.16.0 (textgenomgången, speltestet av 0.14.2: "etiketten följer markören och täcker mark jag vill
+  // placera på"): etiketten står kvar på sin plats vid infarten så länge platsen är fri, och gatunamnet syns
+  // bara när pekaren står på etiketten.
+  const stuck = new Map();
   function place(el, at, taken, ui, units = []) {
     el.hidden = false;
     setText(el, at);
@@ -269,6 +284,11 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const w = el.offsetWidth, h = el.offsetHeight;
     const rectAt = c => ({ x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 });
     const free = r => !(r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) && !ui.some(u => hits(r, u)) && !taken.some(u => hits(r, u));
+    const key = at.sub ?? '', keep = stuck.get(key);
+    if (keep && (at.cands ?? []).some(c => Math.hypot(c.x - keep.x, c.y - keep.y) < 6) && free(rectAt(keep))) {
+      el.classList.remove('edge');
+      return placeAt(el, keep, w, h);
+    }
     for (const pass of [0, 1]) for (const c of at.cands ?? []) {
       const r = rectAt(c);
       if (!free(r)) continue;
@@ -276,6 +296,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
       if (over && !pass) continue;
       el.classList.remove('edge');
       el.classList.toggle('over', over);
+      stuck.set(key, c);
       return placeAt(el, c, w, h);
     }
     // Reserven: vid skärmkanten, inom gränssnittets ram (som före 0.11.0).
@@ -345,12 +366,19 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   }
 
   // Nollställ så att en ny dag inte visar en stor minus-ruta.
+  // Första gången en del dyker upp (designen avsnitt 4): en diskret animation (styles.css .reveal).
+  function reveal(node) {
+    if (!node) return;
+    node.classList.remove('reveal'); void node.offsetWidth; node.classList.add('reveal');
+    setTimeout(() => node.classList.remove('reveal'), 1600);
+  }
   function reset() {
+    stuck.clear();
     last = { cash: null, hp: null }; el.delta.className = 'delta';
     clearTimeout(deltaTimer);
     clearFloats();
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift, features, reveal };
 }

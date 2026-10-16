@@ -542,7 +542,7 @@ const tell = (toast, grp) => ({ ...grp, toast });
 const NORR_ARSENAL = ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
 const NORR_ARSENAL_INF = [...NORR_ARSENAL, 'inf'];
 export const DAYS = [
-  { n: 1, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 7, overlap: 60, intro: { title: 'Day 1: From the north', text: 'They come from the north today.' },
+  { n: 1, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 7, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog lifts. They are circling north.' },
     // 0.12.0 (H101): vilande smittade i en villa på Vikingavägen, ute med öppningen: linjen i norr har
     // något att skjuta på medan öppningen kommer söderifrån
     dormant: [{ house: 'N-16', street: 'Vikingavägen', count: 4, type: 'walker', wave: 0 }],
@@ -595,8 +595,8 @@ export const NORR_TOWN = {
 };
 
 export const gnestaNorr = {
-  id: 'gnesta-norr', name: 'Gnesta North', version: NORR_VERSION,
-  outro: { text: 'Gnesta holds, for now. More sectors coming.' },
+  id: 'gnesta-norr', name: 'Hagstumosse · Vikingavägen', version: NORR_VERSION,
+  outro: { text: 'Hagstumosse holds, for now. Gnesta Centrum is next.' },
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
@@ -619,9 +619,9 @@ export const gnestaNorr = {
   baseModel: 'rink',
   // 0.13.0: Ksp 88, pillboxen och infanteriet är banans (förrådet per dag i DAYS)
   unlocks: ['block', 'm2', 'epa', 'inf', 'ksp58', 'ak5', 'psg90'],
-  // Låses upp när Gnesta dag 4 är klar (0.14.0: förut dag 5). Då är två sektorer öppna samtidigt, och den
-  // man inte spelar i blir svårare (src/meta/operation.js, trycket).
-  unlock: { map: 'gnesta', day: 4 },
+  // 0.16.0 (Olas beslut, "Gnesta = en sektor"): Hagstumosse · Vikingavägen är fas två av samma sektor och
+  // öppnar när Ishallen (dag 5) är vunnen; samma trupp följer med (src/data/depot.js SECTORS).
+  unlock: { map: 'gnesta', day: 5 }, legacyUnlock: 4,
 };
 gnestaNorr.place = townPlacement(NORR_TOWN, gnestaNorr.grid);
 void inPoly;

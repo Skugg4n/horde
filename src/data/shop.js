@@ -1,5 +1,5 @@
-// Köpraden nere till vänster: allt som går att köpa, i kategorier med tvåstegs snabbval (0.11.0,
-// Olas önskan): första tangenten väljer kategorin, andra saken. "2-2" är Ksp 90.
+// Köpraden nere till vänster: allt som går att köpa, i kategorier (0.11.0, Olas önskan). 0.16.0: snabbvalen är
+// enkla siffror tills raden har fler än 9 kort; då väljer första tangenten kategorin och andra saken ("2-2").
 // BUY_MENU är det enda stället där ordningen bestäms. Nya saker läggs sist i sin kategori, så att
 // de gamla snabbvalen inte flyttar sig (minor blir 1-3).
 // kind: 'gun' ställs på mark bredvid vägen, 'obstacle' läggs på vägen.
@@ -38,10 +38,17 @@ export const SHOP = BUY_MENU.flatMap((c, ci) => c.items.map((it, si) => ({ ...it
 export const shopItem = id => SHOP.find(s => s.id === id);
 // Dagens köprad: bara det som finns i förrådet (has(id)), tomma kategorier bort. Snabbvalen följer den.
 export const dayMenu = (has = () => true) => BUY_MENU.map(c => ({ ...c, items: c.items.filter(it => has(it.id)) })).filter(c => c.items.length);
-// Snabbvalet som det skrivs på kortet och i tipsen: "2-1". menu: dagens köprad (standard: hela).
+// 0.16.0 (Olas beslut 3, ersätter H097 tills vidare): köpraden har enkla siffror, 1, 2, 3 ..., ett tryck väljer
+// kortet. Tvåstegsvalet (kategori, sedan sak) gäller bara när raden har fler än CHORD_OVER kort.
+export const CHORD_OVER = 9;
+export const flatItems = (menu = BUY_MENU) => menu.flatMap(c => c.items);
+export const usesChords = (menu = BUY_MENU) => flatItems(menu).length > CHORD_OVER;
+// Snabbvalet som det skrivs på kortet och i tipsen: "2" (en siffra), eller "2-1" med tvåstegsvalet.
+// menu: dagens köprad (standard: hela).
 export const hotkeyOf = (id, menu = BUY_MENU) => {
+  if (!usesChords(menu)) { const i = flatItems(menu).findIndex(it => it.id === id); return i >= 0 ? String(i + 1) : ''; }
   for (let ci = 0; ci < menu.length; ci++) { const si = menu[ci].items.findIndex(it => it.id === id); if (si >= 0) return `${ci + 1}-${si + 1}`; }
   return '';
 };
-// Saken på snabbvalet (kategori, plats), eller null.
+// Saken på snabbvalet (kategori, plats), eller null (tvåstegsvalet).
 export const itemAt = (cat, slot, menu = BUY_MENU) => menu[cat - 1]?.items[slot - 1]?.id ?? null;

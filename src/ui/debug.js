@@ -47,6 +47,7 @@ export function mountDebug(root, api) {
         <div class="row"><label>Base hp</label><input data-k="hp" type="number" step="1" min="1"><button data-a="hp-set">Set</button><label class="ck"><input type="checkbox" data-k="god"> God mode</label></div>
         <div class="row"><label>Jump to</label>${sel('map', maps.map(x => [x.id, x.name]))}<input data-k="day" type="number" min="1" max="5" value="${api.day()}" title="Day"><input data-k="wave" type="number" min="1" value="1" title="Wave"><button data-a="jump">Go</button></div>
         <div class="row"><button data-a="unlock">Unlock all maps</button><button data-a="reset-save" class="warn">Reset save</button></div>
+        <div class="row"><label>Lessons</label><button data-a="tips-reset">Reset tips</button><button data-a="tips-seen">Mark all seen</button></div>
       </section>
       <section><h4>Rules</h4>
         ${RULES.map(([k, t]) => `<div class="row"><label>${t}</label><input data-t="${k}" type="number" step="0.1" min="0.1"></div>`).join('')}
@@ -101,6 +102,9 @@ export function mountDebug(root, api) {
       if (!confirm('Reset save? A backup is kept under horde.save.backup.')) return;
       ok(api.resetSave(), 'Save reset (backup kept)');
     },
+    // 0.16.0: lektionerna (designen avsnitt 3, Debugmenyn)
+    'tips-reset': () => ok(api.resetTips?.(), 'Tips reset'),
+    'tips-seen': () => ok(api.markAllSeen?.(), 'All lessons marked seen'),
     'tweaks-reset': () => { api.setTweaks({ ...IDENTITY_TWEAKS }); render(); badgeNow(); say('Tweaks reset'); },
     spawn: () => ok(api.spawn(val('type'), num('n'), val('spawn')), 'Spawned'),
     burst: () => ok(api.burst(val('house')), 'House opened'),

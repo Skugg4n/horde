@@ -13,7 +13,7 @@
 //                snabb seger, få förluster och oskadad bas. Inget svårighetsval (Olas beslut).
 import { MAPS } from '../data/maps.js';
 import { WEAPONS } from '../data/weapons.js';
-import { RELEASES, UNIT_RP, LEVEL_RP, REFILL_RP, RETURN_RATE, VET_WINS, UPGRADES, SUPPLY_BUDGET, SECTORS, RETIRED_NODES, UNLOCK_TIERS } from '../data/depot.js';
+import { GARRISON, poolOf, RELEASES, UNIT_RP, LEVEL_RP, REFILL_RP, RETURN_RATE, VET_WINS, UPGRADES, SUPPLY_BUDGET, SECTORS, RETIRED_NODES, UNLOCK_TIERS } from '../data/depot.js';
 import { researchNode } from '../data/research.js';
 import { newProgress, emptyOp, mapState, mapUnlocked, startConfig, dayResult, migrateV3 } from './progress.js';
 import { tierOf, tierData, MAX_LEVEL } from '../sim/stats.js';
@@ -35,7 +35,20 @@ export const EVAC_RP = 2;
 export const SUPPLY_BOUNTY = 0.5;
 
 const isSquadType = type => !!WEAPONS[type]?.squad;
-const withOp = p => (p.op ? (p.op.stock ? p : { ...p, op: { ...p.op, stock: stockFromReleases(p) } }) : { ...p, op: emptyOp() });
+// 0.16.0: en sparfil från före knappheten får sitt lager, och en med Gnesta North som egen sektor får sina
+// enheter, sitt lager och sitt tryck flyttade till Hagstumosse (en sektor, Olas beslut). Inga enheter går förlorade.
+const withOp = p => (p.op ? mergePools(p.op.stock ? p : { ...p, op: { ...p.op, stock: stockFromReleases(p) } }) : { ...p, op: emptyOp() });
+export const needsPoolMerge = p => !!p.op && (p.op.units.some(u => u.sector != null && poolOf(u.sector) !== u.sector)
+  || Object.keys(p.op.stock ?? {}).some(k => poolOf(k) !== k) || Object.keys(p.op.pressure ?? {}).some(k => poolOf(k) !== k));
+function mergePools(p) {
+  if (!needsPoolMerge(p)) return p;
+  const units = p.op.units.map(u => (u.sector != null && poolOf(u.sector) !== u.sector ? { ...u, sector: poolOf(u.sector) } : u));
+  const stock = {};
+  for (const [k, v] of Object.entries(p.op.stock ?? {})) { const t = stock[poolOf(k)] ??= {}; for (const [ty, n] of Object.entries(v)) t[ty] = (t[ty] ?? 0) + n; }
+  // trycket mellan faserna av samma sektor finns inte längre: bara sektorernas eget tryck står kvar
+  const pressure = Object.fromEntries(Object.entries(p.op.pressure ?? {}).filter(([k]) => poolOf(k) === k));
+  return { ...p, op: { ...p.op, units, stock, pressure } };
+}
 const copyOp = p => ({ ...p.op, units: p.op.units.map(u => ({ ...u })), released: [...p.op.released], inbox: [...p.op.inbox], pressure: { ...p.op.pressure }, closed: [...p.op.closed],
   stock: Object.fromEntries(Object.entries(p.op.stock ?? {}).map(([k, v]) => [k, { ...v }])) });
 // 0.16.0: lagret för en sparfil från före knappheten: leveransernas lager minus det som redan rekvirerats
@@ -43,7 +56,7 @@ const copyOp = p => ({ ...p.op, units: p.op.units.map(u => ({ ...u })), released
 function stockFromReleases(p) {
   const out = {};
   for (const r of RELEASES) if (r.stock && p.op.released.includes(r.id) && !p.op.closed.includes(r.map)) {
-    const s = out[r.map] ??= {};
+    const s = out[poolOf(r.map)] ??= {};
     for (const [t, n] of Object.entries(r.stock)) s[t] = (s[t] ?? 0) + n;
   }
   for (const u of p.op.units) if (!u.granted && u.sector && out[u.sector]?.[u.type] != null) out[u.sector][u.type] = Math.max(0, out[u.sector][u.type] - 1);
@@ -63,22 +76,39 @@ function newUnit(uid, type, level, sector, research, { granted = false, spent = 
   return u;
 }
 export const unitOf = (p, uid) => p.op.units.find(u => u.uid === uid) ?? null;
-export const unitsIn = (p, sector) => p.op.units.filter(u => u.sector === sector);
+// sector: sektorns id eller en av dess banor ('gnesta-norr' är Hagstumosse, 'gnesta')
+export const unitsIn = (p, sector) => p.op.units.filter(u => u.sector === poolOf(sector));
 export const unitName = u => WEAPONS[u.type]?.short ?? WEAPONS[u.type]?.name ?? u.type;
 
 // ---------- sektorer ----------
 export const sectorClosed = (p, id) => !!p.op?.closed.includes(id);
 export const sectorOpen = (p, id) => !!MAPS[id] && mapUnlocked(p, id) && !sectorClosed(p, id);
-export const openSectors = p => SECTORS.filter(s => sectorOpen(p, s.id)).map(s => s.id);
+// Sektorer (inte banor) med en öppen bana: Hagstumosse är öppen så länge Ishallen eller Vikingavägen är det.
+export const poolOpen = (p, id) => !!SECTORS.find(s => s.id === poolOf(id))?.maps?.some(m => sectorOpen(p, m));
+export const openSectors = p => SECTORS.filter(s => s.maps && poolOpen(p, s.id)).map(s => s.id);
+// Banan sektorn strider på nu (den första öppna i ordning), och dess nästa dag. null när sektorn är klar.
+export function currentMap(p, sectorId) {
+  const s = SECTORS.find(x => x.id === poolOf(sectorId));
+  return s?.maps?.find(m => sectorOpen(p, m) && mapState(p, m).unlockedDay <= MAPS[m].days.length) ?? null;
+}
+// Omplaceringen syns bara när två skilda platser är aktiva samtidigt (Olas beslut: Hagstumosse är en plats).
+export const reassignActive = p => openSectors(p).filter(id => currentMap(p, id)).length >= 2;
 // 'holding' | 'threatened' | 'silent' (E4 efter sista dagen) | 'held' (klar) | 'locked' | 'placeholder'
 export function sectorStatus(p, id) {
-  const s = SECTORS.find(x => x.id === id);
-  if (!s || s.placeholder || !MAPS[id]) return 'placeholder';
-  if (sectorClosed(p, id)) return MAPS[id].outro?.withdraw ? 'silent' : 'held';
-  if (!mapUnlocked(p, id)) return 'locked';
-  return (p.op.pressure[id] ?? 0) >= PRESSURE_THREAT ? 'threatened' : 'holding';
+  const s = SECTORS.find(x => x.id === poolOf(id));
+  if (!s || s.placeholder || !s.maps) return 'placeholder';
+  if (!s.maps.some(m => mapUnlocked(p, m))) return 'locked';
+  if (s.maps.every(m => sectorClosed(p, m))) return MAPS[s.maps[0]].outro?.withdraw ? 'silent' : 'held';
+  if (!poolOpen(p, s.id)) return 'locked';
+  return (p.op.pressure[s.id] ?? 0) >= PRESSURE_THREAT ? 'threatened' : 'holding';
 }
-export const pressureOf = (p, id) => p.op?.pressure[id] ?? 0;
+export const pressureOf = (p, id) => p.op?.pressure[poolOf(id)] ?? 0;
+// 0.16.0: garnisonen. Tryckpunkter som en öppen sektor får för en vunnen dag någon annanstans: 1, eller
+// PRESSURE_UNDERMANNED om färre än GARRISON enheter står där. Förrådet visar samma regel (garrisonLine).
+export const PRESSURE_UNDERMANNED = 2;
+export const garrisonOf = () => GARRISON;
+export const pressureGain = (p, id) => (unitsIn(p, id).length < garrisonOf(id) ? PRESSURE_UNDERMANNED : 1);
+export const garrisonLine = id => `Below ${garrisonOf(id)}: pressure rises ${PRESSURE_UNDERMANNED} a day instead of 1.`;
 export const hpFromPressure = n => 1 + PRESSURE_HP * n;
 
 // ---------- leveranser ----------
@@ -87,7 +117,7 @@ function applyRelease(p, r) {
   const op = copyOp(p);
   const research = [...p.research];
   for (const t of r.tiers ?? []) if (!research.includes(t)) research.push(t);
-  const sector = op.closed.includes(r.map) ? null : r.map;
+  const sector = op.closed.includes(r.map) ? null : poolOf(r.map);
   for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) op.units.push(newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true }));
   if (sector && r.stock) { const st = op.stock[sector] ??= {}; for (const [t, n] of Object.entries(r.stock)) st[t] = (st[t] ?? 0) + n; }
   op.released.push(r.id);
@@ -109,10 +139,13 @@ function closeSector(p, id) {
     op.units = op.units.filter(u => u.sector !== id);
     rp += back;
     op.inbox.push({ id: 'closed-' + id, from: 'FM', seq: op.seq++, unread: true,
-      text: `${map.outro.text} What was left of the roadblock has been pulled back to Strängnäs.${back ? ` ${back} RP returned to the depot.` : ''}` });
+      text: `${map.outro.text}${back ? ` ${back} RP returned to the depot.` : ''}` });
   } else {
-    for (const u of op.units) if (u.sector === id) u.sector = null;
-    op.inbox.push({ id: 'closed-' + id, from: 'FM', seq: op.seq++, unread: true, text: `${map.outro?.text ?? map.name + ' holds.'} Its units are free to reassign.` });
+    // 0.16.0: en fas av en sektor (Hagstumosse · Ishallen) lämnar enheterna kvar när nästa fas tar vid
+    const pool = poolOf(id), q = { ...p, op };
+    const next = SECTORS.find(x => x.id === pool)?.maps?.some(m => m !== id && !op.closed.includes(m) && mapUnlocked(q, m));
+    if (!next) for (const u of op.units) if (u.sector === pool) u.sector = null;
+    op.inbox.push({ id: 'closed-' + id, from: 'FM', seq: op.seq++, unread: true, text: map.outro?.text ?? map.name + ' holds.' });
   }
   return { ...p, rp, op };
 }
@@ -133,15 +166,15 @@ export const newCampaign = () => syncOperation(newProgress());
 // Det som går att rekvirera i en sektor: typerna i leveranserna dit.
 export function releasedTypes(p, sector) {
   const out = [];
-  for (const r of RELEASES) if (r.map === sector && p.op.released.includes(r.id)) for (const t of r.unlock ?? []) if (!out.includes(t)) out.push(t);
+  for (const r of RELEASES) if (poolOf(r.map) === poolOf(sector) && p.op.released.includes(r.id)) for (const t of r.unlock ?? []) if (!out.includes(t)) out.push(t);
   return out;
 }
 // 0.16.0: lagret, så många av typen som ledningen släppt för rekvisition i sektorn och som inte tagits än.
-export const stockOf = (p, sector, type) => p.op.stock?.[sector]?.[type] ?? 0;
+export const stockOf = (p, sector, type) => p.op.stock?.[poolOf(sector)]?.[type] ?? 0;
 // Typerna förrådet visar under Requisition för sektorn: de som någon leverans haft lager av, i köpradens ordning.
 export function stockTypes(p, sector) {
   const out = [];
-  for (const r of RELEASES) if (r.map === sector && r.stock && p.op.released.includes(r.id)) for (const t of Object.keys(r.stock)) if (!out.includes(t)) out.push(t);
+  for (const r of RELEASES) if (poolOf(r.map) === poolOf(sector) && r.stock && p.op.released.includes(r.id)) for (const t of Object.keys(r.stock)) if (!out.includes(t)) out.push(t);
   return out;
 }
 // Uppgraderingarna som ledningen släppt: högsta nivån per uppgradering.
@@ -151,7 +184,7 @@ export function releasedUps(p) {
   return out;
 }
 // Har spelaren typen: en enhet någonstans, eller lager att rekvirera i en öppen sektor.
-const hasType = (p, type) => p.op.units.some(u => u.type === type) || SECTORS.some(s => !sectorClosed(p, s.id) && stockOf(p, s.id, type) > 0);
+const hasType = (p, type) => p.op.units.some(u => u.type === type) || SECTORS.some(s => poolOpen(p, s.id) && stockOf(p, s.id, type) > 0);
 export const unreadCount = p => p.op.inbox.filter(m => m.unread).length;
 export function markRead(p) {
   if (!unreadCount(p)) return p;
@@ -165,7 +198,7 @@ const fail = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 const poor = (p, cost) => fail('rp', { cost, need: cost - p.rp });
 export function canRequisition(p, type, sector) {
   if (!depotOpen(p, 'requisition')) return fail('locked');
-  if (!sectorOpen(p, sector)) return fail('closed');
+  if (!poolOpen(p, sector)) return fail('closed');
   if (!releasedTypes(p, sector).includes(type) || stockOf(p, sector, type) < 1) return fail('none');
   const cost = UNIT_RP[type];
   if (p.rp < cost) return poor(p, cost);
@@ -175,9 +208,9 @@ export function requisition(p, type, sector) {
   const c = canRequisition(p, type, sector);
   if (!c.ok) return { ...c, progress: p };
   const op = copyOp(p);
-  const u = newUnit(op.nextUid++, type, 1, sector, p.research, { spent: c.cost });
+  const u = newUnit(op.nextUid++, type, 1, poolOf(sector), p.research, { spent: c.cost });
   op.units.push(u);
-  op.stock[sector][type]--;
+  op.stock[poolOf(sector)][type]--;
   return { ok: true, uid: u.uid, cost: c.cost, progress: { ...p, rp: p.rp - c.cost, op } };
 }
 // Nästa nivå för en enhet: pris, eller null vid högsta nivån.
@@ -228,7 +261,7 @@ export const returnValue = u => Math.round(u.spent * RETURN_RATE);
 export function canReturn(p, uid) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
-  if (!depotOpen(p, 'sectors')) return fail('locked');
+  if (!depotOpen(p, 'return')) return fail('locked');
   const refund = returnValue(u), left = u.sector == null ? null : unitsIn(p, u.sector).length - 1;
   if (refund === 0 && left === 0) return fail('last', { refund, left });
   return { ok: true, refund, left, given: refund === 0 };
@@ -245,19 +278,40 @@ export function returnUnit(p, uid) {
 export function canReassign(p, uid, sector) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
-  if (!depotOpen(p, 'sectors')) return fail('locked');
+  if (sector != null && u.sector === poolOf(sector)) return fail('same');
   if (u.sector === sector) return fail('same');
   if (sector != null) {
-    if (!sectorOpen(p, sector)) return fail('closed');
+    if (!poolOpen(p, sector)) return fail('closed');
     if (!releasedTypes(p, sector).includes(u.type)) return fail('not released');
   }
   return { ok: true };
+}
+// 0.16.0 (Olas speltest: "jag skickade bort trupper jag behövde, jag trodde nästa strid var North"): att skicka
+// en enhet går att ångra gratis tills man trycker Deploy. log: förrådets lista över skickade enheter i det här
+// besöket, [{ uid, from }]. Inget kostar och inget låses förrän dagen ställs upp.
+export function sendUnit(p, log, uid, to) {
+  const u = unitOf(p, uid), r = reassign(p, uid, to);
+  if (!r.ok) return { ...r, log };
+  const prior = log.find(x => x.uid === uid);
+  return { ok: true, progress: r.progress, log: prior ? (prior.from === to ? log.filter(x => x !== prior) : log) : [...log, { uid, from: u.sector }] };
+}
+export function bringBack(p, log, uid) {
+  const e = log.find(x => x.uid === uid);
+  if (!e) return { ok: false, reason: 'unknown', progress: p, log };
+  const op = copyOp(p);
+  op.units.find(x => x.uid === uid).sector = e.from;
+  return { ok: true, progress: { ...p, op }, log: log.filter(x => x !== e) };
+}
+// Varningen före Deploy: sektorn som strider har färre enheter än den rekommenderade garnisonen.
+export function deployWarning(p, sector) {
+  const n = unitsIn(p, sector).length, g = garrisonOf(sector);
+  return n < g ? `${MAPS[sector].name} has ${n} of ${g} recommended units. Deploy anyway?` : null;
 }
 export function reassign(p, uid, sector) {
   const c = canReassign(p, uid, sector);
   if (!c.ok) return { ...c, progress: p };
   const op = copyOp(p);
-  op.units.find(x => x.uid === uid).sector = sector;
+  op.units.find(x => x.uid === uid).sector = sector == null ? null : poolOf(sector);
   return { ok: true, progress: { ...p, op } };
 }
 
@@ -358,8 +412,8 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
     op.units = op.units.filter(u => u.men == null || u.men > 0);
     // tryck: sektorn man försvarade lättar, de andra öppna sektorerna blir svårare
     for (const s of openSectors(q)) {
-      if (s === mapId) op.pressure[s] = Math.max(0, (op.pressure[s] ?? 0) - PRESSURE_RELIEF);
-      else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + 1);
+      if (s === poolOf(mapId)) op.pressure[s] = Math.max(0, (op.pressure[s] ?? 0) - PRESSURE_RELIEF);
+      else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + pressureGain(q, s));
     }
     for (const s of Object.keys(op.pressure)) if (!op.pressure[s]) delete op.pressure[s];
     q = { ...q, op };

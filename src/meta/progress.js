@@ -29,6 +29,11 @@ export function mapUnlocked(progress, mapId, { debug = false } = {}) {
   const map = MAPS[mapId];
   if (!map) return false;
   if (!map.unlock || debug) return true;
+  // 0.16.0: en bana som redan spelats under den gamla regeln står öppen (Vikingavägen öppnade efter dag 4 före
+  // 0.16.0, map.legacyUnlock), så att ingen sparfil tappar en dag den redan spelat
+  const own = progress.maps?.[mapId];
+  if (map.legacyUnlock != null && own && (own.unlockedDay > 1 || Object.keys(own.attempts ?? {}).length)
+    && mapState(progress, map.unlock.map).unlockedDay > map.legacyUnlock) return true;
   return mapState(progress, map.unlock.map).unlockedDay > map.unlock.day;
 }
 // ?debug (0.10.1): framsteget med forskningen en typisk spelare har när banan låses upp
