@@ -886,9 +886,10 @@ function toggleSpeed() {
 }
 
 // ---------- basen tar skada ----------
-let lastBaseToast = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
+let lastBaseToast = -Infinity, lastBreach = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
 function onBreach() {
   hud.baseHit();
+  lastBreach = time;
   shake(SHAKE_TIME, SHAKE_AMP);
   if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Base under attack!', 'warn'); }
   tip('tip.base');
@@ -905,6 +906,39 @@ function shakeCamera(dt) {
   const a = shakeAmp * (shakeT / shakeLen);
   if (shakeT === 0) rig.setShake(0, 0);
   else rig.setShake((Math.random() - 0.5) * 2 * a, (Math.random() - 0.5) * 2 * a);
+}
+
+// ---------- basen utanför bild (0.16.1, H190) ----------
+// Speltestet av 0.14.2: "basen föll 20 till 9 medan jag tittade på ett tomt villakvarter". När basen tar skada och
+// inte syns står en pil vid skärmkanten som pekar dit, med basens hälsa som pulserar; klick på pilen eller B (Home)
+// flyttar kameran till basen.
+const baseArrow = document.createElement('button');
+baseArrow.type = 'button'; baseArrow.id = 'basearrow'; baseArrow.hidden = true;
+baseArrow.innerHTML = '<span class="chev"><i></i></span><span class="txt">Base <b></b></span><kbd>B</kbd>';
+baseArrow.addEventListener('click', () => goToBase());
+uiRoot.appendChild(baseArrow);
+const BASE_ARROW_S = 5, BASE_EDGE = 70;
+function baseCenter() {
+  const pts = baseShape();
+  return { x: pts.reduce((a, p) => a + p[0], 0) / pts.length, z: pts.reduce((a, p) => a + p[1], 0) / pts.length };
+}
+function updateBaseArrow() {
+  const show = mode === 'play' && !!sim && !menu.isOpen() && time - lastBreach < BASE_ARROW_S && sim.phase !== 'won' && sim.phase !== 'lost';
+  const c = show && baseCenter(), s = show && onScreen(c.x, c.z, 40);
+  if (!show || s.in) { baseArrow.hidden = true; return; }
+  const cx = innerWidth / 2, cy = innerHeight / 2, dx = s.sx - cx, dy = s.sy - cy;
+  const k = Math.min(Math.abs((cx - BASE_EDGE) / (dx || 1e-6)), Math.abs((cy - BASE_EDGE - 40) / (dy || 1e-6)));
+  baseArrow.hidden = false;
+  baseArrow.style.left = (cx + dx * k) + 'px'; baseArrow.style.top = (cy + dy * k) + 'px';
+  baseArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  const b = baseArrow.querySelector('b'), hp = String(Math.max(0, Math.ceil(sim.baseHp)));
+  if (b.textContent !== hp) { b.textContent = hp; baseArrow.classList.remove('pulse'); void baseArrow.offsetWidth; baseArrow.classList.add('pulse'); }
+}
+function goToBase() {
+  if (mode !== 'play' || !sim || !rig?.canPan) return;
+  const c = baseCenter();
+  rig.focus(c.x, c.z, Math.min(rig.view, sim.map.camera.zoom?.[1] ?? rig.view));
+  audio.ui('click');
 }
 
 // ---------- horden på väg in ----------
@@ -932,7 +966,7 @@ function findEntry() {
 addEventListener('resize', () => { entryAt = null; });
 function updateEntry() {
   if (mode !== 'play') { hud.entry(null); return; }
-  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints()); return; }
+  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints(), { covers: coversGround, holding: !!placing || !!rotating }); return; }
   if (sim.phase !== 'wave') { hud.entry(null); return; }
   const alive = sim.zombies.filter(z => !z.dead);
   if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
@@ -940,6 +974,18 @@ function updateEntry() {
   if (seen) { hud.entry(null); return; }
   entryAt = entryAt || findEntry();
   hud.entry(entryAt, unitPoints());
+}
+// 0.16.1 (H191, speltestet av 0.14.2: "etiketten lade sig över just den mark jag ville placera på"): ligger mer
+// än en av nio punkter i etikettens ruta på öppen mark där enheter får stå?
+function coversGround(r) {
+  const p = sim.place;
+  let n = 0;
+  for (const fx of [0.1, 0.5, 0.9]) for (const fy of [0.15, 0.5, 0.85]) {
+    const g = groundAt(r.x0 + (r.x1 - r.x0) * fx, r.y0 + (r.y1 - r.y0) * fy);
+    const k = g ? p.keyAt(g.x, g.z) : -1;
+    if (k >= 0 && p.kind[k] === KIND.open) n++;
+  }
+  return n > 1;
 }
 // 0.12.1 (speltestet: "HORDE INCOMING" låg ovanpå en Ksp 90): pjäsernas och soldaternas punkter på
 // skärmen, så att etiketterna undviker dem (och tonas ned om de ändå hamnar över en).
@@ -1147,6 +1193,8 @@ addEventListener('keydown', e => {
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
+  // 0.16.1 (H190): B eller Home flyttar kameran till basen
+  if ((e.code === 'KeyB' || e.code === 'Home') && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') { e.preventDefault(); goToBase(); }
   // 0.12.0 (H118): U uppgraderar den valda pjäsen (pengar mitt i vågen ska gå att använda snabbt).
   // 0.12.1 (speltestet: överskottet gick bara att lägga en pjäs i taget med klick och U): U tar pjäsen
   // under pekaren utan att panelen öppnas, annars den valda. Svaret står vid pekaren.
@@ -1528,7 +1576,7 @@ function startDay(n) {
   minimap.reset(sim);
   hud.reset();
   hud.setSpeed(speed);
-  entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
+  entryAt = null; shakeT = 0; lastBreach = -Infinity; rig.setShake(0, 0); rig.goHome();
   const frame = dayFrame();
   if (frame) rig.focus(frame.x, frame.z, frame.view);
   // 0.16.0: uppdragsrutan (#hint) är ersatt av lektionsplåten (src/ui/coach.js)
@@ -1536,25 +1584,37 @@ function startDay(n) {
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
+// 0.16.1 (H190, speltestet av 0.14.2: "Gnesta dag 2 startar med ishallen utanför bild; basen faller osedd"):
+// hela basen (ishallens fyra hörn, på E4 vägspärren med marginal) är alltid med, med plats för HUD:en upptill
+// och köpraden nedtill. Vägen tas med så långt den ryms: 120 m, annars 90, 60, 30 eller ingen.
+function baseShape() {
+  const b = sim.route.base, hr = sim.map.iceRink, pts = [[b.x, b.z]];
+  if (hr?.at) for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pts.push(hr.at(sx * hr.len / 2, sz * hr.wid / 2));
+  else for (const [dx, dz] of [[-8, -8], [8, -8], [8, 8], [-8, 8]]) pts.push([b.x + dx, b.z + dz]);
+  return pts;
+}
+const FRAME_PAD = 10;
 function dayFrame() {
   if (sim.route.kind !== 'grid') return null;
+  const base = baseShape();
   // 0.14.1 (speltestet av 0.14.0: "familjerna dog utanför bild"): en evakueringsdag börjar med hela de
   // civilas väg i bild, från husen till ishallen.
-  // 0.14.2 (speltestet av 0.14.1: "ishallen syns inte vid start, jag fick dra kartan"): basen är entrén, så
-  // hallen själv (36 x 23 m) låg delvis utanför; nu är hallens hörn med i bilden.
   if (sim.dayCfg.evac) {
-    const b = sim.route.base, pts = [[b.x, b.z]];
+    const pts = [...base];
     for (const g of sim.dayCfg.evac.groups) { const d = houseDoor(sim.map, g.house, sim.route); pts.push([d.x, d.z]); }
-    const hr = sim.map.iceRink;
-    if (hr?.at) for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pts.push(hr.at(sx * hr.len / 2, sz * hr.wid / 2));
-    return rig.fit(pts, 6);
+    return rig.fit(pts, FRAME_PAD);
   }
+  // längst ut som banan själv tillåter med hjulet (map.camera.zoom), inte hela den skarpa ytan: pjäserna ska synas
+  const comfort = (sim.map.camera.zoom?.[1] ?? Infinity) * 1.15;
   const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
   const cells = sim.route.paths([first])[0]?.cells ?? [];
-  if (!cells.length) return null;
-  const k = Math.max(0, cells.length - 1 - Math.round(120 / sim.route.grid.size));
-  const p = sim.route.cellCenter(cells[k]), b = sim.route.base;
-  return rig.fit([[b.x, b.z], [p.x, p.z]]);
+  for (const m of [120, 90, 60, 30]) {
+    if (!cells.length) break;
+    const k = Math.max(0, cells.length - 1 - Math.round(m / sim.route.grid.size));
+    const p = sim.route.cellCenter(cells[k]), f = rig.fit([...base, [p.x, p.z]], FRAME_PAD);
+    if (f.fits && f.view <= comfort) return f;
+  }
+  return rig.fit(base, FRAME_PAD);
 }
 // Gnesta Norr (map.camera.intro): ett kort svep från ingången i norr ner till basen när spelaren
 // går till linjen. Klick, hjul eller tangent hoppar över.
@@ -1815,6 +1875,7 @@ function tick(now) {
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons(frameDt);
+  updateBaseArrow();
   updateEnemies();
   updateReveals();
   updateManualBtn(frameDt);

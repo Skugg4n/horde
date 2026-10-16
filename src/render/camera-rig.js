@@ -121,11 +121,11 @@ export function createRig({ camera, map, fill, dom }) {
       need = Math.max(need, (2 * sx) / a, 2 * sy);
     }
     const want = a < 1 ? need / 1.5 : need;
-    if (want <= zMax || points.length < 2) return { x: cx, z: cz, view: Math.max(zMin, want) };
+    if (want <= zMax || points.length < 2) return { x: cx, z: cz, view: Math.max(zMin, Math.min(zMax, want)), fits: want <= zMax };
     // får inte plats: mitten flyttas mot den första punkten (basen) så att den syns helt, och den
     // andra ligger åt rätt håll ut mot kanten
     const f = 0.5 * zMax / want, [bx, bz] = points[0];
-    return { x: bx + (cx - bx) * 2 * f, z: bz + (cz - bz) * 2 * f, view: zMax };
+    return { x: bx + (cx - bx) * 2 * f, z: bz + (cz - bz) * 2 * f, view: zMax, fits: false };
   }
   function goHome() { target.copy(home); view = cam.view; apply(); }
   function dispose() {

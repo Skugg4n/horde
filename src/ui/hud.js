@@ -277,7 +277,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // placera på"): etiketten står kvar på sin plats vid infarten så länge platsen är fri, och gatunamnet syns
   // bara när pekaren står på etiketten.
   const stuck = new Map();
-  function place(el, at, taken, ui, units = []) {
+  const NEAR_ENTRY = 10;
+  // 0.16.1 (H191): covers(rect) säger om rutan ligger över mark där enheter får stå; sådana platser tas bara om
+  // inget annat finns. Medan spelaren håller en enhet (holding) tonas etiketterna ned och släpper igenom klick.
+  function place(el, at, taken, ui, units = [], covers = null) {
     el.hidden = false;
     setText(el, at);
     el.classList.toggle('next', !!at.next);
@@ -285,18 +288,21 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const rectAt = c => ({ x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 });
     const free = r => !(r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) && !ui.some(u => hits(r, u)) && !taken.some(u => hits(r, u));
     const key = at.sub ?? '', keep = stuck.get(key);
-    if (keep && (at.cands ?? []).some(c => Math.hypot(c.x - keep.x, c.y - keep.y) < 6) && free(rectAt(keep))) {
+    if (keep && (at.cands ?? []).some(c => Math.hypot(c.x - keep.x, c.y - keep.y) < 6) && free(rectAt(keep)) && !keep.ground) {
       el.classList.remove('edge');
       return placeAt(el, keep, w, h);
     }
-    for (const pass of [0, 1]) for (const c of at.cands ?? []) {
+    // pass 0 bara nära infarten (de första kandidaterna): hellre över mark vid kanten än långt inne vid basen
+    for (const pass of [0, 1, 2]) for (const [ci, c] of (at.cands ?? []).entries()) {
+      if (!pass && ci >= NEAR_ENTRY) break;
       const r = rectAt(c);
       if (!free(r)) continue;
       const over = coversUnit(r, units);
-      if (over && !pass) continue;
+      if (over && pass < 2) continue;
+      if (!pass && covers?.(r)) continue;
       el.classList.remove('edge');
       el.classList.toggle('over', over);
-      stuck.set(key, c);
+      stuck.set(key, { ...c, ground: pass > 0 });
       return placeAt(el, c, w, h);
     }
     // Reserven: vid skärmkanten, inom gränssnittets ram (som före 0.11.0).
@@ -309,7 +315,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.classList.toggle('over', coversUnit(rectAt(p), units));
     return placeAt(el, p, w, h);
   }
-  function entry(at, units = []) {
+  function entry(at, units = [], { covers = null, holding = false } = {}) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];
     while (entries.length < list.length) {
       const el = entryEl.cloneNode(true);
@@ -319,8 +325,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const ui = list.length ? uiRects() : [], taken = [];
     // nästa grupp först, så att den får den bästa platsen
     const order = list.map((a, i) => i).sort((i, j) => (list[j].next ? 1 : 0) - (list[i].next ? 1 : 0));
-    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units));
-    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; });
+    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units, covers));
+    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; el.classList.toggle('holding', holding); });
   }
 
   // H092 (0.11.0, speltestet av 0.10.2: ingen ledtråd om R): en liten rad nere till höger, ovanför
