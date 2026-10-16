@@ -16,7 +16,7 @@ import { rect } from '../sim/placement.js';
 import {
   w, PX, smooth, distPolyline, inPoly, ROADS as G_ROADS, ROUNDABOUT, ICE_RINK, PARKING, SPORTHALL, GROUND as G_GROUND,
   LOTS as G_LOTS, CARS as G_CARS, PLAYGROUND, LABELS as G_LABELS, SPAWNS as G_SPAWNS, BASE, SURROUNDINGS as G_SUR,
-  townGrid, townPlacement, PLINTH,
+  townGrid, townPlacement, PLINTH, CHIMNEY_PERCH,
 } from './gnesta.js';
 
 export const NORR_VERSION = '0.1.0';
@@ -444,14 +444,24 @@ export const SPAWNS = [
 
 // ---------- radhusen i placeringen ----------
 // Längorna är hus (skymmer sikten), med tak för Psg 90: sadeltak med nocken längs längan.
+// 0.12.0 (H106): en skorsten per lägenhet på nocken (som gnesta-kit.js rowHouse ritar dem); nocken
+// intill en skorsten är en utsiktspunkt för Psg 90.
+export const rowChimneys = R => Array.from({ length: R.units }, (_, i) => {
+  const xc = -R.len / 2 + i * R.unitW + R.unitW / 2, flip = i % 2 ? -1 : 1;
+  return rowAt(R, xc + flip * R.unitW * 0.18, -0.35);
+});
 const rowRoof = R => {
   const top = ROW_PLINTH + ROW_WALL[R.storeys], rh = (R.depth / 2) * Math.tan(ROW_PITCH);
   const q = rowRect(R), c = Math.cos(R.ry), s = Math.sin(R.ry);
-  return { rects: [q], height(x, z) {
+  const chim = rowChimneys(R);
+  const height = (x, z) => {
     const dx = x - R.x, dz = z - R.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
     if (Math.abs(lx) > R.len / 2 || Math.abs(lz) > R.depth / 2) return 0;
     return top + rh * Math.max(0, 1 - Math.abs(lz) / (R.depth / 2));
-  } };
+  };
+  return { rects: [q], eave: top, kind: 'row', height,
+    perch: (x, z) => (height(x, z) > 0 && chim.some(([cx, cz]) => Math.hypot(x - cx, z - cz) <= CHIMNEY_PERCH) ? 2 : 0),
+    chimney: null, chimneys: chim };
 };
 void PLINTH;
 

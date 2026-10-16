@@ -20,7 +20,7 @@ const REASONS = {
   // placeringen (korta, de står vid pekaren)
   'gata': 'On the road',
   'hus': 'Inside a house',
-  'kant': 'Not on the roof, too close to the edge',
+  'kant': 'No vantage point: flat roof, ridge by a chimney, or a tall building',
   'nära': 'Too close to another gun',
   'fullt': 'Max guns reached (research more)',
   'skog': 'In the forest',

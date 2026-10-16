@@ -8,7 +8,7 @@
 import { fileURLToPath } from 'node:url';
 import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
-import { placementFor, lineOfSight, distRect, KIND, MIN_SPACING, ROOF_DEAD } from '../src/sim/placement.js';
+import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch, selectMap } from '../src/meta/progress.js';
@@ -65,7 +65,7 @@ export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheK
     const at = p.center(c), sees = [];
     for (const t of targets) {
       const q = p.center(t);
-      if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && lineOfSight(p, c, t)) sees.push(t);
+      if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && lineOfSightH(p, c, t)) sees.push(t);
     }
     if (sees.length) cands.push({ c, at, sees });
   }
@@ -376,8 +376,8 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roo
   if (roofFirst) {
     const first = roofPlan(map, weighted, { count: 1, filter: roofFirst });
     const pl = placementFor(map), at = k => pl.center(k);
-    const rest = roofs.spots.map((k, i) => [k, roofs.cover[i]]).filter(([k]) => first.spots.every(f => Math.hypot(at(k).x - at(f).x, at(k).z - at(f).z) >= MIN_SPACING));
-    roofs = { spots: [...first.spots, ...rest.map(r => r[0])].slice(0, roofCount), cover: [...first.cover, ...rest.map(r => r[1])].slice(0, roofCount) };
+    const rest = roofs.spots.map((k, i) => [k, roofs.cover[i], roofs.facings[i]]).filter(([k]) => first.spots.every(f => Math.hypot(at(k).x - at(f).x, at(k).z - at(f).z) >= MIN_SPACING));
+    roofs = { spots: [...first.spots, ...rest.map(r => r[0])].slice(0, roofCount), cover: [...first.cover, ...rest.map(r => r[1])].slice(0, roofCount), facings: [...first.facings, ...rest.map(r => r[2])].slice(0, roofCount) };
   }
   // Hemvärnet: egna platser, där gevären (kortare räckvidd) ser mest av vägen. squadNear (Gnesta
   // Norr): platser där gruppen får minst så många man bakom tegelmurar eller husknutar först.
@@ -404,7 +404,7 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roo
     }
     plan_openerSees = bestN;
   }
-  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]), ...(openerGun != null ? { openerGun, openerSees: plan_openerSees } : {}) };
+  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, roofFacing: roofs.facings, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]), ...(openerGun != null ? { openerGun, openerSees: plan_openerSees } : {}) };
   planCache.set(key, plan);
   return plan;
 }
@@ -414,19 +414,20 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roo
 // mellan skyttarna, lika: lägst rutnyckel. Deterministiskt.
 export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, decay = GN_DECAY, filter = null } = {}) {
   const p = placementFor(map);
-  if (!p.roof) return { spots: [], cover: [] };
+  if (!p.roof) return { spots: [], cover: [], facings: [] };
   const weight = new Map();
   for (const it of route) { const [k, wt] = typeof it === 'number' ? [it, 1] : it; weight.set(k, (weight.get(k) || 0) + wt); }
-  const targets = [...weight.keys()].sort((a, b) => a - b);
-  const reach = range + p.size * 0.7072, cands = [];
+  // 0.12.0 (H106, H107, H108): bara utsiktspunkterna (p.roof > 0), sikten med höjd från taket, och
+  // konen vänd dit den ser mest av hordens väg (gärna längs en gata). Vikterna som rutnät för bestFacing.
+  const wArr = new Float64Array(p.n);
+  for (const [k, wt] of weight) wArr[k] = wt;
+  const reach = range * 1.2, cands = [];
   for (let c = 0; c < p.n; c++) {
     if (!(p.roof[c] > 0) || (filter && !filter(p.bldg[c] - 1))) continue;
-    const at = p.center(c), own = p.buildings[p.bldg[c] - 1], sees = [];
-    for (const t of targets) {
-      const q = p.center(t);
-      if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && !own.some(r => distRect(r, q.x, q.z) < ROOF_DEAD)) sees.push(t);
-    }
-    if (sees.length) cands.push({ c, at, sees });
+    const full = roofSightFrom(p, c, reach);
+    const facing = bestFacing(p, c, full, wArr, CONE);
+    const sees = coneSight(p, c, full, facing, CONE).keys.filter(t => weight.has(t) && Math.hypot(p.center(t).x - p.center(c).x, p.center(t).z - p.center(c).z) <= range + p.size * 0.7072);
+    if (sees.length) cands.push({ c, at: p.center(c), sees, facing });
   }
   const times = new Map(), picked = [];
   for (let n = 0; n < count; n++) {
@@ -441,7 +442,7 @@ export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, dec
     picked.push(best);
     for (const t of best.sees) times.set(t, (times.get(t) || 0) + 1);
   }
-  return { spots: picked.map(q => q.c), cover: picked.map(q => q.sees.length) };
+  return { spots: picked.map(q => q.c), cover: picked.map(q => q.sees.length), facings: picked.map(q => q.facing) };
 }
 
 // Köpordning (en gång före varje våg och varje sekund under vågen): första vapnet, barrikaden,
@@ -468,7 +469,7 @@ function gnestaBuild(sim, plan, maxKits, maxRoofs = GN_ROOFS) {
   if (weaponUnlocked('psg90', sim.research, sim.map)) {
     for (const k of plan.roofs.slice(0, maxRoofs)) {
       if (sim.guns.some(g => g.cell === k)) continue;
-      const r = build(sim, k, 'psg90');
+      const r = build(sim, k, 'psg90', { facing: plan.roofFacing?.[plan.roofs.indexOf(k)] });
       if (!r.ok) { saving = r.reason === 'pengar'; break; }
     }
   }
@@ -523,7 +524,7 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
       if (sim.guns.some(g => g.cell === k)) continue;
       // fler tak först när två pjäser står på marken
       if (sim.guns.some(g => g.roof) && sim.guns.filter(g => !g.roof && !g.squad).length < 2) break;
-      const r = build(sim, k, 'psg90');
+      const r = build(sim, k, 'psg90', { facing: plan.roofFacing?.[plan.roofs.indexOf(k)] });
       if (!r.ok) { saving = r.reason === 'pengar'; break; }
     }
   }

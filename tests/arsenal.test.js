@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, build, spotAt, checkSpot, sightFor, onRoof } from '../src/sim/sim.js';
 import { weaponStats, launcherStats, weaponUnlocked } from '../src/sim/stats.js';
-import { placementFor, lineOfSight, sightFrom, roofSightFrom, distRect, ROOF_DEAD, KIND } from '../src/sim/placement.js';
+import { placementFor, lineOfSight, lineOfSightH, sightFrom, roofSightFrom, distRect, KIND, PERCH_EYE, inCone, CONE } from '../src/sim/placement.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { RESEARCH, researchNode } from '../src/data/research.js';
 import { SHOP } from '../src/data/shop.js';
@@ -108,13 +108,26 @@ const roofKeys = [];
 for (let k = 0; k < gp.n; k++) if (gp.roof[k] > 0) roofKeys.push(k);
 const mkG = () => createSim({ map: gnesta, day: 1, cash: 9000, research: ALL.concat('m2.2'), seed: 1 });
 
-test('Gnesta har tak att ligga på, bara på husen', () => {
-  assert.ok(roofKeys.length > 200, `takrutor ${roofKeys.length}`);
+test('Gnesta har utsiktspunkter att ligga på, bara på husen (0.12.0: platta tak, nock vid skorsten, höga hallar)', () => {
+  assert.ok(roofKeys.length > 150, `takrutor ${roofKeys.length}`);
+  const kinds = new Set();
   for (const k of roofKeys) {
     assert.equal(gp.kind[k], KIND.house);
-    assert.ok(gp.roof[k] > 2.5 && gp.roof[k] < 9, `höjd ${gp.roof[k]}`);
+    assert.ok(gp.roof[k] > 2.5 && gp.roof[k] < 12, `höjd ${gp.roof[k]}`);
     assert.ok(gp.bldg[k] > 0);
+    assert.ok(gp.perch[k] === 1 || gp.perch[k] === 2);
+    kinds.add(gp.perchAt(gp.center(k).x, gp.center(k).z).roofKind + ':' + gp.perch[k]);
   }
+  // garagen och förskolan (platta), nocken vid en villas skorsten, ishallen och sporthallen
+  for (const want of ['villa:1', 'villa:2', 'preschool:1', 'rink:1', 'annex:1', 'hall:1']) assert.ok(kinds.has(want), `${want} saknas: ${[...kinds]}`);
+  // en nock vid skorstenen ligger nära skorstenen
+  for (const k of roofKeys.filter(q => gp.perch[q] === 2)) {
+    const c = gp.center(k), pa = gp.perchAt(c.x, c.z);
+    assert.ok(pa.chimney && Math.hypot(pa.chimney[0] - c.x, pa.chimney[1] - c.z) < 3);
+  }
+  // ett villatak utan skorsten är ingen utsiktspunkt
+  const plain = [...Array(gp.n).keys()].filter(q => gp.kind[q] === KIND.house && !gp.roof[q] && gp.perchAt(gp.center(q).x, gp.center(q).z)?.roofKind === 'villa');
+  assert.ok(plain.length > 300);
   // E4 har inga tak (ruinen är en ruin)
   assert.equal(placementFor(MAPS.riksvagen).roof, null);
 });
@@ -141,27 +154,50 @@ test('bara Psg 90 får stå på ett tak; den hamnar på takets höjd', () => {
   assert.equal(sim.guns[1].y, 0);
 });
 
-test('sikt från taket: över alla hus, utom närmast det egna huset (ROOF_DEAD)', () => {
-  assert.equal(ROOF_DEAD, 4);
-  const sim = mkG();
-  const range = weaponStats('psg90', 3, sim.research).range;
-  let overHouses = 0, checked = 0;
-  for (const k of roofKeys.filter((_, i) => i % 25 === 0)) {
-    const own = gp.buildings[gp.bldg[k] - 1], c = gp.center(k);
-    const roof = roofSightFrom(gp, k, range), ground = sightFrom(gp, k, range);
-    assert.deepEqual(sightFor(sim, k, 'psg90').keys, roof.keys, 'sightFor använder takregeln');
+// 0.12.0 (H107): sikten räknas i höjdled. Från ett tak ser skytten över lägre hus, men ett hus som är
+// högre än strålen skymmer; marken närmast under taket skyms av takfoten.
+test('sikt med höjd: taket ser över låga hus, inte genom högre, och marken under takfoten syns inte', () => {
+  const range = weaponStats('psg90', 3, new Set()).range;
+  let overHouses = 0, blockedByTaller = 0, deadBelow = 0;
+  for (const k of roofKeys.filter((_, i) => i % 9 === 0)) {
+    const eye = gp.roof[k] + PERCH_EYE, c = gp.center(k);
+    const roof = roofSightFrom(gp, k, range);
+    for (const q of roof.keys) if (!lineOfSight(gp, k, q)) overHouses++;
     for (const q of gp.walkKeys) {
-      const d = gp.center(q);
-      if (Math.hypot(d.x - c.x, d.z - c.z) > range) continue;
-      const dead = own.some(r => distRect(r, d.x, d.z) < ROOF_DEAD);
-      assert.equal(!!roof.mask[q], !dead, `tak ${k} ruta ${q}`);
-      if (roof.mask[q] && !lineOfSight(gp, k, q)) overHouses++;
-      checked++;
+      const d = gp.center(q), dist = Math.hypot(d.x - c.x, d.z - c.z);
+      if (dist > range || roof.mask[q]) continue;
+      // varje skymd ruta har en byggnad på vägen som är högre än strålen
+      assert.equal(lineOfSightH(gp, k, q, eye), false);
+      if (dist < 6) deadBelow++; else blockedByTaller++;
     }
-    // en rad markrutor bakom husen syns från taket men inte från marken i samma ruta
-    assert.ok(roof.keys.length >= ground.keys.length * 0.5);
   }
-  assert.ok(checked > 1000 && overHouses > 100, `ser över hus: ${overHouses} av ${checked}`);
+  assert.ok(overHouses > 100, `ser över hus: ${overHouses}`);
+  assert.ok(blockedByTaller > 50 && deadBelow > 0, `skymt av högre ${blockedByTaller}, under takfoten ${deadBelow}`);
+  // en gatuplats bakom en villa: från marken skymd, från en högre punkt (ögat 9 m upp) fri
+  let found = 0;
+  for (const k of gp.walkKeys) for (const q of gp.walkKeys) {
+    if (found > 3 || k >= q || Math.abs(gp.center(k).x - gp.center(q).x) > 30 || Math.abs(gp.center(k).z - gp.center(q).z) > 30) continue;
+    if (!lineOfSightH(gp, k, q, 1.5) && lineOfSightH(gp, k, q, 9)) found++;
+  }
+  assert.ok(found > 3);
+});
+
+test('skjutsektorn: Psg 90 ser bara inom sin kon, och riktningen följer med pjäsen', () => {
+  const sim = mkG();
+  const k = roofKeys[Math.floor(roofKeys.length / 3)];
+  const full = roofSightFrom(gp, k, weaponStats('psg90', 3, sim.research).range);
+  const east = sightFor(sim, k, 'psg90', 0), west = sightFor(sim, k, 'psg90', Math.PI);
+  assert.equal(east.facing, 0);
+  for (const q of east.keys) assert.ok(inCone(gp, k, q, 0, CONE));
+  assert.ok(east.keys.length < full.keys.length);
+  assert.ok(east.keys.every(q => !west.mask[q]), 'öst och väst delar inga rutor');
+  const r = build(sim, k, 'psg90', { facing: Math.PI / 2 });
+  assert.equal(r.ok, true);
+  assert.equal(sim.guns[0].facing, Math.PI / 2);
+  assert.ok(sim.guns[0].sight.keys.every(q => inCone(gp, k, q, Math.PI / 2, CONE)));
+  // utan riktning väljs den som ser mest av hordens väg
+  const auto = sightFor(sim, k, 'psg90');
+  assert.ok(auto.facing != null);
 });
 
 test('Psg 90 på ett tak skjuter över husen på Gnesta', () => {

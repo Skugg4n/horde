@@ -267,7 +267,7 @@ export function villa(b, M, o) {
 
 // Lång låg byggnad (förskolan): villans regler, längre och med fler dörrar.
 export function preschool(b, M, o) {
-  const front = villa(b, M, { ...o, storeys: 1, roof: 'gable', ridge: 'x', pitch: 0.38, garage: 0, balcony: false, veranda: false, chimney: false });
+  const front = villa(b, M, { ...o, storeys: 1, roof: 'gable', ridge: 'x', pitch: 0.07 /* 0.12.0: platt tak (PRESCHOOL_PITCH) */, garage: 0, balcony: false, veranda: false, chimney: false });
   b.box(M, 0, 1.4, o.d / 2 + 1.0, o.w * 0.6, 0.12, 2.0, GP.roof.charcoal);  // skärmtak
   for (const sx of [-1, 1]) b.box(M, sx * o.w * 0.28, 0.7, o.d / 2 + 1.9, 0.12, 1.4, 0.12, GP.trim);
   return front;

@@ -4,8 +4,8 @@ import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
-import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING } from './placement.js';
-import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime } from './squad.js';
+import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
+import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight } from './squad.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 // Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
@@ -365,11 +365,19 @@ export function checkSpot(sim, key, type = null, { ignore = null } = {}) {
 export const spotAt = (sim, x, z) => sim.place.keyAt(x, z);
 // Sikten från en ruta för ett vapen av typen (största räckvidden, nivå 3). På ett tak ser
 // skytten över husen (placement.js, roofSightFrom).
-export const sightFor = (sim, key, type, facing = null) => (isSquad(type) ? unionSight(sim.place, squadPreview(sim, key, type))
-  : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range));
+// 0.12.0 (H108): ett vapen med en skjutsektor (cone, Psg 90) ser bara inom konen runt facing
+// (radianer). Utan facing väljs riktningen som ser mest av hordens väg. Svaret har då facing.
+export function sightFor(sim, key, type, facing = null) {
+  const base = isSquad(type) ? unionSight(sim.place, squadPreview(sim, key, type))
+    : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
+  const cone = WEAPONS[type]?.cone;
+  if (!cone) return base;
+  const f = facing ?? bestFacing(sim.place, key, base, hordeWeight(sim), cone);
+  return coneSight(sim.place, key, base, f, cone);
+}
 
 // Ställ ut ett vapen i rutan key. Returnerar { ok, id }.
-export function build(sim, key, type) {
+export function build(sim, key, type, opts = {}) {
   if (!WEAPONS[type]) return { ok: false, reason: 'okänd' };
   const check = checkSpot(sim, key, type);
   if (!check.ok) return check;
@@ -389,7 +397,8 @@ export function build(sim, key, type) {
       weapon: { type, level: 1, cooldown: 0, angle: soldiers[0]?.face ?? Math.PI, targetId: null, spent: cost } });
     return { ok: true, id };
   }
-  sim.guns.push({ id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight: sightFor(sim, key, type),
+  const sight = sightFor(sim, key, type, opts.facing ?? null);
+  sim.guns.push({ id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(sight.facing != null ? { facing: sight.facing } : {}),
     weapon: { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost, ...(WEAPONS[type].launcher ? { lCooldown: 0 } : {}) } });
   return { ok: true, id };
 }
@@ -498,8 +507,9 @@ export function moveGun(sim, id, key, opts = {}) {
   }
   const roof = onRoof(sim, key, type);
   const from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
-  Object.assign(g, { x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight: sightFor(sim, key, type, opts.facing) });
-  if (opts.facing != null) g.facing = opts.facing;
+  const sight = sightFor(sim, key, type, opts.facing ?? null);
+  Object.assign(g, { x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight });
+  if (sight.facing != null) g.facing = sight.facing;
   g.weapon.targetId = null;
   g.move = clock(sim) ? { t: 0, total: MOVE_TIME[type] ?? 8, from } : null;
   if (!g.move) delete g.move;

@@ -4,7 +4,7 @@
 // i väster, horden kommer från öster.
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
-import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
+import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
 
 export const GNESTA_VERSION = '0.3.0';
 
@@ -644,13 +644,29 @@ const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDAB
 // Takens höjd följer hur gnesta-kit.js ritar husen (sockel 0,32 m, vägg 2,75 eller 3,3 m,
 // taklutningen per hustyp); håll dem i takt om husen ritas om.
 export const PLINTH = 0.32;
+export const PRESCHOOL_PITCH = 0.07;
+// Villans skorsten (gnesta-kit.js villa(): de två första dragen ur husets frö) i husets lokala ram.
+// Håll i takt med villan. Ren: samma hus ger samma skorsten.
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+export function villaChimney(h) {
+  if (!h.chimney || h.kind !== 'villa') return null;
+  const sh = roofShape(h), r = seeded(h.seed ?? 1);
+  const cx = (r() - 0.5) * sh.len * 0.5, cz = (r() < 0.5 ? -1 : 1) * sh.span * 0.12;
+  const [lx, lz] = sh.ridgeX ? [cx, cz] : [cz, -cx];
+  const c = Math.cos(h.ry), sn = Math.sin(h.ry);
+  return { x: h.x + lx * c + lz * sn, z: h.z - lx * sn + lz * c, top: sh.top + sh.rh + 0.9 };
+}
 function roofShape(h) {
   const pre = h.kind === 'preschool', shop = h.kind === 'shop';
   const W = pre ? Math.max(h.w, 13) : h.w, D = pre ? Math.max(h.d, 7.5) : h.d;
   const storeys = pre || shop ? 1 : h.storeys;
   const roof = pre || shop ? 'gable' : h.roof;
   const ridgeX = (pre ? 'x' : h.ridge ?? 'x') === 'x';
-  const pitch = pre ? 0.38 : shop ? 0.3 : storeys === 1.5 ? 0.74 : roof === 'hip' ? 0.4 : 0.47;
+  // 0.12.0 (H106): förskolan har platt tak (låg lutning), en utsiktspunkt för Psg 90
+  const pitch = pre ? PRESCHOOL_PITCH : shop ? 0.3 : storeys === 1.5 ? 0.74 : roof === 'hip' ? 0.4 : 0.47;
   const top = PLINTH + (storeys === 1.5 ? 3.3 : 2.75);
   const len = ridgeX ? W : D, span = ridgeX ? D : W, rh = (span / 2) * Math.tan(pitch);
   return { W, D, top, rh, len, span, ridgeX, hip: roof === 'hip' };
@@ -678,19 +694,52 @@ export function townRoofs(T) {
       garage = rect(h.x + c * gx + sn * gz, h.z - sn * gx + c * gz, h.ry, 3.7, gd);
       rects.push(garage);
     }
-    out.push({ rects, height(x, z) {
+    const chim = villaChimney(h), flatTop = h.kind === 'preschool';
+    out.push({ rects, eave: sh.top, kind: h.kind, height(x, z) {
       if (inRect(main, x, z)) {
         const dx = x - h.x, dz = z - h.z;
         return roofHeight(sh, dx * c - dz * sn, dx * sn + dz * c);
       }
       return garage && inRect(garage, x, z) ? GARAGE_TOP : 0;
-    } });
+    },
+    // 0.12.0 (H106): utsiktspunkten i punkten: 1 platt tak (garaget, förskolan), 2 nocken vid skorstenen
+    perch(x, z) {
+      if (garage && inRect(garage, x, z, -0.3)) return 1;
+      if (!inRect(main, x, z, -0.3)) return 0;
+      if (flatTop) return 1;
+      return chim && Math.hypot(x - chim.x, z - chim.z) <= CHIMNEY_PERCH ? 2 : 0;
+    }, chimney: chim });
   }
   out.push(...(T.extraRoofs ?? []));
+  // 0.12.0 (H106, H107): ishallen och sporthallen (höga, nästan platta tak) efter de andra, så att
+  // villornas och längornas nummer är som förut.
+  out.push(...bigHalls());
+  return out;
+}
+// Hur nära skorstenen (meter, vågrätt) en skytt kan ligga på nocken.
+export const CHIMNEY_PERCH = 1.8;
+// Ishallen (huvudbyggnaden och tillbyggnaden med entrén) och sporthallen med sin lägre del.
+function bigHalls() {
+  const hr = ICE_RINK, sh = SPORTHALL, out = [];
+  const local = (o, x, z) => { const dx = x - o.x, dz = z - o.z, c = Math.cos(o.ry), sn = Math.sin(o.ry); return [dx * c - dz * sn, dx * sn + dz * c]; };
+  const gable = (wall, rh, half) => lz => wall + rh * Math.max(0, 1 - Math.abs(lz) / half);
+  {
+    const main = rect(hr.x, hr.z, hr.ry, hr.len, hr.wid), roofH = gable(hr.wallH, (hr.wid / 2) * Math.tan(0.26), hr.wid / 2);
+    out.push({ rects: [main], eave: hr.wallH, kind: 'rink', height: (x, z) => (inRect(main, x, z) ? roofH(local(hr, x, z)[1]) : 0), perch: (x, z) => (inRect(main, x, z, -1) ? 1 : 0) });
+    const [ax, az] = hr.at(hr.len / 2 + hr.annex.depth / 2, 0), annex = rect(ax, az, hr.ry, hr.annex.depth, hr.annex.width);
+    out.push({ rects: [annex], eave: hr.annex.h, kind: 'annex', height: (x, z) => (inRect(annex, x, z) ? hr.annex.h + 0.25 : 0), perch: (x, z) => (inRect(annex, x, z, -0.5) ? 1 : 0) });
+  }
+  {
+    const main = rect(sh.x, sh.z, sh.ry, sh.len, sh.wid), roofH = gable(sh.wallH, 1.1, sh.wid / 2);
+    out.push({ rects: [main], eave: sh.wallH, kind: 'hall', height: (x, z) => (inRect(main, x, z) ? roofH(local(sh, x, z)[1]) : 0), perch: (x, z) => (inRect(main, x, z, -1) ? 1 : 0) });
+    const A = sh.annex, an = rect(A.x, A.z, sh.ry, A.len, A.wid), anH = gable(A.h, 0.9, A.wid / 2);
+    out.push({ rects: [an], eave: A.h, kind: 'hall', height: (x, z) => (inRect(an, x, z) ? anH(local({ ...A, ry: sh.ry }, x, z)[1]) : 0), perch: (x, z) => (inRect(an, x, z, -0.5) ? 1 : 0) });
+  }
   return out;
 }
 export const roofBuildings = () => townRoofs(gnestaTown());
 
+const CELL_SAMPLES = [[0, 0], [-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9], [0, -0.9], [0, 0.9], [-0.9, 0], [0.9, 0]];
 const ROOF_SAMPLES = [[0, 0], ...Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * 0.8, Math.sin(i * Math.PI / 4) * 0.8])];
 export function townPlacement(T, grid) {
   const houses = houseRects(T), things = thingRects(T);
@@ -713,18 +762,35 @@ export function townPlacement(T, grid) {
     },
   });
   // Taken: rutor vars mitt ligger på ett tak (inte i marginalen runt huset).
+  // 0.12.0 (H106): bara utsiktspunkterna (platta tak, nocken vid en skorsten, de höga hallarna) har
+  // en takhöjd att ligga på (roof, perch). (H107): varje husruta har byggnadens höjd (height): det
+  // högsta av byggnaden i rutan, och för marginalen runt huset takfoten på den närmaste byggnaden.
   const blds = townRoofs(T), n = grid.w * grid.h;
-  const roof = new Float32Array(n), bldg = new Int32Array(n);
+  const roof = new Float32Array(n), bldg = new Int32Array(n), height = new Float32Array(n), perch = new Uint8Array(n);
   for (let k = 0; k < n; k++) {
     if (place.kind[k] !== KIND.house) continue;
     const x = grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, z = grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize;
+    let hMax = 0;
     for (let i = 0; i < blds.length; i++) {
-      if (!(blds[i].height(x, z) > 0)) continue;
+      let hi = 0;
+      for (const [dx, dz] of CELL_SAMPLES) hi = Math.max(hi, blds[i].height(x + dx, z + dz));
+      hMax = Math.max(hMax, hi);
+      if (bldg[k] || !(blds[i].height(x, z) > 0)) continue;
+      bldg[k] = i + 1;
+      const kindP = blds[i].perch ? blds[i].perch(x, z) : 0;
+      if (!kindP) continue;
       // Skytten ligger ovanpå taket: högsta punkten inom 0,8 m (annars sjunker han in i takfallet).
       let y = 0;
       for (const [dx, dz] of ROOF_SAMPLES) y = Math.max(y, blds[i].height(x + dx, z + dz));
-      roof[k] = Math.round(y * 100) / 100; bldg[k] = i + 1; break;
+      roof[k] = Math.round(y * 100) / 100; perch[k] = kindP;
     }
+    if (!hMax) {
+      // marginalen runt huset: takfoten på närmaste byggnad inom 1,6 m (annars en vägg på 3 m)
+      let best = Infinity;
+      for (const b of blds) for (const r of b.rects) { const d = distRect(r, x, z); if (d < best && d < 1.6) { best = d; hMax = b.eave ?? 3; } }
+      if (!hMax) hMax = 3;
+    }
+    height[k] = Math.round(hMax * 100) / 100;
   }
   // Hemvärnet (0.9.0): häckar och staket längs tomterna (låga, skymmer inte sikten men ger skydd)
   // och diket längs skogsvägen. Bara öppna rutor; luckan vid uppfarten är ingen häck.
@@ -748,7 +814,17 @@ export function townPlacement(T, grid) {
     if (ditchRoads.some(rd => distPolyline(x, z, rd.pts) - rd.width / 2 < 2.4)) ditch[k] = 1;
     if (brick && brickSegs.some(sg => distPolyline(x, z, sg) < 1.3)) brick[k] = 1;
   }
-  return { ...place, roof, bldg, buildings: blds.map(b => b.rects), hedge, ditch, ...(brick ? { brick } : {}) };
+  return { ...place, roof, bldg, buildings: blds.map(b => b.rects), hedge, ditch, ...(brick ? { brick } : {}), height, perch,
+    // exakt höjd och utsiktspunkt i en punkt (bilden lägger skytten efter taket, H106)
+    perchAt: (x, z) => {
+      for (const b of blds) {
+        const h = b.height(x, z);
+        if (!(h > 0)) continue;
+        const ch = b.chimney ? [b.chimney.x, b.chimney.z] : b.chimneys ? [...b.chimneys].sort((p, q) => Math.hypot(p[0] - x, p[1] - z) - Math.hypot(q[0] - x, q[1] - z))[0] : null;
+        return { y: h, kind: b.perch?.(x, z) ?? 0, chimney: ch, roofKind: b.kind, height: b.height };
+      }
+      return null;
+    } };
 }
 // Gnestas egen stad: allt ovan med Gnestas data.
 let gnestaT = null;

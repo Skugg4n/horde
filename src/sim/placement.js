@@ -65,6 +65,9 @@ export function placementFor(map) {
     hedge: data.hedge ?? null, ditch: data.ditch ?? null,
     // Gnesta Norr (0.10.0): radhusens låga tegelmurar, ett starkare skydd än häcken.
     brick: data.brick ?? null,
+    // 0.12.0 (H107): byggnadernas höjd i meter per ruta (0 = ingen byggnad). Saknas den (E4) skymmer
+    // ett hus hela vägen upp, som förut. perch: utsiktspunkterna för Psg 90 (H106, PERCH).
+    height: data.height ?? null, perch: data.perch ?? null, perchAt: data.perchAt ?? null,
     keyAt(x, z) {
       const i = Math.floor((x - x0) / size), j = Math.floor((z - z0) / size);
       return i < 0 || j < 0 || i >= w || j >= h ? -1 : j * w + i;
@@ -109,17 +112,82 @@ export function lineOfSight(p, a, b) {
   return true;
 }
 
+// ---------- sikt med höjd (0.12.0, H107) ----------
+// Varje byggnad har en höjd (p.height, taket eller väggen i rutan). Strålen går från ögat (eye meter
+// över marken i rutan a) till målet (TARGET_H meter över marken i rutan b). En byggnadsruta på vägen
+// skymmer bara om byggnaden är högre än strålen där (strålens höjd vid rutans mitt, projicerad på
+// linjen). Från ett lågt tak ser skytten alltså över låga villor nära, men en hög länga skymmer, och
+// ett högt tak ser längre. Pjäserna på marken har ögat på EYE_GROUND (det skymmer i stort sett som
+// förut). Utan höjder (E4) gäller den gamla regeln: ett hus skymmer hela vägen upp.
+export const EYE_GROUND = 1.5, TARGET_H = 1.0;
+export function lineOfSightH(p, a, b, eye = EYE_GROUND, tgt = TARGET_H) {
+  if (!p.height) return lineOfSight(p, a, b);
+  const w = p.w, kind = p.kind, H = p.height;
+  let i = a % w, j = (a - i) / w;
+  const i1 = b % w, j1 = (b - i1) / w;
+  const di = i1 - i, dj = j1 - j;
+  const si = Math.sign(di), sj = Math.sign(dj);
+  const ai = Math.abs(di), aj = Math.abs(dj);
+  const L2 = di * di + dj * dj, i0 = i, j0 = j;
+  let nx = 0, nz = 0;
+  const wall = (ii, jj) => {
+    const k = jj * w + ii;
+    if (kind[k] !== KIND.house) return false;
+    const t = L2 ? Math.max(0, Math.min(1, ((ii - i0) * di + (jj - j0) * dj) / L2)) : 0;
+    return H[k] > eye + (tgt - eye) * t - 1e-9;
+  };
+  while (i !== i1 || j !== j1) {
+    const cx = ai ? (2 * nx + 1) * aj : Infinity, cz = aj ? (2 * nz + 1) * ai : Infinity;
+    if (ai && (!aj || cx < cz)) { i += si; nx++; }
+    else if (aj && (!ai || cz < cx)) { j += sj; nz++; }
+    else {
+      if (wall(i + si, j) && wall(i, j + sj)) return false;
+      i += si; j += sj; nx++; nz++;
+    }
+    if (i === i1 && j === j1) break;
+    if (wall(i, j)) return false;
+  }
+  return true;
+}
+
 // Synliga gångbara rutor från rutan key inom radius meter (rutans mitt, plus en halv
 // rutdiagonal så att en zombie i rutans kant räknas). Returnerar { mask, keys }.
-export function sightFrom(p, key, radius) {
+// eye: ögats höjd över marken (0.12.0: höjden räknas, se lineOfSightH).
+export function sightFrom(p, key, radius, eye = EYE_GROUND) {
   const mask = new Uint8Array(p.n), keys = [];
   const c = p.center(key), reach = radius + p.size * 0.7072;
   for (const k of p.walkKeys) {
     const q = p.center(k);
     if (Math.hypot(q.x - c.x, q.z - c.z) > reach) continue;
-    if (lineOfSight(p, key, k)) { mask[k] = 1; keys.push(k); }
+    if (lineOfSightH(p, key, k, eye)) { mask[k] = 1; keys.push(k); }
   }
   return { mask, keys };
+}
+// ---------- skjutsektorn (0.12.0, H108) ----------
+// Prickskytten skjuter bara inom en kon (CONE grader bred) runt facing (radianer, atan2(dz, dx)).
+export const CONE = 75;
+export const inCone = (p, key, k, facing, cone = CONE) => {
+  const a = p.center(key), q = p.center(k);
+  const d = Math.atan2(q.z - a.z, q.x - a.x) - facing;
+  return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) <= (cone / 2) * Math.PI / 180 + 1e-9;
+};
+export function coneSight(p, key, sight, facing, cone = CONE) {
+  const mask = new Uint8Array(p.n), keys = [];
+  for (const k of sight.keys) if (inCone(p, key, k, facing, cone)) { mask[k] = 1; keys.push(k); }
+  return { mask, keys, facing };
+}
+// Riktningen som ser mest av vikterna (weight[k] per gångbar ruta) inom konen: 48 riktningar, lika:
+// den första (österut, sedan moturs i rutnätets ordning). Ren och deterministisk.
+export const FACINGS = 48;
+export function bestFacing(p, key, sight, weight = null, cone = CONE) {
+  let best = 0, bestScore = -1;
+  for (let f = 0; f < FACINGS; f++) {
+    const a = f * 2 * Math.PI / FACINGS;
+    let sc = 0;
+    for (const k of sight.keys) if (inCone(p, key, k, a, cone)) sc += weight ? weight[k] : 1;
+    if (sc > bestScore + 1e-9) { best = a; bestScore = sc; }
+  }
+  return best;
 }
 
 // Avstånd från en punkt till rektangelns kant (0 inne i den).
@@ -131,8 +199,12 @@ export function distRect(r, px, pz) {
 // Takhöjden i rutan (0 = inget tak att ställa något på).
 export const roofAt = (p, key) => (p.roof && p.valid(key) ? p.roof[key] : 0);
 
-// Sikten från ett tak: se regeln vid ROOF_DEAD. Samma svar som sightFrom ({ mask, keys }).
+// Sikten från ett tak. 0.12.0 (H107): med höjder ligger ögat PERCH_EYE över utsiktspunkten och husen
+// skymmer efter sin höjd (lineOfSightH), det egna taket också (död vinkel rakt nedanför). Utan höjder
+// gäller den gamla regeln vid ROOF_DEAD. Samma svar som sightFrom ({ mask, keys }).
+export const PERCH_EYE = 0.6;
 export function roofSightFrom(p, key, radius) {
+  if (p.height) return sightFrom(p, key, radius, roofAt(p, key) + PERCH_EYE);
   const mask = new Uint8Array(p.n), keys = [];
   const c = p.center(key), reach = radius + p.size * 0.7072;
   const own = p.buildings[(p.bldg?.[key] ?? 0) - 1] ?? [];

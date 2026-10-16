@@ -14,8 +14,9 @@ export const WEAPONS = {
   ak5:   { id: 'ak5', name: 'Ak 5 + granattillsats', short: 'Ak 5 + Grt', desc: 'Assault rifle with a 40 mm grenade launcher. Steady shots, a grenade every few seconds.',
            cost: 450, range: 17, rate: 2.5, damage: 7, accuracy: 0.85, upgradeCost: [350, 550],
            launcher: { range: 18, cooldown: 4.5, damage: 55, radius: 2.6, falloff: 0.6, flight: 0.6, minCount: 2 } },
-  psg90: { id: 'psg90', name: 'Psg 90', desc: 'Sniper rifle. Slow, deadly, very long range. Pierces two in a line. Goes on rooftops.',
-           cost: 700, range: 34, rate: 0.6, damage: 90, accuracy: 0.95, pierce: 2, roof: true, upgradeCost: [500, 750] },
+  psg90: { id: 'psg90', name: 'Psg 90', desc: 'Sniper rifle. Slow, deadly, very long range. Pierces two in a line. Flat roofs, a ridge by a chimney or a tall building; aim its sector with the wheel or Q/E.',
+           cost: 700, range: 34, rate: 0.6, damage: 90, accuracy: 0.95, pierce: 2, roof: true, cone: 75, upgradeCost: [500, 750] },
+  // 0.12.0 (H108): cone: skjutsektorn i grader, vald när den ställs ut (placement.js CONE).
   // 0.9.0: Hemvärnet, en grupp soldater med Ak 4 (7,62 mm). Siffrorna gäller per soldat; gruppen
   // väljer själv skydd runt markeringen (src/sim/squad.js). Nivå 2 ger en femte soldat, nivå 3
   // bättre gevär (skadan som andra vapen, 30 % per nivå). Svagare per krona än Ksp 90, men
