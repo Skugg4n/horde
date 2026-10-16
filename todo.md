@@ -99,19 +99,33 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H080 | grafik | Hemvärnets ringar genom trädkronorna, Psg 90 på taket med signalduk och ring.
 - [x] H081 | forskning | Psg 90 via Ksp 88 I för 180 (vägen 280, var 420), texter som följer siffrorna med prov.
 - [x] H082 | debug | ?debug på Gnesta Norr: ankomsten för den som vinner varje dag direkt (20 nivåer, fem platser).
-- [ ] H083 | balans | Gnesta Norr dag 2 till 5 har fortfarande första skottet efter 30 till 42 s; försprång där gav klippor i policyn (docs/balance-log.md 0.10.2). Speltesta i händerna.
+- [x] H083 | balans | (0.11.0: öppningen söderifrån ger första skottet 11 till 13 s alla dagar.) Gnesta Norr dag 2 till 5 har fortfarande första skottet efter 30 till 42 s; försprång där gav klippor i policyn (docs/balance-log.md 0.10.2). Speltesta i händerna.
 - [ ] H084 | balans | ?debug-ankomsten på Gnesta Norr har ändå Ksp 58 I och Ak 5 I: forskningen fram till Gnesta dag 5 räcker till alla vapen (ca 2 000 poäng). Ska den snålas in krävs ett beslut om forskningstakten.
 - [ ] H085 | ux | Speltesta 0.10.2 i händerna: Gnesta dag 2, pilarna och nästa grupp, köpraden vid 1024 px.
 
 
 ## Efter speltest 0.10.2 (2026-10-16)
-- [ ] H090 | balans | Gnesta dag 2: en grupp tar en inre gata mellan villorna som inte syns före vågen; förhandsvisa varje grupps väg innan vågen.
-- [ ] H091 | ux | Ingångsetiketter hamnar på hustak eller fel plats; placera dem på gatan vid kartkanten.
-- [ ] H092 | ux | Ingen ledtråd om R (hordens väg); visa i HUD eller dagintro.
-- [ ] H093 | tempo | Gnesta Norr: första skottet ~50 s och våg 2 startar innan våg 1 nått vapnen (se H083).
-- [ ] H094 | grafik | Räckviddsringen och Hemvärnets ringar ritas ovanpå hustak.
+- [x] H090 | balans | Gnesta dag 2: en grupp tar en inre gata mellan villorna som inte syns före vågen; förhandsvisa varje grupps väg innan vågen.
+- [x] H091 | ux | Ingångsetiketter hamnar på hustak eller fel plats; placera dem på gatan vid kartkanten.
+- [x] H092 | ux | Ingen ledtråd om R (hordens väg); visa i HUD eller dagintro.
+- [x] H093 | tempo | Gnesta Norr: första skottet ~50 s och våg 2 startar innan våg 1 nått vapnen (se H083).
+- [x] H094 | grafik | Räckviddsringen och Hemvärnets ringar ritas ovanpå hustak.
 - [x] H095 | ux | Esc efter ett köp öppnar pausmenyn; "On the road"-texten ligger kvar.
 - [x] H096 | ux | Statistiken på köpkorten syns bara vid hovring.
 - [x] H097 | ux | Köpraden i kategorier med tvåstegs-snabbval: 1 Defenses (1-1 Barrier, 1-2 Wire, 1-3 Mines senare), 2 Units (2-1 Hemvärnet, 2-2 Ksp 90, 2-3 Ksp 88, 2-4 Ksp 58, 2-5 Ak 5 + Grt, 2-6 Psg 90). Olas förslag 2026-10-16, reviderat samma dag.
 - [ ] H098 | grafik | Även pjäserna (Ksp m.fl.) anpassar sig efter miljön: värnet byggs mot befintligt skydd (husknut, mur, häck, bil), sandsäckar bara där det saknas skydd, skytten i skydd, riktat mot hordens väg.
 - [ ] H099 | ux | Trupper bakom höga hus: diskret markör (silhuett genom vägg eller liten flagga) som bara syns när enheten är skymd, klickbar. Får inte förstöra det realistiska utseendet.
+- [ ] H100 | ux | Minimap i stil med militär karta/GPS: aktiva kartan, var horden spawnar, hur grupperna rör sig (prickar), pjäser, barrikader, kamerans ruta; klick flyttar kameran.
+- [ ] H101 | spel | Vilande zombier i hus: förvarnade i dagintrot ("Intel: dormant infected reported on <gata>"), huset svagt markerat, dörren slås upp och 3-5 Z väller ut i våg 1. Senare dagar kan ha ett oförvarnat hus.
+- [ ] H102 | spel | Flytta (Move) i stället för att bara sälja: nedmontering + förflyttning + uppställning tar tid (Ksp 88 ~15 s, Hemvärnet några s), skjuter inte under tiden, Hemvärnet sårbart på vägen. Befästningen blir kvar på gamla platsen. Uppgraderingar/granatkit följer med. Sälj finns kvar (60 %).
+- [ ] H103 | framtid | Kampanjen börjar med bara Hemvärnet; riktiga trupper låses upp successivt: infanteri (Ak 5-grupp), kulsprutegrupp, fallskärmsjägare senare, m.fl. Riktiga trupper som grupper med skydds-AI som Hemvärnet.
+- [ ] H104 | kampanj | E4 = militär vägspärr med riktiga trupper (smak på full kraft). Gnesta = bara Hemvärnet som successivt får bättre försvar. Övergångstext: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard."
+- [ ] H105 | kampanj | Gnesta dag 1: civila (jaktgevär, hagel) med uppdrag "Hold until the civilians reach the ice rink" (går att lyckas/misslyckas, kort). Hemvärnet tar över dag 2.
+- [ ] H106 | vapen | Psg 90: inga tak-genomskärningar; placeras på riktiga utsiktspunkter (platta tak, nock vid skorsten, torn/höga byggnader) i rätt vinkel.
+- [ ] H107 | vapen | Sikt med höjd: varje byggnad har höjd, siktlinjen räknas i höjdled (enplansvilla ser över låga hus nära, tvåvåningsradhus skymmer; högt tak/torn ser mer).
+- [ ] H108 | vapen | Prickskyttens skjutsektor: kon 60-90° som väljs/vrids vid placering; belönar att ligga längst bort på en gata och sikta längs den.
+
+## Efter 0.11.0
+- [ ] H098 | tempo | Gnesta South: policyns första skott 52 till 54 s sedan ingångarna flyttade ut i diset (vägen inne på kartan är längre). Speltesta om en spelare ställer en pjäs vid kartkanten, annars kortare väg in eller fler löpare först.
+- [ ] H099 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen?
+- [ ] H100 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot.

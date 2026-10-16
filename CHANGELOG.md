@@ -1,5 +1,22 @@
 # Ändringslogg
 
+## 0.11.0 (2026-10-16)
+
+Efter speltestet av 0.10.2 (docs/playtests/2026-10-16-0.10.2.md) och Olas önskemål samma dag.
+
+- Hordens väg före vågen (H090): under bygget och nedräkningen lyser vägen från varje ingång som nästa våg använder starkare, och varje ingång har en etikett med vad som kommer: "30 walkers · 50 runners" och ingångens namn. Vägen räknas om direkt när en barrikad läggs eller rivs. Under vågen är linjen svagare igen.
+- Etiketterna står på gatan (H091): på första punkten längs hordens väg där de ryms i bild utan att täcka gränssnittet eller varandra, inte klistrade mot skärmkanten på ett hustak.
+- R syns (H092): "R Horde route ON/OFF" nere till höger på stadsbanorna, och Gnesta dag 1 säger det i introt.
+- Ingångarna ligger i diset igen (Olas krav): vägarna fortsätter ut i dimkanten utanför den skarpa ytan och horden kommer ur diset längs gatan, inte mitt i en korsning. I diset går de 2,75 gånger fortare och saktar mjukt in över de sista 8 m, så den första syns i kartkanten inom 10 s. Inget går att bygga i dimkanten.
+- Zoomen ut till 84 m igen (som i 0.4); utzoomade ritas zombierna upp till 30 % större.
+- Gnesta North öppnar söderifrån (Olas idé, H093): våg 1 varje dag är en liten grupp eftersläntrare på Sigtunavägen förbi ishallen, så det finns något att skjuta på inom 10 till 15 s. När våg 2 börjar: "They're coming from the north now."
+- Sektorerna (Olas önskan): banorna heter Sector E4, Gnesta South och Gnesta North (id:na är desamma). Vinsten på sektorns sista dag visar en kort text om vart horden är på väg, och knappen leder rakt in i nästa sektors dag 1 (Enter).
+- Köpraden i två kategorier med tvåstegsval (Olas önskan, H097): 1 Defenses (1-1 Barrier, 1-2 Wire), 2 Units från svagast till starkast (2-1 Hemvärnet, 2-2 Ksp 90, 2-3 Ksp 88, 2-4 Ksp 58, 2-5 Ak 5 + Grt, 2-6 Psg 90). Första siffran tänder kategorin, andra tar saken; Esc eller samma kategori igen backar; klick på kortet som förut. Ordningen bor på ett ställe (BUY_MENU).
+- Korten visar alltid en kort statistikrad, hela raden vid hovring (H096).
+- Esc strax efter ett köp öppnar inte pausmenyn, och "On the road" försvinner när placeringen är slut (H095).
+- Räckviddsringarna och Hemvärnets ringar skyms av husen (H094); gruppen syns i skugga på ett ljust hjälmband som lyser svagt.
+- Balans: Gnesta och Gnesta North omvägda för de nya ingångarna och öppningen, nya kvitton (docs/balance-log.md, 0.11.0).
+
 ## 0.10.2 (2026-10-16)
 
 Putspass efter speltestet av 0.10.1 (docs/playtests/2026-10-16-0.10.1.md).

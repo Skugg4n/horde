@@ -373,3 +373,33 @@ Gnesta Norr:
 E4: nedräkningen och bonusen ändrar kassan; dag 1 och 2 direkt, dag 3 på tredje försöket i alla fem seeds, som förut.
 
 Kvitton: E4 4d617fb6/7775, Gnesta 342091db/38829, Gnesta Norr bfdb2e9f/54742.
+
+## 0.11.0: vägarna före vågen, ingångarna i diset och Gnesta Norrs öppning
+
+Uppdraget: speltestet av 0.10.2 (Gnesta dag 2 förlorades på en väg som inte syntes före vågen; Gnesta Norr gav första skottet efter 50 s) och Olas krav samma dag: ingångarna ska ligga i dimkanten, inte mitt i en korsning, och tiden till första skottet ska ändå vara kort.
+
+Regler (stadsbanorna):
+- Ingångarna ligger minst 6 m utanför den skarpa ytan (SURROUNDINGS.crisp), på vägar som fortsätter ut i diset (sigtunaFog, eastFog, forestFog på Gnesta; dansN, vikFog, c3fog och Sigtunavägen väster på Gnesta Norr). Provet tests/fog-spawns.test.js.
+- fogFactor (src/sim/sim.js): utanför den skarpa ytan går horden FOG_SPEED = 2,75 gånger fortare, med en mjuk övergång (smoothstep) över de sista FOG_RAMP = 8 m. Dagens första zombie syns i kartkanten inom 10 s på varje dag. Försprånget (lead) stannar i diset, så ingen dyker upp mitt på kartan.
+- Barrikader och pjäser går inte att lägga i dimkanten.
+- Prövat: att bara backa 0.10.1:s flytt (Gnestas gamla ingångar) räckte inte, de låg också inne i den skarpa ytan.
+- Kvar: vägen inne på kartan är längre än i 0.10.2 (Sigtunavägen från x 84 i stället för 37), så policyns första skott på Gnesta kommer efter 52 till 54 s (var 14 till 19), eftersom dess pjäser står vid fältet. Den som ställer en pjäs i kartkanten skjuter efter några sekunder. Provet kräver nu policyns första skott inom 60 s och att horden syns inom 10 s.
+
+Gnesta (South):
+- De första i dagens första grupp är fem löpare alla dagar (var sex vandrare dag 2 till 5): med längre väg in kom vandrarnas första skott efter 95 till 110 s.
+- Dag 2: hp 5,9 (var 5,0). Med vägarna synliga före vågen och längre väg in blev dagen lättare än dag 1 för naive (snitt 9,2 mot 8,4). Prövat 5,6: naive vann alla fem. Nu: smart 20 kvar på första försöket i alla seeds, naive 2 till 5 kvar i fyra och en förlust; dag 1 naive 6 till 10. Prövat och förkastat: våg 2 med 24 löpare efter 12 s (naive tog lika mycket skada).
+- Dag 4: hp 4,85 (var 5,1). Vid 4,9 förlorade gruppen med Hemvärnets forskning dag 4 i en seed, vid 4,8 var gruppen bättre än en pjäs till (61 mot 53). 4,85: smart 10 till 12 kvar, gruppen vinner alla fem med 6 till 13.
+- Dag 5: hp 4,3 (var 4,0), våg 3 40 + 34 + 34 vandrare (var 44 + 38 + 38): flest levande var 259 med längre vägar. Prövat 4,6 (fyra till sex försök). Smart vinner på 1 till 4 försök med 1 till 8 kvar.
+- Dagarna är 490 till 520 s (8 till 9 minuter, var 6 till 8).
+
+Gnesta Norr (North):
+- Öppningen: våg 1 varje dag är 8 till 10 vandrare och 2 till 4 löpare från Sigtunavägen väster (sigW, ingångens namn "Sigtunavägen south"), med dag 1:s hp-faktor 2,8 alla dagar (group.hp, ny i sim.js) så att en Ksp 90 vid ishallen räcker. Våg 2 har raden "They're coming from the north now." (wave.toast). Första skottet 11 till 13 s alla dagar (var 11 till 19 dag 1 och 30 till 42 dag 2 till 5).
+- Policyn ställer en Ksp 90 där den ser öppningens väg (parkeringen söder om Sigtunavägen) och säljer den när öppningen är slut och norr har börjat. Prövat: en Ksp 88 där åt upp pengarna till linjen i norr (dag 5 förlorades i alla försök); att behålla Ksp 90 kostade dag 4 i alla seeds; att välja en av planens första platser gick inte, ishallen skymmer vägen från dem.
+- Startkassan +250 alla dagar (pjäsen till öppningen).
+- Vikingavägen norr kommer ur diset rakt norrifrån (vikFog). Prövat: Dansutvägen österut nådde Radhusgången först och horden tog den vägen.
+- hp: 2,8 / 4,6 / 5,0 / 5,15 / 6,7 (var 2,8 / 3,8 / 4,0 / 5,0 / 4,3), dag 4:s första våg norrifrån 36 + 30 vandrare (var 50 + 40). Klippor: dag 3 vid 4,8 (19 till 20 kvar) mot 5,4 (förlust i alla), dag 4 vid 5,3 (fyra försök) och dag 5 vid 7,0 (sex försök).
+- Smart: dag 1 20 kvar (naive förlorar), dag 2 3 till 19 (1 till 2 försök), dag 3 6 till 20 (1 till 3), dag 4 1 till 15 (1 till 2), dag 5 2 till 6 (1 till 3). Naive förlorar dag 2 till 5 i alla seeds. Dagarna 263 till 528 s (provet tillåter nu 9 minuter: öppningen är en våg till).
+
+E4: oförändrad (ingen dimma, kvittot detsamma).
+
+Kvitton: E4 4d617fb6/7775, Gnesta 1d49e790/44538, Gnesta Norr e96d3147/74040.
