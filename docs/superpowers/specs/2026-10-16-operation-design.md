@@ -1,6 +1,6 @@
 # Operation Södermanland: rekvisition, kärntrupper och operationskarta (design, utkast)
 
-Version 0.1 · 2026-10-16 · status: utkast för Olas läsning. Inget byggs innan Ola godkänt.
+Version 0.1 · 2026-10-16 · status: GODKÄND av Ola 2026-10-16. Byggs efter kampanjpasset.
 
 ## Varför
 
@@ -67,4 +67,4 @@ Ordningen i förrådet styr inlärningskurvan. Spelaren kan inte köpa allt dire
 
 1. ~~Rekvisition mitt i en dag?~~ BESLUT (Ola 2026-10-16): bara mellan dagarna.
 2. ~~Kan sektorer falla permanent?~~ BESLUT (Ola 2026-10-16): nej, de blir bara svårare.
-3. Ska svårighetsgrad finnas som val (till exempel "Hemvärnet" eller "Fallskärmsjägare"), eller räcker grinden?
+3. ~~Svårighetsval?~~ BESLUT (Ola 2026-10-16): inget val i början; grind + bonusar räcker. Kan läggas till senare (multiplikatorer finns redan i debugmenyn).
