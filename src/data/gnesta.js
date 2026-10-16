@@ -583,7 +583,7 @@ export const CARS = (() => {
 // Husen (villor med garage, ishallen, sporthallen) är hus och skymmer sikten; en meter runt
 // dem är också "hus" så att sandsäckarna inte går in i väggen. Rondellens ö är basen.
 // Skogen är tät (träd var 3,3 m, 9-16 m höga) och stängd där träden står: inne i skogen och
-// minst 3,5 m från gatukanten. Remsan mellan gatan och skogen går att bygga på.
+// minst FOREST_EDGE (6,5) m från gatukanten. Remsan mellan gatan och skogen och brynet går att bygga på.
 // Bilar, släpvagnar, studsmattor och trädgårdsträd står i vägen men skymmer inget.
 // Häckar, staket och brevlådor är låga: där går det att bygga, och de skymmer inte.
 const HOUSE_PAD = 1;
@@ -628,6 +628,13 @@ function thingRects(T) {
   return out;
 }
 // Står det skog i punkten (samma regler som skogen ritas med, med marginal för trädens slump)?
+// 0.14.2 (speltestet av 0.14.1: "In the forest" var ett av de vanligaste skälen till att en placering
+// nekades): skogsbrynet går att stå i. Träden ritas först 4,5 m från gatukanten och är låga där (en
+// tredjedel av höjden inne i skogen, gnesta-world.js), så den första glesa raden räknas som bryn och inte
+// som tät skog: tät skog börjar FOREST_EDGE meter från gatukanten (var 3,5). Mitt beslut: en pjäs i
+// brynet har sikt ut över gatan och står inte inne bland stammarna; träden där fälls i bilden när
+// något ställs ut (fortify.js, taggade i gnesta-world.js). Djupare in är det fortfarande stängt.
+export const FOREST_EDGE = 6.5;
 export function denseForestIn(T, x, z) {
   if (!T.ground.forest.some(poly => inPoly(x, z, poly))) return false;
   if (T.roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)) return false;
@@ -636,7 +643,7 @@ export function denseForestIn(T, x, z) {
   if (distPoly(x, z, ROUNDABOUT.island) < 9) return false;
   if (Math.hypot(x - ICE_RINK.x, z - ICE_RINK.z) < ICE_RINK.len / 2 + 9) return false;
   if (Math.hypot(x - SPORTHALL.x, z - SPORTHALL.z) < SPORTHALL.len / 2 + 12) return false;
-  return Math.min(...T.roads.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= 3.5;
+  return Math.min(...T.roads.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= FOREST_EDGE;
 }
 const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDABOUT.flag, [cx + 1.3, cz - 0.4], [cx - 0.9, cz + 1.2]]; };
 // Taken (0.8.0): villorna, förskolan, affären och garagen går att ligga på (Psg 90). Ishallen är

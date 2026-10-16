@@ -54,8 +54,11 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 
 // 0.14.1: första kvittot. E4 dag 2 var 39a99c7f med 0.14.0:s vågor; E4:s nya tempo (löparna i tre klungor,
 // hp 4,4) byter det avsiktligt (docs/balance-log.md 0.14.1). South dag 3 och North dag 2 står kvar.
+// 0.14.2: E4 dag 2 a773fa93 till e007577b, avsiktligt: spärren släpper in en i taget (map.door), löparna i
+// fler och mindre klungor och hp 4,0 (docs/balance-log.md 0.14.2). Den fasta styrkan vinner nu med full bas.
+// South dag 3 och North dag 2 står kvar, också med skogsbrynet (placeringen rör inte de fasta rutorna).
 const RECEIPTS = {
-  'E4 day 2': 'a773fa93',
+  'E4 day 2': 'e007577b',
   'Gnesta South day 3': '3b601645',
   'Gnesta North day 2': 'b50f3d9a',
 };

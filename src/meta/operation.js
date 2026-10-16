@@ -257,13 +257,15 @@ export const supplyBonus = research => Math.round((tierData(research, 'budget')?
 // ---------- dagen ----------
 // Simuleringens start: kärntrupperna i sektorn (reserven att ställa ut), dagens förnödenheter och
 // trycket i sektorn som hp-faktor. null om dagen inte finns.
+// 0.14.2: en dag kan ha en egen faktor på förnödenheterna per dödad (d.bounty, E4 dag 3: bjässarna gav
+// över 1 000 dollar som inte gick att lägga på något).
 export function opStartConfig(p, day, mapId = p.mapId) {
   const base = startConfig(p, day, mapId);
   if (!base) return null;
   const d = base.map.days[day - 1];
   const core = unitsIn(p, mapId).filter(u => u.men == null || u.men > 0)
     .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}) }));
-  return { ...base, cash: (d.supplies ?? d.startCash) + supplyBonus(p.research), core, hpMul: hpFromPressure(pressureOf(p, mapId)), bountyMul: SUPPLY_BOUNTY };
+  return { ...base, cash: (d.supplies ?? d.startCash) + supplyBonus(p.research), core, hpMul: hpFromPressure(pressureOf(p, mapId)), bountyMul: SUPPLY_BOUNTY * (d.bounty ?? 1) };
 }
 // RP för ett försök. base: det simuleringen räknade (dödade, vågor, lärdomen vid förlust). report:
 // src/sim/sim.js dayReport. Bonusarna bara vid vinst.

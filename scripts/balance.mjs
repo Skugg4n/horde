@@ -236,7 +236,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex, lostBy: sim.lostBy ?? null,
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
-    peak, sim, report: dayReport(sim),
+    peak, sim, report: dayReport(sim), cashEnd: sim.cash,
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
@@ -738,7 +738,9 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
           lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
           ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime),
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
-          waveBase: r.waveLog.map(w => w.baseHp) });
+          waveBase: r.waveLog.map(w => w.baseHp),
+          // 0.14.2: förnödenheterna kvar när dagen tar slut (överskottet); inte heller i fingeravtrycket
+          cashEnd: r.cashEnd });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -756,7 +758,7 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, ...r }) => (void waveBase, r);
+  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 

@@ -49,6 +49,10 @@ export const MAPS = {
     baseHp: 20,
     // 0.14.0: frontbredden, så många kärntrupper får stå ute samtidigt (src/sim/sim.js frontage)
     frontage: 6,
+    // 0.14.2 (speltestet av 0.14.1: "basen från 17 till 0 på några sekunder"): spärren tar dem en i taget, som
+    // ishallens dörrar på Gnesta (src/sim/sim.js doorBreak). De som når fram står vid spärren och går att
+    // skjuta; en släpps igenom var 3,2 s, så att 20 i bas räcker minst en minut från första skadan.
+    door: { gap: 3.2 },
     // 0.13.0 (H104, H130): E4 är den militära vägspärren, en smak av riktig militär kraft. Inget Hemvärn
     // här: infanteriet, Ksp 90, Ksp 88 och EPA-pillboxen finns från början (utan forskning), plus tråd och
     // betong som förut. Lite som en övning: dag 1 lär ut pjäsen och vinkeln, dag 2 tråden och pillboxen,
@@ -66,11 +70,17 @@ export const MAPS = {
         waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.2, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 22, interval: 0.8, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 22, interval: 0.6, delay: 0 }, { type: 'walker', count: 18, interval: 0.5, delay: 18 }] } ] },
-      { n: 2, supplies: 350, startCash: 800, hp: 4.4, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
+      // 0.14.2 (speltestet av 0.14.1: basen från 17 till 0 på sekunder, och två uppgraderingar gav full bas):
+      // spärren släpper in en i taget (door ovan), våg 2:s löpare i två klungor och våg 3:s i sex om 8 i
+      // stället för tre om 16, hp 4,4 till 4,0. Utan uppgraderingar vinner man nu med skada (bas 7 till 9);
+      // en förlust tar minst en minut (docs/balance-log.md, 0.14.2).
+      { n: 2, supplies: 350, startCash: 800, hp: 4.0, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
         waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 8 }] },
-                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'runner', count: 26, interval: 0.6, delay: 4 }] },
-                 { groups: [{ type: 'walker', count: 20, interval: 0.7, delay: 0 }, { type: 'runner', count: 16, interval: 0.6, delay: 3 }, { type: 'runner', count: 16, interval: 0.6, delay: 20 }, { type: 'runner', count: 16, interval: 0.6, delay: 38 }] } ] },
-      { n: 3, supplies: 400, startCash: 1200, hp: 1.15, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
+                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'runner', count: 13, interval: 0.8, delay: 4 }, { type: 'runner', count: 13, interval: 0.8, delay: 22 }] },
+                 { groups: [{ type: 'walker', count: 20, interval: 0.7, delay: 0 }, ...[3, 14, 25, 36, 47, 58].map(delay => ({ type: 'runner', count: 8, interval: 0.8, delay }))] } ] },
+      // 0.14.2 (speltestet: 1 042 dollar oanvända efter våg 3): bjässarna ger hälften så mycket förnödenheter
+      // (bounty), och hp 1,15 till 1,2 (bjässarna vid spärren dog för lätt med door).
+      { n: 3, supplies: 400, startCash: 1200, hp: 1.2, bounty: 0.5, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
         waves: [ { groups: [{ type: 'walker', count: 18, interval: 0.9, delay: 0 }, { type: 'runner', count: 8, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }, { type: 'brute', count: 4, interval: 4, delay: 8 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }, { type: 'runner', count: 26, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },

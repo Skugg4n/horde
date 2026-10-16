@@ -600,3 +600,72 @@ Osäkert och värt ett speltest:
 - E4 dag 2 i en människas händer: stupet var en klunga på 56 löpare med 0,3 s mellanrum. Nu tre klungor; policyerna föll aldrig, men en spelare som står i en meny när klungan kommer kan fortfarande tappa mycket på kort tid.
 - E4 dag 1 hp 3,0 ligger nära en tröskel: 2,8 gav ingen skada alls, 3,2 tog den normala till 9 till 11.
 - Den skickliga på South dag 2 (se ovan). Nästa balanspass bör ta Norths hp-faktorer (granskningens rekommendation 1) och South dag 2 tillsammans.
+
+## 0.14.2: spärren på E4, dag 2 och 3, skogsbrynet
+
+Efter speltestet av 0.14.1 (docs/playtests/2026-10-16-0.14.1.md): "basen gick från 17 till 0 på några sekunder", "med två uppgraderingar blev samma dag en promenad" och "1 042 dollar som jag inte hann eller kunde använda" på dag 3.
+
+Mätt först (nytt skript i skissmappen, samma policy som balansskriptets normala spelare): E4 dag 2 med styrkan efter dag 1 och olika köp i förrådet, fem seeds.
+
+```
+före (0.14.1)       bas efter dagen (L = förlorad, f = sekunder från första skadan till fallet)
+inga köp            L f64 till f72 (alla fem)
+Faster Ksp 90 I     L f6 till f8 i tre seeds, L f60 till f69 i två
+infanteriet nivå 2  L f6 i en seed, annars 3 till 9
+båda                10 till 19
+```
+
+Stupet var en klunga på 16 löpare som nådde basen samtidigt: varje löpare som kom fram tog en poäng direkt. Med en köpt nivå klarade pjäserna klungan precis eller inte alls.
+
+Ändringar:
+- E4 har en spärr som släpper in en i taget (map.door, gap 3,2 s, samma regel som ishallens dörrar på Gnesta). De som når fram står vid spärren och går att skjuta. 20 i bas räcker då minst 64 s från första skadan. Prövat: gap 1,0, 1,5, 2,0, 2,5 och 3,2; när infanteriet faller tar fallet 20 x gap sekunder, så bara 3,2 håller det över en minut (2,5 gav 47 s).
+- E4 dag 2: löparna i våg 2 i två klungor om 13 (4 och 22 s in, intervall 0,8) i stället för en ström om 26, och i våg 3 sex klungor om 8 (3, 14, 25, 36, 47 och 58 s in, intervall 0,8) i stället för tre om 16. hp 4,4 till 4,0. Prövat med de nya klungorna: 3,9 (inga köp 9 till 14), 4,2 (inga köp förlorar i två seeds av fem, en köpt nivå 15 till 19), 4,5 (inga köp förlorar i fyra av fem) och 5,0 (inga köp förlorar alltid). Med de gamla klungorna och spärren: 3,6 gav inga köp 2 till 11 och två förluster.
+- E4 dag 3: hp 1,15 till 1,2 (med spärren dog bjässarna där för lätt, den skickliga höll 20 i alla seeds) och halva förnödenheterna per dödad (dagens bounty 0,5, ny nyckel i src/meta/operation.js opStartConfig). 0,35 prövades och gav ojämna summor.
+- Gnesta South och North (placeringen, inte balansen): skogsbrynet går att stå i. Tät skog börjar 6,5 m från gatukanten (var 3,5, src/data/gnesta.js FOREST_EDGE). Träden ritas först 4,5 m från gatan och är låga där, så den första glesa raden är brynet. 262 rutor på South och 372 på North blev öppna. Balansskriptets pjäser väljer bland öppna rutor, så de kan hamna i brynet.
+
+Efter, E4 dag 2 med samma styrkor:
+
+```
+inga köp            7 till 9 (vinst alla fem)
+Faster Ksp 90 I     20
+Heavy wire          5 till 10
+infanteriet nivå 2  20
+```
+
+En ny spelare vinner nu dag 2 utan köp, med skada, och en förlust tar över en minut. Ett köp ger fortfarande full bas: steget från 8 till 20 är kvar, men det går från vinst till vinst i stället för från förlust till vinst.
+
+E4 i kampanjen (bas efter dagen, förnödenheter kvar):
+
+```
+skilled   dag 1 18 till 20   dag 2 20 ($ 190)   dag 3 17 till 20 ($ 111 till 156, var 392 till 1 022)
+normal    dag 1 13 till 19   dag 2 20 ($ 590)   dag 3 1 till 5 ($ 121 till 331, var 302 till 832)
+```
+
+Den normala köper inga förnödenheter, så dag 2:s $ 590 är hans egna; den skickliga lägger dem på ammunition och sandsäckar.
+
+Resultat, försök till vinst per kampanjsteg:
+
+```
+skilled  E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0-4  1  1  1  1  1  1  1  1  1  1  1  1  1   (alla fem seeds)
+
+normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0    1  1  1  1  1  2  1  3  1  2  1  1  1
+seed 1    1  1  1  1  1  2  1  3  1  1  1  1  1
+seed 2    1  1  1  1  1  2  1  3  1  2  1  1  1
+seed 3    1  1  1  1  1  2  2  2  1  2  1  1  1
+seed 4    1  1  1  1  1  2  1  3  1  1  1  1  1
+```
+
+Fingeravtrycken per kampanjsteg (balance-op-skilled och balance-op-normal) är alla nya, avsiktligt: E4 och skogsbrynet ändrades och kampanjen bär resten vidare. Simuleringens kvitto: E4 dag 2 a773fa93 till e007577b (den fasta styrkan vinner nu med full bas, förut förlorade den); Gnesta South dag 3 och North dag 2 står kvar, så skogsbrynet rör inte simuleringen för fasta rutor. Balansskriptets logg har förnödenheterna kvar per försök (cashEnd), utanför fingeravtrycket som waveBase.
+
+Ändrat i proven:
+- Nytt: tests/e4-tempo.test.js. E4 dag 2 med styrkan efter dag 1 och inga köp vinner med skada i tre seeds, och basen tappar aldrig mer än 4 på 10 s.
+- Nytt i balance-op-skilled: E4 dag 3 slutar med under $ 500 kvar i varje seed.
+- Borttaget: South dag 2 ska kosta den skickliga något i minst två seeds. Nu kostar den inget i någon. E4 dag 2 hålls nu med full bas, bonusen för oskadad bas ger mer RP, och hon har tre Ksp 90 före Gnesta i stället för två; med tre håller spärren vid rondellen. hp 3,4 och 3,6 på South dag 2 ändrade inte det. I stället: E4 dag 3 kostar henne något i minst tre seeds (nu fyra).
+
+Osäkert och värt ett speltest:
+- E4 dag 2 för en människa: en köpt nivå ger fortfarande full bas. Ett mellansteg (ett köp ger 12 till 16) kräver ett fall till mitten av förlusterna för den som inte köpt något, och det var det speltestet klagade på.
+- Spärren på E4 gör att horden står och slår vid basen en stund; det syns och känns annorlunda än förut (de sprang in och försvann).
+- South dag 2 och den skickliga: tas med i passet för North (granskningens rekommendation 1).
+- Överskottet sänktes i stället för att få ett nytt sätt att lägga pengar mitt i striden. En ny sak att köpa (reparera spärren eller liknande) behöver bestämmas med Ola först.

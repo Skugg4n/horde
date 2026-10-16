@@ -8,7 +8,7 @@ import {
 } from './gnesta-kit.js';
 import { buildSurroundings } from './gnesta-ghost.js';
 import { createFortify } from './fortify.js';
-import { distPolyline, distPoly, inPoly, w as px2w } from '../data/gnesta.js';
+import { distPolyline, distPoly, inPoly, w as px2w, FOREST_EDGE } from '../data/gnesta.js';
 
 const PPM_DEFAULT = 14;                  // markens pixlar per meter (en större bana kan ange färre)
 
@@ -329,9 +329,13 @@ export function buildGnesta(scene, map) {
       const hk = Math.min(1, Math.max(0.38, (dr - 3) / 18));
       const k = r();
       const mix = fi === 2 ? [0.4, 0.75] : [0.55, 0.8];
+      // 0.14.2: träden i brynet (där det går att ställa ut, data/gnesta.js FOREST_EDGE) fälls när något
+      // ställs ut bredvid dem (fortify.js), som trädgårdsträden
+      if (dr < FOREST_EDGE + 1.5) b.tag = { kind: 'tree', x: tx, z: tz };
       if (k < mix[0]) spruce(b, tx, tz, r.range(9, 15) * hk, r);
       else if (k < mix[1]) pine(b, tx, tz, r.range(11, 16) * hk, r);
       else birch(b, tx, tz, r.range(8, 12.5) * hk, r);
+      b.tag = null;
       trees++;
     }
   });

@@ -21,8 +21,20 @@ test('skilled: ribban ligger högt, basen tar skada på de svåra dagarna', () =
   // E4:s längre dagar ger den skickliga mer RP in i Gnesta, så South dag 2 kostar något i två seeds av fem
   // (var fem av fem); docs/balance-log.md 0.14.1.
   for (const r of rs) assert.ok(r.log.find(x => x.mapId === 'gnesta-norr' && x.day === 4 && x.won).baseHp < 20, 'gnesta-norr dag 4');
-  const south2 = rs.filter(r => r.log.find(x => x.mapId === 'gnesta' && x.day === 2 && x.won).baseHp < 20).length;
-  assert.ok(south2 >= 2, `gnesta dag 2 kostar något i ${south2} seeds`);
+  // 0.14.2: South dag 2 kostar inte längre den skickliga något. E4 dag 2 håller hon nu med full bas (bonusen
+  // för oskadad bas), och RP:n räcker till en tredje Ksp 90 före Gnesta; med tre håller spärren vid rondellen
+  // (hp 3,6 på South dag 2 ändrar inte det). Kvar till balanspasset för South och North (todo.md).
+  // E4 dag 3 kostar henne något i fyra seeds av fem.
+  const e3 = rs.filter(r => r.log.find(x => x.mapId === 'riksvagen' && x.day === 3 && x.won).baseHp < 20).length;
+  assert.ok(e3 >= 3, `E4 dag 3 kostar något i ${e3} seeds`);
+});
+
+// 0.14.2 (speltestet av 0.14.1: 1 042 dollar oanvända efter E4 dag 3): förnödenheterna hopar sig inte sent.
+test('skilled: E4 dag 3 slutar utan stort överskott av förnödenheter', () => {
+  for (const [i, r] of rs.entries()) {
+    const x = r.log.find(q => q.mapId === 'riksvagen' && q.day === 3 && q.won);
+    assert.ok(x.cashEnd < 500, `seed ${i}: $ ${x.cashEnd} kvar`);
+  }
 });
 
 test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oskadad bas)', () => {
@@ -35,7 +47,8 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // 0.14.1: alla steg nya, avsiktligt. E4:s tempo (dag 1 till 3) och de civilas hus på Gnesta dag 1 ändrades;
 // kampanjen bär RP, enheter och erfarenhet vidare, så varje steg efter rör sig också. Att simuleringen
 // i övrigt är orörd visar tests/sim-receipt.test.js (Gnesta South dag 3 och North dag 2 oförändrade).
-const BEFORE = {"riksvagen 1":"0d46ca2a","riksvagen 2":"f8f73bfe","riksvagen 3":"acdbbc78","gnesta 1":"8ac7b1cd","gnesta 2":"90394377","gnesta 3":"14b7728d","gnesta 4":"a490e64f","gnesta 5":"42650a55","gnesta-norr 1":"125a8860","gnesta-norr 2":"a1a26a8b","gnesta-norr 3":"8ed12ae7","gnesta-norr 4":"f43d70e9","gnesta-norr 5":"fc61df90"};
+// 0.14.2: alla steg nya, avsiktligt (E4:s spärr, dag 2 och 3, skogsbrynet på Gnesta; docs/balance-log.md 0.14.2).
+const BEFORE = {"riksvagen 1":"b64c5591","riksvagen 2":"1a7551e8","riksvagen 3":"12036276","gnesta 1":"913dc93a","gnesta 2":"05ea0306","gnesta 3":"d36e2139","gnesta 4":"3646d48d","gnesta 5":"7b4176c4","gnesta-norr 1":"f8f64159","gnesta-norr 2":"b648b764","gnesta-norr 3":"c5ef8579","gnesta-norr 4":"909ff715","gnesta-norr 5":"04d56f70"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));
