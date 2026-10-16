@@ -9,22 +9,29 @@ const TAU = Math.PI * 2;
 // ---------- värn ----------
 
 // En båge av sandsäckar runt origo, öppen bakåt (-x). Varannan rad förskjuten ett halvt steg.
-function sandbagArc(g, { r, layers, n, arc, size = 1, y0 = 0 }) {
+// skip(a): true där säcken inte läggs (0.12.0, H098: där det redan finns skydd). R: slumptal 0..1
+// (ett frö per ruta, så att samma plats alltid ser likadan ut).
+function sandbagArc(g, { r, layers, n, arc, size = 1, y0 = 0 }, { skip = null, R = Math.random } = {}) {
   const bags = P.sandbag.map(c => mat(c));
+  const rr0 = (a, b) => a + R() * (b - a);
   const step = (2 * arc) / (n - 1);
   for (let layer = 0; layer < layers; layer++) {
     const rr = r - layer * 0.1 * size;
     const odd = layer % 2;
     for (let i = 0; i < n - odd; i++) {
-      const a = -arc + i * step + odd * step / 2 + rnd(-0.03, 0.03);
-      const s = mesh(geo('sphere', 0.5, 7, 5), pick(bags),
+      const a = -arc + i * step + odd * step / 2 + rr0(-0.03, 0.03);
+      const j0 = rr0(0.94, 1.06), j1 = rr0(-0.06, 0.06), j2 = rr0(-0.08, 0.08), j3 = rr0(-0.05, 0.05), pk = bags[Math.floor(R() * bags.length)];
+      if (skip?.(a)) continue;
+      const s = mesh(geo('sphere', 0.5, 7, 5), pk,
         Math.cos(a) * rr, y0 + (0.28 + layer * 0.36) * size, Math.sin(a) * rr);
-      s.scale.set(0.95 * size * rnd(0.94, 1.06), 0.42 * size, 0.55 * size);
-      s.rotation.set(rnd(-0.06, 0.06), -a + rnd(-0.08, 0.08), rnd(-0.05, 0.05));
+      s.scale.set(0.95 * size * j0, 0.42 * size, 0.55 * size);
+      s.rotation.set(j1, -a + j2, j3);
       g.add(s);
     }
   }
 }
+// Frö till slumptal 0..1 (mulberry32).
+const seededR = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 
 // Ett litet runt underlag av säckar (kulsprutan på bipod vilar på det).
 function sandbagPile(g, x, z, size = 0.8) {
@@ -302,7 +309,9 @@ function roofMarker(group) {
 
 // kit: positionen har en granatlåda (ritas bredvid skytten). roof: pjäsen ligger på ett hustak
 // (Psg 90): ingen säckring, bara en säck under tvåbenet; gruppen ställs på takets höjd av vyn.
-export function weaponModel(type, level = 1, { kit = false, roof = false } = {}) {
+// emplace (0.12.0, H098): { face, cover[8] } ur src/sim/emplace.js. Värnet vänds mot face (gruppens
+// lokala +x) och säckar läggs inte i riktningar där det redan står skydd. seed: rutan (samma bild).
+export function weaponModel(type, level = 1, { kit = false, roof = false, emplace = null, seed = null } = {}) {
   const K = KINDS[type] ?? KINDS.m249;
   const group = new THREE.Group();
   const pivot = new THREE.Group();
@@ -312,7 +321,10 @@ export function weaponModel(type, level = 1, { kit = false, roof = false } = {})
   const bags = new THREE.Group();
   group.add(bags);
 
-  if (!roof) sandbagArc(bags, { ...K.ring, layers: K.ring.layers + (level >= 3 ? 1 : 0) });
+  const R = seed == null ? Math.random : seededR(seed * 2654435761 + level);
+  // en säck i lokal vinkel a ligger i världens riktning a + face; där det står skydd läggs ingen
+  const skip = emplace ? a => !!emplace.cover[(((Math.round((a + emplace.face) / (Math.PI / 4)) % 8) + 8) % 8)] : null;
+  if (!roof) sandbagArc(bags, { ...K.ring, layers: K.ring.layers + (level >= 3 ? 1 : 0) }, { skip, R });
   else {
     const bag = mesh(geo('sphere', 0.5, 7, 5), mat(P.sandbag[0]), 0.4, 0.12, 0);
     bag.scale.set(0.6, 0.26, 0.4); group.add(bag);
@@ -348,7 +360,7 @@ export function weaponModel(type, level = 1, { kit = false, roof = false } = {})
   // nivå 3: yttre säckvall framåt och ammolådor bakom (på taket: en låda bredvid skytten)
   if (level >= 3) {
     if (!roof) {
-      sandbagArc(bags, K.outer);
+      sandbagArc(bags, K.outer, { skip, R });
       const cr = K.crate;
       crate(bags, -cr, 0, cr * 0.42, 0.4);
       crate(bags, -cr - 0.1, 0.45, cr * 0.42 + 0.05, 0.3);

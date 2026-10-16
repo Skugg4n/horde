@@ -14,6 +14,7 @@ import { SQUAD, isSquad } from '../sim/squad.js';
 import { createDormant } from './dormant.js';
 
 const FALL_TIME = 0.3;
+const OLD_VARN = typeof location !== 'undefined' && new URLSearchParams(location.search).has('oldvarn');
 // Högst så många liggande kroppar visas; de äldsta tas bort först. Simuleringen behåller
 // sina döda i 20 s oavsett, det här styr bara hur mycket som ritas.
 const MAX_CORPSES = 24;
@@ -177,6 +178,12 @@ export function createView(scene, initialSim) {
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
   function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : ''); }
+  // Modellen byggs om när vapnet ändras, och efter en flytt när pjäsen ställs upp på den nya platsen
+  // (medan den packas och bärs är det den gamla platsens värn).
+  function wantKey(s, e) {
+    const at = s.move && movePhase(s) !== 'setup' && e?.cellKey != null ? e.cellKey : s.cell;
+    return slotKey(s) + '@' + at;
+  }
   function buildSlot(s, old) {
     if (old) disposeModel(old.group);
     if (s.squad) {
@@ -197,9 +204,14 @@ export function createView(scene, initialSim) {
       return e;
     }
     // En pjäs på ett tak (Psg 90) står på takets höjd (s.y, simuleringen räknar fram den).
-    const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof });
-    const e = { key: slotKey(s), group: model.group, model, angle: old?.angle ?? s.facing ?? s.weapon.angle };
-    model.pivot.rotation.y = -e.angle;
+    // ?oldvarn (bara för jämförande skärmbilder): värnet som före 0.12.0, alltid österut och helt
+    const emp = OLD_VARN ? null : s.emplace ?? null;
+    const model = weaponModel(s.weapon.type, s.weapon.level, { kit: !!s.weapon.kit, roof: !!s.roof, emplace: emp, seed: s.cell });
+    // 0.12.0 (H098): värnet vänt mot hordens väg (face) och tryckt mot skyddet (nestle)
+    const face = emp?.face ?? 0, nest = emp?.nestle ?? [0, 0];
+    const e = { key: wantKey(s, old), cellKey: s.cell, group: model.group, model, face, nest, angle: old?.angle ?? s.facing ?? s.emplace?.face ?? s.weapon.angle };
+    model.group.rotation.y = -face;
+    model.pivot.rotation.y = face - e.angle;
     e.pivotHome = model.pivot.position.clone();
     e.recoil = 0;
     e.look = SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249;
@@ -207,7 +219,7 @@ export function createView(scene, initialSim) {
     hit.rotation.x = -Math.PI / 2; hit.position.y = 0.1;
     e.group.add(hit);
     e.group.userData.pick = { kind: 'gun', id: s.id };
-    e.group.position.set(s.x, s.y ?? 0, s.z);
+    e.group.position.set(s.x + nest[0], s.y ?? 0, s.z + nest[1]);
     // 0.12.0 (H106): skytten på taket ligger där taket bär honom (bredvid skorstenen på nocken), och
     // kroppen följer takets lutning i den riktning han siktar (perchPose varje bildruta).
     e.perch = s.roof ? perchFor(s) : null;
@@ -222,7 +234,7 @@ export function createView(scene, initialSim) {
   function placeSlot(e, s, dt) {
     const m = s.move, bags = e.model.bags;
     if (!m) {
-      if (e.moving) { e.moving = false; e.group.position.set(s.x, s.y ?? 0, s.z); if (bags) { bags.visible = true; bags.scale.y = 1; } }
+      if (e.moving) { e.moving = false; e.group.position.set(s.x + e.nest[0], s.y ?? 0, s.z + e.nest[1]); if (bags) { bags.visible = true; bags.scale.y = 1; } }
       return;
     }
     e.moving = true;
@@ -232,10 +244,10 @@ export function createView(scene, initialSim) {
     else if (ph === 'carry') {
       const u = (m.t - T * MOVE_PACK) / (T * MOVE_CARRY), q = u * u * (3 - 2 * u);
       x = f.x + (s.x - f.x) * q; z = f.z + (s.z - f.z) * q; y = (f.y ?? 0) + ((s.y ?? 0) - (f.y ?? 0)) * q; bag = 0;
-      const want = Math.atan2(s.z - f.z, s.x - f.x);
+      const want = Math.atan2(s.z - f.z, s.x - f.x);  // världens riktning; pivoten räknar om mot face
       e.angle += angleDiff(e.angle, want) * Math.min(1, dt * 8);
     } else bag = (m.t - T * (MOVE_PACK + MOVE_CARRY)) / (T * (1 - MOVE_PACK - MOVE_CARRY));
-    e.group.position.set(x, y, z);
+    e.group.position.set(x + e.nest[0], y, z + e.nest[1]);
     if (bags) { bags.visible = bag > 0.02; bags.scale.y = Math.max(0.02, Math.min(1, bag)); }
   }
   function perchFor(s) {
@@ -289,22 +301,23 @@ export function createView(scene, initialSim) {
     for (const s of sim.guns) {
       alive.add(s.id);
       let e = slots.get(s.id);
-      if (!e || e.key !== slotKey(s)) e = buildSlot(s, e);
+      if (!e || e.key !== wantKey(s, e)) e = buildSlot(s, e);
       if (e.squad) continue;
       const w = s.weapon;
       placeSlot(e, s, dt);
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
       const pv = e.model.pivot;
-      pv.rotation.y = -e.angle;
+      pv.rotation.y = e.face - e.angle;
       // Rekyl: pjäsen stöts bakåt längs pipan och mynningen lyfts, sedan tillbaka.
       if (dt > 0) e.recoil *= Math.exp(-dt * e.look.back);
       const r = e.recoil < 0.01 ? 0 : e.recoil;
       // Pausad (dt 0): rekylen står still, inget jitter bakom menyn.
       const back = r * e.look.kick, jit = dt > 0 && r ? e.look.rattle : 0;
+      const la = e.angle - e.face;
       pv.position.set(
-        e.pivotHome.x - Math.cos(e.angle) * back + rnd(-jit, jit),
+        e.pivotHome.x - Math.cos(la) * back + rnd(-jit, jit),
         e.pivotHome.y + rnd(-jit, jit),
-        e.pivotHome.z - Math.sin(e.angle) * back + rnd(-jit, jit));
+        e.pivotHome.z - Math.sin(la) * back + rnd(-jit, jit));
       pv.rotation.z = r * e.look.rise + (e.perch && !s.move ? perchPose(e, e.angle) : 0);
     }
     for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);

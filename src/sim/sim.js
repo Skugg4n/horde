@@ -5,6 +5,7 @@ import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
+import { emplacement } from './emplace.js';
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight } from './squad.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
@@ -398,7 +399,9 @@ export function build(sim, key, type, opts = {}) {
     return { ok: true, id };
   }
   const sight = sightFor(sim, key, type, opts.facing ?? null);
-  sim.guns.push({ id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(sight.facing != null ? { facing: sight.facing } : {}),
+  // 0.12.0 (H098): värnet på marken vänds mot hordens väg och byggs mot skyddet som redan står där
+  const emplace = roof ? null : emplacement(sim.place, key, sight.keys, hordeWeight(sim));
+  sim.guns.push({ id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(sight.facing != null ? { facing: sight.facing } : {}), ...(emplace ? { emplace } : {}),
     weapon: { type, level: 1, cooldown: 0, angle: Math.PI, targetId: null, spent: cost, ...(WEAPONS[type].launcher ? { lCooldown: 0 } : {}) } });
   return { ok: true, id };
 }
@@ -509,6 +512,7 @@ export function moveGun(sim, id, key, opts = {}) {
   const from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
   const sight = sightFor(sim, key, type, opts.facing ?? null);
   Object.assign(g, { x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight });
+  if (roof) delete g.emplace; else g.emplace = emplacement(sim.place, key, sight.keys, hordeWeight(sim));
   if (sight.facing != null) g.facing = sight.facing;
   g.weapon.targetId = null;
   g.move = clock(sim) ? { t: 0, total: MOVE_TIME[type] ?? 8, from } : null;
