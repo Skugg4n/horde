@@ -393,7 +393,9 @@ function go({ stack = false } = {}) {
 // Ljudet startar vid första klick eller tangent (webbläsarnas regel). Det läser händelserna och
 // läget, aldrig tvärtom (src/audio/audio.js).
 let settings = loadSettings();
-const audio = createAudio({ settings });
+// ?mute (0.12.0): spelet startar helt tyst, före AudioContext, utan att spara något i inställningarna.
+const MUTE = new URLSearchParams(location.search).has('mute');
+const audio = createAudio({ settings, muted: MUTE });
 audio.attach(window);
 const tmpS = new Vector3();
 function toScreen(x, z) {
@@ -487,9 +489,11 @@ function activeSpawns() {
     const w = waves[sim.wavesStarted];
     if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next = firstOf(w).spawn ?? first; }
   } else if (sim.phase === 'wave') {
-    for (const q of sim.spawnQueue) ids.add(q.spawn ?? first);
-    for (const z of sim.zombies) if (!z.dead) ids.add(z.spawn);
-    if (sim.spawnQueue.length) next = sim.spawnQueue[0].spawn ?? first;
+    // 0.12.0: de vilande i husen (q.door) kommer inte från någon ingång
+    const queue = sim.spawnQueue.filter(q => !q.door);
+    for (const q of queue) ids.add(q.spawn ?? first);
+    for (const z of sim.zombies) if (!z.dead && z.spawn) ids.add(z.spawn);
+    if (queue.length) next = queue[0].spawn ?? first;
     const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
     if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next ??= firstOf(w).spawn ?? first; }
   }
@@ -511,7 +515,7 @@ function comingBySpawn() {
   if (sim.phase === 'build') {
     for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
   } else if (sim.phase === 'wave') {
-    for (const q of sim.spawnQueue) add(q.spawn ?? first, q.type, 1);
+    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
     const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
     if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
   }
@@ -531,7 +535,7 @@ function gridEntries() {
   for (const id of ids) {
     const isNext = id === next;
     if (wave) {
-      const pending = sim.spawnQueue.some(q => (q.spawn ?? sim.route.spawns[0].id) === id);
+      const pending = sim.spawnQueue.some(q => !q.door && (q.spawn ?? sim.route.spawns[0].id) === id);
       const alive = sim.zombies.filter(z => !z.dead && z.spawn === id);
       const seen = alive.some(z => onScreen(z.x, z.z, 10).in);
       if (!isNext && (seen || (!pending && !alive.length))) continue;

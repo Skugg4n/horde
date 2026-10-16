@@ -368,10 +368,15 @@ function on(el, sel, fn) {
 }
 
 // cash: pengarna dagen börjar med (dagens kassa plus forskningen Större budget).
+// 0.12.0 (H101): förvarningen om vilande smittade i husen (en rad per gata; överraskningen syns inte).
+export function intelLine(dayCfg) {
+  const streets = [...new Set((dayCfg.dormant ?? []).filter(d => d.intel !== false).map(d => d.street).filter(Boolean))];
+  return streets.length ? `<p class="lead intel">Intel: dormant infected reported on ${streets.join(' and ')}.</p>` : '';
+}
 export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
-    <p class="lead">${dayCfg.intro.text}</p>
+    <p class="lead">${dayCfg.intro.text}</p>${intelLine(dayCfg)}
     <p class="note-line">New day: you start with ${money(cash)} and no guns out. Research carries over.</p>
     <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
   on(p.el, '[data-a="go"]', onGo);

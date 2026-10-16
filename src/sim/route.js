@@ -266,6 +266,23 @@ export function gridRoute(map) {
       const lane = laneFor(index, rng());
       return { x, z, cell, lane, lat: lane * LAT_MAX, spawn: s.id };
     },
+    // 0.12.0 (H101): en zombie som kommer ut ur ett hus (vilande smittade) i rutan cell.
+    spawnAt(rng, cell, index = 0) {
+      const [x, z] = grid.center(cell);
+      const lane = laneFor(index, rng());
+      return { x, z, cell, lane, lat: lane * LAT_MAX, spawn: null };
+    },
+    // Närmaste ruta där horden kan gå mot basen (gångbar, inte bas, inne i den skarpa ytan och med en
+    // väg fram), från en punkt på marken. Lika: lägst nyckel. -1 om ingen finns.
+    nearestCell(x, z) {
+      let best = -1, bd = Infinity;
+      for (let k = 0; k < grid.n; k++) {
+        if (!grid.walkable(k) || flow.isBase(k) || !inPlay(k) || !Number.isFinite(flow.dist[k])) continue;
+        const [cx, cz] = grid.center(k), d = Math.hypot(cx - x, cz - z);
+        if (d < bd - 1e-9) { bd = d; best = k; }
+      }
+      return best;
+    },
     advance(z, dist) {
       let rest = dist;
       for (let guard = 0; rest > 1e-9 && guard < 4096; guard++) {

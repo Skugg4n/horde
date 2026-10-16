@@ -20,7 +20,8 @@ const SHOT = { m249: { v: 'm249', gain: 0.6, casing: true }, m2: { v: 'm2', gain
 const ALARM_FRAC = 0.25, ALARM_GAP = 1.4;
 const R = (a, b) => a + Math.random() * (b - a);
 
-export function createAudio({ settings } = {}) {
+// muted (0.12.0, ?mute): inget AudioContext skapas alls, så att inget kan höras. Inställningarna rörs inte.
+export function createAudio({ settings, muted = false } = {}) {
   let ctx = null, A = null, nodes = null, music = null, horde = null;
   let cur = settings, speed = 1, paused = false, hidden = false, mode = 'menu', mapId = 'riksvagen';
   let groanT = 0, alarmT = 0, suspendTimer = null, forced = null;
@@ -94,7 +95,7 @@ export function createAudio({ settings } = {}) {
   }
 
   function unlock() {
-    if (!Ctor) return;
+    if (!Ctor || muted) return;
     try {
       if (!ctx) build();
       if (ctx.state !== 'running' && !hidden) ctx.resume();

@@ -768,17 +768,25 @@ const LEAD_RUN = 20, LEAD_WALK = 62;
 export const DAYS = [
   { n: 1, startCash: 900, hp: 4.3, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. The red arrows on the street show where each group will walk before the wave; R hides and shows them. They're fresh here and take more to put down." },
     hints: { lines: ['Pick the barricade (1-1).', 'Block Sigtunavägen.', 'Watch them walk around the block.'], steps: ['pick:block', 'block', 'watch'] },
+    // 0.12.0 (H101, H110): vilande smittade i två villor längs stickgatorna, ute när våg 1 börjar, så att
+    // första skottet kommer inom 10 till 15 s (var 52 till 54) var spelaren än ställt pjäserna.
+    dormant: [{ house: 'B2-00', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 },
+              { house: 'B2-12', street: 'Sigtunavägen', count: 3, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.7, 2, 'east1')] },
              { groups: [g('walker', 36, 0.45, 0, 'east1')] },
              { groups: [g('walker', 60, 0.25, 0, 'east1'), g('runner', 40, 0.3, 6, 'east1')] } ] },
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, startCash: 1300, hp: 5.9, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, startCash: 1300, hp: 6.1, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    dormant: [{ house: 'B2-00', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
+              { house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
              { groups: [g('walker', 50, 0.28, 0, 'east1'), g('walker', 30, 0.35, 0, 'east2'), g('runner', 50, 0.25, 10, 'east1')] } ] },
   { n: 3, startCash: 1300, hp: 5.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
+    // 0.12.0 (H101): överraskningen. Ingen förvarning: ett hus vid fältet slås upp när våg 2 börjar.
+    dormant: [{ house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },

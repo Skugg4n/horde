@@ -32,7 +32,9 @@ import { logs, naives } from './gnesta-logs.js';
 // (fogFactor) och försprånget stannar i diset; de första fem i dagens första grupp är löpare alla
 // dagar (var sex vandrare), dag 2 hp 5,9 (var 5,0), dag 4 4,85 (var 5,1), dag 5 4,3 (var 4,0) och
 // våg 3 något mindre. Se docs/balance-log.md, 0.11.0.
-const BEFORE = { hash: '1d49e790', length: 44538 };
+// 0.12.0: bytt avsiktligt. Vilande smittade i husen (H101): dag 1 och 2 två villor vid stickgatorna
+// (första skottet inom 15 s), överraskningen dag 3 i våg 2, dag 2 hp 6,1 (var 5,9). Se docs/balance-log.md, 0.12.0.
+const BEFORE = { hash: '91ef5357', length: 44595 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -42,6 +44,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.11.0', () => {
+test('Gnestas balanslogg är identisk med 0.12.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

@@ -164,6 +164,9 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
 test('en dag på Gnesta tar 4 till 9 minuter vid 1x, och policyns första skott kommer inom 60 s', () => {
   for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 560, `dag ${r.day}: ${r.time.toFixed(0)} s`);
   for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 60, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
+  // 0.12.0 (H101, H110): de vilande i husen dag 1 och 2 ger första skottet inom 15 s, smart och naiv
+  for (const log of logs) for (const d of [1, 2]) assert.ok(tries(log, d)[0].firstShot <= 15, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
+  for (const n of naives) for (const d of [1, 2]) assert.ok(n[d - 1].firstShot <= 15, `naiv dag ${d}: första skottet ${n[d - 1].firstShot}`);
 });
 
 test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta', async () => {

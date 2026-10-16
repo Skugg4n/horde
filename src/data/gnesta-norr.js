@@ -512,6 +512,9 @@ const north = w => ({ ...w, toast: NORTH });
 export const DAYS = [
   { n: 1, startCash: 2350, hp: 2.8, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. First a few stragglers come up Sigtunavägen from the south, past the ice rink: something to shoot while you set up. Then the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. The dead up here move faster. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
     hints: { lines: ['Pick the barricade (1-1).', 'Block Vikingavägen.', 'Watch them take the footpath past the terraced houses.'], steps: ['pick:block', 'block', 'watch'] },
+    // 0.12.0 (H101): vilande smittade i en villa på Vikingavägen, ute med öppningen: linjen i norr har
+    // något att skjuta på medan öppningen kommer söderifrån
+    dormant: [{ house: 'N-16', street: 'Vikingavägen', count: 4, type: 'walker', wave: 0 }],
     waves: [ opener(8, 2), north({ groups: [...first('walker', 40, 0.45, 0, 'vikN')] }),
              { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
              { groups: [g('walker', 80, 0.22, 0, 'vikN'), g('runner', 40, 0.3, 6, 'vikN')] } ] },

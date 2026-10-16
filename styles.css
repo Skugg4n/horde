@@ -282,6 +282,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet .h { font-family: 'Saira Stencil One', sans-serif; font-size: 40px; line-height: 1.05; margin-bottom: 10px; }
 .sheet .lead { font-size: 17px; letter-spacing: 0.03em; margin-bottom: 14px; }
 .sheet .lead.strong { color: #d9a441; font-weight: 600; }
+.sheet .lead.intel { color: #d98a6a; font-size: 15px; letter-spacing: 0.05em; text-transform: none; }
 .sheet .acts { justify-content: center; margin-top: 6px; }
 .sheet .act { align-items: center; text-align: center; flex: 0 1 200px; }
 .act.main { background: var(--rust); border-color: rgba(233,223,201,0.3); }

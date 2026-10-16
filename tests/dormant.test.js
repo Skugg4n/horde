@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createSim, startWave, step, houseDoor } from '../src/sim/sim.js';
+import { gnesta } from '../src/data/gnesta.js';
+import { gnestaNorr } from '../src/data/gnesta-norr.js';
+import { intelLine } from '../src/ui/panels.js';
+
+// Vilande smittade i husen (0.12.0, H101).
+const run = (map, day, secs, seed = 1) => {
+  const sim = createSim({ map, day, cash: 0, seed });
+  const evs = [];
+  startWave(sim); evs.push(...sim.events);
+  for (let t = 0; t < secs * 30; t++) { step(sim, 1 / 30); evs.push(...sim.events); }
+  return { sim, evs };
+};
+
+test('dörren slås upp när vågen börjar och de väller ut på gatan framför huset', () => {
+  const { sim, evs } = run(gnesta, 1, 3);
+  const bursts = evs.filter(e => e.t === 'dormantBurst');
+  assert.deepEqual(bursts.map(b => b.house), ['B2-00', 'B2-12']);
+  assert.deepEqual(sim.burst, ['B2-00', 'B2-12']);
+  for (const d of gnesta.days[0].dormant) {
+    const door = houseDoor(gnesta, d.house, sim.route);
+    const out = sim.zombies.filter(z => z.house === d.house);
+    assert.equal(out.length, d.count);
+    const [cx, cz] = sim.route.grid.center(door.cell);
+    assert.ok(Math.hypot(cx - door.x, cz - door.z) < 8, `${d.house}: gatan ${Math.hypot(cx - door.x, cz - door.z).toFixed(1)} m från dörren`);
+    for (const z of out) assert.ok(Number.isFinite(sim.route.flow.dist[z.cell]), 'på väg mot basen');
+  }
+});
+
+test('de vilande är deterministiska', () => {
+  const a = run(gnesta, 2, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
+  const b = run(gnesta, 2, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
+  assert.ok(a.length > 0);
+  assert.deepEqual(a, b);
+});
+
+test('överraskningen: ett hus utan förvarning, först i en senare våg', () => {
+  const d3 = gnesta.days[2].dormant;
+  assert.ok(d3.some(d => d.intel === false && d.wave > 0));
+  assert.equal(intelLine(gnesta.days[2]), '');
+  assert.match(intelLine(gnesta.days[0]), /Intel: dormant infected reported on Sigtunavägen\./);
+  assert.match(intelLine(gnestaNorr.days[0]), /Vikingavägen/);
+  // varje hus finns, och gatan i texten är den närmaste namngivna
+  for (const map of [gnesta, gnestaNorr]) for (const day of map.days) for (const d of day.dormant ?? []) {
+    assert.ok(d.count >= 3 && d.count <= 5);
+    houseDoor(map, d.house);
+  }
+});

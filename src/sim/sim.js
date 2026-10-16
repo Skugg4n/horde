@@ -38,6 +38,8 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
     // Utställda vapen: { id, x, z, cell, weapon, sight }. sight: synliga gångbara rutor (mask och lista).
     place: placementFor(map), guns: [], nextGun: 1, maxGuns: maxGuns(res),
     obstacles: {}, grenades: [], nextLine: 1,
+    // husen vars dörrar slagits upp i dag (vilande smittade, H101)
+    burst: [],
   };
 }
 
@@ -46,10 +48,30 @@ export const zombiePos = (sim, z) => sim.route.place(z);
 
 export const hasNextWave = sim => sim.wavesStarted < sim.dayCfg.waves.length;
 
+// Vilande smittade i hus (0.12.0, H101): dayCfg.dormant = [{ house, count, type, wave, street, intel }].
+// house: tomtens id (map.lots). När vågen wave (index, 0 = första) startar slås dörren upp och de
+// väller ut en i taget (DORMANT_GAP s) på närmaste gata framför huset och följer flödet som alla
+// andra. intel: false = ingen förvarning i dagintrot och ingen markering (överraskningen).
+export const DORMANT_DELAY = 0.4, DORMANT_GAP = 0.45;
+// Husets dörr (framsidans mitt, där lokal +z pekar mot gatan) och rutan de kommer ut på.
+export function houseDoor(map, house, route) {
+  const h = map.lots?.plots.find(p => p.id === house)?.house;
+  if (!h) throw new Error('okänt hus ' + house);
+  const fx = h.x + Math.sin(h.ry) * h.d / 2, fz = h.z + Math.cos(h.ry) * h.d / 2;
+  const cell = route?.nearestCell ? route.nearestCell(fx, fz) : -1;
+  return { x: fx, z: fz, ry: h.ry, cell };
+}
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
   for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) });
+  for (const d of sim.dayCfg.dormant ?? []) {
+    if ((d.wave ?? 0) !== index) continue;
+    const door = houseDoor(sim.map, d.house, sim.route);
+    for (let i = 0; i < d.count; i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
+    sim.burst.push(d.house);
+    sim.events.push({ t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false });
+  }
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
   sim.phase = 'wave';
@@ -118,10 +140,12 @@ export function fogFactor(map, x, z) {
   return 1 + (FOG_SPEED - 1) * t * t * (3 - 2 * t);
 }
 // group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
-function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null }) {
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1 }) {
   const id = sim.nextId++;
   const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1);
-  const z = { id, type, wave, hp, maxHp: hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+  // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
+  const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : sim.route.spawn(sim.rng, spawnId, id);
+  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   if (lead > 0) {
     const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;

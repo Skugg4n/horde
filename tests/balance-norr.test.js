@@ -119,14 +119,16 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // 0.11.0: bytt avsiktligt. Öppningen söderifrån varje dag (en liten grupp på Sigtunavägen, policyn
 // ställer en Ksp 90 vid parkeringen och säljer den när norr börjat), ingångarna i diset, startkassan
 // +250, nya hp-faktorer och dag 4:s första våg mindre. Se docs/balance-log.md, 0.11.0.
-const BEFORE = { hash: 'e96d3147', length: 74040 };
+// 0.12.0: bytt avsiktligt. Vilande smittade i en villa på Vikingavägen dag 1 (H101), och Gnesta-kampanjen
+// före är ändrad. Se docs/balance-log.md, 0.12.0.
+const BEFORE = { hash: 'bd61aa95', length: 72506 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.11.0', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.12.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;
