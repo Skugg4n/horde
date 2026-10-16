@@ -54,7 +54,10 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // andra Ksp 90 efter våg 1, pillboxen dag 3, barrikaderna från South dag 2, förrådet i steg från South dag 2,
 // knappheten i rekvisitionen och uppgraderingarna i ledningens takt, Hagstumosse som en sektor med en trupp;
 // docs/balance-log.md 0.16.0).
-const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"dcd56fd8","riksvagen 3":"f6952dce","gnesta 1":"339db5d4","gnesta 2":"c778c38c","gnesta 3":"5d7e4a8d","gnesta 4":"de9e95d2","gnesta 5":"9740db9b","gnesta-norr 1":"8fd73175","gnesta-norr 2":"b5c5c52d","gnesta-norr 3":"eefc5162","gnesta-norr 4":"2eefdc82","gnesta-norr 5":"d4ac0840"};
+// 0.16.1: alla steg utom E4 dag 1 nya, avsiktligt: E4 dag 2 och 3 lägger överskottet på fler trådar (policyn), dag 3
+// har bjässar i våg 2 och färre i våg 3 (stupet jämnat, H192), South dag 3 och 4 ger mindre förnödenheter per dödad
+// (H215). Kampanjen bär det vidare via RP (docs/balance-log.md 0.16.1).
+const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"c0a6732a","riksvagen 3":"85be0fb2","gnesta 1":"2125f6f0","gnesta 2":"1cfe1b53","gnesta 3":"3023112f","gnesta 4":"76a4d0a7","gnesta 5":"0b1a6e81","gnesta-norr 1":"f76bc25b","gnesta-norr 2":"0556036b","gnesta-norr 3":"1526605e","gnesta-norr 4":"ed5c87db","gnesta-norr 5":"f39e4a2f"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

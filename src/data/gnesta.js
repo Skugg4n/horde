@@ -882,7 +882,10 @@ export const DAYS = [
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
              { groups: [g('walker', 40, 0.32, 0, 'east1'), g('walker', 24, 0.4, 0, 'east2'), g('runner', 34, 0.3, 10, 'east1')] } ] },
-  { n: 3, supplies: 500, startCash: 1300, hp: 3.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'Intel: infected hiding in a house.' },
+  // 0.16.1 (H215): förnödenheterna på enheten kommer först dag 5, så dag 3 och 4 hade inget att lägga pengarna på
+  // utom hindren; den skickliga slutade med 1 200 och 2 200 dollar över, den normala med 800 och 1 300. Halva och
+  // knappt en tredjedel per dödad: samma utfall i alla seeds, överskottet 480 till 560 och 700 (normal 70 till 230).
+  { n: 3, supplies: 500, startCash: 1300, hp: 3.5, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'Intel: infected hiding in a house.' },
     // 0.16.0: de vilande husen är dagens begrepp: ett förvarnat vid stickgatan i våg 1 (förut dag 1 och 2), och
     // överraskningen från 0.12.0 (ingen förvarning, ett hus vid fältet när våg 2 börjar).
     dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
@@ -890,7 +893,7 @@ export const DAYS = [
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes. Move your guns to where they come.' },
+  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes. Move your guns to where they come.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },

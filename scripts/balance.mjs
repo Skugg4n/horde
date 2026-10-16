@@ -94,6 +94,9 @@ export function e4Plan(day = 1) {
 // strax nedanför spärren, taggtråden längre ned i stammen och på avfarten, där alla dagens vägar går.
 // Rutorna längs vägen från första ingången, så många meter gångväg från basen.
 const E4_BLOCK_AT = 5, E4_WIRE_AT = [9, 13, 17];
+// 0.16.1 (H192): överskottet går till fler trådar längre ned i stammen (det en människa gör med pengarna mitt
+// i vågen), när det finns mer än två trådars pengar över.
+const E4_WIRE_EXTRA = [21, 25], E4_EXTRA_KEEP = 2;
 const e4LineCache = new Map();
 function e4Lines(sim) {
   const id = sim.map.id + ':' + sim.day;
@@ -101,7 +104,7 @@ function e4Lines(sim) {
   const r = routeFor(sim.map), first = daySpawns(sim.map, sim.day)[0];
   const cells = r.paths([first])[0].cells;
   const at = m => cells.filter(k => !r.flow.isBase(k)).find(k => r.walkLeft(k) <= m + 1e-9 && r.walkLeft(k) > m - 2 - 1e-9) ?? cells.find(k => r.walkLeft(k) <= m);
-  const out = { block: at(E4_BLOCK_AT), wire: E4_WIRE_AT.map(at) };
+  const out = { block: at(E4_BLOCK_AT), wire: E4_WIRE_AT.map(at), extra: E4_WIRE_EXTRA.map(at) };
   e4LineCache.set(id, out);
   return out;
 }
@@ -190,6 +193,7 @@ function greedyBuild(sim, spots) {
   if (!L.wire.some(c => sim.obstacles[c]?.type === 'wire')) wire(L.wire.filter(c => !sim.obstacles[c]).slice(0, 1));
   while (buildOne());
   wire(L.wire);
+  if (L.extra && sim.phase === 'wave' && sim.cash >= OBSTACLES.wire.cost * (1 + E4_EXTRA_KEEP)) wire(L.extra.filter(c => c != null && sim.cash >= OBSTACLES.wire.cost * (1 + E4_EXTRA_KEEP)));
   if (grenadeStats(sim.research) && sim.guns.filter(g => g.weapon.kit).length < MAX_KITS && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
     const g = spots.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
     if (g) buyKit(sim, g.id);

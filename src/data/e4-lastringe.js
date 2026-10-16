@@ -317,12 +317,16 @@ export const DAYS = [
     waves: [ { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 6, 1.2, 8, 'nykoping')] },
              { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 13, 0.8, 4, 'sodertalje'), g('runner', 13, 0.8, 22, 'nykoping')] },
              { groups: [g('walker', 20, 0.7, 0, 'nykoping'), ...[3, 14, 25, 36, 47, 58].map((delay, i) => g('runner', 8, 0.8, delay, i % 2 ? 'sodertalje' : 'nykoping'))] } ] },
-  { n: 3, supplies: 200, startCash: 1200, hp: 1.0, bounty: 0.4,
+  // 0.16.1 (H192, speltestet av 0.14.2: "dag 3 våg 3 är ett stup, 82 fiender, 20 till 5"): våg 2 har två
+  // klungor bjässar och löpare från påfarten, så att basen känner av den (0 till 2), och våg 3 har 26 bjässar i
+  // fyra klungor (var 36 i fem). Förut kom all skada i våg 3. Bounty 0,4 till 0,3: överskottet efter dagen var
+  // 420 till 470 dollar och går nu till trådarna (170 till 200 kvar).
+  { n: 3, supplies: 200, startCash: 1200, hp: 1.0, bounty: 0.3,
     intro: { title: 'Day 3: Brutes', text: 'Brutes tonight. The Ksp 88 hits hard.' },
     preset: [{ type: 'epa', at: EPA_AT }, { type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 18, 0.9, 0, 'nykoping'), g('runner', 8, 1.2, 5, 'sodertalje')] },
-             { groups: [g('walker', 16, 1.0, 0, 'nykoping'), g('brute', 4, 4, 8, 'nykoping')] },
+             { groups: [g('walker', 16, 0.8, 0, 'nykoping'), g('runner', 16, 0.5, 4, 'sodertalje'), g('brute', 7, 1.5, 10, 'nykoping'),
+               g('brute', 6, 1.5, 28, 'sodertalje')] },
              { groups: [g('walker', 20, 0.8, 0, 'nykoping'), g('runner', 26, 0.5, 4, 'sodertalje'), g('brute', 7, 1.5, 8, 'nykoping'),
-               g('brute', 7, 1.5, 22, 'sodertalje'), g('brute', 7, 1.5, 36, 'nykoping'),
-               g('brute', 7, 1.5, 50, 'sodertalje'), g('brute', 8, 1.5, 64, 'nykoping')] } ] },
+               g('brute', 7, 1.5, 24, 'sodertalje'), g('brute', 6, 1.5, 40, 'nykoping'), g('brute', 6, 1.5, 56, 'sodertalje')] } ] },
 ];
