@@ -138,3 +138,16 @@ Bana 2, Sigtunavägen i Gnesta (från Gnesta 0.1.0). Förhandsvisning i `gnesta.
 - Gata: asfalt med kantsten och gräsremsa, gatlyktor på en sida. Cykelvägen är grus och ljusare. Skogsvägen är jord.
 - Skog: gran (två koner), tall (hög stam, platt krona) och björk (vit stam). Lägre träd närmast gatorna så att skogen inte döljer vägen från kameran.
 - Budget: allt utom marken ritas som `InstancedMesh` med färg per instans, en per geometri och materialsort (createBatch). Hela banan är ungefär 25 anrop och 220 000 trianglar (0.1.0).
+
+## E4 vid Lästringe
+
+Bana 1 från 0.15.0: trafikplats 137 Lästringe i Södermanland, ritad ur kartan, satellitbilden och gatubilderna (lokalt i `~/Projects/horde-refs/e4-lastringe/`, aldrig i repot). Kartan som data i `src/data/e4-lastringe.js`, scenen i `src/render/e4-world.js`, motorvägens byggsats i `src/render/e4-kit.js`, vägspärren i `src/render/models.js` (`roadblockModel`). Alla nya delar står på visningssidan.
+
+- Samma sol, dis, gradering och spöklager som Gnesta: Sörmland en sommareftermiddag, inte öken. Marken är gräs, åker, äng och skogsbotten; ingen jord, inga döda träd.
+- Tät gran- och tallskog överallt utom vägarna, åkern väster om väg 224 och ängen i rampernas ögla. Björk i brynet och som ensamma träd i ängen. Låga träd närmast vägarna så att kameran ser horden.
+- Högt gräs i vägrenarna och ängen (tuvor av smala strån), stenblock med mossa, ett fuktigt dike längs motorvägen och ramperna.
+- Motorvägen: två körbanor med vita kantlinjer och streckad körfältslinje, mitträcke, vägräcke på rampernas ytterkurvor, höga belysningsstolpar, spärrområden i sicksack där ramperna går ihop med motorvägen och vid stammens delning. "800" och pilar målade på väg 800 före korsningen.
+- Skyltarna är generiska men med svenska färger: grön botten för motorvägen (HELSINGBORG, NYKÖPING, SÖDERTÄLJE, avfart 137 S LÄSTRINGE), blå för övriga vägar (GNESTA, S LÄSTRINGE, SÖDERTÄLJE 45, VÄSTERLJUNG, GRANLUND), 110 rund med röd kant. De vänds mot kameran så att texten går att läsa.
+- Apokalypsens början: övergivna bilar med öppen dörr, utbrända och en på taket, en knäckt långtradare tvärs över motorvägen mellan ramperna med en kö bakom, en buss som stannat vid hållplatsen.
+- Vägspärren (basen) vid stammens ände mot väg 800: betongsuggor i sicksack, randig bom, sandsäckar, vaktkur med STOPP, en grön lastbil med kapell och en pansarbandvagn.
+

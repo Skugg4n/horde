@@ -669,3 +669,53 @@ Osäkert och värt ett speltest:
 - Spärren på E4 gör att horden står och slår vid basen en stund; det syns och känns annorlunda än förut (de sprang in och försvann).
 - South dag 2 och den skickliga: tas med i passet för North (granskningens rekommendation 1).
 - Överskottet sänktes i stället för att få ett nytt sätt att lägga pengar mitt i striden. En ny sak att köpa (reparera spärren eller liknande) behöver bestämmas med Ola först.
+
+## 0.15.0: E4 blir trafikplatsen vid Lästringe
+
+Olas önskan: "Bana 1 känns som amerikansk öken, inte Sörmland." E4 är nu trafikplats 137 Lästringe (src/data/e4-lastringe.js) i stället för en rak väg på 39 m. Banan är ett rutnät som Gnesta: horden kommer längs motorvägen ur diset från Nyköping och går upp för avfarten till spärren vid väg 800. Dag 2 kommer en andra grupp från Södertälje uppför påfarten, fel håll. Mellan ramperna står en knäckt långtradare tvärs över motorvägen och där är inte gångbart, så dag 1 har bara en väg. Vägen från spärren ut till dimkanten är 120 m från Nyköping (168 m med diset) och 110 m från Södertälje; förut var den 39 m.
+
+Skäl till omräkningen: med den längre vägen hinner pjäserna mer, så samma vågor blev lättare (den normala spelaren höll full bas dag 1, den skickliga tappade bara något dag 2 och 3). Vågorna står kvar som förut, gruppernas ingångar är nya.
+
+Balansskriptet (scripts/balance.mjs): E4 spelas av den giriga policyn som förut, men på rutnätet. Planen (e4Plan) täcker dagens vägar inne i den skarpa ytan. Betongen läggs tvärs över stammen 5 m nedanför spärren och taggtråden 9, 13 och 17 m ned längs vägen (förut rutorna 0, 1 och 2 på den raka vägen). Vilka banor som spelas som stad avgörs av TOWN-tabellen, inte av om banan har ett rutnät.
+
+Prövat (bas efter dagen, fem seeds; L = förlorad):
+
+```
+hp dag 1 / 2 / 3     normal dag 1   normal dag 2   normal dag 3   skilled dag 1   skilled dag 2   skilled dag 3
+3,0 / 4,0 / 1,2      20             5 till 16      4 till 6       20              17 till 19      14 till 16
+3,5 / 3,7 / 1,2      13 till 20     11 till 18     4 till 6       15 till 18      15 till 19      7 till 16
+3,4 / 3,6 / 1,2      18 till 20     13 till 20     4 till 13      16 till 18      15 till 18      14 till 16
+3,2 / 3,6 / 1,2      20             13 till 20     4 till 13      19 till 20      17 till 20      14 till 16
+```
+
+Med 3,4 dag 1 förlorade den skickliga Gnesta North dag 3 en gång (seed 2): E4 gav henne 50 RP mindre än i 0.14.2 (dag 1 utan full bas ger ingen basbonus), och North dag 3 är redan tät (4 till 15 kvar). 3,2 ger tillbaka bonusen, och dag 1 ska ändå vara den minsta dagen (onboardingen görs om separat). Dag 2 med 3,3 gjorde den svaga spelaren (inga köp efter dag 1) för stark (12 till 18); 3,6 ger 6 till 10, som 0.14.2:s 7 till 9. Dag 3 med 1,1 och 1,3 ändrade inte North, så 1,2 står kvar.
+
+Ändringar:
+- E4 dag 1 hp 3,0 till 3,2, dag 2 4,0 till 3,6, dag 3 1,2 (oförändrad). Förnödenheterna och vågornas storlek oförändrade.
+- Dag 2 och 3: varannan klunga löpare kommer från Södertälje (påfarten); dag 3:s bjässar växlar mellan ingångarna.
+
+Efter, E4 i kampanjen (bas efter dagen, fem seeds):
+
+```
+skilled   dag 1 19 till 20   dag 2 17 till 20   dag 3 14 till 16 ($ 96 till 201 kvar)
+normal    dag 1 20           dag 2 13 till 20   dag 3 4 till 13
+svag dag 2 (inga köp efter dag 1): vinst med 6 till 10, högst 4 förlorade på 10 s
+```
+
+Resultat, försök till vinst per kampanjsteg:
+
+```
+skilled  E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0-4  1  1  1  1  1  1  1  1  1  1  1  1  1   (alla fem seeds)
+
+normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0    1  1  1  1  1  3  1  2  1  2  1  2  1
+seed 1    1  1  1  1  1  3  1  2  1  1  1  1  1
+seed 2    1  1  1  1  1  3  1  2  1  2  1  2  1
+seed 3    1  1  1  1  1  3  2  1  1  3  3  1  1
+seed 4    1  1  1  1  1  3  1  2  1  1  1  2  1
+```
+
+Kampanjens mål håller: den normala klarar varje dag inom 1 till 4 försök (som mest 3), den skickliga allt på första försöket, första skottet inom 60 s, högst 250 levande. Fingeravtrycken per kampanjsteg (balance-op-skilled och balance-op-normal) är alla nya, avsiktligt: E4 ritades om och kampanjen bär RP:n vidare in i Gnesta. Simuleringens kvitto: E4 dag 2 e007577b till be6e026f (pjäsernas rutor är e4Plan(2) på den nya kartan; den fasta styrkan vinner med 13 kvar). Gnesta South dag 3 och North dag 2 står kvar.
+
+Proven: simuleringens prov av vägen, hindren, vapnen, granaterna och reglarna (sim-core, sim-waves, sim-weapons, sim-obstacles, sim-grenades, cells, route-e4, barricade-failing, tweaks och delar av arsenal, epa-evac och operation) mäter på den raka vägen som förut, nu en provbana i tests/fixtures/straight-road.js, så att de inte rör sig när banan ritas om. Placeringsprovet för E4 är nytt (rampen är gata, vägrenen går, bilen och skogen står i vägen, motorvägen mellan ramperna är inte gångbar), och dis-provet kollar att E4:s ingångar ligger i diset.

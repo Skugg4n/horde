@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.15.0 (2026-10-16)
+
+Bana 1, Sector E4, är trafikplats 137 Lästringe i Södermanland (Olas önskan: "känns som amerikansk öken, inte Sörmland").
+
+- Kartan (src/data/e4-lastringe.js) är ritad ur karta, satellitbild och gatubilder: E4:s två körbanor diagonalt genom skogen, avfarten och påfarten som går ihop i en stam upp till T-korsningen med väg 800, väg 224 norrut, busshållplatsen med rastfickan och en skogsväg. Horden kommer längs motorvägen ur diset från Nyköping och går upp för avfarten. Vägspärren står där stammen möter väg 800.
+- Banan är ett rutnät som Gnesta. Dag 1 har en enda väg (en knäckt långtradare och en bilkö står tvärs över motorvägen mellan ramperna); dag 2 kommer en andra grupp från Södertälje uppför påfarten; dag 3 kommer bjässarna från båda hållen. Ingångarna ligger i diset längs E4. Kameran går att panorera och zooma, och längst ut ryms hela trafikplatsen i 1440 x 900.
+- Sörmland i stället för öken: samma sol, dis, gradering och spöklager som Gnesta. Tät gran- och tallskog med björk i brynet, åkern i väster, äng med högt gräs, stenblock, diken. Vägräcken, höga belysningsstolpar, vita kantlinjer, spärrområden i sicksack där ramperna går ihop, "800" och pilar på väg 800. Gröna skyltar för motorvägen (HELSINGBORG, NYKÖPING, SÖDERTÄLJE, 137 S LÄSTRINGE), blå för övriga vägar (GNESTA, S LÄSTRINGE, SÖDERTÄLJE 45, VÄSTERLJUNG, GRANLUND) och 110. Övergivna bilar, utbrända och en på taket, långtradaren och en buss vid hållplatsen.
+- Vägspärren (basen): betongsuggor, bom, sandsäckar, vaktkur, en lastbil och en pansarbandvagn (render/models.js roadblockModel).
+- Ställa ut: vägrenarna, skogsbrynet, åkern, ängen, rastfickan och asfalten på väg 800 och 224, runt korsningen och längs rampen. Rampen och stammen är där taggtråd och betong läggs. Infanteriet tar skydd i diket och bakom vägräcket.
+- Balansen räknad om för den längre vägen: hp dag 1 3,2 (var 3,0), dag 2 3,6 (var 4,0), dag 3 1,2. Nya fingeravtryck för hela kampanjen och nytt kvitto för E4 dag 2 (docs/balance-log.md, 0.15.0).
+- Visningssidan har vägspärren, vägräcket, belysningsstolpen, skyltarna, bilarna, långtradaren, bussen, granen, tallen, björken, stenblocket och det höga gräset, på gräs i stället för ökendamm. Den gamla öknens byggare (jord, döda träd, ruinen, telefonstolparna) är borta.
+- Proven för vägen, hindren och vapnen mäter på den gamla raka vägen, nu en provbana (tests/fixtures/straight-road.js).
+- Skärmbilder: docs/e4-lastringe-*.png.
+
 ## 0.14.2 (2026-10-16)
 
 Efter speltestet av 0.14.1 (docs/playtests/2026-10-16-0.14.1.md, "SPELBART: JA" med irritationer kvar), todo H174 till H181.

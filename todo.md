@@ -210,3 +210,10 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H192 | balans | E4 dag 2 för lätt ($550 över), dag 3 våg 3 stup (82 fiender, 20 till 5).
 - [ ] H193 | ux | VICTORY och "fallen silent" motsäger varandra fortfarande; felaktig text "Only on the road"; förrådets rullist klipper priser.
 - [ ] H194 | grafik | Frivilliga och Hemvärnet fortfarande små och svåra att hitta.
+
+## E4 vid Lästringe (0.15.0)
+- [x] H195 | banor | Bana 1 som trafikplats 137 Lästringe: E4, avfarten och påfarten, väg 800 och 224, hållplatsen, vägspärren vid korsningen. Sörmland i stället för öken.
+- [ ] H196 | balans | Speltesta E4 på den nya kartan: dag 1 håller full bas för båda policyerna (avsiktligt minst, onboardingen görs om), dag 3 4 till 13 för den normala.
+- [ ] H197 | ux | Dag 2:s andra grupp (Södertälje) syns först i våg 2; dagens startkamera visar bara avfarten. Pröva att visa båda vägarna när dagen börjar.
+- [ ] H198 | grafik | Skyltarnas text är svår att läsa längst ut; överväg större paneler eller en portal över motorvägen.
+

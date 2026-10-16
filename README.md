@@ -1,8 +1,8 @@
 # Horde
 
-Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr på E4 i dagsljus: ställ ut kulsprutor där de ser vägen (hus skymmer), lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
+Ett grusigt isometriskt tornförsvar med zombier. Du håller en vägspärr vid E4:s avfart i Lästringe i dagsljus: ställ ut kulsprutor där de ser vägen (hus skymmer), lägg taggtråd och betongblock på vägen och stoppa horden innan den når basen. Varje dag har tre vågor. Förlorar du behåller du forskningen och kan köpa bättre vapen och hinder innan du försöker igen.
 
-Version 0.10.2: tre banor, E4 (dag 1 till 3), Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar; basen är ishallens entré) och Gnesta Norr (dag 1 till 5, låses upp när Gnesta dag 5 är klar; horden kommer norrifrån förbi radhusen), ett köpflöde (välj i köpraden, ställ ut på kartan), befästa positioner, fri placering med siktlinjer, Försvarsmaktens vapen (Ksp 90, Ksp 58, Ksp 88, Ak 5 med granattillsats och Psg 90, som också kan ligga på hustak), Hemvärnet (en grupp som själv tar skydd, med egen forskning), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
+Version 0.15.0: tre banor, E4 vid trafikplats Lästringe (dag 1 till 3; horden kommer längs motorvägen och upp för avfarten), Gnesta (dag 1 till 5, låses upp när E4 dag 3 är klar; basen är ishallens entré) och Gnesta Norr (dag 1 till 5, låses upp när Gnesta dag 5 är klar; horden kommer norrifrån förbi radhusen), ett köpflöde (välj i köpraden, ställ ut på kartan), befästa positioner, fri placering med siktlinjer, Försvarsmaktens vapen (Ksp 90, Ksp 58, Ksp 88, Ak 5 med granattillsats och Psg 90, som också kan ligga på hustak), Hemvärnet (en grupp som själv tar skydd, med egen forskning), taggtråd och betongbarriär, tre sorters zombier (Walker, Runner, Brute), granatlådor, forskning mellan dagarna och en meny med paus. Framsteget sparas i webbläsaren.
 
 Player text in English (owner decision 2026-10-15). Docs stay Swedish.
 
@@ -37,16 +37,17 @@ Simuleringen körs utan grafik, så både tester och balanssimulering går i Nod
 | `src/audio/` | Ljud och musik, syntetiserade (mix.js ren logik, voices.js, music.js, audio.js) |
 | `src/main.js` | Spelet: meny, dagar, vågor, klick och bildrutor |
 | `src/version.js` | Versionsnumret som syns i hörnet |
-| `src/data/` | Speldata: banorna (`maps.js`, `gnesta.js`, `gnesta-norr.js`), vågor, vapen, hinder, zombier, forskning |
+| `src/data/` | Speldata: banorna (`maps.js`, `e4-lastringe.js`, `gnesta.js`, `gnesta-norr.js`), vågor, vapen, hinder, zombier, forskning |
 | `src/sim/` | Simuleringen (ingen grafik, ingen DOM): vägen, rutor, slump, stats, stegfunktionen |
 | `src/meta/` | Framsteg mellan dagar och sparning i localStorage |
-| `src/render/` | Three.js: scen och ljus, byggsats och palett (`kit.js`), modeller, hälsoringar (`rings.js`), värld, effekter, vyn och klick i scenen |
+| `src/render/` | Three.js: scen och ljus, byggsats och palett (`kit.js`), modeller, hälsoringar (`rings.js`), värld (`e4-world.js` och `e4-kit.js` för E4, `gnesta-world.js` och `gnesta-kit.js` för Gnesta), effekter, vyn och klick i scenen |
 | `src/ui/` | HUD, paneler, skyltar, ikoner och format |
-| `tests/` | Tester för simulering, sparning, balans och version |
+| `tests/` | Tester för simulering, sparning, balans och version; `tests/fixtures/straight-road.js` är den gamla raka E4-vägen som simuleringens prov mäter på |
 | `scripts/balance.mjs` | Balanssimulering |
 | `docs/balance-log.md` | Varje balansändring med skäl och mätning, samt prestanda |
 | `docs/art-bible.md` | Stilbibeln |
 | `docs/lookbook-0.2.2.png` | Skärmbild av visningssidan (0.2.2) |
+| `docs/e4-lastringe-*.png` | Skärmbilder av E4 vid Lästringe (0.15.0): översikten, vägspärren, dag 1 till 3, visningssidan |
 | `docs/norr-*.png` | Skärmbilder av Gnesta Norr (0.10.0): radhusen, spärren, horden, skytten på taket, Hemvärnet vid muren, visningssidan |
 | `docs/playtests/` | Speltester |
 | `mockups/` | Grafikprov och tidiga HUD-skisser |
