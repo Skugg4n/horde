@@ -22,6 +22,7 @@ import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
 import { planSquad } from '../src/sim/squad.js';
+import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
 
 const DT = 1 / 30;
@@ -79,10 +80,31 @@ export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheK
   return out;
 }
 
-// E4: hordens väg är alla gångbara rutor (vägen från spawn till basen). M249:ns räckvidd,
-// pjäsen policyn bygger först.
+// E4 (0.15.0, trafikplatsen vid Lästringe): hordens väg är rutorna från dagens ingångar till spärren,
+// inne i den skarpa ytan (diset räknas inte). Där ingångarnas vägar går ihop (stammen) väger rutan
+// dubbelt. M249:ns räckvidd, pjäsen policyn bygger först.
 const E4_RANGE = WEAPONS.m249.range;
-export const e4Plan = () => coveragePlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys, { range: E4_RANGE, cacheKey: 'e4' });
+export function e4Plan(day = 1) {
+  const map = MAPS.riksvagen, route = routeFor(map), c = map.surroundings.crisp, p = placementFor(map);
+  const ids = daySpawns(map, day);
+  const cells = route.paths(ids).flatMap(q => q.cells).filter(k => { const q = p.center(k); return q.x >= c.x0 && q.x <= c.x1 && q.z >= c.z0 && q.z <= c.z1; });
+  return coveragePlan(map, cells, { range: E4_RANGE, cacheKey: 'e4:' + ids.join('+') });
+}
+// Spärrarna på E4 som greedy lägger (förut rutorna 0, 1 och 2 på den raka vägen, 3 m var): betongen
+// strax nedanför spärren, taggtråden längre ned i stammen och på avfarten, där alla dagens vägar går.
+// Rutorna längs vägen från första ingången, så många meter gångväg från basen.
+const E4_BLOCK_AT = 5, E4_WIRE_AT = [9, 13, 17];
+const e4LineCache = new Map();
+function e4Lines(sim) {
+  const id = sim.map.id + ':' + sim.day;
+  if (e4LineCache.has(id)) return e4LineCache.get(id);
+  const r = routeFor(sim.map), first = daySpawns(sim.map, sim.day)[0];
+  const cells = r.paths([first])[0].cells;
+  const at = m => cells.filter(k => !r.flow.isBase(k)).find(k => r.walkLeft(k) <= m + 1e-9 && r.walkLeft(k) > m - 2 - 1e-9) ?? cells.find(k => r.walkLeft(k) <= m);
+  const out = { block: at(E4_BLOCK_AT), wire: E4_WIRE_AT.map(at) };
+  e4LineCache.set(id, out);
+  return out;
+}
 
 // Bygger nästa planerade plats som är ledig. Returnerar true om något byggdes.
 function buildNext(sim, spots, type) {
@@ -157,14 +179,17 @@ function greedyBuild(sim, spots) {
   const buildOne = () => buildNext(sim, spots, wantedWeapon(sim));
   if (!sim.guns.length) buildOne();
   buySquad(sim, spots);
-  if (obstacleUnlocked('block', sim.research) && !sim.obstacles[BLOCK_CELL] && sim.cash >= OBSTACLES.block.cost + 250) placeObstacle(sim, BLOCK_CELL, 'block');
+  // 0.15.0: rutorna på E4:s rutnät (e4Lines), en spärr tvärs över vägen (placeAcross)
+  const L = sim.route.kind === 'grid' ? e4Lines(sim) : { block: BLOCK_CELL, wire: WIRE_CELLS };
+  const put = sim.route.kind === 'grid' ? placeAcross : placeObstacle;
+  if (obstacleUnlocked('block', sim.research) && !sim.obstacles[L.block] && sim.cash >= OBSTACLES.block.cost + 250) put(sim, L.block, 'block');
   const wire = cells => {
     if (!obstacleUnlocked('wire', sim.research)) return;
-    for (const c of cells) if (!sim.obstacles[c] && sim.cash >= OBSTACLES.wire.cost) placeObstacle(sim, c, 'wire');
+    for (const c of cells) if (!sim.obstacles[c] && sim.cash >= OBSTACLES.wire.cost) put(sim, c, 'wire');
   };
-  if (!WIRE_CELLS.some(c => sim.obstacles[c]?.type === 'wire')) wire(WIRE_CELLS.filter(c => !sim.obstacles[c]).slice(0, 1));
+  if (!L.wire.some(c => sim.obstacles[c]?.type === 'wire')) wire(L.wire.filter(c => !sim.obstacles[c]).slice(0, 1));
   while (buildOne());
-  wire(WIRE_CELLS);
+  wire(L.wire);
   if (grenadeStats(sim.research) && sim.guns.filter(g => g.weapon.kit).length < MAX_KITS && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
     const g = spots.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
     if (g) buyKit(sim, g.id);
@@ -628,7 +653,7 @@ const lay = (sim, cells, type) => {
 };
 // Dagens plan: E4 platserna som ser mest av vägen, stadsbanorna gnestaPlan (smart med spärrarna, naive utan).
 function opPlan(map, day, town) {
-  if (!town) { const sp = e4Plan().spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; }
+  if (!town) { const sp = e4Plan(day).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; }
   const T = TOWN[map.id];
   return gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, town), blocks: town === 'smart' ? T.blocks(day) : [] });
 }
@@ -648,7 +673,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const P = { ...P0, plan: P0.planBy?.[mapId] ?? P0.plan };
   const cfg = opStartConfig(progress, day, mapId);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
-  const map = cfg.map, isTown = !!map.grid, T = TOWN[mapId];
+  const map = cfg.map, T = TOWN[mapId], isTown = !!T;
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
   let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå

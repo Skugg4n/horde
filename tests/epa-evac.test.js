@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createSim, startWave, step, build, upgrade, moveGun, checkMove, evacOutcome, gunPos, CIV_HP } from '../src/sim/sim.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { e4Plan, gnestaPlan, daySpawns } from '../scripts/balance.mjs';
 
@@ -31,7 +32,8 @@ test('pillboxen: liv per nivå, svetsas ihop innan den skjuter, ~90 graders glug
 });
 
 test('pillboxen tar stryk av zombier som når fram, och faller till slut', () => {
-  const sim = createSim({ map: MAPS.riksvagen, day: 3, cash: 5000, seed: 2 });
+  // den raka provvägen (E4 till 0.14.2): pillboxen tätt intill vägen
+  const sim = createSim({ map: STRAIGHT, day: 3, cash: 5000, seed: 2 });
   // tätt intill vägen, vänd bort så att den inte skjuter dem
   const p = sim.place, k = p.keyAt(4, 5);
   const id = build(sim, k, 'epa', { facing: Math.PI / 2 }).id, g = sim.guns.find(x => x.id === id);

@@ -13,13 +13,14 @@ import { MAPS } from '../src/data/maps.js';
 
 const DT = 1 / 30;
 const unit = (uid, type, level = 1, men = null) => ({ uid, type, level, vet: 0, ...(men != null ? { men } : {}) });
-// Rutorna kommer från balansens planer i 0.14.0 (e4Plan, gnestaPlan smart) men står här som tal, så att
+// Rutorna kommer från balansens planer i 0.14.0 (e4Plan, gnestaPlan smart; E4:s från e4Plan(2) i 0.15.0,
+// trafikplatsen vid Lästringe) men står här som tal, så att
 // kvittot inte rör sig när planerna gör det.
 export const RECEIPT_DAYS = {
   'E4 day 2': {
     map: 'riksvagen', day: 2, cash: 350, research: ['block.1'],
     core: [unit(1, 'inf', 1, 4), unit(2, 'm249', 2), unit(3, 'm249', 1), unit(4, 'epa', 1)],
-    guns: [[566, 'epa'], [569, 'm249'], [836, 'm249'], [839, 'inf']], lines: [], wire: [],
+    guns: [[1674, 'epa'], [2466, 'm249'], [2854, 'm249'], [1771, 'inf']], lines: [], wire: [],
   },
   'Gnesta South day 3': {
     map: 'gnesta', day: 3, cash: 500, research: ['block.1', 'grenade.1', 'ksp58.1', 'ak5.1'],
@@ -57,8 +58,11 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.14.2: E4 dag 2 a773fa93 till e007577b, avsiktligt: spärren släpper in en i taget (map.door), löparna i
 // fler och mindre klungor och hp 4,0 (docs/balance-log.md 0.14.2). Den fasta styrkan vinner nu med full bas.
 // South dag 3 och North dag 2 står kvar, också med skogsbrynet (placeringen rör inte de fasta rutorna).
+// 0.15.0: E4 dag 2 e007577b till be6e026f, avsiktligt: banan är trafikplatsen vid Lästringe (ett rutnät, två
+// ingångar dag 2, hp 3,6), och pjäsernas rutor är e4Plan(2) på den nya kartan. Den fasta styrkan vinner med 13
+// kvar (docs/balance-log.md 0.15.0). South dag 3 och North dag 2 står kvar.
 const RECEIPTS = {
-  'E4 day 2': 'e007577b',
+  'E4 day 2': 'be6e026f',
   'Gnesta South day 3': '3b601645',
   'Gnesta North day 2': 'b50f3d9a',
 };

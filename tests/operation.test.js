@@ -9,6 +9,7 @@ import { createSim, build, startWave, step, upgrade, sell, reinforce, dayReport,
 import { buyState } from '../src/sim/buy.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { SUPPLIES, VETERAN } from '../src/data/weapons.js';
 
 const win = (p, mapId, day, report = { units: [] }) => finishDay(p, { mapId, day, won: true, intelEarned: 50, report }).progress;
@@ -160,8 +161,8 @@ test('förnödenheter: ammunition, sandsäckar och skrotbilar köps med pengarna
 });
 
 test('dagens rapport: stupade, förlorade enheter och bonusunderlaget', () => {
-  const sim = createSim({ map: MAPS.riksvagen, day: 1, cash: 0, core: [{ uid: 1, type: 'inf', level: 1, men: 4 }, { uid: 2, type: 'm249', level: 1 }] });
-  const [a, b] = openSpots(MAPS.riksvagen, 2);
+  const sim = createSim({ map: STRAIGHT, day: 1, cash: 0, core: [{ uid: 1, type: 'inf', level: 1, men: 4 }, { uid: 2, type: 'm249', level: 1 }] });
+  const [a, b] = openSpots(STRAIGHT, 2);
   build(sim, a, 'inf'); build(sim, b, 'm249');
   sim.guns[0].soldiers[0].down = true;
   sim.guns.splice(1, 1);

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { routeFor } from '../src/sim/route.js';
 import { fogFactor, FOG_SPEED, FOG_RAMP, createSim, startWave, step, callNextWave, hasNextWave } from '../src/sim/sim.js';
 
@@ -27,7 +28,11 @@ test('diset: fortare utanför, mjuk övergång, vanlig fart inne på kartan', ()
   assert.equal(fogFactor(m, c.x1 + FOG_RAMP + 5, 0), FOG_SPEED);
   let prev = 1;
   for (let d = 0; d <= FOG_RAMP; d += 0.5) { const f = fogFactor(m, c.x1 + d, 0); assert.ok(f >= prev - 1e-12 && f - prev < 0.35, `steg vid ${d} m`); prev = f; }
-  assert.equal(fogFactor(MAPS.riksvagen, 1000, 0), 1, 'E4 har inget dis');
+  assert.equal(fogFactor(STRAIGHT, 1000, 0), 1, 'en bana utan rutnät har inget dis');
+  // 0.15.0: E4 vid Lästringe har diset längs motorvägen, där ingångarna ligger
+  const e = MAPS.riksvagen, ec = e.surroundings.crisp;
+  assert.equal(fogFactor(e, ec.x1 + FOG_RAMP + 5, 0), FOG_SPEED);
+  for (const s of e.spawns) assert.ok(fogFactor(e, s.at[0], s.at[1]) === FOG_SPEED, `${s.id} ligger i diset`);
 });
 
 // Tiden till första skottet hålls kort av diset: dagens första zombie syns i kartkanten inom 10 s.

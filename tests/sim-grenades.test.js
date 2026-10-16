@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { createSim, startWave, step, build as buildAt, buyKit as buyKitAt, sell as sellAt, zombiePos, placeObstacle, spotAt } from '../src/sim/sim.js';
 import { grenadeStats } from '../src/sim/stats.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { GRENADE_KIT } from '../src/data/weapons.js';
 import { ZOMBIES } from '../src/data/zombies.js';
 import { RESEARCH } from '../src/data/research.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 const DT = 1 / 30;
 const mk = (o = {}) => createSim({ map, day: 3, cash: 5000, research: [], seed: 4, ...o });
 // Platsen C (nära den gamla positionen vid 2, 8). Vapnet där heter 'g1' när det är byggt först.

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, placeObstacle, placeAcross, BARRICADE_FAILING } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 
 // 0.12.1 (speltestet av 0.12.0: barrikadernas stapel och "Barricade failing" syntes aldrig): en spärr
 // varnar en gång (barricadeFailing) när dess svagaste ruta har mindre än en fjärdedel kvar, före
@@ -19,7 +20,7 @@ function runUntilBroken(sim, maxSecs = 400) {
 }
 
 test('E4: betongblocket varnar en gång under en fjärdedel, före det går sönder', () => {
-  const sim = createSim({ map: MAPS.riksvagen, day: 1, cash: 2000, research: ['block'], seed: 5 });
+  const sim = createSim({ map: STRAIGHT, day: 1, cash: 2000, research: ['block'], seed: 5 });
   assert.ok(placeObstacle(sim, 0, 'block').ok);
   const seen = runUntilBroken(sim);
   const warn = seen.filter(e => e.t === 'barricadeFailing');

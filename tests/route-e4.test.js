@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { pathRoute } from '../src/sim/route.js';
 import { pointAt } from '../src/sim/path.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { makeRng } from '../src/sim/rng.js';
 
 test('pathRoute: läge, framsteg och ankomst som förut', () => {
-  const map = MAPS.riksvagen, r = pathRoute(map);
+  const map = STRAIGHT, r = pathRoute(map);
   const z = r.spawn(makeRng(3));
   assert.equal(z.d, 0);
   assert.ok(Math.abs(z.off) <= 3);

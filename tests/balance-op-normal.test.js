@@ -53,7 +53,9 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // 0.14.2: alla steg nya, avsiktligt: E4:s spärr släpper in en i taget, dag 2:s löpare i mindre klungor (hp 4,0),
 // dag 3 hp 1,2 och halva förnödenheterna per dödad; skogsbrynet på Gnesta går att stå i (fler platser för
 // pjäserna). Kampanjen bär det vidare (docs/balance-log.md 0.14.2).
-const BEFORE = {"riksvagen 1":"a0131af7","riksvagen 2":"e0963651","riksvagen 3":"f3129276","gnesta 1":"6273ce98","gnesta 2":"acbec7cf","gnesta 3":"06eab36f","gnesta 4":"44602c49","gnesta 5":"633871ee","gnesta-norr 1":"129ca22b","gnesta-norr 2":"1665df79","gnesta-norr 3":"f99b9f13","gnesta-norr 4":"1f880d16","gnesta-norr 5":"a2113ea4"};
+// 0.15.0: alla steg nya, avsiktligt: E4 är trafikplatsen vid Lästringe (ett rutnät med avfarten, påfarten dag 2
+// och nya hp 3,2, 3,6 och 1,2); kampanjen bär det vidare in i Gnesta (docs/balance-log.md 0.15.0).
+const BEFORE = {"riksvagen 1":"b67b0a88","riksvagen 2":"9ae847f0","riksvagen 3":"d7806fcb","gnesta 1":"211638b6","gnesta 2":"5bd37fbd","gnesta 3":"e6e149c9","gnesta 4":"725b376e","gnesta 5":"43f99dfe","gnesta-norr 1":"0e781950","gnesta-norr 2":"a6bde24e","gnesta-norr 3":"e3d5a78a","gnesta-norr 4":"db8acec5","gnesta-norr 5":"50c0a9d9"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));
