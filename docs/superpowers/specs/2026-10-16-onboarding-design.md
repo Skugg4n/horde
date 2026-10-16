@@ -312,3 +312,15 @@ Utgår från speltesterna 0.14.0 till 0.14.2 och spelets nuvarande strängar.
 6. **Field manual på `H`?** `F`, `M`, `R`, `V` och `Tab` är upptagna. Annat förslag: `?` eller `J`.
 7. **Ska RP synas redan på E4** (som en siffra som växer) fast den inte går att använda förrän senare? Förslaget är nej, den samlas och visas när förrådet öppnas.
 8. **Erfarenhetsstjärnan och förluster** kommer som tips när de händer. Räcker det, eller vill du ha en egen dag för kärntrupperna?
+
+## Beslut (Ola 2026-10-16)
+
+1. E4 dag 1 helt utan tråd och förnödenheter: JA.
+2. Förrådet kommer efter South dag 2.
+3. Köpraden: ett steg (enkla siffror 1, 2, 3 ...). Tvåstegsval bara om korten blir fler än 9 (ersätter H097 för hela spelet tills vidare).
+4. Ny fiendetyp första gången: HÅRD PAUS med en presentationsruta med bild (porträtt av den nya zombien i spelets stil), en kort rapporttext ("We have reports of a new type of enemy. It moves faster.") och Continue.
+5-8: förslagen i dokumentet gäller (Field manual på J, RP visas först när förrådet öppnas, erfarenhet och förluster som tips när de händer).
+
+## Tillägg: knapphet i rekvisitionen (Ola 2026-10-16)
+
+Det ska INTE gå att rekvirera hur mycket som helst. Ola tyckte begränsningen var det coola. Ledningen släpper ett bestämt antal per leverans: varje post i förrådet har ett lager ("Försvarsmakten releases 1 infantry squad for Gnesta"), och det man inte fått släppt kan inte köpas hur mycket RP man än har. RP är priset, leveranserna är taket. Sektortaket ligger kvar. Förrådets kort visar "1 available" / "None released".
