@@ -101,6 +101,10 @@ export function houseDoor(map, house, route) {
 // Zombier som hinner ikapp slår ner dem (CIV_REACH m, zombiens hitDamage). Dagen vinns när alla har
 // kommit fram eller fallit och minst need är framme; den förloras när för många har fallit (eller basen).
 export const CIV_HP = 10, CIV_GAP = 0.9, CIV_SPEED = 2.1, CIV_REACH = 1.5;
+// 0.14.1 (granskningen av 0.14, Critical 1): spelarens egna spärrar kunde låsa dagen. När flödet går
+// genom en spärr (ingen öppen väg finns) klättrar den civila över på CLIMB_TIME s, när hon är högst
+// CLIMB_REACH m från spärrens mitt. Finns en öppen väg går flödet runt och ingen klättrar.
+export const CLIMB_TIME = 5, CLIMB_REACH = 2.2;
 export const evacTotal = ev => ev.groups.reduce((a, g) => a + g.count, 0);
 function scheduleCivilians(sim, index) {
   const ev = sim.dayCfg.evac;
@@ -120,11 +124,22 @@ function runCivilians(sim, dt) {
     sim.civilians.push({ id, house: q.house, ...at, hp: CIV_HP, maxHp: CIV_HP, state: 'walk', door: { x: door.x, z: door.z }, wob: 0 });
     sim.events.push({ t: 'civilianOut', id, house: q.house, x: door.x, z: door.z });
   }
-  const speed = (sim.dayCfg.evac.speed ?? CIV_SPEED);
+  const speed = (sim.dayCfg.evac.speed ?? CIV_SPEED), route = sim.route;
   for (const c of sim.civilians) {
     if (c.state !== 'walk') continue;
     if (c.held) { c.held = false; continue; }
-    sim.route.advance(c, speed * dt);
+    // 0.14.1: över spärren, långsamt (zombier kan slå henne under tiden)
+    if (c.climb != null) {
+      c.climb -= dt;
+      if (c.climb <= 1e-9) { route.climbInto(c, c.climbKey); c.climb = null; sim.events.push({ t: 'civilianClimbed', id: c.id, x: c.x, z: c.z }); }
+      continue;
+    }
+    const ahead = route.blockedAhead ? route.blockedAhead(c) : -1;
+    if (ahead >= 0) {
+      const b = route.cellCenter(ahead);
+      if (Math.hypot(b.x - c.x, b.z - c.z) <= CLIMB_REACH) { c.climb = CLIMB_TIME; c.climbKey = ahead; sim.events.push({ t: 'civilianClimb', id: c.id, x: c.x, z: c.z }); continue; }
+    }
+    route.advance(c, speed * dt);
     c.wob += speed * dt;
     if (sim.route.arrived(c)) { c.state = 'safe'; ev.safe++; sim.events.push({ t: 'civilianSafe', id: c.id, safe: ev.safe }); }
   }
@@ -1011,12 +1026,18 @@ function zombieCells(sim) {
   for (const z of sim.zombies) if (!z.dead) { const p = zombiePos(sim, z); out.set(z, { p, k: sim.place.keyAt(p.x, p.z) }); }
   return out;
 }
+export const IDLE_OUTSIDE = 3;
+function outsideArc(s, range, cells) {
+  const full = s.fullSight.mask;
+  for (const [z, { p, k }] of cells) if (!z.dead && k >= 0 && full[k] && !s.sight.mask[k] && Math.hypot(p.x - s.x, p.z - s.z) <= range) return true;
+  return false;
+}
 function fireWeapons(sim, dt, cells) {
   for (const s of sim.guns) {
     if (s.squad) { fireSquad(sim, dt, cells, s); continue; }
     const w = s.weapon, seen = s.sight.mask;
     // 0.12.0: en pjäs som flyttas skjuter inte. 0.13.0: inte heller medan den vrids (Rotate) eller svetsas ihop.
-    if (s.move || s.turn || s.building > 0) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); continue; }
+    if (s.move || s.turn || s.building > 0) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); s.idle = 0; s.idleOutside = false; continue; }
     const st = gunStats(sim, s);
     let target = null, best = -Infinity;
     for (const [z, { p, k }] of cells) {
@@ -1027,6 +1048,10 @@ function fireWeapons(sim, dt, cells) {
     }
     w.targetId = target ? target.id : null;
     w.cooldown -= dt;
+    // 0.14.1 (granskningen av 0.14, Important 5): sysslolös i IDLE_OUTSIDE s med levande zombier inom
+    // räckvidd i hela sikten men utanför vinkeln. Vyn visar en flagga och panelen säger "Rotate (R)".
+    s.idle = target ? 0 : (s.idle ?? 0) + dt;
+    s.idleOutside = !target && s.fullSight && s.idle >= IDLE_OUTSIDE - 1e-9 ? outsideArc(s, st.range, cells) : false;
     if (!target) { w.cooldown = Math.max(w.cooldown, 0); continue; }
     const p = zombiePos(sim, target);
     // 0.13.0 (H132): pipan vrids mot målet i traverse rad/s och skjuter först när den pekar dit

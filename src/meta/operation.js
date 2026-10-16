@@ -186,10 +186,20 @@ export function refill(p, uid) {
   return { ok: true, cost: c.cost, progress: { ...p, rp: p.rp - c.cost, op } };
 }
 export const returnValue = u => Math.round(u.spent * RETURN_RATE);
-export function returnUnit(p, uid) {
+// 0.14.1 (granskningen av 0.14, Important 4): vad Return gör, så att förrådet kan fråga först. refund: RP
+// tillbaka; left: enheter kvar i sektorn efteråt. En enhet som ger 0 RP tillbaka och är sektorns sista
+// nekas (reason 'last'): sektorn stod annars utan trupp och utan RP att köpa för.
+export function canReturn(p, uid) {
   const u = unitOf(p, uid);
   if (!u) return fail('unknown');
-  const back = returnValue(u), op = copyOp(p);
+  const refund = returnValue(u), left = u.sector == null ? null : unitsIn(p, u.sector).length - 1;
+  if (refund === 0 && left === 0) return fail('last', { refund, left });
+  return { ok: true, refund, left, given: refund === 0 };
+}
+export function returnUnit(p, uid) {
+  const c = canReturn(p, uid);
+  if (!c.ok) return { ...c, progress: p };
+  const back = c.refund, op = copyOp(p);
   op.units = op.units.filter(x => x.uid !== uid);
   return { ok: true, refund: back, progress: { ...p, rp: p.rp + back, op } };
 }
@@ -272,10 +282,18 @@ export function rpForAttempt({ base, attempt = 1, won = false, report = null, ev
 // Dagen är slut. Förlust: bara RP och försöket räknas, styrkan är orörd. Vinst: förlusterna följer med
 // (stupade soldater, förlorade pjäser), de som var ute får en vunnen dag till (erfarenheten), trycket
 // flyttas, och leveranser och sektorernas slut följer (syncOperation).
+// 0.14.1 (granskningen av 0.14, Important 3): avtagandet räknar bara riktiga förluster (losses[day], som
+// bara finishDay ökar). Restart day och Main menu (abandonDay) ökar attempts, som styr seeden, men kostar
+// ingen RP. attempt i svaret är försöket som avtagandet räknar med (förlusterna före plus ett).
+export const lossesOf = (p, mapId, day) => mapState(p, mapId).losses?.[day] || 0;
 export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = null, evac = null }) {
-  const attempt = (mapState(p, mapId).attempts[day] || 0) + 1;
+  const attempt = lossesOf(p, mapId, day) + 1;
   const rp = rpForAttempt({ base: intelEarned, attempt, won, report, evac });
   let q = dayResult(withOp(p), { day, won, rpEarned: rp.total, mapId });
+  if (!won) {
+    const st = mapState(q, mapId);
+    q = { ...q, maps: { ...q.maps, [mapId]: { ...st, losses: { ...(st.losses ?? {}), [day]: lossesOf(p, mapId, day) + 1 } } } };
+  }
   if (won) {
     const op = copyOp(q);
     for (const d of report?.units ?? []) {

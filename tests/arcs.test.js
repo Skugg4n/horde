@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gridFromAscii } from '../src/sim/grid.js';
 import { buildPlace, KIND, inCone } from '../src/sim/placement.js';
-import { createSim, startWave, step, build, rotateGun, checkRotate, AIM_TOL, autoFacing } from '../src/sim/sim.js';
+import { createSim, startWave, step, build, rotateGun, checkRotate, AIM_TOL, autoFacing, IDLE_OUTSIDE } from '../src/sim/sim.js';
 import { WEAPONS } from '../src/data/weapons.js';
 
 // Skjutvinkeln per vapenklass (0.13.0, H132).
@@ -88,4 +88,21 @@ test('ett vanligt klick ger riktningen som ser mest av hordens väg (mot gatan)'
   const map = openMap(), sim = createSim({ map, day: 1, cash: 9999, research: ['m2.1'], seed: 1 });
   const f = autoFacing(sim, 10 + 4 * map.grid.w, 'm2');
   assert.ok(Math.abs(Math.atan2(Math.sin(f - N), Math.cos(f - N))) < Math.PI / 4 + 1e-9, `riktning ${f}`);
+});
+
+// 0.14.1 (granskningen av 0.14, Important 5): en pjäs med mål utanför vinkeln säger det (idleOutside).
+test('mål utanför vinkeln: idleOutside efter IDLE_OUTSIDE s sysslolös, aldrig när den skjuter', () => {
+  let flagged = false;
+  const map = openMap(), sim = createSim({ map, day: 1, cash: 9999, seed: 2 });
+  const id = build(sim, 10 + 4 * map.grid.w, 'm249', { facing: S }).id, gun = sim.guns.find(x => x.id === id);
+  startWave(sim);
+  let firstAt = null;
+  for (let i = 0; i < 30 / DT && sim.phase === 'wave'; i++) { step(sim, DT); if (gun.idleOutside && firstAt == null) firstAt = sim.time; flagged ||= gun.idleOutside; }
+  assert.ok(flagged, 'flaggan kommer');
+  assert.ok(firstAt >= IDLE_OUTSIDE - 1e-6, `först efter ${IDLE_OUTSIDE} s (${firstAt})`);
+  // vänd mot gatan: skjuter, ingen flagga när den har ett mål
+  const toward = createSim({ map: openMap(), day: 1, cash: 9999, seed: 2 });
+  const tid = build(toward, 10 + 4 * map.grid.w, 'm249', { facing: N }).id, tg = toward.guns.find(x => x.id === tid);
+  startWave(toward);
+  for (let i = 0; i < 30 / DT && toward.phase === 'wave'; i++) { step(toward, DT); if (tg.weapon.targetId != null) assert.equal(tg.idleOutside, false); }
 });

@@ -304,6 +304,12 @@ export function gridRoute(map) {
       }
     },
     arrived: z => flow.isBase(z.cell),
+    // 0.14.1 (granskningen av 0.14, Critical 1): nästa ruta längs flödet när den är spärrad, annars -1.
+    // Flödet går bara genom en spärr när ingen öppen väg finns (spärrens kostnad), så den som står
+    // framför en sådan ruta har ingen annan väg. De civila klättrar då över (src/sim/sim.js).
+    blockedAhead(z) { const n = flow.next[z.cell]; return n >= 0 && blocked.has(n) ? n : -1; },
+    // Ställer den som klättrat över i spärrens ruta; därifrån går flödet vidare som vanligt.
+    climbInto(z, key) { const [x, cz] = grid.center(key); z.x = x; z.z = cz; z.cell = key; z.aimX = null; },
     place(z) {
       if (flow.next[z.cell] < 0 || !aimOf(z)) return { x: z.x, z: z.z, dirX: -1, dirZ: 0 };
       const dx = z.aimX - z.x, dz = z.aimZ - z.z, L = Math.hypot(dx, dz);
@@ -393,6 +399,8 @@ export function gridRoute(map) {
       blocked = saved;
       return out;
     },
+    // 0.14.1: rutorna längs flödet från en ruta till basen (de civilas väg från dörren, bara bild).
+    pathFrom: key => trace(flow, key).cells,
     rebuild: rebuildAll,
   };
 }

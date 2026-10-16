@@ -103,3 +103,51 @@ test('Gnesta dag 1 är evakueringen och E4 har inget Hemvärn', () => {
   assert.match(MAPS.riksvagen.outro.text, /The roadblock at E4 has fallen silent\. Gnesta has only its Home Guard\./);
   void gnestaPlan; void daySpawns;
 });
+
+// ---------- 0.14.1: en dag med alla vägar spärrade tar alltid slut (granskningen av 0.14, Critical 1) ----------
+// En ring av betong runt ishallen: flödet går genom en spärr eftersom ingen öppen väg finns. De civila
+// klättrar över långsamt, och dagen avgörs. Med en öppen väg runt spärren klättrar ingen.
+function ringAroundBase(sim, from = 8, width = 3) {
+  const r = sim.route, g = r.grid;
+  for (let k = 0; k < g.n; k++) {
+    const w = r.walkLeft(k);
+    if (!r.validCell(k) || !(w >= from && w < from + width)) continue;
+    sim.obstacles[k] = { type: 'block', hp: 1e9, maxHp: 1e9 };
+  }
+  r.rebuild(sim.obstacles);
+}
+test('alla vägar spärrade och inga zombier: de civila klättrar över och dagen tar slut', () => {
+  const map = evMap(3, [{ house: 'B2-03', count: 3, at: 1, wave: 0 }]);
+  const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
+  sim.dayCfg = { ...sim.dayCfg, waves: [{ groups: [] }], dormant: [] };
+  ringAroundBase(sim);
+  startWave(sim);
+  let climbs = 0;
+  run(sim, 300, evs => { for (const e of evs) if (e.t === 'civilianClimbed') climbs++; });
+  assert.ok(climbs >= 3, `klättrade ${climbs}`);
+  assert.ok(sim.phase === 'won' || sim.phase === 'lost', `fasen ${sim.phase} efter ${Math.round(sim.time)} s`);
+  assert.equal(sim.phase, 'won');
+});
+test('Gnesta dag 1 med alla vägar spärrade och riktiga vågor tar alltid slut inom tolv minuter', () => {
+  for (const seed of [1, 2, 3]) {
+    const sim = createSim({ map: gnesta, day: 1, cash: 0, seed });
+    ringAroundBase(sim);
+    startWave(sim);
+    const runAll = () => { for (let i = 0; i < 720 / DT && sim.phase !== 'won' && sim.phase !== 'lost'; i++) { if (sim.phase === 'build' && sim.nextWaveIn == null) startWave(sim); step(sim, DT); } };
+    runAll();
+    assert.ok(sim.phase === 'won' || sim.phase === 'lost', `seed ${seed}: fasen ${sim.phase}`);
+  }
+});
+test('en spärr med en öppen väg runt: ingen civil klättrar', () => {
+  const map = evMap(3, [{ house: 'B2-03', count: 3, at: 1, wave: 0 }]);
+  const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
+  sim.dayCfg = { ...sim.dayCfg, waves: [{ groups: [] }], dormant: [] };
+  // en enda ruta på vägen spärrad: gatan är bredare, flödet går runt
+  const path = sim.route.paths(['east1'])[0].cells, k = path[Math.floor(path.length / 2)];
+  sim.obstacles[k] = { type: 'block', hp: 1e9, maxHp: 1e9 }; sim.route.rebuild(sim.obstacles);
+  startWave(sim);
+  let climbs = 0;
+  run(sim, 200, evs => { for (const e of evs) if (e.t === 'civilianClimb') climbs++; });
+  assert.equal(climbs, 0);
+  assert.equal(sim.phase, 'won');
+});

@@ -2,8 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newCampaign, finishDay, requisition, canRequisition, levelUp, refill, refillCost, returnUnit, reassign, releasedTypes, opStartConfig,
-  rpForAttempt, attemptFactor, sectorStatus, buyUpgrade, upgradeState, unitsIn, vetOf, debugReach, syncOperation, PRESSURE_HP } from '../src/meta/operation.js';
-import { mapState, mapUnlocked } from '../src/meta/progress.js';
+  rpForAttempt, attemptFactor, lossesOf, canReturn, sectorStatus, buyUpgrade, upgradeState, unitsIn, vetOf, debugReach, syncOperation, PRESSURE_HP } from '../src/meta/operation.js';
+import { mapState, mapUnlocked, abandonDay } from '../src/meta/progress.js';
 import { UNIT_RP, LEVEL_RP, REFILL_RP, VET_WINS } from '../src/data/depot.js';
 import { createSim, build, startWave, step, upgrade, sell, reinforce, dayReport, buySupply, checkSpot, gunStats, deployPhase, placeAcross } from '../src/sim/sim.js';
 import { buyState } from '../src/sim/buy.js';
@@ -20,7 +20,7 @@ test('ny kampanj: Försvarsmakten ger vägspärren på E4, ett meddelande i inko
   assert.deepEqual(unitsIn(p, 'riksvagen').map(u => u.type), ['inf', 'm249', 'm249']);
   assert.deepEqual(releasedTypes(p, 'riksvagen'), ['inf', 'm249']);
   assert.equal(p.op.inbox.length, 1);
-  assert.match(p.op.inbox[0].text, /Försvarsmakten/);
+  assert.equal(p.op.inbox[0].from, 'FM');
   assert.equal(p.rp, 0);
 });
 
@@ -209,4 +209,48 @@ test('Esc stänger förrådet som det stängde forskningen; på operationskartan
   const { escapeAction } = await import('../src/sim/clock.js');
   assert.equal(escapeAction({ mode: 'depot' }), 'close-research');
   assert.equal(escapeAction({ mode: 'opmap' }), 'none');
+});
+
+// ---------- 0.14.1 ----------
+test('RP-avtagandet räknar förluster, inte Restart day eller Main menu', () => {
+  let p = newCampaign();
+  p = abandonDay(p, { day: 1, mapId: 'riksvagen' });
+  p = abandonDay(p, { day: 1, mapId: 'riksvagen' });
+  assert.equal(mapState(p, 'riksvagen').attempts[1], 2, 'seeden räknar omstarterna');
+  const lost = finishDay(p, { mapId: 'riksvagen', day: 1, won: false, intelEarned: 100 });
+  assert.equal(lost.rp.factor, 1, 'två omstarter och en förlust: fullt');
+  assert.equal(lost.attempt, 1);
+  p = lost.progress;
+  assert.equal(lossesOf(p, 'riksvagen', 1), 1);
+  for (let i = 0; i < 2; i++) p = finishDay(p, { mapId: 'riksvagen', day: 1, won: false, intelEarned: 100 }).progress;
+  for (let i = 0; i < 3; i++) p = abandonDay(p, { day: 1, mapId: 'riksvagen' });
+  const fourth = finishDay(p, { mapId: 'riksvagen', day: 1, won: false, intelEarned: 100 });
+  assert.equal(fourth.rp.factor, 0.6, 'fjärde riktiga försöket');
+});
+
+test('Return: en skänkt enhet som är sektorns sista nekas, annars säger svaret vad som händer', () => {
+  let p = newCampaign();
+  const [inf, a, b] = unitsIn(p, 'riksvagen');
+  assert.deepEqual(canReturn(p, a.uid), { ok: true, refund: 0, left: 2, given: true });
+  p = returnUnit(p, a.uid).progress;
+  p = returnUnit(p, b.uid).progress;
+  const last = returnUnit(p, inf.uid);
+  assert.equal(last.ok, false);
+  assert.equal(last.reason, 'last');
+  assert.equal(unitsIn(last.progress, 'riksvagen').length, 1, 'sektorn behåller sin sista enhet');
+  // en köpt enhet ger RP tillbaka och får lämnas även om den är den sista
+  p = { ...p, rp: 500 };
+  const r = requisition(p, 'm249', 'riksvagen'); p = r.progress;
+  p = returnUnit(p, inf.uid).progress;
+  const c = canReturn(p, r.uid);
+  assert.equal(c.ok, true); assert.equal(c.left, 0); assert.ok(c.refund > 0);
+});
+
+test('avsändaren står en gång: inget meddelande börjar med sitt eget namn, och hela myndighetsnamnet', async () => {
+  const { RELEASES, FROM_NAME } = await import('../src/data/depot.js');
+  assert.equal(FROM_NAME.MCF, 'Myndigheten för civilt försvar');
+  for (const r of RELEASES) {
+    assert.ok(!r.text.startsWith(FROM_NAME[r.from]), r.id);
+    assert.ok(!/\bMCF\b/.test(r.text), r.id);
+  }
 });

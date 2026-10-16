@@ -6,8 +6,10 @@
 // (kärntrupper) och ställs ut i uppställningen före första vågen.
 //
 // Ledningen bestämmer vad som är loss. RELEASES är leveranserna i kampanjens ordning: när en dag blir
-// spelbar (map, day) kommer ett meddelande från Försvarsmakten eller MCF (Myndigheten för civilt försvar,
-// som ersatte MSB 2026), trupper ges till sektorn (grant) och typer blir möjliga att rekvirera där (unlock).
+// spelbar (map, day) kommer ett meddelande från Försvarsmakten eller Myndigheten för civilt försvar (ersatte
+// MSB 2026-01-01, kontrollerat mot regeringen.se 0.14.1; förkortningen är inte kontrollerad, så spelet skriver
+// ut hela namnet), trupper ges till sektorn (grant) och typer blir möjliga att rekvirera där (unlock).
+// 0.14.1: texterna börjar inte med avsändaren, som redan står ovanför ("Försvarsmakten: Försvarsmakten ...").
 // tiers: forskningsnivåer som leveransen ger (barrikaden, granatlådorna och vapnens första nivå), så att
 // simuleringens siffror (src/sim/stats.js) fungerar som förut.
 //
@@ -68,7 +70,7 @@ const NORTH_ALL = ['civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
 export const RELEASES = [
   // ---------- E4: arméns vägspärr ----------
   { id: 'e4-1', map: 'riksvagen', day: 1, from: 'FM',
-    text: 'Försvarsmakten holds the E4 roadblock south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
+    text: 'We hold the E4 roadblock south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
     grant: [{ type: 'inf' }, { type: 'm249', count: 2 }], unlock: ['inf', 'm249'], tiers: ['block.1'] },
   { id: 'e4-2', map: 'riksvagen', day: 2, from: 'FM',
     text: 'Engineers have welded an EPA pillbox at the roadblock. Runners reported on the E4.',
@@ -78,27 +80,27 @@ export const RELEASES = [
     grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
   // ---------- Gnesta South ----------
   { id: 'gn-1', map: 'gnesta', day: 1, from: 'MCF',
-    text: 'MCF has organised hunters and neighbours in Gnesta: three groups of civilian volunteers. Families are still in the houses east of the roundabout.',
+    text: 'Hunters and neighbours in Gnesta are organised into three groups of volunteers. Civilians are still in the houses east of the roundabout.',
     grant: [{ type: 'civ', count: 3 }], unlock: ['civ'] },
   { id: 'gn-2', map: 'gnesta', day: 2, from: 'MCF',
-    text: 'MCF has released Hemvärnet to Gnesta: one squad and two Ksp 90 teams. Crates of hand grenades came with them.',
+    text: 'Hemvärnet is released to Gnesta: one squad and two Ksp 90 teams. Crates of hand grenades came with them.',
     grant: [{ type: 'hv' }, { type: 'm249', count: 2 }], unlock: ['hv', 'm249'], tiers: ['grenade.1'] },
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'FM',
-    text: 'Försvarsmakten has released a Ksp 58 team and an Ak 5 grenadier for Gnesta. The forest road is open.',
+    text: 'A Ksp 58 team and an Ak 5 grenadier are released for Gnesta. The forest road is open.',
     grant: [{ type: 'ksp58' }, { type: 'ak5' }], unlock: ['ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'] },
   { id: 'gn-4', map: 'gnesta', day: 4, from: 'MCF',
-    text: 'MCF has secured fuel and an A-tractor. Your engineers welded a pillbox. Försvarsmakten sends a Psg 90 sniper.',
+    text: 'Fuel and an A-tractor are secured. Your engineers welded a pillbox, and Försvarsmakten sends a Psg 90 sniper.',
     grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'] },
   { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
-    text: 'Försvarsmakten has released a mounted Ksp 88 for Gnesta. Everything they have is coming.',
+    text: 'A mounted Ksp 88 is released for Gnesta. Everything we have is coming.',
     grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
     text: 'They are circling north of the ice rink. Gnesta North is a sector now: reassign what you can spare from Gnesta South, or requisition.',
     grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, from: 'FM',
-    text: 'Försvarsmakten has released an infantry squad for Gnesta North. Regulars, Ak 5, body armour.',
+    text: 'An infantry squad is released for Gnesta North. Regulars, Ak 5, body armour.',
     grant: [{ type: 'inf' }], unlock: ['inf'] },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
-export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'MCF' };
+export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };
