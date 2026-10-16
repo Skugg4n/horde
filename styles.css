@@ -614,9 +614,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #evac .evbar .need { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #e9dfc9; }
 .civlost { position: fixed; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap; z-index: 3;
   font: 600 13px 'IBM Plex Mono', monospace; color: #fff1e6; background: rgba(150, 26, 10, 0.9); border: 1px solid rgba(255,140,110,0.7); padding: 2px 8px; border-radius: 2px;
-  animation: civlost 2.6s ease-out forwards; }
+  animation: civlost 5s ease-out forwards; }
 .civlost::before { content: '✕ '; color: #f2c46b; }
-@keyframes civlost { 0% { opacity: 0; transform: translate(-50%, -30%); } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -160%); } }
+/* 0.14.2 (speltestet av 0.14.1: märket syntes aldrig): synligt från första bildrutan (förut började det
+   genomskinligt, och med låg bildtakt eller en dold flik hann det aldrig tona in), står kvar i 5 s */
+@keyframes civlost { 0% { opacity: 1; transform: translate(-50%, -50%); } 80% { opacity: 1; transform: translate(-50%, -80%); } 100% { opacity: 0; transform: translate(-50%, -160%); } }
 /* 0.13.0: pjäspanelens rader för den monterade Ksp 88 och pillboxens pansar */
 .panel .info.mounted { font-size: 13px; color: var(--paper-dim); margin-top: 8px; }
 .panel .info.armour { font-size: 13px; color: var(--paper); margin-top: 8px; letter-spacing: 0.04em; }

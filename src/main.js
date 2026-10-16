@@ -666,7 +666,7 @@ function civilianLost(ev) {
   el.style.left = Math.max(m + 60, Math.min(innerWidth - m - 60, p.sx)) + 'px';
   el.style.top = Math.max(m + 20, Math.min(innerHeight - m - 20, p.sy)) + 'px';
   uiRoot.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(() => el.remove(), 5000);
 }
 function updateSpare() {
   // 0.14.0: med kärntrupperna går överskottet till förnödenheter
@@ -1264,10 +1264,14 @@ function dayFrame() {
   if (sim.route.kind !== 'grid') return null;
   // 0.14.1 (speltestet av 0.14.0: "familjerna dog utanför bild"): en evakueringsdag börjar med hela de
   // civilas väg i bild, från husen till ishallen.
+  // 0.14.2 (speltestet av 0.14.1: "ishallen syns inte vid start, jag fick dra kartan"): basen är entrén, så
+  // hallen själv (36 x 23 m) låg delvis utanför; nu är hallens hörn med i bilden.
   if (sim.dayCfg.evac) {
     const b = sim.route.base, pts = [[b.x, b.z]];
     for (const g of sim.dayCfg.evac.groups) { const d = houseDoor(sim.map, g.house, sim.route); pts.push([d.x, d.z]); }
-    return rig.fit(pts);
+    const hr = sim.map.iceRink;
+    if (hr?.at) for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pts.push(hr.at(sx * hr.len / 2, sz * hr.wid / 2));
+    return rig.fit(pts, 6);
   }
   const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
   const cells = sim.route.paths([first])[0]?.cells ?? [];
