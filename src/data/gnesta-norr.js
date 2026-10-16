@@ -72,6 +72,9 @@ const NEW_ROADS = [
   // tog den vägen i stället för Vikingavägen.)
   { id: 'vikFog', name: 'Vikingavägen', surface: 'asphalt', width: 5.5, curbs: true, fog: true, pts: KS([[1690, -8], [1672, -60], [1652, -125]]) },
   { id: 'c3fog', surface: 'asphalt', width: 3, fog: true, pts: KS([[1990, 1030], [2060, 1022], [2160, 1012]]) },
+  // 0.12.0 (H115, speltestet av 0.11.0: "södra gruppen dyker upp mitt på kartan intill ishallen"):
+  // Sigtunavägen fortsätter västerut ut i diset, så att öppningen kommer ur dimman som de andra.
+  { id: 'sigWFog', name: 'Sigtunavägen', surface: 'asphalt', width: 6.5, curbs: true, fog: true, pts: [[-143.45, 2.85], [-162, -2.9], [-181, -8.8], [-196, -13.4]] },
   // Valsvägen och Hambovägen i nordväst: återvändsgator, horden har inget där att göra.
   { id: 'vals', name: 'Valsvägen', surface: 'asphalt', width: 4.5, curbs: true, turn: true, pts: KS([[578, 166], [590, 240], [604, 290], [637, 360], [646, 440], [658, 500]]) },
   { id: 'hambo', name: 'Hambovägen', surface: 'asphalt', width: 4.5, curbs: true, turn: true, pts: KS([[618, 378], [519, 404], [440, 425], [381, 442], [310, 474]]) },
@@ -435,7 +438,8 @@ export const SPAWNS = [
   // 0.11.0 (Olas idé): öppningen. Dagens första våg är en liten grupp söderifrån, Sigtunavägen från
   // dimman i väster förbi ishallen, så att spelaren har något att skjuta på inom 10 till 15 s medan
   // linjen i norr byggs. Sist i listan så att de andra ingångarnas ordning är som förut.
-  { id: 'sigW', name: 'Sigtunavägen south', day: 1, at: [-137, 3.5] },
+  // 0.12.0 (H115): 66 m ut i diset (var 15 m), längre än dimmans 42 m: ingen ser dem dyka upp.
+  { id: 'sigW', name: 'Sigtunavägen west', day: 1, at: [-188, -11] },
 ];
 
 // ---------- radhusen i placeringen ----------
@@ -506,7 +510,9 @@ const first = (type, count, interval, delay, spawn) => [g(type, 6, interval, del
 // framåt är norrifrån som förut, med en rad när de byter håll (wave.toast, main.js).
 // De är eftersläntrare: dag 1:s hp-faktor (OPENER_HP) alla dagar, så att en Ksp 90 vid ishallen räcker.
 const OPENER_HP = 2.8;
-const opener = (walkers, runners = 0) => ({ groups: [{ ...g('walker', walkers, 0.8, 0, 'sigW'), hp: OPENER_HP }, ...(runners ? [{ ...g('runner', runners, 0.9, 4, 'sigW'), hp: OPENER_HP }] : [])] });
+// 0.12.0 (H115): ingången ligger längre ut i diset, så de har ett försprång (stannar i diset).
+const OPENER_LEAD = 8;
+const opener = (walkers, runners = 0) => ({ groups: [{ ...g('walker', walkers, 0.8, 0, 'sigW', OPENER_LEAD), hp: OPENER_HP }, ...(runners ? [{ ...g('runner', runners, 0.9, 4, 'sigW', OPENER_LEAD), hp: OPENER_HP }] : [])] });
 const NORTH = "They're coming from the north now.";
 const north = w => ({ ...w, toast: NORTH });
 export const DAYS = [
@@ -540,7 +546,7 @@ export const DAYS = [
 // ---------- staden ----------
 export const NORR_TOWN = {
   roads: ROADS, lots: LOTS, cars: CARS, ground: GROUND, spawns: SPAWNS, base: BASE,
-  bounds: { x0: -146, z0: -190, x1: 120, z1: 64 },
+  bounds: { x0: -200, z0: -190, x1: 120, z1: 64 },
   crisp: SURROUNDINGS.crisp,
   extraHouses: ROWS.map(R => rowRect(R)),
   extraThings: [],

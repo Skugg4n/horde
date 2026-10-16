@@ -9,13 +9,27 @@ const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
 const DRAG_START = 6;          // px innan en nedtryckning räknas som panorering (annars klick)
 const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
 
+// Zoomen (vyns höjd i meter) som får med hela rektangeln c ({ x0, x1, z0, z1 }) vid bildformatet a.
+export function crispView(c, a, pad = 4) {
+  let need = 0;
+  const cx = (c.x0 + c.x1) / 2, cz = (c.z0 + c.z1) / 2;
+  for (const [x, z] of [[c.x0, c.z0], [c.x1, c.z0], [c.x1, c.z1], [c.x0, c.z1]]) {
+    const dx = x - cx, dz = z - cz;
+    const sx = Math.abs(dx * R.x + dz * R.z) + pad, sy = Math.abs((dx * D.x + dz * D.z) * PITCH) + pad;
+    need = Math.max(need, (2 * sx) / a, 2 * sy);
+  }
+  return Math.ceil(need);
+}
 export function createRig({ camera, map, fill, dom }) {
   const cam = map.camera;
   const canPan = !!cam.pan;
   const home = new THREE.Vector3(cam.target[0], 0, cam.target[1]);
   const target = home.clone();
   let view = cam.view;
-  const [zMin, zMax] = cam.zoom ?? [view, view];
+  const [zMin, zMax0] = cam.zoom ?? [view, view];
+  // 0.12.0 (H117, speltestet av 0.11.0: "ser aldrig ingången och ishallen samtidigt"): längst ut ryms
+  // hela den aktiva kartan (den skarpa ytan) på en skärm i 16:10 (1440 x 900), med 4 m marginal.
+  const zMax = map.surroundings?.crisp ? Math.max(zMax0, crispView(map.surroundings.crisp, 1440 / 900)) : zMax0;
   const shake = new THREE.Vector3();
 
   function apply() {

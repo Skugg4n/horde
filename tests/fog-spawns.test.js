@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
 import { routeFor } from '../src/sim/route.js';
-import { fogFactor, FOG_SPEED, FOG_RAMP, createSim, startWave, step } from '../src/sim/sim.js';
+import { fogFactor, FOG_SPEED, FOG_RAMP, createSim, startWave, step, callNextWave, hasNextWave } from '../src/sim/sim.js';
 
 // 0.11.0 (Olas krav): ingångarna ligger utanför den skarpa spelytan, i dimkanten, så att horden
 // kommer ur diset längs gatan och inte dyker upp mitt i en korsning.
@@ -39,5 +39,32 @@ test('dagens första zombie kliver ur diset inom 10 s, varje dag på stadsbanorn
     let t = null;
     while (sim.time < 30 && t == null) { step(sim, 1 / 30); if (sim.zombies.some(z => !z.dead && outside(c, z.x, z.z) <= 0)) t = sim.time; }
     assert.ok(t != null && t <= 10, `${m.id} dag ${d.n}: ${t?.toFixed(1)} s`);
+  }
+});
+
+// 0.12.0 (H115, speltestet av 0.11.0: Gnesta Norths södra grupp dök upp mitt på kartan vid ishallen):
+// varje zombie som släpps från en ingång, på varje bana, varje dag och i varje våg, dyker upp minst
+// 6 m utanför den aktiva kartan (den skarpa ytan), också de med försprång. De vilande i husen
+// (H101) räknas inte: de kommer ut genom en dörr. E4 har ingen dimma: där kommer de in där vägen börjar.
+test('varje zombie från en ingång dyker upp utanför den aktiva kartan, varje bana, dag och våg', () => {
+  for (const m of Object.values(MAPS)) for (const d of m.days) {
+    const sim = createSim({ map: { ...m, baseHp: 1e9 }, day: d.n, cash: 0, research: [], seed: 1 });
+    startWave(sim);
+    while (hasNextWave(sim)) callNextWave(sim);
+    const seen = new Set();
+    for (let t = 0; t < 240 * 10 && (sim.spawnQueue.length || t === 0); t++) {
+      step(sim, 0.1);
+      for (const ev of sim.events) {
+        if (ev.t !== 'spawn' || seen.has(ev.id)) continue;
+        seen.add(ev.id);
+        const z = sim.zombies.find(q => q.id === ev.id);
+        if (z.house) continue;
+        if (m.grid) {
+          const o = outside(m.surroundings.crisp, z.x, z.z);
+          assert.ok(o >= 6, `${m.id} dag ${d.n} våg ${z.wave + 1}: ${z.type} ${ev.id} vid (${z.x.toFixed(1)}, ${z.z.toFixed(1)}), ${o.toFixed(1)} m utanför`);
+        } else assert.ok(z.d < 1.5, `${m.id}: vid vägens början (${z.d})`);
+      }
+    }
+    assert.ok(seen.size > 0, `${m.id} dag ${d.n}`);
   }
 });

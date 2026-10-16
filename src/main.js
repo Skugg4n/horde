@@ -378,6 +378,62 @@ document.addEventListener('pointerdown', e => {
   closePanel();
 });
 
+// ---------- barrikadernas hälsa (0.12.0, H114) ----------
+// Speltestet av 0.11.0: barrikaden gick sönder tyst mitt i våg 3 och horden tog en annan väg. Nu har en
+// skadad spärr en liten stapel ovanför sig, "Barricade failing" när den har en fjärdedel kvar (med en
+// ping på minikartan), och när den går sönder står det så och den nya vägen blinkar.
+const FAILING = 0.25;
+let routeFlash = 0;
+const alerts = [];            // { x, z, until, kind } för minikartan
+const failingWarned = new Set();
+const bars = document.createElement('div');
+bars.id = 'obbars';
+uiRoot.appendChild(bars);
+const barEls = new Map();
+function blockLines() {
+  const lines = new Map();
+  for (const key of Object.keys(sim.obstacles)) {
+    const o = sim.obstacles[key];
+    if (o.type !== 'block') continue;
+    const id = o.line ?? 'c' + key, c = sim.route.cellCenter(Number(key));
+    if (!lines.has(id)) lines.set(id, { hp: 0, max: 0, x: 0, z: 0, n: 0 });
+    const l = lines.get(id);
+    l.hp += Math.max(0, o.hp); l.max += o.maxHp; l.x += c.x; l.z += c.z; l.n++;
+  }
+  for (const l of lines.values()) { l.x /= l.n; l.z /= l.n; l.frac = l.hp / l.max; }
+  return lines;
+}
+function updateBarricades(dt) {
+  routeFlash = Math.max(0, routeFlash - dt);
+  const lines = mode === 'play' ? blockLines() : new Map();
+  for (const [id, el] of barEls) if (!lines.has(id) || lines.get(id).frac >= 0.999) { el.remove(); barEls.delete(id); }
+  for (const [id, l] of lines) {
+    if (l.frac < FAILING && !failingWarned.has(id)) {
+      failingWarned.add(id);
+      note(uiRoot, 'Barricade failing', 'warn');
+      alerts.push({ x: l.x, z: l.z, until: time + 8, kind: 'barricade' });
+    }
+    if (l.frac >= 0.999) continue;
+    let el = barEls.get(id);
+    if (!el) { el = document.createElement('div'); el.className = 'obbar'; el.innerHTML = '<i></i>'; bars.appendChild(el); barEls.set(id, el); }
+    tmpV.set(l.x, 2.2, l.z).project(camera);
+    el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
+    el.firstChild.style.width = Math.round(l.frac * 100) + '%';
+    el.classList.toggle('low', l.frac < FAILING);
+  }
+  for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].until < time) alerts.splice(i, 1);
+}
+function barricadeBroken(ev) {
+  // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
+  const id = ev.line ?? 'c' + ev.cell;
+  if (failingWarned.has('down:' + id)) return;
+  failingWarned.add('down:' + id);
+  note(uiRoot, 'Barricade down. They are taking another way.', 'warn');
+  routeFlash = 4;
+  const c = sim.route.cellCenter(ev.cell);
+  alerts.push({ x: c.x, z: c.z, until: time + 8, kind: 'barricade' });
+}
+
 // En enda väg för händelser: efter varje step och efter startWave/callNextWave.
 function handleEvents() {
   const evs = sim.events;
@@ -401,6 +457,8 @@ function handleEvents() {
       if (toast) note(uiRoot, toast, 'warn');
     }
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
+    else if (ev.t === 'obstacleBroken' && ev.type === 'block') barricadeBroken(ev);
+    else if (ev.t === 'dormantBurst') { alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); if (!ev.intel) note(uiRoot, 'Infected breaking out of a house!', 'warn'); }
     else if (ev.t === 'kill' && ev.bounty) {
       tmpV.set(ev.x, 2, ev.z).project(camera);
       hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
@@ -612,7 +670,9 @@ function updateRoutes() {
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
-  routeLines.strength(sim.phase === 'build' ? 1 : 0.6);
+  // 0.12.0 (H114): när en barrikad går sönder blinkar den nya vägen några sekunder
+  const flash = routeFlash > 0 ? 0.5 + 0.5 * Math.abs(Math.sin(routeFlash * 6)) : 0;
+  routeLines.strength(Math.max(sim.phase === 'build' ? 1 : 0.6, flash * 1.6));
   // Förhandsvisningen: hindret i handen (så går de om du lägger det här), eller ett utlagt hinder
   // som pekas på eller är valt (så går de om du river det).
   const holding = placing?.kind === 'obstacle' && spot && spot.key >= 0;
@@ -720,6 +780,7 @@ function startDay(n) {
   if (!cfg) { showMenu(); return; }
   day = n;
   sim = createSim(cfg);
+  failingWarned.clear(); alerts.length = 0; routeFlash = 0;
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
@@ -927,6 +988,7 @@ function tick(now) {
   hud.update(sim);
   hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
   updateEntry();
+  updateBarricades(paused ? 0 : frameDt);
   rig.active = mode === 'play' && !paused;
   const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
   rig.update(vdt);

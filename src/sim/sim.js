@@ -820,7 +820,7 @@ function obstacleEffect(sim, z, dt, hitCells) {
       mul = 0; if (c.crosses) route.stopAt(z, i); z.attacking = true;
       ob.hp -= def.hitDamage * dt;
       if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
-      if (ob.hp <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
+      if (ob.hp <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}) }); }
     }
   }
   if (broke) route.rebuild(sim.obstacles);
