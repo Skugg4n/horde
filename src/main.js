@@ -16,7 +16,7 @@ import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom } from './sim/sim.js';
+import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats } from './sim/stats.js';
@@ -162,6 +162,16 @@ const ghostTip = document.createElement('div');
 ghostTip.id = 'ghosttip'; ghostTip.className = 'plate'; ghostTip.hidden = true;
 uiRoot.appendChild(ghostTip);
 const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
+// 0.12.0 (H102): Move i panelen tar pjäsen i handen; samma spöke och samma regler som ett köp.
+function startMove(id) {
+  if (!canPlaceNow()) return;
+  const g = sim.guns.find(x => x.id === id);
+  if (!g) return;
+  closePanel();
+  audio.ui('pick');
+  placing = { type: g.weapon.type, kind: 'gun', move: id };
+  spot = null; hovered = null;
+}
 function startPlacing(type) {
   if (!canPlaceNow()) return;
   if (placing?.type === type) { stopPlacing(); return; }
@@ -186,16 +196,22 @@ function spotFor(key) {
     return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
   }
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
-  const c = sim.place.center(key), check = checkSpot(sim, key, placing?.type);
+  const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
   return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason };
 }
 function placeHere(key) {
   const sp = spotFor(key);
-  if (!sp.ok) { note(uiRoot, reasonText(sp.reason), 'warn place'); audio.ui('deny'); return; }
+  if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
+  if (placing.move) {
+    const r = actions.move(placing.move, key, placing.facing);
+    if (!r.ok) { flashTip(reasonText(r.reason)); return; }
+    stopPlacing(); placedAt = performance.now();
+    return;
+  }
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type);
-  if (!r.ok) { note(uiRoot, reasonText(r.reason), 'warn place'); return; }
+  if (!r.ok) { flashTip(reasonText(r.reason)); return; }
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
@@ -225,7 +241,7 @@ function placementUi() {
   if (placing && isSquad(placing.type)) {
     // Hemvärnet: markeringens ring, var soldaterna skulle ta skydd och vad de tillsammans ser
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
-    const men = spot.ok ? squadPreview(sim, spot.key, placing.type) : [];
+    const men = spot.ok ? (placing.move ? movePreview(sim, placing.move, spot.key) : squadPreview(sim, spot.key, placing.type)) : [];
     const r = weaponStats(placing.type, 1, sim.research).range;
     return {
       ghost: { type: placing.type, x: spot.x, y: 0, z: spot.z, ok: spot.ok, men },
@@ -264,11 +280,18 @@ function squadKeys(men, r) {
   }
   return [...out];
 }
+// 0.12.0 (speltestet av 0.11.0: "placeringen misslyckas utan synligt skäl"): skälet står alltid vid
+// pekaren, både medan saken hålls över en ruta som inte går och en stund efter ett klick som nekades
+// (förut kom klickets skäl uppe i skärmens topp).
+let tipFlash = null;     // { text, until }
+function flashTip(text) { tipFlash = { text, until: performance.now() + 1800 }; }
 function updateGhostTip() {
-  const show = placing && spot && !spot.ok;
+  const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
+  const show = !!flash || (placing && spot && !spot.ok);
   ghostTip.hidden = !show;
+  ghostTip.classList.toggle('flash', !!flash);
   if (!show) return;
-  const t = reasonText(spot.reason);
+  const t = flash ?? reasonText(spot.reason);
   if (ghostTip.textContent !== t) ghostTip.textContent = t;
   ghostTip.style.left = pointer.x + 'px'; ghostTip.style.top = pointer.y + 'px';
 }
@@ -291,6 +314,8 @@ const actions = {
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
   reinforce: withCash('click', id => reinforce(sim, id)),
+  move: withCash('place', (id, key, facing) => moveGun(sim, id, key, { facing })),
+  startMove: id => startMove(id),
   squadRoom: id => squadRoom(sim, id),
   pick: type => { chord.reset(); startPlacing(type); },
   // Gnesta: spärren läggs tvärs över gatan (E4: bara rutan).
@@ -884,7 +909,7 @@ function tick(now) {
   const paused = menu.isOpen();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
-  if (placing && (!canPlaceNow() || buyState(sim, placing.type).state === 'locked')) stopPlacing();
+  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : buyState(sim, placing.type).state === 'locked'))) stopPlacing();
   updateHint();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));

@@ -329,6 +329,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel ul.men li::before { content: '\25B8'; color: var(--paper); margin-right: 5px; font-size: 10px; }
 .panel ul.men li.down { color: var(--rust, #b5532a); }
 .panel .info.kit { font-size: 13px; color: var(--paper-dim); margin-top: 8px; }
+.panel .info.moving { font-size: 13px; color: #d9a441; margin-top: 8px; letter-spacing: 0.04em; }
 
 .menu { min-width: 420px; }
 .menu .logo { font-family: 'Saira Stencil One', sans-serif; font-size: 84px; line-height: 0.95; letter-spacing: 0.06em; color: var(--paper); }
@@ -458,6 +459,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   font-size: 13px; letter-spacing: 0.03em; color: #f0a07a;
 }
 #ghosttip[hidden] { display: none; }
+#ghosttip.flash { border-color: var(--rust); color: #f0c9b4; }
 @media (max-width: 760px) {
   #buildbar { left: 16px; bottom: 80px; }
   #buildbar .card { width: 66px; }

@@ -13,6 +13,7 @@ import { SHOP, BUY_MENU, shopItem, hotkeyOf } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
+import { MOVE_TIME, movePhase } from '../sim/sim.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -40,6 +41,9 @@ const REASONS = {
   'trångt': 'No room for the squad here',
   'trångt-man': 'No room for one more rifleman here',
   'hela': 'Nobody is down.',
+  // Flytta (0.12.0)
+  'flyttar': 'Already on the move',
+  'samma': 'Already here',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -194,7 +198,7 @@ export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '');
+  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -209,8 +213,9 @@ export function gunPanel(root, gunId, sim, actions) {
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
         <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="move" title="Pack up, carry and set up somewhere else. No fire while moving."><span class="a">Move</span><span class="p">${moveText(w.type)}</span></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
-      </div>${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
+      </div>${movingRow(g)}${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     const kit = ui.body.querySelector('[data-a="kit"]');
     const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
@@ -222,6 +227,11 @@ export function gunPanel(root, gunId, sim, actions) {
       kit.addEventListener('mouseenter', () => { const gg = gunOf(cur); if (gg && gs) showRange(gg, gs.range); });
       kit.addEventListener('mouseleave', own);
     }
+    ui.body.querySelector('[data-a="move"]').addEventListener('click', () => {
+      const gg = gunOf(cur);
+      if (gg?.move) { ui.say(reasonText('flyttar')); return; }
+      actions.startMove(gunId);
+    });
     up.addEventListener('click', () => {
       const r = actions.upgrade(gunId);
       if (!r.ok) ui.say(reasonText(r.reason));
@@ -253,6 +263,7 @@ export function gunPanel(root, gunId, sim, actions) {
       <ul class="men">${men}</ul>
       <div class="acts">
         <button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="move" title="The squad runs to a new spot. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
       </div>${standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
@@ -263,6 +274,7 @@ export function gunPanel(root, gunId, sim, actions) {
       else actions.close();
     });
     if (rf) rf.addEventListener('click', () => { const r = actions.reinforce(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
+    ui.body.querySelector('[data-a="move"]').addEventListener('click', () => actions.startMove(gunId));
     actions.range({ x: g.x, z: g.z, r: SQUAD.radius, id: g.id });
   }
 
@@ -368,6 +380,14 @@ function on(el, sel, fn) {
 }
 
 // cash: pengarna dagen börjar med (dagens kassa plus forskningen Större budget).
+// 0.12.0 (H102): hur lång tid en flytt tar, och raden medan den pågår.
+const moveText = type => `${MOVE_TIME[type] ?? 8} s`;
+function movingRow(g) {
+  const ph = movePhase(g);
+  if (!ph) return '';
+  const left = Math.max(0, Math.ceil(g.move.total - g.move.t));
+  return `<p class="info moving">${{ pack: 'Packing up', carry: 'On the move', setup: 'Setting up' }[ph]} · ${left} s · not firing</p>`;
+}
 // 0.12.0 (H101): förvarningen om vilande smittade i husen (en rad per gata; överraskningen syns inte).
 export function intelLine(dayCfg) {
   const streets = [...new Set((dayCfg.dormant ?? []).filter(d => d.intel !== false).map(d => d.street).filter(Boolean))];

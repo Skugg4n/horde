@@ -7,7 +7,7 @@ import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { CELL_LEN } from '../sim/sim.js';
+import { CELL_LEN, movePhase, MOVE_PACK, MOVE_CARRY } from '../sim/sim.js';
 import { createSquadView } from './squad-view.js';
 import { squadGhost, setSquadGhost } from './models.js';
 import { SQUAD, isSquad } from '../sim/squad.js';
@@ -213,6 +213,27 @@ export function createView(scene, initialSim) {
     slots.set(s.id, e); slotObjects.set(s.id, e.group);
     return e;
   }
+  // 0.12.0 (H102): flytten i bild. Packa: säckarna sjunker ihop på den gamla platsen. Bära: pjäsen och
+  // skytten glider till den nya platsen, vända dit. Ställa upp: säckarna växer upp igen.
+  function placeSlot(e, s, dt) {
+    const m = s.move, bags = e.model.bags;
+    if (!m) {
+      if (e.moving) { e.moving = false; e.group.position.set(s.x, s.y ?? 0, s.z); if (bags) { bags.visible = true; bags.scale.y = 1; } }
+      return;
+    }
+    e.moving = true;
+    const ph = movePhase(s), T = m.total, f = m.from;
+    let x = s.x, z = s.z, y = s.y ?? 0, bag = 1;
+    if (ph === 'pack') { x = f.x; z = f.z; y = f.y ?? 0; bag = 1 - m.t / (T * MOVE_PACK); }
+    else if (ph === 'carry') {
+      const u = (m.t - T * MOVE_PACK) / (T * MOVE_CARRY), q = u * u * (3 - 2 * u);
+      x = f.x + (s.x - f.x) * q; z = f.z + (s.z - f.z) * q; y = (f.y ?? 0) + ((s.y ?? 0) - (f.y ?? 0)) * q; bag = 0;
+      const want = Math.atan2(s.z - f.z, s.x - f.x);
+      e.angle += angleDiff(e.angle, want) * Math.min(1, dt * 8);
+    } else bag = (m.t - T * (MOVE_PACK + MOVE_CARRY)) / (T * (1 - MOVE_PACK - MOVE_CARRY));
+    e.group.position.set(x, y, z);
+    if (bags) { bags.visible = bag > 0.02; bags.scale.y = Math.max(0.02, Math.min(1, bag)); }
+  }
   function removeSlot(id) {
     const e = slots.get(id); if (!e) return;
     disposeModel(e.group);
@@ -225,7 +246,9 @@ export function createView(scene, initialSim) {
   function syncDug() {
     let added = false;
     // Skyttar på taken röjer ingenting på marken.
-    for (const s of sim.guns) if (!s.roof && !s.squad && !dug.has(s.cell)) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
+    // 0.12.0 (H102): en pjäs som flyttas befäster den nya platsen först när den ställs upp där; den gamla
+    // platsens skador ligger kvar.
+    for (const s of sim.guns) if (!s.roof && !s.squad && !dug.has(s.cell) && (!s.move || movePhase(s) === 'setup')) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
     if (added) scene.userData.fortify?.setPositions([...dug.values()], { road: onRoad });
   }
   function syncSlots(dt) {
@@ -238,6 +261,7 @@ export function createView(scene, initialSim) {
       if (!e || e.key !== slotKey(s)) e = buildSlot(s, e);
       if (e.squad) continue;
       const w = s.weapon;
+      placeSlot(e, s, dt);
       if (w.targetId != null) e.angle += angleDiff(e.angle, w.angle) * k;
       const pv = e.model.pivot;
       pv.rotation.y = -e.angle;

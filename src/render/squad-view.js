@@ -56,8 +56,8 @@ export function createSquadView(scene) {
     const parts = hvSoldierModel(hashId(g.id) * 7 + s.i);
     horde.attach(parts);
     const ry = Math.atan2(Math.cos(s.face), Math.sin(s.face));
-    const e = { parts, x: g.x, z: g.z, ry, run: { t: 0, dur: s.run > 0 ? s.run : runTime(Math.hypot(s.x - g.x, s.z - g.z)) }, phase: 0, down: s.down ? 1 : 0, wasDown: s.down, recoil: 0 };
-    if (s.down) e.run = null;
+    const e = { parts, x: g.x, z: g.z, ry, run: { t: 0, dur: s.run > 0 ? s.run : runTime(Math.hypot(s.x - g.x, s.z - g.z)) }, phase: 0, down: s.down ? 1 : 0, wasDown: s.down, recoil: 0, mv: s.mv };
+    if (s.down) { e.run = null; e.x = s.x; e.z = s.z; }
     return e;
   }
   function sync(next, dt) {
@@ -76,10 +76,13 @@ export function createSquadView(scene) {
         // ersatt: springer ut från markeringen igen
         if (e.wasDown && !s.down) { e.down = 0; e.x = g.x; e.z = g.z; e.run = { t: 0, dur: runTime(Math.hypot(s.x - g.x, s.z - g.z)) }; }
         e.wasDown = s.down;
+        // 0.12.0 (H102): gruppen flyttas; varje soldat springer från där han står till sin nya plats
+        if ((s.mv ?? 0) !== (e.mv ?? 0)) { e.mv = s.mv; if (!s.down) e.run = { t: 0, dur: s.runTotal ?? s.run, x0: e.x, z0: e.z }; }
         const parts = e.parts;
         if (s.down) {
           e.run = null;
-          e.x = s.x; e.z = s.z;
+          // en stupad ligger kvar där han föll (gruppen kan ha flyttats sedan dess)
+          if (e.down === 0) { e.x = s.x; e.z = s.z; }
           e.down = Math.min(1, e.down + dt / DOWN_TIME);
           hvDown(parts, e.down * e.down);
         } else if (e.run) {
@@ -87,7 +90,8 @@ export function createSquadView(scene) {
           r.t += dt;
           const k = Math.min(1, r.t / r.dur), ease = k * k * (3 - 2 * k);
           const px = e.x, pz = e.z;
-          e.x = g.x + (s.x - g.x) * ease; e.z = g.z + (s.z - g.z) * ease;
+          const x0 = r.x0 ?? g.x, z0 = r.z0 ?? g.z;
+          e.x = x0 + (s.x - x0) * ease; e.z = z0 + (s.z - z0) * ease;
           const mv = Math.hypot(e.x - px, e.z - pz);
           if (mv > 1e-4) e.ry += angleDiff(e.ry, Math.atan2(e.x - px, e.z - pz)) * Math.min(1, dt * 14);
           e.phase += mv * 2.4;

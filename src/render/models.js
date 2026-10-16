@@ -308,8 +308,11 @@ export function weaponModel(type, level = 1, { kit = false, roof = false } = {})
   const pivot = new THREE.Group();
   const muzzle = new THREE.Object3D();
   const metal = mat(P.gunMetal, METAL);
+  // 0.12.0: säckarna och lådorna i en egen grupp (de packas ihop och ställs upp när pjäsen flyttas)
+  const bags = new THREE.Group();
+  group.add(bags);
 
-  if (!roof) sandbagArc(group, { ...K.ring, layers: K.ring.layers + (level >= 3 ? 1 : 0) });
+  if (!roof) sandbagArc(bags, { ...K.ring, layers: K.ring.layers + (level >= 3 ? 1 : 0) });
   else {
     const bag = mesh(geo('sphere', 0.5, 7, 5), mat(P.sandbag[0]), 0.4, 0.12, 0);
     bag.scale.set(0.6, 0.26, 0.4); group.add(bag);
@@ -345,17 +348,17 @@ export function weaponModel(type, level = 1, { kit = false, roof = false } = {})
   // nivå 3: yttre säckvall framåt och ammolådor bakom (på taket: en låda bredvid skytten)
   if (level >= 3) {
     if (!roof) {
-      sandbagArc(group, K.outer);
+      sandbagArc(bags, K.outer);
       const cr = K.crate;
-      crate(group, -cr, 0, cr * 0.42, 0.4);
-      crate(group, -cr - 0.1, 0.45, cr * 0.42 + 0.05, 0.3);
-      crate(group, -cr + 0.2, 0, cr * 0.42 + 0.6, 0.5);
-      crate(group, -cr + 0.1, 0, -cr * 0.5, -0.3);
+      crate(bags, -cr, 0, cr * 0.42, 0.4);
+      crate(bags, -cr - 0.1, 0.45, cr * 0.42 + 0.05, 0.3);
+      crate(bags, -cr + 0.2, 0, cr * 0.42 + 0.6, 0.5);
+      crate(bags, -cr + 0.1, 0, -cr * 0.5, -0.3);
     } else crate(group, -1.2, 0, 0.75, 0.3);
   }
   if (kit) grenadeCrate(group, K.kit[0], K.kit[1], 0.35);
   group.userData = { kind: 'weapon', type, level, kit, roof };
-  return { group, pivot, muzzle, gunner };
+  return { group, pivot, muzzle, gunner, bags };
 }
 
 // ---------- hinder ----------

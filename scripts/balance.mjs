@@ -6,7 +6,7 @@
 // levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
 // högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
-import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell } from '../src/sim/sim.js';
+import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
 import { placementFor, lineOfSight, distRect, KIND, MIN_SPACING, ROOF_DEAD } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
@@ -510,7 +510,12 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   // pengarna går till linjen där. Prövat: att behålla den kostade dag 4 i alla seeds.
   const og = plan.openerGun != null ? sim.guns.find(g => g.cell === plan.openerGun) : null;
   if (plan.openerGun != null && sim.wavesStarted === 0 && !og) buildNext(sim, [plan.openerGun], 'm249');
-  if (og && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === 'sigW') && !sim.zombies.some(z => !z.dead && z.spawn === 'sigW')) sell(sim, og.id);
+  // 0.12.0 (H102): i stället för att sälja den flyttas den upp till nästa lediga plats i planen (8 s utan
+  // eld), så att linjen i norr får en pjäs till utan att 40 % av priset går förlorat.
+  if (og && !og.move && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === 'sigW') && !sim.zombies.some(z => !z.dead && z.spawn === 'sigW')) {
+    const to = [...plan.guns].reverse().find(k => !sim.guns.some(g => g.cell === k) && checkMove(sim, og.id, k).ok);
+    if (to != null && !process.env.NOMOVE) moveGun(sim, og.id, to); else sell(sim, og.id);
+  }
   lay(plan.lines, 'block');
   let saving = false;
   if (weaponUnlocked('psg90', sim.research, sim.map)) {
