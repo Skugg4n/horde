@@ -431,3 +431,21 @@ Gnesta North:
 E4: oförändrad (kvittot detsamma).
 
 Kvitton: E4 4d617fb6/7775, Gnesta 94964f8b/41808, Gnesta Norr 3d553082/66951.
+
+## 0.12.1: Hemvärnet utanför pjäsernas tak, fem pjäser på Gnesta
+
+Uppdraget: speltestet av 0.12.0. Gnesta dag 2 och Gnesta North dag 1 föll med 5 av 5 platser tagna och $ 918 till $ 1 150 i kassan som bara gick att lägga på uppgraderingar, en pjäs i taget. Testarens panel gick i ungefär 0,3 gånger normal takt, så förlusterna är delvis fördröjning; att pengarna inte hade någonstans att ta vägen är en regelsak.
+
+Regler (alla banor):
+- Hemvärnet räknas inte mot pjäserna (src/sim/stats.js maxGuns, maxSquads; sim.js capFull). Eget tak: två grupper, More squads I och II ger tre och fyra (90 och 150, kräver Better rifles I). Skäl: gruppen är billig täckning som tog en hel pjäsplats, så en spelare med pengar valde mellan en grupp och en pjäs i stället för att lägga till.
+- More positions ger en plats till per nivå på varje bana (var: 5, 6, 7, 8 i alla). Banan har sitt antal från början (map.guns, annars 4).
+- Gnesta South och Gnesta North: fem pjäser från början (var fyra), i stället för att flytta More positions tidigare i forskningen: det hade bara hjälpt den som forskar rätt, och testaren hade redan nivå I genom ?debug och satt ändå på 5 av 5.
+- Inga hp-faktorer ändrade.
+
+Utfall (smart: försök/bas kvar; naive dagens första försök):
+- E4: kvittot oförändrat (4d617fb6/7775): taket band aldrig den giriga policyn i de fem seedsen, varken före eller efter.
+- Gnesta South: dag 1 1/14 till 19 (naive vinner med 8 till 13), dag 2 1/20 (naive 4 till 7, var 3 till 7), dag 3 1/8 till 13, dag 4 1/4 till 7 (var 9 till 11), dag 5 1/2 till 7 (var 1 till 2 försök). Dag 4 tappar för policyn: den köper en femte och sjätte billig pjäs före uppgraderingarna och sprider pengarna. En människa som uppgraderar med U får mer av platsen; speltestet får avgöra (H127).
+- Gnesta North: dag 1 1/17 till 20, dag 2 1 till 2/1 till 15, dag 3 1/2 till 17, dag 4 1/4 till 8, dag 5 1 till 2/1 till 6. Naive förlorar alla dagar, som förut.
+- Alla balansprov håller (vinster, försök, naive tar mer skada, tempo).
+
+Kvitton: E4 4d617fb6/7775, Gnesta eee09f27/39187, Gnesta Norr 4d717aee/60032.

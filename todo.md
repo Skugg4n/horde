@@ -137,3 +137,15 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H116 | ux | Tvåstegsvalet: när en kategori är öppen väljer nästa siffra alltid en sak. Bara Esc eller klick utanför stänger; tidsgränsen är bara visuell. Provet uppdateras.
 - [x] H117 | kamera | Zooma ut så långt att hela den aktiva kartan ryms på 1440x900.
 - [x] H118 | balans | Gnesta dag 2 vinns av en vettig människa inom två försök: de vilande husen ger tidig action, dagen mjukare, och köp mitt i vågen går smidigt (pengar som inte går att använda).
+
+## Speltestet av 0.12.0 (docs/playtests/2026-10-16-0.12.0.md)
+- [x] H119 | balans | 5 av 5 platser och $ 900 till $ 1 150 över: Hemvärnet har eget tak (2 grupper, More squads ger 3 och 4), fem pjäser från början på Gnesta South och North, U på pjäsen under pekaren.
+- [x] H120 | prickskytt | Psg 90 siktad på ishallens tak hamnade på marken: spöket snäpper till byggnadens utsiktspunkt, ROOF/GROUND vid pekaren, skälet för branta tak.
+- [x] H121 | prickskytt | Sektorn ritas på marken (taken skymmer den); uppdragsrutan fälls ihop och viker undan med något i handen.
+- [x] H122 | vilande | Pulserande röd ram runt dörr och fönster och ett "!" ovanför huset (den svaga tonen syntes inte på normal zoom). Minikartans ping kvar.
+- [x] H123 | etiketter | Etiketterna undviker gränssnittet även vid kanten och tonas ned över pjäser; fast ordning walkers, runners, brutes.
+- [x] H124 | ux | Esc gör ingenting på resultat- och introskylten (bara forskningen stängs). Prov.
+- [x] H125 | ux | Resultatet säger "Earned N this attempt" (stod "You keep N" efter att poängen spenderats).
+- [x] H126 | barrikad | Varningen räknas på spärrens svagaste ruta (summan hoppade upp när en ruta gick sönder, så den kom aldrig). Händelse i simuleringen, prov, verifierat i webbläsaren.
+- [ ] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser.
+- [ ] H128 | ux | Små fel från speltestet: scrollhjulet vrider sektorn bara ~2° per hack i panelen, zoomen går mot mitten i stället för pekaren, forskningsrutans stängknapp syns dåligt, ?debug erbjuder More positions I fast den redan är given, svag spöktext kvar efter vågbanderollen.

@@ -1,5 +1,21 @@
 # Ändringslogg
 
+## 0.12.1 (2026-10-16)
+
+Rättningarna efter speltestet av 0.12.0 (docs/playtests/2026-10-16-0.12.0.md, "SPELBART: NEJ"). Testarens panel gick i ungefär 0,3 gånger normal takt, så svårighetsomdömet är osäkert; buggarna var riktiga.
+
+- Pengar som inte gick att använda (H119): Hemvärnet räknas inte längre mot pjäsernas platser utan har ett eget tak, två grupper, och den nya forskningen More squads ger tre och fyra. Taggtråd och barrikader har inget tak. Gnesta South och Gnesta North har fem pjäser från början (var fyra); More positions ger en till per nivå på varje bana. Köpraden räknar bara pjäserna ("GUNS 2 / 6"), Hemvärnets kort säger "All squads out" när taket är nått.
+- U uppgraderar pjäsen under pekaren utan att panelen öppnas (annars den valda), och svaret står vid pekaren ("Ksp 90 level 2"). Panelens Upgrade visar U.
+- Psg 90 på tak (H120): pekaren på en byggnad ger byggnadens bästa utsiktspunkt närmast pekaren, aldrig marken bakom. Vid pekaren står ROOF eller GROUND (och "ridge by the chimney" eller "flat part" när spöket snäppte), och spöket har takets ställning (signalduken) eller markens (säckringen). Ett tak utan utsiktspunkt säger varför: "Roof too steep, try the ridge by the chimney".
+- Sektorn ritas på marken (H121), så att husen och taken skymmer den som allt annat på marken.
+- Uppdragsrutan (H121) går att fälla ihop (–), visar bara steget som gäller nu medan något hålls i handen och tonas bort när pekaren står över den.
+- Vilande hus (H122): en pulserande röd ram runt dörren och fönstret och ett litet "!" ovanför huset, lika stort på skärmen på varje zoom. Minikartans ping finns kvar.
+- Etiketterna (H123): ingångarnas etiketter undviker pjäserna och soldaterna, tonas ned om de ändå hamnar över en, och reserven vid kanten undviker också gränssnittet (uppdragsrutan, minikartan). Ordningen är alltid walkers, runners, brutes.
+- Esc (H124) gör ingenting på resultat- och introskylten; bara forskningen stängs med Esc.
+- Resultatet efter en förlust (H125) säger "Earned 141 research points this attempt" i stället för "You keep 141", som stod kvar när poängen var spenderade.
+- Barrikaden (H126): "Barricade failing" räknas på spärrens svagaste ruta. Förut räknades summan av rutorna, och när den första rutan gick sönder hoppade summan upp igen, så varningen kom sällan eller aldrig. Stapeln visar den svagaste rutan. Varningen är en händelse i simuleringen (barricadeFailing), med prov, och verifierad i webbläsaren med en tvingad spärr.
+- Balans: nya kvitton för Gnesta och Gnesta North, E4 oförändrad (docs/balance-log.md, 0.12.1).
+
 ## 0.12.0 (2026-10-16)
 
 Nya mekaniker (H098 till H102, H106 till H108) och rättningarna efter speltestet av 0.11.0 (docs/playtests/2026-10-16-0.11.0.md, "SPELBART: NEJ").
