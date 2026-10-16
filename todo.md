@@ -149,3 +149,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H126 | barrikad | Varningen räknas på spärrens svagaste ruta (summan hoppade upp när en ruta gick sönder, så den kom aldrig). Händelse i simuleringen, prov, verifierat i webbläsaren.
 - [ ] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser.
 - [ ] H128 | ux | Små fel från speltestet: scrollhjulet vrider sektorn bara ~2° per hack i panelen, zoomen går mot mitten i stället för pekaren, forskningsrutans stängknapp syns dåligt, ?debug erbjuder More positions I fast den redan är given, svag spöktext kvar efter vågbanderollen.
+
+## Efter speltestet av 0.12.1
+
+- [x] H127 | bugg | Upgrade grå med pengar nog (Ksp 88, $ 450, $ 1 264): classList.toggle med undefined; skälet står nu på knappen (0.12.2).
+- [x] H128 | banor | Gnesta North: en idé per dag, våg 1 från olika håll, lite svårare (0.12.2).
+- [x] H129 | grafik | Hemvärnet "ligger och snurrar": vrider sig runt höften, båge 120 grader, överkropp före ben, variation, liv (0.12.2).
+- [x] H130 | verktyg | Debugmeny: fem klick på versionen eller ?debug (0.12.2).
+- [ ] H131 | balans | South dag 1 och E4 kändes för lätta i speltestet med mycket forskning. Inte ändrat i 0.12.2.
+- [ ] H132 | balans | Speltesta North 0.12.2 i händerna: dag 3 (bjässar först) har en klippa i hp, dag 5 likaså (5,0 till 5,2).

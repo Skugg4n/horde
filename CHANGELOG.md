@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.12.2 (2026-10-16)
+
+Efter Olas speltest av 0.12.1.
+
+- Upgrade grå fast pengarna räckte (Ksp 88 nivå 1, $ 450 med $ 1 264 mitt i en våg på North): knappens grå läge sattes med classList.toggle('off', villkor) där villkoret blev undefined för alla pjäser utom Hemvärnet. toggle utan sant/falskt växlar klassen, så knappen blinkade grå och vit varje bildruta och såg grå ut. Klicket gick hela tiden igenom. Nu räknas läget i en ren funktion (upgradeState) som alltid ger sant eller falskt, och när knappen inte går står skälet på den: "Need $ 50 more", "Max level", "No room" eller "Day over". Prov i tests/upgrade-state.test.js.
+- Gnesta North: varje dag har en egen idé och en rad i intro, och våg 1 kommer från olika håll. Dag 1 norrifrån (väster först, löpare i ryggen sist), dag 2 kniptången (två kolonner samtidigt, löparsvärm), dag 3 bjässarna först (husen på Valsvägen och förskolan), dag 4 flanken genom radhusen från Östra Storgatan (och ett oannonserat hus vid ishallen sent i sista vågen), dag 5 hela stan (alla håll, löpare, bjässar, ett oannonserat hus och väster i ryggen). Vilande hus kan slås upp sent i en våg (delay), och en grupp kan säga till när den kommer ("Behind you, from the west!"). Lite svårare; mätt med policyerna vid balansens och den realistiska ankomstens forskning (docs/balance-log.md, 0.12.2).
+- Hemvärnet ser riktigt ut: den liggande vrider sig runt höften (högst 90 grader i sekunden) och kryper medan han vänder, i stället för att snurra. Han skjuter bara inom 120 grader runt sitt skydd; ett mål utanför får honom att resa sig på knä och vända sig, eller tar en annan man det (simuleringen, med prov). På knä och huk vrids överkroppen först och benen följer. Ställningarna varierar inom gruppen (huk, knä, liggande efter skyddet), aldrig en klonad grupp. När de inte skjuter andas de, svajar, flyttar vikten, spanar med huvudet och laddar om ibland.
+- Debugmenyn (Olas önskan): fem snabba klick på versionsnumret, eller knappen DEBUG med ?debug. Läget (intel, forskning: none, arrival, all, kassan, basen, god mode, hoppa till bana, dag och våg, lås upp alla banor, Reset save med kopia i horde.save.backup), reglarna (zombiernas hp och fart, antal, pengar och forskning per död, nedräkningen; sparas i horde.debug, aldrig i sparfilen), spawn (vandrare, löpare eller bjässar vid en ingång, slå upp ett hus) och bilden (sikten, rutnätet, horden väg, fps och ritanrop, minikartan). "DEBUG TWEAKS ON" står uppe i mitten så länge någon regel är ändrad. Simuleringen tar emot reglarna som ett objekt som är identitet som standard; balansproven kör utan dem, och ett prov visar att identiteten inte ändrar något.
+- Balans: nya kvitton för Gnesta North (omgjorda dagar) och Gnesta South (Hemvärnets båge), E4 oförändrad (docs/balance-log.md, 0.12.2).
+
 ## 0.12.1 (2026-10-16)
 
 Rättningarna efter speltestet av 0.12.0 (docs/playtests/2026-10-16-0.12.0.md, "SPELBART: NEJ"). Testarens panel gick i ungefär 0,3 gånger normal takt, så svårighetsomdömet är osäkert; buggarna var riktiga.
