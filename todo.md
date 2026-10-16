@@ -149,3 +149,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H126 | barrikad | Varningen räknas på spärrens svagaste ruta (summan hoppade upp när en ruta gick sönder, så den kom aldrig). Händelse i simuleringen, prov, verifierat i webbläsaren.
 - [ ] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser.
 - [ ] H128 | ux | Små fel från speltestet: scrollhjulet vrider sektorn bara ~2° per hack i panelen, zoomen går mot mitten i stället för pekaren, forskningsrutans stängknapp syns dåligt, ?debug erbjuder More positions I fast den redan är given, svag spöktext kvar efter vågbanderollen.
+- [ ] H130 | kampanj | E4 utan Hemvärnet: riktig militär (infanterigrupp med Ak 5 m.m.) i stället. Del av H104.
+- [ ] H131 | grafik | Soldater som "spinner" liggande: vridning runt höften med begränsad fart, krypande, skjutvinkel ~120°, blandade ställningar (huk/knä/liggande), tomgångsliv (andas, spanar, laddar om). Pågår i 0.12.2.
