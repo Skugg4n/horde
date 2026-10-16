@@ -16,7 +16,7 @@ python3 -m http.server 8141 --directory ~/Projects/horde
 
 Tangenter: två siffror tar upp en sak ur köpraden, först kategorin (1 Defenses, 2 Units) och sedan saken (2-2 Ksp 90; Esc eller samma kategori igen backar; klick ställer ut den, Shift behåller den i handen, Esc eller högerklick släpper den), Mellanslag startar vågen, F växlar fart, Enter går vidare från dagens intro, R visar och döljer hordens väg (Gnesta), Esc gör en sak per tryck (släpper kortet, stänger panelen, sist pausmenyn).
 
-Felsökning: med http://localhost:8141/?debug finns `window.__horde` i konsolen (simuleringen, renderaren med `renderer.info`, scenen och kameran).
+Felsökning: med http://localhost:8141/?debug finns `window.__horde` i konsolen (simuleringen, renderaren med `renderer.info`, scenen och kameran). Med ?test finns bara `__horde.advance(sekunder)` och läget, för speltestare som vill driva klockan utan att låsa upp något (0.14.1).
 
 ## Testa
 

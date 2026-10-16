@@ -1,5 +1,32 @@
 # Ändringslogg
 
+## 0.14.1 (2026-10-16)
+
+Rättningarna efter granskningen av 0.14 (docs/reports/review-0.14.md, Must fix 1 till 6) och speltestet av 0.14.0 (docs/playtests/2026-10-16-0.14.0.md, "SPELBART: NEJ").
+
+Granskningen:
+- Gnesta dag 1 kunde låsa sig bakom spelarens egna spärrar. När flödet går genom en spärr (ingen öppen väg finns) klättrar de civila över på 5 s, när de står vid den; med en öppen väg runt spärren klättrar ingen och spärren vid rondellen beter sig som förut. Första klättringen säger till ("No way round: civilians are climbing over your barricade."). Prov: en ring av betong runt ishallen avgörs alltid, också med dagens riktiga vågor.
+- Simuleringens kvitto (tests/sim-receipt.test.js): fast styrka, forskning, rutor och spärrar på E4 dag 2, Gnesta South dag 3 och Gnesta North dag 2, utan RP och utan balansskriptets policy. Det rör sig bara när simuleringen gör det. Vakterna i balance-op-normal är tillbaka: gradvis fall (minst 60 s), högst 250 levande, första skottet inom 60 s, dagens längd.
+- RP-avtagandet räknar bara riktiga förluster (losses per dag i sparfilen). Restart day och Main menu byter fortfarande seed men kostar ingen RP. En sparfil från 0.14.0 börjar med noll förluster.
+- Return i förrådet frågar först och säger vad som händer ("Return Infantry L1? Given by command, so no RP back. Sector E4 keeps 2 units."). Sektorns sista enhet nekas om den var skänkt (0 RP tillbaka): "Last unit".
+- En pjäs med mål utanför vinkeln säger det: efter 3 s sysslolös med zombier i sikte men utanför vinkeln (simuleringens idleOutside) står en gul flagga "R" över pjäsen, panelen säger "Target outside arc. Press R to rotate.", och minikartan pingar första gången. Klick på flaggan väljer pjäsen.
+- Myndigheten för civilt försvar (ersatte MSB 2026-01-01, kontrollerat mot regeringen.se) skrivs ut med hela namnet; förkortningen är inte kontrollerad och används inte. Ledningens meddelanden börjar inte längre med avsändarens namn ("Försvarsmakten: Försvarsmakten holds..." blev "Försvarsmakten: We hold...").
+
+Speltestet:
+- Evakueringen syns. Dagen börjar med kameran över hela de civilas väg, från husen till ishallen; vägen är en gul pillinje; varje civil har en gul romb över huvudet som syns genom husen; en civil som faller får ett märke där det hände ("Civilian lost", vid skärmkanten om det är utanför bild) och en gul ping på minikartan. Rutan nere i mitten: "Evacuated 7 / 13 needed · Lost 2 / 7" med en stapel. Husen B4-13 och B4-02 långt österut är bytta mot B3-03 och B3-02 närmare rondellen, så att vägen ryms i bild (docs/balance-log.md, 0.14.1).
+- Spelarens frivilliga heter Volunteers (var Civilian volunteers / Civilians), så att de inte blandas ihop med de civila som evakueras. Introt för Gnesta dag 1 är kortare.
+- E4:s tempo: dag 1 längre och lite tyngre, dag 2:s löpare i tre klungor i stället för ett stup på 74 fiender i våg 3, dag 3 en aning lättare. Nya fingeravtryck (docs/balance-log.md, 0.14.1).
+- Sikta-dra: tryck är pjäsens punkt, drag är riktningen, släpp bekräftar. Det var redan tänkt så, men rutan togs från den senaste bildrutans pekarläge; i låg bildtakt eller med tryck i samma bildruta som pekaren flyttades var den gammal eller saknades, och då ställde släppets klick pjäsen där man släppte. Nu tas rutan från själva trycket. Medan man drar står "Unit here" vid pjäsens punkt och en linje går därifrån till pekaren.
+- Flödet: operationskartan, Requisition (förrådet för sektorn, ett steg med "Operations map › Requisition › Deploy day N"), Deploy, introt (knappen heter To the line) och linjen. Bara en knapp leder till uppställningen. Try again går genom förrådet, där RP:n från förlusten kan användas.
+- Förrådet står fast upptill och dess kolumner har fast höjd, så att ingenting hoppar under pekaren när listan ändras; rubriken ger plats åt menyknappen.
+- Sista dagen i en sektor: rubriken VICTORY, "Day 3 held. Sector E4 is done." och sektorns berättelse för sig under resultatet, med att armén drar tillbaka det som är kvar och att RP:n lämnas tillbaka.
+- Enter på förlustskylten är Try again (den markerade knappen).
+- Notiserna staplas i en kolumn och köas (högst tre åt gången, samma text visas en gång).
+- Skälet vid pekaren ("Tile already taken") står där pekaren var när det hände; pekaren följs i hela fönstret.
+- Vågens rad och räknaren räknar samma zombier: de vilande i husen ingår i vågen de slås upp i, räknaren säger "8 of 12 left" under vågen och "14 coming" före. Prov för varje våg på varje bana.
+- Minikartan ritar den nya banan direkt (E4:s karta syntes de första sekunderna i Gnesta).
+- `__horde.advance` finns också med ?test (bara klockan och läget, inget låses upp).
+
 ## 0.14.0 (2026-10-16)
 
 Operation Södermanland (docs/superpowers/specs/2026-10-16-operation-design.md, godkänd av Ola 2026-10-16). Forskningen och köpen av trupp i striden är borta; ledningen släpper trupp och materiel pö om pö, och man bygger upp en styrka som följer med mellan dagarna.
