@@ -24,7 +24,7 @@ export const PALETTE = {
   infVest: '#2f3527', infHelmet: '#3e4632', infKit: '#262a22', ak5: '#1b1c1a',
   // 0.13.0 (H105): de civila. Jaktjackor, flanell, jeans och orange jaktväst; kepsar och mössor.
   civCoat: ['#4f5a3a', '#6b4a32', '#7a2f28', '#3c4652', '#5c5a4a'], civPants: ['#38465a', '#4a4338', '#2f3238', '#55503f'],
-  civOrange: '#d0612a', civCap: ['#3a3f2c', '#7a2a24', '#2a3140', '#c25a26'], civWood: '#6b4a2c',
+  civOrange: '#d0612a', hiVis: '#cfe23a', civCap: ['#3a3f2c', '#7a2a24', '#2a3140', '#c25a26'], civWood: '#6b4a2c',
   // 0.13.0 (H135): EPA-pillboxen. Gammal traktorbil i olika plåtar (grön, rödbrun, grå primer, blå),
   // rost, svetsfogar, LGF-triangeln bak.
   epaBody: ['#54613f', '#7a3b2b', '#6f6f66', '#3e4f5c', '#8a7a52'], rust: '#6e3b1f', weld: '#9a8f78', lgf: '#d0542a', lgfRim: '#8e1f17',

@@ -942,8 +942,13 @@ export function hvSoldierModel(seed = 1, kind = 'hv', { armed = true } = {}) {
   const headTop = 0.07 + b.head * 0.72;
   const metal = mat(P.gunMetal, METAL);
   if (civ) {
-    // jaktväst i orange på ungefär var tredje, annars en flanellrand över bröstet
-    if (r(0, 1) < 0.35) s.spine.add(box(b.chestW + 0.04, b.torsoH * 0.7, b.chestD + 0.05, mat(P.civOrange), 0, b.torsoH * 0.55, 0));
+    // 0.14.2 (speltestet av 0.14.1: "de frivilliga är nästan osynliga på kartan"): de frivilliga (armed) bär
+    // alla en gul varselväst med två reflexband (banden lyser svagt i skugga som Hemvärnets hjälmband,
+    // squad-view.js glow). De civila som evakueras (unarmed) har kvar jaktvästen på var tredje.
+    if (armed) {
+      s.spine.add(box(b.chestW + 0.05, b.torsoH * 0.74, b.chestD + 0.06, mat(P.hiVis), 0, b.torsoH * 0.55, 0));
+      for (const y of [0.3, 0.44]) s.spine.add(sbox(b.chestW + 0.07, 0.04, b.chestD + 0.08, mat(P.hvBand), 0, b.torsoH * y + 0.06, 0));
+    } else if (r(0, 1) < 0.35) s.spine.add(box(b.chestW + 0.04, b.torsoH * 0.7, b.chestD + 0.05, mat(P.civOrange), 0, b.torsoH * 0.55, 0));
     else for (const y of [0.18, 0.34]) s.spine.add(sbox(b.chestW + 0.01, 0.035, b.chestD + 0.01, mat(P.civCoat[2]), 0, y, 0));
     // keps (med skärm) eller stickad mössa
     const cap = mat(pickC(P.civCap));
@@ -991,8 +996,11 @@ export function hvSoldierModel(seed = 1, kind = 'hv', { armed = true } = {}) {
   }
   // H094 (0.11.0): ett ljust band runt hjälmen, som lyser svagt (squad-view.js glow), så att gruppen
   // syns i skugga utan ringar som ritas ovanpå taken
-  const band = mesh(geo('cylinder', b.head * 0.64, b.head * 0.64, 0.04, 12, 1, true), mat(P.hvBand), 0, headTop + 0.03, 0.03);
+  // 0.14.2 (speltestet av 0.14.1: Hemvärnet syns knappt): bandet är bredare (0,04 till 0,07 m) och varje man
+  // har ett ljust armbindel på överarmarna, så att gruppen läses som Hemvärnet i skugga och på håll.
+  const band = mesh(geo('cylinder', b.head * 0.65, b.head * 0.65, 0.07, 12, 1, true), mat(P.hvBand), 0, headTop + 0.03, 0.03);
   band.castShadow = false; s.head.add(band);
+  for (const sh of [s.shL, s.shR]) { const arm = box(b.armW + 0.035, 0.08, b.armW + 0.035, mat(P.hvBand), 0, -b.upper * 0.32, 0); arm.castShadow = false; sh.add(arm); }
   // hjälmöverdraget: lappar ovanpå hjälmen
   for (let i = 0; i < 4; i++) { const t = sbox(r(0.07, 0.11), 0.012, r(0.05, 0.09), cam[1 + (i % 3)], r(-0.06, 0.06), headTop + b.head * 0.62 * 0.85 - 0.012, 0.03 + r(-0.06, 0.06)); t.rotation.y = r(0, 3); t.castShadow = false; s.head.add(t); }
   const rifle = ak4(metal);

@@ -30,7 +30,8 @@ const LINES_MAX = 12;
 
 // 0.10.1 (speltestet: m/90 på Gnestas gräs syns knappt): en svag ring i gruppens färg under varje
 // soldat som står, oavsett markering. Kamouflaget är kvar; ringen säger "här ligger en av våra".
-const MARK_MAX = 96, MARK_COLOR = '#b9d3dc';
+const MARK_MAX = 96, MARK_COLOR = '#b9d3dc', MARK_VOL = '#d6ec3c';
+const markColor = { civ: new THREE.Color(MARK_VOL), other: new THREE.Color(MARK_COLOR) };
 
 export function createSquadView(scene) {
   const horde = createHorde(scene, { glow: true });
@@ -40,8 +41,10 @@ export function createSquadView(scene) {
   // H094 (0.11.0, speltestet av 0.10.2: ringarna syntes ovanpå hustaken): djuptest igen, med en liten
   // förskjutning mot kameran så att den inte flimrar mot marken; i skugga syns gruppen på hjälmbandet.
   const markGeo = new THREE.RingGeometry(0.42, 0.62, 24); markGeo.rotateX(-Math.PI / 2);
-  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  // 0.14.2: ringen har gruppens färg (instansfärg): de frivilliga varselgula, Hemvärnet och infanteriet blåvita
+  const markM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const marks = new THREE.InstancedMesh(markGeo, markM, MARK_MAX);
+  marks.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MARK_MAX * 3), 3);
   marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 6; marks.castShadow = false; marks.name = 'hv-marks';
   const edgeGeo = new THREE.RingGeometry(0.32, 0.74, 24); edgeGeo.rotateX(-Math.PI / 2);
   const edgeM = new THREE.MeshBasicMaterial({ color: 0x0c0d0b, transparent: true, opacity: 0.45, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
@@ -164,10 +167,15 @@ export function createSquadView(scene) {
         parts.root.position.set(e.x, 0, e.z);
         parts.root.rotation.y = e.ry;
         horde.draw(parts);
-        if (!s.down && nm < MARK_MAX) { mm.makeTranslation(e.x, 0.06, e.z); edges.setMatrixAt(nm, mm); marks.setMatrixAt(nm++, mm); }
+        if (!s.down && nm < MARK_MAX) {
+          // de frivilliga har en lite större ring (de är svagast och lättast att tappa bort)
+          const rs = g.weapon.type === 'civ' ? 1.25 : 1;
+          mm.makeScale(rs, 1, rs).setPosition(e.x, 0.06, e.z); edges.setMatrixAt(nm, mm); marks.setMatrixAt(nm, mm);
+          marks.setColorAt(nm++, g.weapon.type === 'civ' ? markColor.civ : markColor.other);
+        }
       }
     }
-    marks.count = edges.count = nm; marks.instanceMatrix.needsUpdate = true; edges.instanceMatrix.needsUpdate = true;
+    marks.count = edges.count = nm; marks.instanceMatrix.needsUpdate = true; edges.instanceMatrix.needsUpdate = true; marks.instanceColor.needsUpdate = true;
     for (const [id, sq] of squads) if (!alive.has(id)) { for (const e of sq.men.values()) horde.release(e.parts); squads.delete(id); }
     horde.end();
   }
