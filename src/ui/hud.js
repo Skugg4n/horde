@@ -47,7 +47,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     <div class="cash-box"><div class="k">CASH</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
     <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
-  <div id="hint" class="plate" hidden><ol></ol></div>
+  <div id="hint" class="plate" hidden><button type="button" class="fold" data-k="fold" aria-label="Fold the steps" title="Fold the steps">–</button><ol></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
   <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button></div>
   <button type="button" id="speedcd" class="plate speed" hidden>Speed <b data-k="speedx2">1x</b><kbd>F</kbd></button>
@@ -225,7 +225,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // etikett. Bara om ingen ryms används reserven vid kanten (vägen syns inte alls).
   const entryEl = root.querySelector('#entry');
   const entries = [entryEl];
-  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel'];
+  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel', '#minimap:not(.off)'];
   const PADE = 8;
   function uiRects() {
     const out = [];
@@ -248,26 +248,38 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.querySelector('.chev').style.transform = `rotate(${p.angle}rad)`;
     return { x0: p.x - w / 2, y0: p.y - h / 2, x1: p.x + w / 2, y1: p.y + h / 2 };
   }
-  function place(el, at, taken, ui) {
+  // 0.12.1 (speltestet av 0.12.0: etiketten lade sig över uppdragsrutan och över en Ksp 90): enheterna
+  // (units, punkter på skärmen) undviks i första hand; hamnar etiketten ändå över en tonas den ned.
+  // Reserven vid kanten undviker också gränssnittet, inte bara de andra etiketterna.
+  const UNIT_PAD = 16;
+  const coversUnit = (r, units) => units.some(u => u.x > r.x0 - UNIT_PAD && u.x < r.x1 + UNIT_PAD && u.y > r.y0 - UNIT_PAD && u.y < r.y1 + UNIT_PAD);
+  function place(el, at, taken, ui, units = []) {
     el.hidden = false;
     setText(el, at);
     el.classList.toggle('next', !!at.next);
     const w = el.offsetWidth, h = el.offsetHeight;
-    for (const c of at.cands ?? []) {
-      const r = { x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 };
-      if (r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) continue;
-      if (ui.some(u => hits(r, u)) || taken.some(u => hits(r, u))) continue;
+    const rectAt = c => ({ x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 });
+    const free = r => !(r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) && !ui.some(u => hits(r, u)) && !taken.some(u => hits(r, u));
+    for (const pass of [0, 1]) for (const c of at.cands ?? []) {
+      const r = rectAt(c);
+      if (!free(r)) continue;
+      const over = coversUnit(r, units);
+      if (over && !pass) continue;
       el.classList.remove('edge');
+      el.classList.toggle('over', over);
       return placeAt(el, c, w, h);
     }
     // Reserven: vid skärmkanten, inom gränssnittets ram (som före 0.11.0).
     el.classList.add('edge');
     const f = at.fallback ?? at, hw = w / 2 + 12, hh = h / 2 + 12;
     const p = { x: Math.min(innerWidth - hw, Math.max(hw, f.x)), y: Math.min(innerHeight - hh - 96, Math.max(hh + 130, f.y)), angle: f.angle };
-    while (taken.some(u => hits({ x0: p.x - w / 2, y0: p.y - h / 2, x1: p.x + w / 2, y1: p.y + h / 2 }, u))) p.y += h + 6;
+    const blocked = () => { const r = rectAt(p); return taken.some(u => hits(r, u)) || ui.some(u => hits(r, u)); };
+    for (let i = 0; i < 24 && blocked() && p.y + h < innerHeight - 96; i++) p.y += h / 2 + 6;
+    for (let i = 0; i < 24 && blocked() && p.x + w < innerWidth - 12; i++) p.x += w / 3;
+    el.classList.toggle('over', coversUnit(rectAt(p), units));
     return placeAt(el, p, w, h);
   }
-  function entry(at) {
+  function entry(at, units = []) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];
     while (entries.length < list.length) {
       const el = entryEl.cloneNode(true);
@@ -277,7 +289,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const ui = list.length ? uiRects() : [], taken = [];
     // nästa grupp först, så att den får den bästa platsen
     const order = list.map((a, i) => i).sort((i, j) => (list[j].next ? 1 : 0) - (list[i].next ? 1 : 0));
-    for (const i of order) taken.push(place(entries[i], list[i], taken, ui));
+    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units));
     entries.forEach((el, i) => { if (!list[i]) el.hidden = true; });
   }
 
@@ -296,10 +308,23 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
 
   // Stegen för första dagen (banans egna rader). done: antal klara steg, null döljer rutan.
   const hintEl = root.querySelector('#hint'), hintList = hintEl.querySelector('ol');
-  let hintKey = '';
-  function hint(done, lines = []) {
+  let hintKey = '', folded = false;
+  // 0.12.1 (speltestet av 0.12.0: uppdragsrutan täckte prickskyttens kon): rutan går att fälla ihop
+  // (–, bara steget som gäller nu), är ihopfälld medan något hålls i handen, och tonas bort när pekaren
+  // med något i handen står över den (opts.compact, opts.pointer).
+  const foldBtn = hintEl.querySelector('[data-k="fold"]');
+  foldBtn.addEventListener('pointerdown', e => e.preventDefault());
+  foldBtn.addEventListener('click', () => { folded = !folded; });
+  function hint(done, lines = [], { compact = false, pointer = null } = {}) {
     hintEl.hidden = done == null;
     if (done == null) return;
+    const small = folded || compact;
+    if (hintEl.classList.contains('small') !== small) hintEl.classList.toggle('small', small);
+    const fb = folded ? '+' : '–';
+    if (foldBtn.textContent !== fb) { foldBtn.textContent = fb; foldBtn.setAttribute('aria-label', folded ? 'Show all steps' : 'Fold the steps'); foldBtn.title = foldBtn.getAttribute('aria-label'); }
+    let dodge = false;
+    if (compact && pointer) { const r = hintEl.getBoundingClientRect(); dodge = pointer.x > r.left - 24 && pointer.x < r.right + 24 && pointer.y > r.top - 24 && pointer.y < r.bottom + 24; }
+    if (hintEl.classList.contains('dodge') !== dodge) hintEl.classList.toggle('dodge', dodge);
     const k = lines.join('|');
     if (k !== hintKey) { hintKey = k; hintList.innerHTML = lines.map((t, i) => `<li data-h="${i}"></li>`).join(''); hintList.querySelectorAll('li').forEach((li, i) => { li.textContent = lines[i]; }); }
     for (const li of hintList.querySelectorAll('li')) {
