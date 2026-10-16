@@ -27,7 +27,7 @@ import { ARRIVAL } from './data/arrival.js';
 import { barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
-import { KIND } from './sim/placement.js';
+import { KIND, roofAt } from './sim/placement.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats, upgradeCost } from './sim/stats.js';
 import { crewPassable } from './sim/crew-path.js';
@@ -246,7 +246,9 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
   const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key, placing.via ?? []) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
-  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
+  // 0.14.2: snäppte spöket bort från rutan under pekaren står pekarens punkt kvar (pilen dit, view.js snap)
+  const from = x != null && !roofHit && !rt && key !== sim.place.keyAt(x, z) ? { fx: x, fz: z } : {};
+  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
 }
 function placeHere(p) {
   const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : spotFor(p);
@@ -404,6 +406,37 @@ function obstacleCells(key, type) {
     return { x: c.x, z: c.z, ry: grid ? (sim.route.axis(k) === 'x' ? 0 : Math.PI / 2) : Math.atan2(c.dirZ, -c.dirX), key: k, type };
   });
 }
+// ---------- giltig mark (0.14.2) ----------
+// Speltestet av 0.14.1: ungefär hälften av placeringarna i Gnesta nekades ("On the road", "Inside a house",
+// "In the forest"). Medan en enhet hålls i handen ligger en ljus, svag ton på rutorna där just den typen
+// får stå, inom VALID_R meter från pekaren. Svaren sparas per ruta tills något ändras (typen, pjäserna
+// ute, läget); högst VALID_BUDGET nya rutor räknas per bildruta, så att tonen fylls på utan hack.
+const VALID_R = 20, VALID_BUDGET = 180;
+const validCache = { sig: '', ok: new Map() };
+function validTint() {
+  if (!placing || placing.kind !== 'gun' || !canPlaceNow() || aim?.drag) return null;
+  const g = groundAt(pointer.x, pointer.y);
+  if (!g) return null;
+  const sig = `${placing.type}|${placing.move ?? ''}|${sim.phase}|${sim.reserve?.length ?? ''}|${sim.guns.map(q => `${q.id}:${Math.round(q.x * 2)},${Math.round(q.z * 2)}`).join(';')}`;
+  if (sig !== validCache.sig) { validCache.sig = sig; validCache.ok.clear(); }
+  const p = sim.place, ci = Math.floor((g.x - p.origin[0]) / p.size), cj = Math.floor((g.z - p.origin[1]) / p.size), span = Math.ceil(VALID_R / p.size);
+  const ok = validCache.ok, keys = [];
+  let budget = VALID_BUDGET;
+  for (let j = cj - span; j <= cj + span; j++) for (let i = ci - span; i <= ci + span; i++) {
+    if (i < 0 || j < 0 || i >= p.w || j >= p.h) continue;
+    const k = j * p.w + i, c = p.center(k);
+    if (Math.hypot(c.x - g.x, c.z - g.z) > VALID_R) continue;
+    if (!ok.has(k)) {
+      if (budget-- <= 0) continue;
+      const kind = p.kind[k];
+      ok.set(k, (kind === KIND.open || (kind === KIND.house && roofAt(p, k) > 0)) &&
+        (placing.move ? checkSpot(sim, k, placing.type, { ignore: placing.move }) : checkSpot(sim, k, placing.type)).ok);
+    }
+    if (ok.get(k)) keys.push(k);
+  }
+  return { id: sig + '|' + ci + ',' + cj + '|' + keys.length, keys, x: g.x, z: g.z, r: VALID_R };
+}
+
 // Spöket, räckvidden och sikten för det som är i handen, eller för pjäsen som är vald eller pekas på.
 function placementUi() {
   if (placing?.kind === 'obstacle') {
@@ -1214,7 +1247,7 @@ function startDay(n) {
   day = n;
   sim = createSim(withTweaks(cfg));
   failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
-  sightCache.clear();
+  sightCache.clear(); validCache.sig = '';
   view.setSim(sim);
   hud.reset();
   hud.setSpeed(speed);
@@ -1379,10 +1412,20 @@ if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return s
 if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
-  open,
+  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 
+// Jump to i debugmenyn (och __horde.jump med ?debug): dagen med sektorerna före räknade som klara.
+async function debugJump(mapId, d, wave) {
+  if (!MAPS[mapId]) return;
+  // 0.14.0: sektorerna före räknas som klara, så att leveranserna och trupperna finns där
+  progress = selectMap(debugReach(progress, mapId, Math.max(1, Math.round(d) || 1)), mapId); save();
+  await loadMap(mapId);
+  startDay(Math.max(1, Math.min(map.days.length, Math.round(d) || 1)));
+  sheetAction('go');
+  if (wave > 1) debugJumpWave(sim, wave);
+}
 // ---------- debugmenyn (0.12.2, Olas önskan) ----------
 // Fem snabba klick på versionsnumret (hörnet eller menyn) öppnar den; med ?debug finns knappen DEBUG.
 // 0.14.0: forskningens förval blir förrådets (debugDepot): none, arrival (src/data/arrival.js) eller all.
@@ -1405,15 +1448,7 @@ const debugUi = mountDebug(uiRoot, {
   setResearch: preset => applyDepot(preset),
   setCash: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.cash = Math.max(0, Math.round(v)); return { ok: true }; },
   setBaseHp: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.baseHp = Math.max(1, Math.round(v)); return { ok: true }; },
-  jump: async (mapId, d, wave) => {
-    if (!MAPS[mapId]) return;
-    // 0.14.0: sektorerna före räknas som klara, så att leveranserna och trupperna finns där
-    progress = selectMap(debugReach(progress, mapId, Math.max(1, Math.round(d) || 1)), mapId); save();
-    await loadMap(mapId);
-    startDay(Math.max(1, Math.min(map.days.length, Math.round(d) || 1)));
-    sheetAction('go');
-    if (wave > 1) debugJumpWave(sim, wave);
-  },
+  jump: debugJump,
   unlockAll: () => {
     const maps = { ...progress.maps };
     for (const m of Object.values(MAPS)) { const st = mapState(progress, m.id); maps[m.id] = { ...st, unlockedDay: Math.max(st.unlockedDay, m.days.length + 1) }; }
@@ -1524,7 +1559,8 @@ function tick(now) {
   view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,
-    route: aimLine() ?? moveRoute() });
+    route: aimLine() ?? moveRoute(), valid: validTint(),
+    snap: placing && spot?.ok && spot.fx != null && !aim?.drag ? { from: [spot.fx, spot.fz], to: [spot.x, spot.z] } : null });
   view.setZoom(rig.view);
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });

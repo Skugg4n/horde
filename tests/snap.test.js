@@ -54,7 +54,7 @@ test('en pjäs vid gatukanten hamnar på marken bredvid, inte "On the road"', ()
       if (k < 0 || sim.place.kind[k] !== 1) continue;
       tried++;
       const s = snapGun(sim, px, pz, 'm249');
-      if (s.ok) { ok++; assert.notEqual(sim.place.kind[s.key], 1); const c = sim.place.center(s.key); assert.ok(Math.hypot(c.x - px, c.z - pz) < 4); }
+      if (s.ok) { ok++; assert.notEqual(sim.place.kind[s.key], 1); const c = sim.place.center(s.key); assert.ok(Math.hypot(c.x - px, c.z - pz) < 4.5); }   // 0.14.2: SNAP 3 m plus en halv rutdiagonal
     }
   }
   assert.ok(tried > 50 && ok / tried > 0.8, `${ok} av ${tried}`);

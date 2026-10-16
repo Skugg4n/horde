@@ -5,7 +5,9 @@
 // Nu tas närmaste ruta inom SNAP meter från pekaren som går, om rutan under pekaren inte gör det. Rent.
 import { checkSpot, checkObstacle, checkMove } from './sim.js';
 
-export const SNAP = 2.3;     // meter från pekaren
+// 0.14.2 (speltestet av 0.14.1: hälften av placeringarna i Gnesta nekades): 3 m (var 2,3). En pil går från
+// pekaren till rutan spöket snäppte till (main.js, view.js snap).
+export const SNAP = 3.0;     // meter från pekaren
 
 // Rutorna inom r meter från punkten, närmast först (lika: lägst nyckel). cells: { size, w, h, origin }.
 function near(g, x, z, r) {

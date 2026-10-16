@@ -592,6 +592,62 @@ export function createView(scene, initialSim) {
     tileM.opacity = tone === 'rust' || tone === 'bad' ? 0.32 : tone === 'ok' ? 0.3 : 0.2;
   }
 
+  // ---------- giltig mark i handen (0.14.2) ----------
+  // Medan en enhet hålls i handen: en ljus, svag ton på rutorna där den får stå (main.js validTint), och en
+  // tunn pil från pekaren till rutan spöket snäppte till. Tonen ligger under sikten (cover) och spöket.
+  const VALID_MAX = 1400;
+  // Ljuset läggs till marken (additivt), svagast mot kanten av cirkeln runt pekaren, så att det läses som
+  // en mjuk ljus yta och inte som ett rutnät.
+  const VALID_TONE = new THREE.Color(0.2, 0.24, 0.13), validC = new THREE.Color();
+  const validM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const validGeo = new THREE.PlaneGeometry(1, 1); validGeo.rotateX(-Math.PI / 2);
+  const valid = new THREE.InstancedMesh(validGeo, validM, VALID_MAX);
+  valid.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(VALID_MAX * 3), 3);
+  valid.count = 0; valid.frustumCulled = false; valid.renderOrder = 1; valid.castShadow = false; valid.name = 'valid-tint';
+  scene.add(valid);
+  let validKey = '';
+  function syncValid() {
+    const v = ui.valid;
+    const key = v ? v.id : '';
+    if (key === validKey) return;
+    validKey = key;
+    let n = 0;
+    if (v) {
+      // E4:s ljusa sand tål mindre ljus än Gnestas gräs
+      const p = sim.place, size = p.size, bright = sim.route.kind === 'grid' ? 1 : 0.4;
+      for (const k of v.keys) {
+        if (n >= VALID_MAX) break;
+        const q = p.center(k), y = (p.roof?.[k] ?? 0) + 0.05;
+        const f = v.r ? Math.max(0, 1 - Math.hypot(q.x - v.x, q.z - v.z) / v.r) : 1;
+        tm.makeScale(size, 1, size); tm.setPosition(q.x, y, q.z);
+        valid.setMatrixAt(n, tm);
+        valid.setColorAt(n++, validC.copy(VALID_TONE).multiplyScalar((0.35 + 0.65 * Math.sqrt(f)) * bright));
+      }
+    }
+    valid.count = n; valid.instanceMatrix.needsUpdate = true; valid.instanceColor.needsUpdate = true;
+  }
+  // Pilen: ett smalt platt skaft och en spets på marken, ovanpå allt (syns också över häckar och sandsäckar).
+  const snapM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const shaftGeo = new THREE.PlaneGeometry(1, 0.3); shaftGeo.rotateX(-Math.PI / 2); shaftGeo.translate(0.5, 0, 0);
+  const headGeo = new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0.55), new THREE.Vector2(0.9, 0), new THREE.Vector2(0, -0.55)])); headGeo.rotateX(-Math.PI / 2);
+  const snapLine = new THREE.Group(), shaft = new THREE.Mesh(shaftGeo, snapM), head = new THREE.Mesh(headGeo, snapM);
+  shaft.renderOrder = head.renderOrder = 8; shaft.frustumCulled = head.frustumCulled = false;
+  snapLine.add(shaft, head); snapLine.visible = false; snapLine.name = 'snap-arrow';
+  scene.add(snapLine);
+  function syncSnap() {
+    const a = ui.snap;
+    snapLine.visible = !!a;
+    if (!a) return;
+    const [x0, z0] = a.from, [x1, z1] = a.to, d = Math.hypot(x1 - x0, z1 - z0);
+    // spetsen slutar en bit före spökets mitt (sandsäckarna)
+    const len = d - 0.8;
+    if (len < 1.0) { snapLine.visible = false; return; }
+    snapLine.position.set(x0, 0.22, z0);
+    snapLine.rotation.y = -Math.atan2(z1 - z0, x1 - x0);
+    shaft.scale.set(Math.max(0.01, len - 0.85), 1, 1);
+    head.position.set(len - 0.9, 0, 0);
+  }
+
   // ---------- markering, pekare och räckvidd ----------
   let ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null };
   const isSel = (kind, id) => ui.selected?.kind === kind && ui.selected.id === id;
@@ -686,7 +742,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, route: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, route: null, valid: null, snap: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -937,6 +993,8 @@ export function createView(scene, initialSim) {
     syncGhost();
     syncObGhost();
     syncCover();
+    syncValid();
+    syncSnap();
     syncUi();
     syncSector();
     syncOcclusion(dt);
@@ -962,7 +1020,7 @@ export function createView(scene, initialSim) {
     baseHitT = 0; baseFrac = -1; if (base) { setBaseGlow(base, 0); base.position.copy(baseHome); }
     for (const c of cellMarks) c.state = null;
     ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false };
-    tileKey = '-'; coverKey = '-';
+    tileKey = '-'; coverKey = '-'; validKey = '-';
   }
 
   buildCellMarks();
