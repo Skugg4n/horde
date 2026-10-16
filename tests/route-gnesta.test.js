@@ -19,7 +19,11 @@ import { logs, naives } from './gnesta-logs.js';
 // räckvidd) och policyn köper en grupp när en position står tom och planen saknar fler platser för
 // pjäser. I de fem seedsen händer det aldrig, så vinster, försök och bas kvar är som i 0.8.0;
 // kvittot ändras av planens nya fält och av E4-kampanjens kassa dag 1. Se docs/balance-log.md, 0.9.0.
-const BEFORE = { hash: '759821b7', length: 39386 };
+// 0.10.1: bytt avsiktligt. Fil-vakten (src/sim/route.js) gäller nu alla rutnät, inte bara Gnesta
+// Norr: en siktpunkt uppströms godtas aldrig (granskningen av 0.10, Must fix 2). Gnesta valde sådana
+// siktpunkter i vanliga körningar, så vägarna ändras något; vinster, försök och naives utfall är
+// samma i alla 25 dagar, bas kvar varierar inom kaoset. Se docs/balance-log.md, 0.10.1.
+const BEFORE = { hash: 'eaf289f6', length: 39328 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -29,6 +33,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.9.0', () => {
+test('Gnestas balanslogg är identisk med 0.10.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

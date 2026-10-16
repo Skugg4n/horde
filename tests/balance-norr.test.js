@@ -85,14 +85,16 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // på dagens första försök) ger samma fingeravtryck. Ett ändrat kvitto ska vara avsiktligt och
 // förklarat här och i docs/balance-log.md.
 // 0.10.0: första kvittot.
-const BEFORE = { hash: '6f86b22c', length: 65389 };
+// 0.10.1: bytt avsiktligt. Fil-vakten gäller alla rutnät, så Gnesta-kampanjen som Norr börjar efter
+// ger lite annan forskning och andra seeds; Norrs egna regler är oförändrade.
+const BEFORE = { hash: '51ba32f6', length: 65387 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.10.0', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.10.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;

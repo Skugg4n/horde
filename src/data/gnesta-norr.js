@@ -524,8 +524,7 @@ export const gnestaNorr = {
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   rows: ROWS, parkingLots: PARKING_LOTS, yards: YARDS, forskolaYard: FORSKOLA_YARD, clearings: CLEARINGS,
-  // laneGuard: zombierna byter aldrig fil in i en gång uppströms (src/sim/route.js)
-  grid: { ...townGrid(NORR_TOWN), laneGuard: true },
+  grid: townGrid(NORR_TOWN),
   baseHp: 20, days: DAYS,
   baseModel: 'rink',
   unlocks: ['block'],
