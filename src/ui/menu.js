@@ -12,10 +12,10 @@ export const MENU_ITEMS = [
   { id: 'music', type: 'volume', label: 'Music', channel: 'music' },
   { id: 'restart', type: 'button', label: 'Restart day',
     enabled: c => c.mode() === 'play',
-    confirm: c => ({ title: 'Restart day?', text: `Day ${c.day()} starts over from the beginning. Research is kept.`, ok: 'Restart' }),
+    confirm: c => ({ title: 'Restart day?', text: `Day ${c.day()} starts over with the force you went in with. Your RP are kept.`, ok: 'Restart' }),
     run: c => c.restart() },
   { id: 'main', type: 'button', label: 'Main menu',
-    confirm: c => (c.mode() === 'play' ? { title: 'Leave the day?', text: 'Progress on this day will be lost. Research is kept.', ok: 'Main menu' } : null),
+    confirm: c => (c.mode() === 'play' ? { title: 'Leave the day?', text: 'Progress on this day will be lost. Your RP and units are kept.', ok: 'Main menu' } : null),
     run: c => c.toMain() },
 ];
 

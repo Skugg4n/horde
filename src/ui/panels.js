@@ -31,7 +31,7 @@ const REASONS = {
   'hinder': 'Something in the way',
   'bas': 'On the base',
   'utanför': 'Outside the map',
-  'ej upplåst': 'Not researched yet.',
+  'ej upplåst': 'Not released yet.',
   'fel läge': 'The day is over.',
   'max': 'Already at max level.',
   'tom': 'No gun here.',

@@ -514,3 +514,48 @@ Gnesta North: hp 2,8 / 2,4 / 2,1 / 3,8 / 3,9 (var 2,8 / 3,1 / 3,25 / 4,6 / 5,1) 
 Kvitton: E4 71d06ab8 / 7943, Gnesta 41231870 / 45379, Gnesta North cf67c451 / 59164. ?debug-tabellerna (src/data/arrival.js) omräknade: E4-kampanjen vinns nu med färre förluster, så spelaren kommer till Gnesta med åtta nivåer (var nio) och till North med 18 (var 20).
 
 Osäkert och värt ett speltest: Gnesta dag 1 i händerna (de civila dör fort utan spärr), Ksp 88:s smala vinkel på stadsbanorna, och om dag 2 på Gnesta är för lätt för den som spärrar (smart tar ingen skada).
+
+## 0.14.0: Operation Södermanland (rekvisition, kärntrupper, operationskartan)
+
+Mätt med `npm run balance` (eller `node scripts/balance.mjs skilled|normal`): hela kampanjen E4, Gnesta South och Gnesta North dag för dag, med försök, RP, kärntrupper, leveranser och rekvisition mellan försöken (src/meta/operation.js). Fem seeds (0, 7919, ... 31676). Ett varv för en spelare tar cirka 8 s.
+
+Spelarna (scripts/balance.mjs POLICIES):
+- skilled: läser kartan. Gnesta South: spärren vid rondellen och pjäserna där de ser den tvingade vägen (0.13:s smart). Gnesta North: spärren på Vikingavägen och pjäserna där de ser hordens väg (0.13:s smarta plan med dödszonen och radhustaken var sämre än så med kärntrupperna, prövat nedan). Kallar vågor tidigt när det är lugnt, köper ammunition och sandsäckar.
+- normal: lägger spärren som introt lär ut men ställer pjäserna där de ser sin egen väg (utan spärren), väntar ut nedräkningarna och köper inga extra förnödenheter. E4 har ingen spärr att välja; där skiljer bara tidiga vågor och förnödenheter.
+- Båda ställer ut allt de har i reserven, tyngst först, på planens platser (deployAll) och rekvirerar i samma ordning (REQUISITION): ett mål i taget per sektor, sparar till nästa när RP inte räcker, påfyllnad först.
+- Prövat och förkastat som normal: naive (aldrig en barrikad). Den klarar inte Gnesta South dag 2 på åtta försök, hur mycket RP den än samlar (grind räcker inte över det strukturella gapet). En normal människa lägger spärren som dag 1 lär ut.
+
+Ekonomin:
+- RP = dödade (som förut forskningen: vandrare och löpare 1, bjässar 5) och 2 per klarad våg, plus uppdraget vid vinst (25, och 2 per räddad civil). Försök 1 till 3 ger fullt, fjärde 60 %, femte 40 %, sedan 25 %. Bonus vid vinst: snabb seger (nästa våg kallad tidigt minst hälften av gångerna) +15 %, få förluster (ingen enhet förlorad, högst en man) +15 %, oskadad bas +20 %. En förlust ger fortfarande minst 60 (överlevarnas lärdom).
+- Rekvisition (src/data/depot.js): ungefär halva 0.13:s pris i pengar, i RP. Ksp 90 130, Hemvärnet 130, infanteriet 220, Ksp 58 200, Ak 5 220, Psg 90 330, Ksp 88 300, pillboxen 270, de civila 60. Nivå 2 och 3 för RP (Ksp 90 80 och 140 osv). Påfyllnad 8 till 25 per man. Tillbaka till förrådet: hälften av det som lagts. Förrådets uppgraderingar har forskningens priser. Prövat: en tredjedel av priset (styrkan på North blev 20 enheter), två tredjedelar (normal fastnade på South dag 2).
+- Förnödenheter: egen summa per dag (supplies: E4 300 / 350 / 400, Gnesta South 350 / 450 / 500 / 600 / 600, Gnesta North 600), hälften så mycket per dödad som 0.13:s pengar (SUPPLY_BOUNTY 0,5). Supply budget (förut Bigger budget) ger 40 % av den gamla summan.
+- Frontbredden (map.frontage): E4 6, Gnesta South 8, Gnesta North 9 enheter ute samtidigt. Utan den växte styrkan till 16 enheter på North (kärntrupperna följer med och South:s trupper omplaceras dit), och North vanns med full bas även vid hp 5,5. Med taket går RP till kvalitet (nivåer, uppgraderingar) i stället för mängd.
+- Trycket: Gnesta North öppnar efter South dag 4. Varje vunnen dag i en sektor ger de andra öppna en tryckpunkt (+6 % hp per punkt, högst 5) och tar bort två i den egna. Kampanjen spelas i ordning, så North börjar med tryck 2 (+12 %).
+
+hp per dag (var i 0.13.0): E4 1,8 / 3,2 / 1,2 (1 / 1,9 / 1,2), Gnesta South 2,8 / 3,3 / 3,5 / 2,2 / 2,4 (2,2 / 2,4 / 4,3 / 3,6 / 2,5), Gnesta North 7 / 4,4 / 4,4 / 7 / 12 (2,8 / 2,4 / 2,1 / 3,8 / 3,9). Skälen: kärntrupperna står ute från första vågen (förut köptes pjäserna under dagen för bounty), styrkan växer mellan dagarna, och leveranserna ger dagens nya vapen gratis. North:s höga siffror är där styrkan är som störst.
+
+Resultat, försök till vinst per kampanjsteg (E = E4, S = Gnesta South, N = Gnesta North):
+
+```
+skilled  E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0-4  1  1  1  1  1  1  1  1  1  1  1  1  1   (alla fem seeds)
+
+normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0    1  1  1  1  1  3  1  3  1  2  1  1  1
+seed 1    1  1  1  1  1  3  2  2  1  1  1  1  1
+seed 2    1  1  1  1  1  3  1  3  1  2  1  1  1
+seed 3    1  1  1  1  1  3  1  3  1  2  1  1  1
+seed 4    1  1  1  1  1  3  1  3  1  1  2  1  1
+```
+
+Målen: den skickliga klarar varje dag på första försöket, den normala inom 1 till 4 (högst 3), ingen dag kräver mer än cirka 6. Ribban: den skickliga tar skada på E4 dag 2 och 3 (bas 6 till 18), South dag 2 (bas 7 till 13) och hela North (bas 8 till 16). Den normala vinner med 1 till 9 kvar på de flesta dagar och behöver grinda på South dag 3 och 5 och ibland North dag 2 och 3: förlusterna ger 270 till 470 RP, som köper en nivå eller en Ksp 58 före nästa försök.
+
+Seed 0, skilled, i korthet: E4 dag 1 bas 20 (+107 RP), dag 2 bas 10, dag 3 bas 6 med Ksp 88 och infanteriet nivå 2. South dag 1 15 av 20 civila, dag 2 bas 8 (Hemvärnet och två Ksp 90), dag 3 till 5 bas 20 (spärren vid rondellen bär). North dag 1 bas 16 med tryck 2, dag 4 bas 8, dag 5 bas 13.
+
+Fingeravtryck: per kampanjsteg och spelare i tests/balance-op-skilled.test.js och tests/balance-op-normal.test.js (ett ändrat steg pekas ut med namn). De gamla kvittona per bana (E4, Gnesta, Gnesta North) och proven som köpte forskning är borta; mekanikproven ligger kvar.
+
+Osäkert och värt ett speltest:
+- Gnesta South dag 3 till 5 är lätta för den som spärrar vid rondellen (bas 20 i alla seeds); den normala behöver tre försök på dag 3 och 5. Gapet mellan att läsa kartan och inte göra det är stort på South.
+- Gnesta North hp 7 och 12: bjässarna blir sega (12 x 560). Fler zombier i stället för hp kan kännas bättre.
+- Frontbredden är ny och inte i specen. Den håller styrkan i schack; speltesta om 8 och 9 känns rätt.
+- E4 dag 1 är lätt för alla (bas 20). Den är övningen.

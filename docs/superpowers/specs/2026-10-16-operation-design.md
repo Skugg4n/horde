@@ -68,3 +68,11 @@ Ordningen i förrådet styr inlärningskurvan. Spelaren kan inte köpa allt dire
 1. ~~Rekvisition mitt i en dag?~~ BESLUT (Ola 2026-10-16): bara mellan dagarna.
 2. ~~Kan sektorer falla permanent?~~ BESLUT (Ola 2026-10-16): nej, de blir bara svårare.
 3. ~~Svårighetsval?~~ BESLUT (Ola 2026-10-16): inget val i början; grind + bonusar räcker. Kan läggas till senare (multiplikatorer finns redan i debugmenyn).
+
+## Byggt i 0.14.0 (beslut under bygget)
+
+- Uppgraderingarnas pris: enheternas nivåer (2 och 3) kostar RP mellan dagarna i förrådet. Granatlådor, ammunitionslådor och sandsäckar kostar förnödenheter i striden.
+- Frontbredd per sektor (E4 6, Gnesta South 8, Gnesta North 9 enheter ute samtidigt). Inte i specen: utan den växte styrkan för fort när kärntrupperna följer med. Värt ett speltest.
+- E4:s vägspärr drar sig tillbaka när sektorn tystnar; RP som lagts på enheter där lämnas tillbaka. Gnesta South:s trupper blir fria att omplacera när sektorn håller.
+- MCF: Myndigheten för civilt försvar ersatte MSB den 1 januari 2026. Kontrollerat mot min kunskap, inte mot en källa i dag.
+- Gnesta North öppnar efter South dag 4 (förut 5), så att två sektorer är öppna samtidigt och trycket spelar roll.

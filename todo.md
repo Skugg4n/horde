@@ -118,7 +118,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H100 | ux | Minimap i stil med militär karta/GPS: aktiva kartan, var horden spawnar, hur grupperna rör sig (prickar), pjäser, barrikader, kamerans ruta; klick flyttar kameran.
 - [x] H101 | spel | Vilande zombier i hus: förvarnade i dagintrot ("Intel: dormant infected reported on <gata>"), huset svagt markerat, dörren slås upp och 3-5 Z väller ut i våg 1. Senare dagar kan ha ett oförvarnat hus.
 - [x] H102 | spel | Flytta (Move) i stället för att bara sälja: nedmontering + förflyttning + uppställning tar tid (Ksp 88 ~15 s, Hemvärnet några s), skjuter inte under tiden, Hemvärnet sårbart på vägen. Befästningen blir kvar på gamla platsen. Uppgraderingar/granatkit följer med. Sälj finns kvar (60 %).
-- [ ] H103 | framtid | Kampanjen börjar med bara Hemvärnet; riktiga trupper låses upp successivt: infanteri (Ak 5-grupp), kulsprutegrupp, fallskärmsjägare senare, m.fl. Riktiga trupper som grupper med skydds-AI som Hemvärnet.
+- [x] H103 | framtid | (0.14.0: leveranserna från Försvarsmakten och MCF i förrådet, src/data/depot.js) Kampanjen börjar med bara Hemvärnet; riktiga trupper låses upp successivt: infanteri (Ak 5-grupp), kulsprutegrupp, fallskärmsjägare senare, m.fl. Riktiga trupper som grupper med skydds-AI som Hemvärnet.
 - [x] H104 | kampanj | E4 = militär vägspärr med riktiga trupper (smak på full kraft). Gnesta = bara Hemvärnet som successivt får bättre försvar. Övergångstext: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard."
 - [x] H105 | kampanj | Gnesta dag 1: civila (jaktgevär, hagel) med uppdrag "Hold until the civilians reach the ice rink" (går att lyckas/misslyckas, kort). Hemvärnet tar över dag 2. (0.13.0: evakueringen, 13 av 20 in i ishallen)
 - [x] H106 | vapen | Psg 90: inga tak-genomskärningar; placeras på riktiga utsiktspunkter (platta tak, nock vid skorsten, torn/höga byggnader) i rätt vinkel.
@@ -173,3 +173,19 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H152 | ux | Speltesta dra-för-att-sikta, Rotate (R), Move (M) med Shift-waypoints och Tab för minikartan med mus och på pekskärm (bara provat headless).
 - [ ] H153 | grafik | Laget som bär pjäsen och de civila på väg är små på normal zoom; överväg en tydligare markering medan de springer.
 
+## Operation Södermanland 0.14.0
+
+- [x] H160 | operation | Två valutor: RP mellan dagarna (avtagande efter tredje försöket, bonus för snabb seger, få förluster, oskadad bas) och förnödenheter i striden (hinder, skrotbilar, granatlådor, ammunition, sandsäckar).
+- [x] H161 | operation | Förrådet ersätter forskningen: leveranser från Försvarsmakten och MCF, rekvisition per sektor, forskningens nivåer som uppgraderingar.
+- [x] H162 | operation | Kärntrupper: följer med mellan dagarna, en stjärna efter tre vunna dagar, förluster bara vid vinst, påfyllnad och nivåer för RP, tillbaka till förrådet (50 %) och omplacering.
+- [x] H163 | operation | Uppställningen före första vågen; köpraden har sedan bara förnödenheter.
+- [x] H164 | operation | Operationskartan med sektorernas läge, tryck och inkorgen; flödet meny, karta, förråd, uppställning, strid, resultat, karta.
+- [x] H165 | operation | Sparfil v4 med migrering och kopia av den gamla filen.
+- [x] H166 | balans | Balansskriptet spelar hela kampanjen (skicklig och normal, fem seeds); fingeravtryck per kampanjsteg.
+- [ ] H167 | balans | Speltesta frontbredden (E4 6, South 8, North 9): ny regel, inte i specen.
+- [ ] H168 | balans | Gnesta North hp 7 / 4,4 / 4,4 / 7 / 12: bjässarna blir sega. Pröva fler zombier i stället för hp.
+- [ ] H169 | balans | Gnesta South dag 3 till 5: den som spärrar vid rondellen vinner med full bas, den normala behöver tre försök. Speltesta gapet.
+- [ ] H170 | ux | Speltesta operationskartan och förrådet i händerna (bara provat headless på 1200 x 760), och smal skärm.
+- [ ] H171 | operation | Trycket märks bara när två sektorer är öppna (Gnesta North efter South dag 4). Fler sektorer (Mölnbo, Trosa, Nyköping) ger det mer att göra.
+- [ ] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering.
+- [ ] H173 | ux | Lookbook och gnesta.html visar inte skrotbilarna; lägg till dem.
