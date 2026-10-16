@@ -65,11 +65,20 @@ const NEW_ROADS = [
   { id: 'c2', surface: 'asphalt', width: 3, pts: KS([[1640, 724], [1720, 703], [1806, 670], [1880, 655], [1946, 638]]) },
   { id: 'p3', surface: 'asphalt', width: 3, pts: KS([[1806, 670], [1834, 760], [1861, 840], [1887, 920], [1914, 1000], [1940, 1037]]) },
   { id: 'c3', surface: 'asphalt', width: 3, pts: KS([[1778, 1085], [1840, 1060], [1880, 1045], [1940, 1037], [1990, 1030]]) },
+  // 0.11.0: ut i dimkanten för ingångarna (Olas krav). Sidogatan norrut från Dansutvägen (spöklagrets
+  // väg dit), Vikingavägen norrut och gången vid radhusen österut mot Östra Storgatan.
+  { id: 'dansN', surface: 'asphalt', width: 5, curbs: true, fog: true, pts: KS([[1000, 71], [1003, -40], [1008, -150]]) },
+  // (Vikingavägens fortsättning norrut, inte österut: österut nådde den Radhusgången först och horden
+  // tog den vägen i stället för Vikingavägen.)
+  { id: 'vikFog', name: 'Vikingavägen', surface: 'asphalt', width: 5.5, curbs: true, fog: true, pts: KS([[1690, -8], [1672, -60], [1652, -125]]) },
+  { id: 'c3fog', surface: 'asphalt', width: 3, fog: true, pts: KS([[1990, 1030], [2060, 1022], [2160, 1012]]) },
   // Valsvägen och Hambovägen i nordväst: återvändsgator, horden har inget där att göra.
   { id: 'vals', name: 'Valsvägen', surface: 'asphalt', width: 4.5, curbs: true, turn: true, pts: KS([[578, 166], [590, 240], [604, 290], [637, 360], [646, 440], [658, 500]]) },
   { id: 'hambo', name: 'Hambovägen', surface: 'asphalt', width: 4.5, curbs: true, turn: true, pts: KS([[618, 378], [519, 404], [440, 425], [381, 442], [310, 474]]) },
 ];
-const DROP = new Set(['fornN2']);
+// 0.11.0: Gnestas dimvägar mot Norra vägen och skogsvägen ligger här inne i den skarpa ytan eller
+// används inte; Sigtunavägens (east1, dag 5) är med.
+const DROP = new Set(['fornN2', 'eastFog', 'forestFog']);
 export const ROADS = [
   ...G_ROADS.filter(r => !DROP.has(r.id) && r.id !== 'fornN1'),
   ...NEW_ROADS.map(r => ({ ...r, walk: r.walk !== false, ptsRaw: r.pts, pts: r.pts.length > 2 ? smooth(r.pts) : r.pts.map(p => [...p]) })),
@@ -418,10 +427,15 @@ export const LABELS = [
 // Sigtunavägen öst (Gnestas gamla front) är med dag 5.
 export const SPAWNS = [
   // 0.10.1: in längs Dansutvägen (var K(344, 192) vid dimkanten), 420 m till entrén med spärren (var 506)
-  { id: 'dansW', name: 'Dansutvägen west', day: 1, at: [-7, -159] },
-  { id: 'vikN', name: 'Vikingavägen north', day: 2, at: K(1684, -6) },
-  { id: 'ostra', name: 'Östra Storgatan', day: 4, at: K(1986, 1030) },
+  // 0.11.0: alla i dimkanten utanför den skarpa ytan (Olas krav), horden går fortare där.
+  { id: 'dansW', name: 'Dansutvägen west', day: 1, at: K(1006, -120) },
+  { id: 'vikN', name: 'Vikingavägen north', day: 2, at: K(1658, -108) },
+  { id: 'ostra', name: 'Östra Storgatan', day: 4, at: K(2130, 1015) },
   { ...G_SPAWNS.find(s => s.id === 'east1'), day: 5 },
+  // 0.11.0 (Olas idé): öppningen. Dagens första våg är en liten grupp söderifrån, Sigtunavägen från
+  // dimman i väster förbi ishallen, så att spelaren har något att skjuta på inom 10 till 15 s medan
+  // linjen i norr byggs. Sist i listan så att de andra ingångarnas ordning är som förut.
+  { id: 'sigW', name: 'Sigtunavägen south', day: 1, at: [-137, 3.5] },
 ];
 
 // ---------- radhusen i placeringen ----------
@@ -488,26 +502,33 @@ const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, int
 const LEAD = { vikN: 25 };
 // Dagens första grupp delas: de första sex går före.
 const first = (type, count, interval, delay, spawn) => [g(type, 6, interval, delay, spawn, LEAD[spawn]), g(type, count - 6, interval, delay + 6 * interval, spawn)];
+// Öppningen (0.11.0): våg 1 varje dag är en liten grupp från Sigtunavägen söderut (sigW), våg 2 och
+// framåt är norrifrån som förut, med en rad när de byter håll (wave.toast, main.js).
+// De är eftersläntrare: dag 1:s hp-faktor (OPENER_HP) alla dagar, så att en Ksp 90 vid ishallen räcker.
+const OPENER_HP = 2.8;
+const opener = (walkers, runners = 0) => ({ groups: [{ ...g('walker', walkers, 0.8, 0, 'sigW'), hp: OPENER_HP }, ...(runners ? [{ ...g('runner', runners, 0.9, 4, 'sigW'), hp: OPENER_HP }] : [])] });
+const NORTH = "They're coming from the north now.";
+const north = w => ({ ...w, toast: NORTH });
 export const DAYS = [
-  { n: 1, startCash: 2100, hp: 2.8, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. The dead up here move faster. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
+  { n: 1, startCash: 2350, hp: 2.8, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. First a few stragglers come up Sigtunavägen from the south, past the ice rink: something to shoot while you set up. Then the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. The dead up here move faster. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
     hints: { lines: ['Pick the barricade (1-1).', 'Block Vikingavägen.', 'Watch them take the footpath past the terraced houses.'], steps: ['pick:block', 'block', 'watch'] },
-    waves: [ { groups: [...first('walker', 40, 0.45, 0, 'vikN')] },
+    waves: [ opener(8, 2), north({ groups: [...first('walker', 40, 0.45, 0, 'vikN')] }),
              { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
              { groups: [g('walker', 80, 0.22, 0, 'vikN'), g('runner', 40, 0.3, 6, 'vikN')] } ] },
-  { n: 2, startCash: 2100, hp: 3.8, overlap: 60, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
-    waves: [ { groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 4, 'vikN')] },
+  { n: 2, startCash: 2350, hp: 4.6, overlap: 60, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
+    waves: [ opener(8, 3), north({ groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 4, 'vikN')] }),
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.3, 6, 'dansW')] },
              { groups: [g('walker', 60, 0.25, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.22, 8, 'vikN')] } ] },
-  { n: 3, startCash: 2000, hp: 4.0, overlap: 60, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes walk behind the others down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
-    waves: [ { groups: [g('walker', 40, 0.35, 0, 'vikN'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 2, 4, 25, 'vikN')] },
+  { n: 3, startCash: 2250, hp: 5.0, overlap: 60, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes walk behind the others down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
+    waves: [ opener(8, 3), north({ groups: [g('walker', 40, 0.35, 0, 'vikN'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 2, 4, 25, 'vikN')] }),
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.25, 4, 'dansW'), g('brute', 3, 3, 24, 'vikN')] },
              { groups: [g('walker', 60, 0.28, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.2, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'vikN')] } ] },
-  { n: 4, startCash: 2200, hp: 5.0, overlap: 60, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
-    waves: [ { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.35, 2, 'vikN'), g('brute', 2, 4, 26, 'vikN')] },
+  { n: 4, startCash: 2450, hp: 5.15, overlap: 60, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
+    waves: [ opener(10, 3), north({ groups: [g('walker', 36, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('brute', 2, 4, 26, 'vikN')] }),
              { groups: [g('walker', 40, 1.4, 0, 'ostra'), g('runner', 40, 0.9, 40, 'dansW'), g('brute', 3, 3, 24, 'ostra')] },
              { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 1.0, 0, 'ostra'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'ostra')] } ] },
-  { n: 5, startCash: 1800, hp: 4.3, overlap: 60, intro: { title: 'Day 5: The whole town', text: 'From the north, through the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
-    waves: [ { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'ostra'), g('brute', 2, 4, 30, 'vikN')] },
+  { n: 5, startCash: 2050, hp: 6.7, overlap: 60, intro: { title: 'Day 5: The whole town', text: 'From the north, through the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
+    waves: [ opener(10, 4), north({ groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'ostra'), g('brute', 2, 4, 30, 'vikN')] }),
              { groups: [g('runner', 40, 0.4, 0, 'vikN'), g('walker', 25, 0.8, 0, 'east1'), g('walker', 40, 0.35, 10, 'dansW'), g('brute', 4, 3, 30, 'dansW')] },
              { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 0, 'vikN'), g('walker', 40, 0.3, 20, 'ostra'),
                g('runner', 25, 0.7, 40, 'east1'), g('brute', 4, 3, 30, 'vikN'), g('brute', 3, 3, 40, 'ostra'), g('brute', 3, 3, 50, 'dansW')] } ] },
@@ -516,7 +537,8 @@ export const DAYS = [
 // ---------- staden ----------
 export const NORR_TOWN = {
   roads: ROADS, lots: LOTS, cars: CARS, ground: GROUND, spawns: SPAWNS, base: BASE,
-  bounds: { x0: -86, z0: -178, x1: 96, z1: 64 },
+  bounds: { x0: -146, z0: -190, x1: 120, z1: 64 },
+  crisp: SURROUNDINGS.crisp,
   extraHouses: ROWS.map(R => rowRect(R)),
   extraThings: [],
   extraRoofs: ROWS.map(rowRoof),
@@ -530,7 +552,7 @@ export const gnestaNorr = {
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
-  camera: { target: [8, -62], view: 58, zoom: [24, 68], pan: { x0: -100, x1: 96, z0: -176, z1: 66 }, intro: 4.5 },
+  camera: { target: [8, -62], view: 58, zoom: [24, 84], pan: { x0: -100, x1: 96, z0: -176, z1: 66 }, intro: 4.5 },
   shadowBounds: { x0: -118, x1: 98, z0: -180, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,

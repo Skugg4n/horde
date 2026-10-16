@@ -81,6 +81,10 @@ export function createView(scene, initialSim) {
     disposeModel(e.parts.root);
     zombies.delete(id);
   }
+  // Längst ut (0.11.0, zoomen tillbaka till 84 m som i 0.4): levande zombier ritas upp till 30 % större
+  // (bara bild), från vy 56 m och utåt. main.js sätter vyns höjd varje bildruta.
+  let zoomBoost = 1;
+  function setZoom(view) { zoomBoost = 1 + 0.3 * Math.min(1, Math.max(0, (view - 56) / 28)); }
   function syncZombies(dt) {
     const k = 1 - Math.exp(-dt * 22);
     rings.begin();
@@ -106,6 +110,9 @@ export function createView(scene, initialSim) {
         const r = 1 - e.rise;
         parts.root.position.set(e.x, -RISE_DEPTH * r * r * (parts.scale ?? 1), e.z);
       }
+      // 0.11.0: utzoomad är de levande lite större (zoomBoost), så att horden går att läsa
+      if (!z.dead) parts.root.scale.setScalar((parts.scale ?? 1) * zoomBoost);
+      else if (parts.root.scale.x !== (parts.scale ?? 1)) parts.root.scale.setScalar(parts.scale ?? 1);
       if (z.dead) {
         // faller bakåt och ligger kvar
         if (e.fall < 1) {
@@ -699,5 +706,5 @@ export function createView(scene, initialSim) {
   buildBase();
   // Display-läget för en zombie (för skott och siffror), eller null.
   const zombieAt = id => { const e = zombies.get(id); return e ? { x: e.x, z: e.z } : null; };
-  return { sync, consume, setSim, setUi, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
+  return { sync, consume, setSim, setUi, setZoom, pickTargets, rayTargets, slotObjects, cellObjects, fx, zombieAt, rings, horde, squadView, get dug() { return [...dug.values()]; } };
 }

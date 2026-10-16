@@ -48,10 +48,11 @@ test('Gnesta Norr: en förlorad dag rasar gradvis, och ingen dag fastnar', () =>
   for (const r of [...logs.flat(), ...naives.flat()]) assert.ok(r.time < 1000, `dagen tog ${r.time.toFixed(0)} s`);
 });
 
-test('Gnesta Norr: en dag tar 4 till 8 minuter vid 1x, och första skottet dag 1 kommer inom 22 s', () => {
-  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 200 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
-  // 0.10.2: försprånget dag 1 (lead) ger första skottet inom 22 s (var 36 till 40)
-  for (const log of logs) assert.ok(tries(log, 1)[0].firstShot <= 22, `första skottet ${tries(log, 1)[0].firstShot}`);
+// 0.11.0: öppningen söderifrån (en våg till varje dag) och ingångarna i diset gör dagarna upp till
+// 9 minuter; första skottet kommer inom 15 s varje dag (öppningen, H093).
+test('Gnesta Norr: en dag tar 4 till 9 minuter vid 1x, och första skottet kommer inom 15 s varje dag', () => {
+  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 200 && r.time <= 560, `dag ${r.day}: ${r.time.toFixed(0)} s`);
+  for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 15, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
 });
 
 test('Gnesta Norr: högst cirka 250 levande zombier samtidigt', () => {
@@ -115,14 +116,17 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // överlapp 60 s, dörrarna, hp-faktorer 2,8 till 5,0 (var 3,7 till 9,0). Se docs/balance-log.md, 0.10.1.
 // 0.10.2: bytt avsiktligt. Försprång för de sex första dag 1, nedräkningen 15 s, Psg 90 billigare,
 // och Gnesta-kampanjen före är ändrad. Se docs/balance-log.md, 0.10.2.
-const BEFORE = { hash: 'bfdb2e9f', length: 54742 };
+// 0.11.0: bytt avsiktligt. Öppningen söderifrån varje dag (en liten grupp på Sigtunavägen, policyn
+// ställer en Ksp 90 vid parkeringen och säljer den när norr börjat), ingångarna i diset, startkassan
+// +250, nya hp-faktorer och dag 4:s första våg mindre. Se docs/balance-log.md, 0.11.0.
+const BEFORE = { hash: 'e96d3147', length: 74040 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.10.2', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.11.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;

@@ -361,7 +361,12 @@ function handleEvents() {
   // Granattillsatsens små smällar skakar inte bilden, bara granatlådans.
   if (evs.some(e => e.t === 'blast' && e.kind !== 'grt')) shake(BLAST_SHAKE_TIME, BLAST_SHAKE_AMP);
   for (const ev of evs) {
-    if (ev.t === 'waveStart') hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
+    if (ev.t === 'waveStart') {
+      hud.banner(waveText(sim.dayCfg, ev.index), 4.5);
+      // 0.11.0: en våg kan säga något när den börjar (Gnesta Norr: "They're coming from the north now.")
+      const toast = sim.dayCfg.waves[ev.index]?.toast;
+      if (toast) note(uiRoot, toast, 'warn');
+    }
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
     else if (ev.t === 'kill' && ev.bounty) {
       tmpV.set(ev.x, 2, ev.z).project(camera);
@@ -888,6 +893,7 @@ function tick(now) {
   view.setUi({ selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: pu.cover, obGhost: pu.obGhost, marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null });
+  view.setZoom(rig.view);
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);

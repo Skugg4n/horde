@@ -82,6 +82,12 @@ const ROADS_PX = [
   { id: 'path2', surface: 'gravel', width: 2.6, pts: [[1497, 62], [1492, 150], [1488, 247]] },
   { id: 'forest', name: 'Skogsvägen', surface: 'dirt', width: 4.2,
     pts: [[1858, 905], [1846, 960], [1815, 1008], [1750, 1028], [1600, 1033], [1520, 1040], [1460, 1065], [1380, 1115], [1320, 1170]] },
+  // 0.11.0 (Olas krav: ingångarna ska ligga i diset, inte mitt i en korsning): vägarna fortsätter ut
+  // i dimkanten utanför den skarpa ytan (SURROUNDINGS.crisp), där horden kommer ur diset. fog: bara
+  // för ingångarna; Gnesta Norr behåller bara Sigtunavägens (east1 är med dag 5 där).
+  { id: 'sigtunaFog', name: 'Sigtunavägen', surface: 'asphalt', width: 6.5, curbs: true, fog: true, pts: [[2000, 968], [2140, 1031], [2290, 1098], [2420, 1156]] },
+  { id: 'eastFog', name: 'Norra vägen', surface: 'asphalt', width: 5.5, curbs: true, fog: true, pts: [[1966, -20], [1968, -170], [1970, -330]] },
+  { id: 'forestFog', name: 'Skogsvägen', surface: 'dirt', width: 4.2, fog: true, pts: [[1320, 1170], [1250, 1235], [1180, 1300], [1120, 1356]] },
   { id: 'west', surface: 'gravel', width: 3, walk: false, pts: [[-330, 410], [200, 377], [430, 362]] },
   { id: 'parkIn', surface: 'asphalt', width: 6, walk: false, pts: [[560, 735], [552, 790]] },
 ];
@@ -413,9 +419,12 @@ export const LABELS = [
 // diket när de kommer (render/horde.js). Sträckan till entrén med spärren vid rondellen: east1 190 m
 // (var 268), east2 180 m (214), forest 280 m (320).
 export const SPAWNS = [
-  { id: 'east1', name: 'Sigtunavägen öst', day: 1, at: [37, 37] },
-  { id: 'east2', name: 'Norra vägen', day: 2, at: [49, -39] },
-  { id: 'forest', name: 'Skogsvägen', day: 3, at: [43, 51] },
+  // 0.11.0: ute i dimkanten igen (0.10.1 flyttade in dem till korsningar mitt i kartan, "ser
+  // overkligt ut"). Tiden till första skottet hålls kort av att horden går fortare i diset
+  // (src/sim/sim.js fogFactor). east1 ligger utanför Gnesta Norrs skarpa yta också.
+  { id: 'east1', name: 'Sigtunavägen öst', day: 1, at: w(2360, 1129) },
+  { id: 'east2', name: 'Norra vägen', day: 2, at: w(1969, -260) },
+  { id: 'forest', name: 'Skogsvägen', day: 3, at: w(1135, 1342) },
 ];
 // Basen är ishallens entré (0.6.0): horden ska fram till dörrarna, inte till rondellen.
 // Rondellen blir sista försvarslinjen framför porten.
@@ -480,7 +489,7 @@ export function townGrid(T, cellSize = 2) {
     cellOf, center: (i, j) => [cx(i), cz(j)],
   };
 }
-// Gnestas rutnät (x -82 till 80, z -48 till 64).
+// Gnestas rutnät (x -82 till 122, z -84 till 88; 0.11.0 ut i dimkanten för ingångarna).
 export const buildGrid = (cellSize = 2) => townGrid(gnestaTown(), cellSize);
 
 // ---------- omgivningen: spöklagret ----------
@@ -537,6 +546,16 @@ export const SURROUNDINGS = {
       buildings: [[640, 1135, 60, 30, -10, 5.5, 'flat'], [470, 1110, 30, 22, 0, 4]].map(ghostBuilding) },
   ],
 };
+// 0.11.0: spökhus som skulle stå på dimvägarna till ingångarna tas bort (horden går där).
+{
+  const fog = ROADS.filter(r => r.fog);
+  const onRoad = b => {
+    const c = Math.cos(b.ry), sn = Math.sin(b.ry);
+    const pts = [[0, 0], [-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [b.x + u * b.w / 2 * c + v * b.d / 2 * sn, b.z - u * b.w / 2 * sn + v * b.d / 2 * c]);
+    return fog.some(r => pts.some(([x, z]) => distPolyline(x, z, r.pts) <= r.width / 2 + 1.5));
+  };
+  for (const d of SURROUNDINGS.districts) d.buildings = d.buildings.filter(b => !onRoad(b));
+}
 
 // ---------- parkerade bilar ----------
 // Bilarna på parkeringen (ungefär hälften av rutorna, tätast närmast hallarna) och en vid
@@ -681,6 +700,8 @@ export function townPlacement(T, grid) {
     classify(x, z) {
       const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
       if (grid.walk[k]) return KIND.road;
+      // 0.11.0: dimkanten utanför den skarpa ytan (där ingångarna ligger) går inte att bygga på
+      if (T.crisp && (x < T.crisp.x0 || x > T.crisp.x1 || z < T.crisp.z0 || z > T.crisp.z1)) return KIND.thing;
       // Rondellens ö är sista försvarslinjen framför entrén: där går det att bygga, utom vid
       // flaggstången och elskåpen.
       if (inPoly(x, z, ROUNDABOUT.island)) return islandThings().some(([px, pz]) => Math.hypot(x - px, z - pz) < 1.3) ? KIND.thing : KIND.open;
@@ -733,7 +754,7 @@ export function townPlacement(T, grid) {
 let gnestaT = null;
 export function gnestaTown() {
   return gnestaT ??= { roads: ROADS, lots: LOTS, cars: CARS, ground: GROUND, spawns: SPAWNS, base: BASE,
-    bounds: { x0: -82, z0: -48, x1: 80, z1: 64 } };
+    bounds: { x0: -82, z0: -84, x1: 122, z1: 88 }, crisp: SURROUNDINGS.crisp };
 }
 export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 
@@ -753,30 +774,31 @@ export const DAYS = [
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, startCash: 1300, hp: 5.0, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
-    waves: [ { groups: [g('walker', 6, 0.6, 0, 'east1', LEAD_WALK), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
+  { n: 2, startCash: 1300, hp: 5.9, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
              { groups: [g('walker', 50, 0.28, 0, 'east1'), g('walker', 30, 0.35, 0, 'east2'), g('runner', 50, 0.25, 10, 'east1')] } ] },
   { n: 3, startCash: 1300, hp: 5.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
-    waves: [ { groups: [g('walker', 6, 0.5, 0, 'east1', LEAD_WALK), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, startCash: 1800, hp: 5.1, overlap: 100, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
-    waves: [ { groups: [g('walker', 6, 0.3, 0, 'east1', LEAD_WALK), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
+  { n: 4, startCash: 1800, hp: 4.85, overlap: 100, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, startCash: 1600, hp: 4.0, overlap: 100, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
-    waves: [ { groups: [g('walker', 6, 0.35, 0, 'east1', LEAD_WALK), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
+  { n: 5, startCash: 1600, hp: 4.3, overlap: 100, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
-             { groups: [g('walker', 44, 0.3, 0, 'east1'), g('walker', 38, 0.3, 0, 'east2'), g('walker', 38, 0.3, 0, 'forest'),
+             { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
                g('runner', 60, 0.15, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },
 ];
 
 export const gnesta = {
   id: 'gnesta', name: 'Gnesta', version: GNESTA_VERSION,
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
-  // Längst ut 68 m (var 84 före 0.5.2): längre ut går zombierna inte att skilja åt.
-  camera: { target: [-30, 14], view: 52, zoom: [24, 68], pan: { x0: -100, x1: 92, z0: -58, z1: 66 } },
+  // Längst ut 84 m igen (0.11.0, Olas önskan; 68 m i 0.5.2 till 0.10.2). Utzoomad ritas horden lite
+  // större (view.js setZoom), och en taktisk minikarta kommer.
+  camera: { target: [-30, 14], view: 52, zoom: [24, 84], pan: { x0: -100, x1: 92, z0: -58, z1: 66 } },
   // Skuggkameran täcker den skarpa ytan (med ishallen i väster och sporthallen i söder).
   shadowBounds: { x0: -118, x1: 84, z0: -50, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,

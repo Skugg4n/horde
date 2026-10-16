@@ -157,9 +157,13 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
 // 0.10.1 (speltestet av 0.10.0): dagarna var 7 till 13 minuter och första skottet kom efter 110 s.
 // 0.10.2 (speltestet av 0.10.1: 35 till 45 s): de första i dagens första grupp har ett försprång
 // (lead), så första skottet kommer inom 22 s varje dag.
-test('en dag på Gnesta tar 4 till 8 minuter vid 1x, och första skottet kommer inom 22 s', () => {
-  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
-  for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 22, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
+// 0.11.0 (Olas krav: ingångarna ute i diset igen, inte mitt i en korsning): vägen inne på kartan är
+// längre (Sigtunavägen från x 84 i stället för 37), så dagen tar upp till 9 minuter och policyns första
+// skott (pjäserna vid fältet) kommer efter 52 till 54 s. Horden går fortare i diset och syns i
+// kartkanten inom 10 s (tests/fog-spawns.test.js); den som ställer en pjäs där skjuter direkt.
+test('en dag på Gnesta tar 4 till 9 minuter vid 1x, och policyns första skott kommer inom 60 s', () => {
+  for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 560, `dag ${r.day}: ${r.time.toFixed(0)} s`);
+  for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 60, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
 });
 
 test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta', async () => {

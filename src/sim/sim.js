@@ -49,7 +49,7 @@ export const hasNextWave = sim => sim.wavesStarted < sim.dayCfg.waves.length;
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
-  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}) });
+  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) });
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
   sim.phase = 'wave';
@@ -104,14 +104,30 @@ export function callNextWave(sim, { stack = true } = {}) {
 // upp ur diket längre in längs vägen), så att första skottet kommer efter 15 till 20 s i stället för
 // 35 till 45. Högst LEAD_MAX av vägen, så att de aldrig dyker upp vid pjäserna framför entrén.
 export const LEAD_MAX = 0.5;
-function spawn(sim, { type, wave, spawn: spawnId, lead = 0 }) {
+// Diset (0.11.0, Olas krav): ingångarna ligger i dimkanten utanför den skarpa ytan
+// (map.surroundings.crisp). Där går horden FOG_SPEED gånger fortare, och farten ebbar ut mjukt över
+// de sista FOG_RAMP metrarna in mot kanten, så att de kliver ur diset i vanlig takt. Så hålls tiden
+// till första skottet kort utan att någon dyker upp mitt i kartan. Ren funktion av läget.
+export const FOG_SPEED = 2.75, FOG_RAMP = 8;
+export function fogFactor(map, x, z) {
+  const c = map.surroundings?.crisp;
+  if (!c || !map.grid) return 1;
+  const out = Math.max(c.x0 - x, x - c.x1, c.z0 - z, z - c.z1);
+  if (out <= 0) return 1;
+  const t = Math.min(1, out / FOG_RAMP);
+  return 1 + (FOG_SPEED - 1) * t * t * (3 - 2 * t);
+}
+// group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null }) {
   const id = sim.nextId++;
-  const hp = ZOMBIES[type].hp * (sim.dayCfg.hp ?? 1);
+  const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1);
   const z = { id, type, wave, hp, maxHp: hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   if (lead > 0) {
     const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
-    for (let left = lead * speed; left > 1e-9 && sim.route.fraction(z) < stop; left -= 1) sim.route.advance(z, Math.min(1, left));
+    // 0.11.0: på en bana med dis stannar försprånget i diset (ingen dyker upp mitt i kartan)
+    const fog = sim.route.kind === 'grid' && sim.map.surroundings?.crisp;
+    for (let left = lead * speed; left > 1e-9 && sim.route.fraction(z) < stop && (!fog || fogFactor(sim.map, z.x, z.z) >= FOG_SPEED - 1e-9); left -= 1) sim.route.advance(z, Math.min(1, left));
     z.lead = true;
   }
   sim.zombies.push(z);
@@ -203,7 +219,7 @@ function moveZombies(sim, dt) {
       }
     }
     // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
-    const speed = def.speed * mul * (sim.map.pace ?? 1);
+    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
     z.v = speed;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;

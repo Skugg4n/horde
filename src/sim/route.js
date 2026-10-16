@@ -108,6 +108,8 @@ export function gridRoute(map) {
   const half = size / 2;
   const spawnIds = grid.spawns.map(s => s.id);
   let blocked = new Set();        // rutor med barrikad
+  const crisp = map.surroundings?.crisp;
+  const inPlay = k => { if (!crisp) return true; const [x, z] = grid.center(k); return x >= crisp.x0 && x <= crisp.x1 && z >= crisp.z0 && z <= crisp.z1; };
   let version = 0;                // ökar när hindren ändras (siktpunkterna räknas om)
   // Gångsträcka i meter längs flödet till basen, utan barrikadernas straff. Siktet använder den.
   const walk = new Float64Array(grid.n).fill(Infinity);
@@ -305,7 +307,8 @@ export function gridRoute(map) {
     fraction: z => Math.max(0, Math.min(1, 1 - left(z) / total)),
     left,
     walkLeft: k => walk[k],
-    validCell: key => Number.isInteger(key) && key >= 0 && key < grid.n && grid.walkable(key) && !flow.isBase(key),
+    // 0.11.0: inte i dimkanten utanför den skarpa ytan (där ingångarna ligger)
+    validCell: key => Number.isInteger(key) && key >= 0 && key < grid.n && grid.walkable(key) && !flow.isBase(key) && inPlay(key),
     obstacleKeys: obstacles => Object.keys(obstacles).map(Number),
     inCell: (z, key) => z.cell === key,
     blockContact(z, key, reach) {

@@ -6,7 +6,7 @@
 // levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
 // högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
-import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot } from '../src/sim/sim.js';
+import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
 import { placementFor, lineOfSight, distRect, KIND, MIN_SPACING, ROOF_DEAD } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
@@ -316,9 +316,9 @@ const planCache = new Map();
 // med spärrarna på plats, M2:ns räckvidd) och taggtrådens rutor. Beror bara på banan,
 // ingångarna och spärrarna, så den räknas en gång och sparas. research används inte längre
 // (antalet pjäser styrs av sim.maxGuns), men argumentet finns kvar för anroparna.
-export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roofs: roofCount = GN_ROOFS, roofFilter = null, roofFirst = null, squadNear = null, near = GN_NEAR, focus = null, squadFocus = null, lastLine = 0 } = {}) {
+export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roofs: roofCount = GN_ROOFS, roofFilter = null, roofFirst = null, squadNear = null, near = GN_NEAR, focus = null, squadFocus = null, lastLine = 0, opener = null } = {}) {
   void research;
-  const key = JSON.stringify([map.id, ids, blocks, ...(roofFilter || roofFirst || squadNear || focus || roofCount !== GN_ROOFS || near !== GN_NEAR ? [roofCount, !!roofFilter, !!roofFirst, squadNear, near, focus?.id, lastLine] : [])]);
+  const key = JSON.stringify([map.id, ids, blocks, ...(roofFilter || roofFirst || squadNear || focus || roofCount !== GN_ROOFS || near !== GN_NEAR ? [roofCount, !!roofFilter, !!roofFirst, squadNear, near, focus?.id, lastLine] : []), ...(opener ? [opener] : [])]);
   if (planCache.has(key)) return planCache.get(key);
   const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
   const route = sim.route, g = route.grid;
@@ -390,7 +390,21 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roo
     const good = k => planSquad(s0, k).filter(c => c.cover === 'brick').length >= squadNear;
     squads = [...squads.filter(good), ...squads.filter(k => !good(k))];
   }
-  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]) };
+  // opener (Gnesta Norr 0.11.0): platsen som ser mest av öppningsgruppens väg (Sigtunavägen söderut
+  // förbi ishallen); en människa ställer sin första pjäs där medan linjen i norr byggs.
+  let openerGun = null, plan_openerSees = 0;
+  if (opener && ids.includes(opener)) {
+    // Helst en av planens första platser (den byggs ändan): den av dem som ser mest av öppningens väg.
+    const op = ps.find(p => p.id === opener), on = new Set(op.cells);
+    let bestN = 0;
+    keep.slice(0, 4).forEach(i => { const n = [...cp.sees[i]].filter(c => on.has(c)).length; if (n > bestN) { bestN = n; openerGun = cp.spots[i]; } });
+    if (bestN < 4) {
+      const oc = coveragePlan(map, op.cells.map((c, i) => [c, 1 + i / op.cells.length]), { range: PLAN_RANGE, count: 1, decay: GN_DECAY, cacheKey: key + '|opener' });
+      openerGun = oc.spots[0] ?? null;
+    }
+    plan_openerSees = bestN;
+  }
+  const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]), ...(openerGun != null ? { openerGun, openerSees: plan_openerSees } : {}) };
   planCache.set(key, plan);
   return plan;
 }
@@ -490,6 +504,13 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
       placeAcross(sim, c, type);
     }
   };
+  // 0.11.0: öppningen söderifrån först, en billig Ksp 90 där den ser Sigtunavägen förbi ishallen
+  // (en Ksp 88 där åt upp pengarna till linjen i norr: dag 5 förlorades i alla försök)
+  // När öppningen är slut och norr har börjat säljs den (den ser inget av linjen i norr), och
+  // pengarna går till linjen där. Prövat: att behålla den kostade dag 4 i alla seeds.
+  const og = plan.openerGun != null ? sim.guns.find(g => g.cell === plan.openerGun) : null;
+  if (plan.openerGun != null && sim.wavesStarted === 0 && !og) buildNext(sim, [plan.openerGun], 'm249');
+  if (og && sim.wavesStarted >= 2 && !sim.spawnQueue.some(q => q.spawn === 'sigW') && !sim.zombies.some(z => !z.dead && z.spawn === 'sigW')) sell(sim, og.id);
   lay(plan.lines, 'block');
   let saving = false;
   if (weaponUnlocked('psg90', sim.research, sim.map)) {
@@ -507,7 +528,9 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   lay(plan.wire, 'wire');
   if (weaponUnlocked('ak5', sim.research, sim.map) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) buildNext(sim, plan.guns, 'ak5');
   const kits = sim.guns.filter(g => g.weapon.kit).length;
-  if (grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
+  // lådorna när första vågen norrifrån är klar (öppningen räknas inte, 0.11.0)
+  const kitFrom = GN_KIT_FROM_WAVE + (plan.openerGun != null ? 1 : 0);
+  if (grenadeStats(sim.research) && sim.waveIndex >= kitFrom && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
     const g = plan.guns.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
     if (g) buyKit(sim, g.id);
   }
@@ -562,8 +585,8 @@ export const TOWN = {
   'gnesta-norr': {
     blocks: day => (day >= 5 ? [...NORR_BLOCKS, ...SMART_BLOCKS] : NORR_BLOCKS),
     // smart läser kartan (dödszonen, radhustaken, tegelmurarna); naive ställer allt efter sin egen väg
-    planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25 }
-      : { roofs: 3, near: 0, lastLine: 0.25 }),
+    planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25, opener: 'sigW' }
+      : { roofs: 3, near: 0, lastLine: 0.25, opener: 'sigW' }),
     kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
   },
 };

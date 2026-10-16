@@ -28,7 +28,11 @@ import { logs, naives } from './gnesta-logs.js';
 // startkassor och dag 4 och 5 med överlapp. Se docs/balance-log.md, 0.10.1.
 // 0.10.2: bytt avsiktligt. Dag 2 mjukare (hp 5,0, mindre vågor), försprång (lead) för de första i
 // dagens första grupp, nedräkningen 15 s och Psg 90 billigare. Se docs/balance-log.md, 0.10.2.
-const BEFORE = { hash: '342091db', length: 38829 };
+// 0.11.0: bytt avsiktligt. Ingångarna ute i diset igen (Olas krav), horden går 2,75 gånger fortare där
+// (fogFactor) och försprånget stannar i diset; de första fem i dagens första grupp är löpare alla
+// dagar (var sex vandrare), dag 2 hp 5,9 (var 5,0), dag 4 4,85 (var 5,1), dag 5 4,3 (var 4,0) och
+// våg 3 något mindre. Se docs/balance-log.md, 0.11.0.
+const BEFORE = { hash: '1d49e790', length: 44538 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -38,6 +42,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.10.2', () => {
+test('Gnestas balanslogg är identisk med 0.11.0', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
