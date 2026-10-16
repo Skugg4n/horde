@@ -21,6 +21,9 @@ const REASONS = {
   'gata': 'On the road',
   'hus': 'Inside a house',
   'kant': 'No vantage point: flat roof, ridge by a chimney, or a tall building',
+  // 0.12.1: taket under pekaren har ingen utsiktspunkt (spöket stannar på taket och säger varför)
+  'brant': 'Roof too steep. Try a flat roof or the ridge by a chimney',
+  'brant-skorsten': 'Roof too steep, try the ridge by the chimney',
   'nära': 'Too close to another gun',
   'fullt': 'All gun positions taken (research More positions)',
   'fulltHv': 'All squads out (research More squads)',

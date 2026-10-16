@@ -16,9 +16,10 @@ import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
+import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
-import { snapGun, snapObstacle } from './sim/snap.js';
+import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
+import { KIND } from './sim/placement.js';
 import { pointAt } from './sim/path.js';
 import { weaponStats, upgradeCost } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
@@ -181,6 +182,11 @@ let shiftHeld = false;
 const ghostTip = document.createElement('div');
 ghostTip.id = 'ghosttip'; ghostTip.className = 'plate'; ghostTip.hidden = true;
 uiRoot.appendChild(ghostTip);
+// 0.12.1 (speltestet: "det syns inte om spöket står på taket eller på marken"): för ett vapen som får
+// ligga på tak står ROOF eller GROUND vid pekaren, och vart spöket snäppte.
+const ghostWhere = document.createElement('div');
+ghostWhere.id = 'ghostwhere'; ghostWhere.className = 'plate'; ghostWhere.hidden = true;
+uiRoot.appendChild(ghostWhere);
 const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
 // 0.12.0 (H102): Move i panelen tar pjäsen i handen; samma spöke och samma regler som ett köp.
 function startMove(id) {
@@ -204,28 +210,34 @@ function startPlacing(type) {
 }
 function stopPlacing() {
   placing = null; spot = null;
-  ghostTip.hidden = true;
+  ghostTip.hidden = true; ghostWhere.hidden = true;
   // H095: "On the road" och de andra skälen från placeringen ligger inte kvar när den är slut
   for (const n of uiRoot.querySelectorAll('.note.place')) n.remove();
 }
 // Rutan under pekaren för det som är i handen. Vapen: placeringsrutnätet. Hinder: vägens rutor.
 // 0.12.0 (H113): med punkten på marken (x, z) tas närmaste ruta som går om rutan under pekaren inte
 // gör det (src/sim/snap.js); ett tak under pekaren (roof) tas som det är.
-function spotFor(key, x = null, z = null, roofHit = false) {
+function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   if (placing?.kind === 'obstacle') {
     if (x != null) { const sn = snapObstacle(sim, x, z, placing.type); key = sn.key; }
     if (key == null || key < 0) return { key: -1, ok: false, reason: 'ingen gata' };
     const c = sim.route.cellCenter(key), check = checkObstacle(sim, key, placing.type);
     return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
   }
-  if (x != null && !roofHit) key = snapGun(sim, x, z, placing?.type, { move: placing?.move }).key;
+  // 0.12.1: pekaren på en byggnad: byggnadens bästa utsiktspunkt, eller taket med skälet (aldrig marken bakom)
+  if (rt && !rt.ok && rt.reason?.startsWith('brant')) {
+    const c = sim.place.center(rt.key);
+    return { key: rt.key, x: rt.x ?? c.x, z: rt.z ?? c.z, y: rt.y ?? 0, roof: true, ok: false, reason: rt.reason, steep: true };
+  }
+  if (rt) key = rt.key;
+  else if (x != null && !roofHit) key = snapGun(sim, x, z, placing?.type, { move: placing?.move }).key;
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
   const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
-  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason };
+  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
 }
 function placeHere(p) {
-  const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof) : spotFor(p);
+  const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : spotFor(p);
   const key = sp.key;
   if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
@@ -293,6 +305,8 @@ function placementUi() {
   if (placing) {
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
     const r = weaponStats(placing.type, 1, sim.research).range;
+    // 0.12.1: ett tak utan utsiktspunkt: spöket i rött på taket, ingen sikt
+    if (spot.steep) return { ghost: { type: placing.type, x: spot.x, y: spot.y, z: spot.z, roof: true, ok: false }, cover: null, range: null };
     return {
       ghost: { type: placing.type, x: spot.x, y: spot.y, z: spot.z, roof: spot.roof, ok: spot.ok, ...(hasCone() ? { facing: aimFacing(), cone: WEAPONS[placing.type].cone, r } : {}) },
       range: hasCone() ? null : { x: spot.x, z: spot.z, r },
@@ -330,6 +344,14 @@ function flashTip(text) { tipFlash = { text, until: performance.now() + 1800 }; 
 function updateGhostTip() {
   const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
   const show = !!flash || (placing && spot && !spot.ok);
+  const where = placing && placing.kind === 'gun' && WEAPONS[placing.type]?.roof && spot && spot.key >= 0;
+  ghostWhere.hidden = !where;
+  if (where) {
+    const t = spot.roof ? (spot.snapped ? `ROOF · ${spot.perch === 2 ? 'ridge by the chimney' : 'flat part'}` : 'ROOF') : 'GROUND';
+    if (ghostWhere.textContent !== t) ghostWhere.textContent = t;
+    ghostWhere.classList.toggle('roof', !!spot.roof);
+    ghostWhere.style.left = pointer.x + 'px'; ghostWhere.style.top = pointer.y + 'px';
+  }
   ghostTip.hidden = !show;
   ghostTip.classList.toggle('flash', !!flash);
   if (!show) return;
@@ -339,7 +361,7 @@ function updateGhostTip() {
 }
 renderer.domElement.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; shiftHeld = e.shiftKey; });
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
-renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; spot = null; });
+renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; ghostWhere.hidden = true; spot = null; });
 renderer.domElement.addEventListener('contextmenu', e => { if (placing) { e.preventDefault(); stopPlacing(); } });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet,
 // och låter: ett klick när den gick igenom, en nekande ton när den inte gjorde det.
@@ -388,11 +410,32 @@ function roofUnder(ray) {
   }
   return null;
 }
+// 0.12.1: byggnaden strålen träffar först (husens höjd per ruta, src/data/gnesta.js height), för ett
+// vapen som får ligga på tak. { k, x, z, h }: rutan, punkten och höjden där strålen når taket.
+function buildingUnder(ray) {
+  const p = sim.place;
+  if (!ray || !p.height || !p.bldg || !WEAPONS[placing?.type]?.roof || ray.direction.y >= 0) return null;
+  for (let h = 16; h > 0.5; h -= 0.25) {
+    ray3.copy(ray.direction).multiplyScalar((h - ray.origin.y) / ray.direction.y).add(ray.origin);
+    const k = p.keyAt(ray3.x, ray3.z);
+    if (k >= 0 && p.kind[k] === KIND.house && p.height[k] >= h - 0.2) return { k, x: ray3.x, z: ray3.z, h };
+  }
+  return null;
+}
 // Med något i handen svarar bara marken (rutan under pekaren). Annars pjäserna och hindren som
 // står ute; en tom gata öppnar ingenting (köp sker från köpraden).
 const picker = createPicker(() => camera, renderer.domElement, () => (placing ? [] : view.rayTargets()), (x, z, ray) => {
   if (placing?.kind === 'obstacle') { const i = sim.route.cellAt(x, z); return { kind: 'spot', id: i == null || !sim.route.validCell(i) ? -1 : i, x, z }; }
-  if (placing) { const roof = roofUnder(ray); return { kind: 'spot', id: roof ?? sim.place.keyAt(x, z), x, z, roof: roof != null }; }
+  if (placing) {
+    // 0.12.1: en byggnad under pekaren ger byggnadens utsiktspunkt (snapRoof), inte marken bakom
+    const b = buildingUnder(ray);
+    if (b) {
+      const rt = snapRoof(sim, b.k, b.x, b.z, placing.type, { move: placing.move });
+      if (rt) return { kind: 'spot', id: rt.key, x: b.x, z: b.z, roof: true, rt: { ...rt, x: b.x, z: b.z, y: b.h } };
+    }
+    const roof = roofUnder(ray);
+    return { kind: 'spot', id: roof ?? sim.place.keyAt(x, z), x, z, roof: roof != null };
+  }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
 }, { ignoreClick: () => rig.takeDrag() });
@@ -403,7 +446,7 @@ picker.onPick(p => {
 });
 picker.onHover(p => {
   hovered = mode === 'play' ? p : null;
-  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id, p.x, p.z, p.roof) : null;
+  if (placing) spot = p?.kind === 'spot' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : null;
 });
 const bar = buildBar(uiRoot, actions);
 // 0.12.0 (H116): en öppen kategori i köpraden stängs av Esc eller ett klick utanför köpraden.
@@ -450,7 +493,7 @@ function updatePips() {
 // Speltestet av 0.11.0: barrikaden gick sönder tyst mitt i våg 3 och horden tog en annan väg. Nu har en
 // skadad spärr en liten stapel ovanför sig, "Barricade failing" när den har en fjärdedel kvar (med en
 // ping på minikartan), och när den går sönder står det så och den nya vägen blinkar.
-const FAILING = 0.25;
+const FAILING = BARRICADE_FAILING;
 let routeFlash = 0;
 const alerts = [];            // { x, z, until, kind } för minikartan
 const failingWarned = new Set();
@@ -458,29 +501,33 @@ const bars = document.createElement('div');
 bars.id = 'obbars';
 uiRoot.appendChild(bars);
 const barEls = new Map();
+// 0.12.1: stapeln visar spärrens svagaste ruta (där den går sönder), inte summan, som annars hoppade
+// upp när en ruta gått sönder. Varningen kommer som händelsen barricadeFailing från simuleringen.
 function blockLines() {
   const lines = new Map();
   for (const key of Object.keys(sim.obstacles)) {
     const o = sim.obstacles[key];
     if (o.type !== 'block') continue;
-    const id = o.line ?? 'c' + key, c = sim.route.cellCenter(Number(key));
-    if (!lines.has(id)) lines.set(id, { hp: 0, max: 0, x: 0, z: 0, n: 0 });
+    const id = barricadeId(o, key), c = sim.route.cellCenter(Number(key));
+    if (!lines.has(id)) lines.set(id, { frac: 1, x: 0, z: 0, n: 0 });
     const l = lines.get(id);
-    l.hp += Math.max(0, o.hp); l.max += o.maxHp; l.x += c.x; l.z += c.z; l.n++;
+    l.frac = Math.min(l.frac, Math.max(0, o.hp) / o.maxHp); l.x += c.x; l.z += c.z; l.n++;
   }
-  for (const l of lines.values()) { l.x /= l.n; l.z /= l.n; l.frac = l.hp / l.max; }
+  for (const l of lines.values()) { l.x /= l.n; l.z /= l.n; }
   return lines;
+}
+function barricadeFailing(ev) {
+  if (failingWarned.has(ev.id)) return;
+  failingWarned.add(ev.id);
+  note(uiRoot, 'Barricade failing', 'warn');
+  const c = sim.route.cellCenter(ev.cell);
+  alerts.push({ x: c.x, z: c.z, until: time + 8, kind: 'barricade' });
 }
 function updateBarricades(dt) {
   routeFlash = Math.max(0, routeFlash - dt);
   const lines = mode === 'play' ? blockLines() : new Map();
   for (const [id, el] of barEls) if (!lines.has(id) || lines.get(id).frac >= 0.999) { el.remove(); barEls.delete(id); }
   for (const [id, l] of lines) {
-    if (l.frac < FAILING && !failingWarned.has(id)) {
-      failingWarned.add(id);
-      note(uiRoot, 'Barricade failing', 'warn');
-      alerts.push({ x: l.x, z: l.z, until: time + 8, kind: 'barricade' });
-    }
     if (l.frac >= 0.999) continue;
     let el = barEls.get(id);
     if (!el) { el = document.createElement('div'); el.className = 'obbar'; el.innerHTML = '<i></i>'; bars.appendChild(el); barEls.set(id, el); }
@@ -493,7 +540,7 @@ function updateBarricades(dt) {
 }
 function barricadeBroken(ev) {
   // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
-  const id = ev.line ?? 'c' + ev.cell;
+  const id = ev.line != null ? 'l' + ev.line : 'c' + ev.cell;
   if (failingWarned.has('down:' + id)) return;
   failingWarned.add('down:' + id);
   note(uiRoot, 'Barricade down. They are taking another way.', 'warn');
@@ -526,6 +573,7 @@ function handleEvents() {
     }
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
     else if (ev.t === 'obstacleBroken' && ev.type === 'block') barricadeBroken(ev);
+    else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     else if (ev.t === 'dormantBurst') { alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); if (!ev.intel) note(uiRoot, 'Infected breaking out of a house!', 'warn'); }
     else if (ev.t === 'kill' && ev.bounty) {
       tmpV.set(ev.x, 2, ev.z).project(camera);
@@ -625,14 +673,24 @@ function findEntry() {
 addEventListener('resize', () => { entryAt = null; });
 function updateEntry() {
   if (mode !== 'play') { hud.entry(null); return; }
-  if (sim.route.kind === 'grid') { hud.entry(gridEntries()); return; }
+  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints()); return; }
   if (sim.phase !== 'wave') { hud.entry(null); return; }
   const alive = sim.zombies.filter(z => !z.dead);
   if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
   const seen = alive.some(z => { const p = zombiePos(sim, z); return onScreen(p.x, p.z, 10).in; });
   if (seen) { hud.entry(null); return; }
   entryAt = entryAt || findEntry();
-  hud.entry(entryAt);
+  hud.entry(entryAt, unitPoints());
+}
+// 0.12.1 (speltestet: "HORDE INCOMING" låg ovanpå en Ksp 90): pjäsernas och soldaternas punkter på
+// skärmen, så att etiketterna undviker dem (och tonas ned om de ändå hamnar över en).
+function unitPoints() {
+  const out = [];
+  for (const g of sim.guns) {
+    if (g.squad) for (const s of g.soldiers) { const p = toScreen(s.x, s.z); out.push({ x: p.sx, y: p.sy }); }
+    else { const p = toScreen(g.x, g.z); out.push({ x: p.sx, y: p.sy }); }
+  }
+  return out;
 }
 
 // Ingångarna som används nu (0.10.2, speltestet av 0.10.1: båda "They come from here" pekade österut
@@ -678,7 +736,9 @@ function comingBySpawn() {
     const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
     if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
   }
-  return new Map([...out].map(([id, m]) => [id, [...m]]));
+  // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
+  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
+  return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
 }
 // Gnesta: en etikett per ingång som används nu, på gatan (H091): på första punkten längs hordens väg
 // från ingången där etiketten ryms i bild utan att täcka gränssnittet (hud.js väljer bland
@@ -911,7 +971,7 @@ function updateHint() {
   if (!h) { hud.hint(null); return; }
   for (let i = h.steps.length - 1; i >= hintDone; i--) if (hintStepDone(h.steps[i])) { hintDone = i + 1; break; }
   if (hintDone >= h.steps.length) { hinting = false; progress = markHintSeen(progress, map.id); save(); hud.hint(null); return; }
-  hud.hint(hintDone, h.lines);
+  hud.hint(hintDone, h.lines, { compact: !!placing, pointer });
 }
 function finishDay() {
   const won = sim.phase === 'won';

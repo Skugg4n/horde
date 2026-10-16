@@ -365,6 +365,19 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #hint { position: fixed; top: 150px; left: 18px; padding: 10px 16px 10px 14px; }
 #hint ol { margin-left: 18px; font-size: 15px; letter-spacing: 0.03em; line-height: 1.6; }
 #hint li.done { color: var(--paper-dim); text-decoration: line-through; }
+/* 0.12.1: ihopfälld (bara steget som gäller nu) och undan när pekaren med något i handen står över den */
+#hint { transition: opacity 0.15s; }
+#hint .fold {
+  position: absolute; top: 3px; right: 4px; width: 18px; height: 18px; padding: 0; line-height: 16px; text-align: center;
+  font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper-dim); background: none; border: 1px solid rgba(233,223,201,0.25); border-radius: 2px; cursor: pointer;
+}
+#hint .fold:hover { color: var(--paper); border-color: rgba(233,223,201,0.6); }
+#hint { padding-right: 30px; }
+#hint.small { padding: 5px 30px 5px 10px; }
+#hint.small ol { font-size: 13px; line-height: 1.4; }
+#hint.small li:not(.now) { display: none; }
+#hint.dodge { opacity: 0.12; pointer-events: none; }
+.entry { transition: opacity 0.2s; }
 
 .note {
   position: fixed; top: 18px; left: 50%; transform: translateX(-50%); padding: 8px 14px;
@@ -547,3 +560,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   background: rgba(20, 40, 60, 0.85); border: 1.5px solid #8fc4e8; border-radius: 2px 2px 2px 0; }
 .pip::after { content: ''; position: absolute; left: -1.5px; top: 100%; width: 1.5px; height: 7px; background: #8fc4e8; }
 .pip:hover, .pip.sel { background: #8fc4e8; }
+/* 0.12.1: ROOF eller GROUND vid pekaren för Psg 90 (ovanför pekaren, skälet står under) */
+#ghostwhere {
+  position: fixed; transform: translate(14px, -34px); padding: 2px 8px; pointer-events: none; white-space: nowrap;
+  font: 600 11px 'IBM Plex Mono', monospace; letter-spacing: 0.12em; color: #c9d2c0;
+}
+#ghostwhere.roof { color: #f0d7a8; border-color: #c8642a; }
+#ghostwhere[hidden] { display: none; }
+/* 0.12.1: en etikett som ändå ligger över en pjäs tonas ned, så att pjäsen syns */
+.entry.over { opacity: 0.32; }

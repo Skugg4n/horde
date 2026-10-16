@@ -53,3 +53,48 @@ export function snapObstacle(sim, x, z, type) {
   }
   return fallback ?? { key: -1, ok: false, reason: 'ingen gata' };
 }
+
+// 0.12.1 (speltestet av 0.12.0: Psg 90 siktad på ishallens tak hamnade på marken bakom hallen): när
+// pekaren står på en byggnad (hit: husrutan strålen träffar, x/z punkten på taket) tas byggnadens
+// bästa utsiktspunkt: närmast pekaren av byggnadens perch-rutor som går. Går ingen svarar den ändå med
+// taket (aldrig marken bakom), med skälet: 'brant' / 'brant-skorsten' när byggnaden saknar
+// utsiktspunkt, annars skälet för närmaste utsiktspunkt ("Too close to another gun"). Rent.
+// Svar: { key, ok, reason, roof: true, snapped, perch } eller null när hit inte är en byggnad.
+const roofCells = new WeakMap();
+function perchCellsOf(p, bid) {
+  let m = roofCells.get(p);
+  if (!m) {
+    m = new Map();
+    for (let k = 0; k < p.n; k++) if (p.bldg?.[k] && p.roof?.[k] > 0) { const b = p.bldg[k]; if (!m.has(b)) m.set(b, []); m.get(b).push(k); }
+    roofCells.set(p, m);
+  }
+  return m.get(bid) ?? [];
+}
+// Byggnaden i rutan, eller i en grannruta (marginalen runt huset har ingen byggnad).
+export function buildingAt(p, key) {
+  if (!p.bldg || !p.valid(key)) return 0;
+  if (p.bldg[key]) return p.bldg[key];
+  const i = key % p.w, j = Math.floor(key / p.w);
+  for (let r = 1; r <= 2; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+    const ii = i + di, jj = j + dj;
+    if (ii < 0 || jj < 0 || ii >= p.w || jj >= p.h) continue;
+    const b = p.bldg[jj * p.w + ii];
+    if (b) return b;
+  }
+  return 0;
+}
+export function snapRoof(sim, hit, x, z, type, { move = null } = {}) {
+  const p = sim.place, bid = buildingAt(p, hit);
+  if (!bid) return null;
+  const check = k => (move ? checkMove(sim, move, k) : checkSpot(sim, k, type));
+  const cells = perchCellsOf(p, bid).map(k => { const c = p.center(k); return { k, d: Math.hypot(c.x - x, c.z - z) }; })
+    .sort((a, b) => a.d - b.d || a.k - b.k);
+  for (const { k } of cells) {
+    const c = check(k);
+    if (c.ok) return { key: k, ok: true, roof: true, snapped: k !== hit, perch: p.perch?.[k] ?? 1 };
+    if (['fel läge', 'fullt', 'pengar', 'flyttar'].includes(c.reason)) return { key: k, ...c, roof: true, snapped: k !== hit, perch: p.perch?.[k] ?? 1 };
+  }
+  if (cells.length) return { key: cells[0].k, ...check(cells[0].k), roof: true, snapped: cells[0].k !== hit, perch: p.perch?.[cells[0].k] ?? 1 };
+  const at = p.perchAt?.(x, z);
+  return { key: hit, ok: false, reason: at?.chimney ? 'brant-skorsten' : 'brant', roof: true, snapped: false, perch: 0 };
+}

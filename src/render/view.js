@@ -95,7 +95,8 @@ export function createView(scene, initialSim) {
   // Längst ut (0.11.0, zoomen tillbaka till 84 m som i 0.4): levande zombier ritas upp till 30 % större
   // (bara bild), från vy 56 m och utåt. main.js sätter vyns höjd varje bildruta.
   let zoomBoost = 1;
-  function setZoom(view) { zoomBoost = 1 + 0.3 * Math.min(1, Math.max(0, (view - 56) / 28)); }
+  let viewH = 40;
+  function setZoom(view) { viewH = view; zoomBoost = 1 + 0.3 * Math.min(1, Math.max(0, (view - 56) / 28)); }
   function syncZombies(dt) {
     const k = 1 - Math.exp(-dt * 22);
     rings.begin();
@@ -557,8 +558,10 @@ export function createView(scene, initialSim) {
   range.visible = false;
   scene.add(selRing, range);
   // 0.12.0 (H108): prickskyttens sektor, en kil på marken (i handen och när pjäsen är vald)
-  const sectorM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.16, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
-  const sectorEdgeM = new THREE.LineBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.8, depthTest: false });
+  // 0.12.1 (speltestet: "konen ritas ovanpå hustaken, jag ser inte vad den täcker"): kilen ligger på
+  // marken med djuptest, så att husen och taken skymmer den som allt annat på marken.
+  const sectorM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const sectorEdgeM = new THREE.LineBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.85 });
   const sector = new THREE.Group();
   let sectorKey = '';
   sector.visible = false; sector.renderOrder = 7;
@@ -579,8 +582,8 @@ export function createView(scene, initialSim) {
       pts.push(new THREE.Vector3(0, 0, 0));
       const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), sectorEdgeM); ln.renderOrder = 7; sector.add(ln);
     }
-    // kilen ligger i marknivå (på taket: lite ovanför taket), vriden mot facing (atan2(dz, dx))
-    sector.position.set(s.x, (s.y ?? 0) + 0.12, s.z);
+    // kilen ligger på marken (också när skytten ligger på ett tak), vriden mot facing (atan2(dz, dx))
+    sector.position.set(s.x, 0.09, s.z);
     sector.rotation.y = -s.facing;
     const bad = s.ok === false;
     sectorM.color.set(bad ? PALETTE.rust : PALETTE.paper); sectorEdgeM.color.set(bad ? PALETTE.rust : PALETTE.paper);
@@ -843,7 +846,7 @@ export function createView(scene, initialSim) {
     syncSector();
     syncOcclusion(dt);
     syncBase(dt);
-    dormant.update(dt);
+    dormant.update(dt, viewH);
     fx.update(dt);
   }
 
