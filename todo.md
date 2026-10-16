@@ -191,11 +191,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H173 | ux | Lookbook och gnesta.html visar inte skrotbilarna; lägg till dem.
 
 ## Efter speltest 0.14.1 (2026-10-16)
-- [ ] H160 | ux | Refill-köp krymper kortet så nästa klick missar; stabil layout i förrådet.
-- [ ] H161 | ux | "VICTORY" står bredvid "has fallen silent"; läses tvetydigt.
-- [ ] H162 | grafik | Civila och gula romber för små; "Civilian lost"-markör syns inte; ishallen ej i bild vid start på Gnesta dag 1.
-- [ ] H163 | balans | E4 dag 2 svänger för mycket (basen 17 till 0 på sekunder vs full bas med två uppgraderingar). Dag 3 våg 3: 82 fiender och $1 042 oanvända.
-- [ ] H164 | ux | "Outside arc"-flaggan är liten.
-- [ ] H165 | bugg | Minikartan visar förra försökets pjäser.
-- [ ] H166 | ux | Gnesta: ungefär hälften av placeringarna nekas (väg, hus, skog). Värst kvar. Tydligare var man FÅR stå (ljus markering av giltiga ytor när man håller en enhet).
-- [ ] H167 | grafik | De frivilliga syns knappt.
+- [ ] H174 | ux | Refill-köp krymper kortet så nästa klick missar; stabil layout i förrådet.
+- [ ] H175 | ux | "VICTORY" står bredvid "has fallen silent"; läses tvetydigt.
+- [ ] H176 | grafik | Civila och gula romber för små; "Civilian lost"-markör syns inte; ishallen ej i bild vid start på Gnesta dag 1.
+- [ ] H177 | balans | E4 dag 2 svänger för mycket (basen 17 till 0 på sekunder vs full bas med två uppgraderingar). Dag 3 våg 3: 82 fiender och $1 042 oanvända.
+- [ ] H178 | ux | "Outside arc"-flaggan är liten.
+- [ ] H179 | bugg | Minikartan visar förra försökets pjäser.
+- [ ] H180 | ux | Gnesta: ungefär hälften av placeringarna nekas (väg, hus, skog). Värst kvar. Tydligare var man FÅR stå (ljus markering av giltiga ytor när man håller en enhet).
+- [ ] H181 | grafik | De frivilliga syns knappt.
