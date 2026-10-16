@@ -817,6 +817,13 @@ function damage(sim, z, amount, p) {
   }
 }
 
+// 0.12.1 (speltestet av 0.12.0: varken stapeln eller "Barricade failing" syntes): en spärr varnar en gång
+// när dess svagaste ruta har mindre än BARRICADE_FAILING av sina slag kvar (förut räknades hela spärrens
+// summa, och när första rutan gick sönder hoppade summan upp igen, så varningen kom aldrig). Händelsen
+// barricadeFailing { line, cell } kommer från simuleringen, så att den går att pröva.
+export const BARRICADE_FAILING = 0.25;
+// Spärrens id (samma för alla rutor i en spärr tvärs över gatan, annars rutan).
+export const barricadeId = (ob, cell) => (ob.line != null ? 'l' + ob.line : 'c' + cell);
 // Hinder på vägen, nycklade på rutans nyckel. Returnerar multiplikatorn för zombiens fart denna
 // frame. hitCells: rutor som redan fått en obstacleHit under detta steg. Ett sönderslaget hinder
 // gör att rutten räknas om (rutnätet väljer då vägen genom luckan).
@@ -838,7 +845,17 @@ function obstacleEffect(sim, z, dt, hitCells) {
       mul = 0; if (c.crosses) route.stopAt(z, i); z.attacking = true;
       ob.hp -= def.hitDamage * dt;
       if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
-      if (ob.hp <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}) }); }
+      if (ob.hp > 0 && ob.hp < ob.maxHp * BARRICADE_FAILING) {
+        const id = barricadeId(ob, i);
+        sim.failing ??= [];
+        if (!sim.failing.includes(id)) { sim.failing.push(id); sim.events.push({ t: 'barricadeFailing', id, cell: i, ...(ob.line != null ? { line: ob.line } : {}) }); }
+      }
+      if (ob.hp <= 0) {
+        delete sim.obstacles[i]; broke = true;
+        // en ny spärr i samma ruta (E4) ska kunna varna igen; en spärr tvärs över gatan får ett nytt id
+        if (ob.line == null && sim.failing) sim.failing = sim.failing.filter(x => x !== 'c' + i);
+        sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}) });
+      }
     }
   }
   if (broke) route.rebuild(sim.obstacles);
