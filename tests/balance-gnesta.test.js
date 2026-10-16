@@ -120,3 +120,23 @@ test('Psg 90 på taken: planen väljer tak som ser den tvingade vägen, policyn 
   // utan tak (E4) blir planen tom
   assert.deepEqual(roofPlan(MAPS.riksvagen, placementFor(MAPS.riksvagen).walkKeys).spots, []);
 });
+
+test('Hemvärnet med forskningen (1.0.0, H054) är ett riktigt val på Gnesta dag 4, inte bättre än pjäserna', async () => {
+  const { HV_POLICY } = await import('../scripts/balance.mjs');
+  const HV = ['hvRifles.1', 'hvRifles.2', 'hvRifles.3', 'hvSquad.1', 'hvSquad.2', 'hvVeterans.1'];
+  const saved = HV_POLICY.gnesta;
+  try {
+    HV_POLICY.gnesta = { days: [4], gap: [] };       // en grupp direkt dag 4, före fler pjäser
+    let withRes = 0, without = 0, plain = 0;
+    logs.forEach((log, i) => {
+      const before = tries(log, 4)[0].before;
+      const a = playGnestaDay({ ...before, research: [...before.research, ...HV] }, 4, 'smart', { seedOffset: SEEDS[i] });
+      const b = playGnestaDay(before, 4, 'smart', { seedOffset: SEEDS[i] });
+      assert.equal(a.won, true, `seed ${i}: gruppen med forskning håller dag 4`);
+      withRes += a.baseHp; without += b.won ? b.baseHp : 0;
+      plain += winner(log, 4).baseHp;
+    });
+    assert.ok(withRes > without, `forskningen gör gruppen bättre: ${withRes} mot ${without}`);
+    assert.ok(withRes <= plain, `men inte bättre än en pjäs till: ${withRes} mot ${plain}`);
+  } finally { HV_POLICY.gnesta = saved; }
+});
