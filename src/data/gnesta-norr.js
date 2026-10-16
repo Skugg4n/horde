@@ -578,6 +578,8 @@ export const gnestaNorr = {
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   rows: ROWS, parkingLots: PARKING_LOTS, yards: YARDS, forskolaYard: FORSKOLA_YARD, clearings: CLEARINGS,
   grid: townGrid(NORR_TOWN),
+  // 0.12.1: fem pjäser från början (var fyra), Hemvärnet räknas inte med (src/sim/stats.js maxGuns).
+  guns: 5,
   baseHp: 20, days: DAYS,
   // 0.10.1: dörrarna släpper in en zombie per 3,2 s (src/sim/sim.js, doorBreak)
   door: { gap: 3.2 },

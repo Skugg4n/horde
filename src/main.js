@@ -16,7 +16,7 @@ import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
 import { loadProgress, saveProgress } from './meta/save.js';
-import { createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
+import { gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle } from './sim/snap.js';
 import { pointAt } from './sim/path.js';
@@ -424,11 +424,11 @@ const pipEls = new Map();
 // tagna och kassan räcker till en uppgradering säger spelet det en gång per dag.
 let spareTold = false;
 function updateSpare() {
-  if (mode !== 'play' || spareTold || sim.phase !== 'wave' || sim.guns.length < sim.maxGuns) return;
+  if (mode !== 'play' || spareTold || sim.phase !== 'wave' || gunCount(sim) < sim.maxGuns) return;
   const cheapest = Math.min(...sim.guns.map(g => upgradeCost(g.weapon.type, g.weapon.level) ?? Infinity));
   if (sim.cash < cheapest) return;
   spareTold = true;
-  note(uiRoot, 'Cash to spare: click a gun and Upgrade (U), or Move it where the horde is.');
+  note(uiRoot, 'Cash to spare: point at a gun and press U to upgrade it, or Move it where the horde is.');
 }
 function updatePips() {
   const occ = mode === 'play' && !placing ? view.occluded : new Map();
@@ -796,10 +796,16 @@ addEventListener('keydown', e => {
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
-  // 0.12.0 (H118): U uppgraderar den valda pjäsen (pengar mitt i vågen ska gå att använda snabbt)
-  if (e.code === 'KeyU' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && selected?.kind === 'gun') {
-    const r = actions.upgrade(selected.id);
-    if (!r.ok) flashTip(reasonText(r.reason));
+  // 0.12.0 (H118): U uppgraderar den valda pjäsen (pengar mitt i vågen ska gå att använda snabbt).
+  // 0.12.1 (speltestet: överskottet gick bara att lägga en pjäs i taget med klick och U): U tar pjäsen
+  // under pekaren utan att panelen öppnas, annars den valda. Svaret står vid pekaren.
+  if (e.code === 'KeyU' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing) {
+    const id = hovered?.kind === 'gun' ? hovered.id : selected?.kind === 'gun' ? selected.id : null;
+    if (id != null) {
+      const r = actions.upgrade(id);
+      const g = sim.guns.find(x => x.id === id);
+      flashTip(r.ok ? `${WEAPONS[g.weapon.type].short ?? WEAPONS[g.weapon.type].name} level ${g.weapon.level}` : reasonText(r.reason));
+    }
   }
   if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') {
     minimap.toggle();

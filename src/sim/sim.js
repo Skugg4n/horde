@@ -3,7 +3,7 @@ import { WEAPONS, GRENADE_KIT, PIERCE_WIDTH } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
-import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, MAX_LEVEL } from './stats.js';
+import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, maxSquads, MAX_LEVEL } from './stats.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
 import { emplacement } from './emplace.js';
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight } from './squad.js';
@@ -37,7 +37,7 @@ export function createSim({ map, day, cash, research = [], seed = 1 }) {
     baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed),
     research: res, nextId: 1, spawnQueue: [], route, len: route.len,
     // Utställda vapen: { id, x, z, cell, weapon, sight }. sight: synliga gångbara rutor (mask och lista).
-    place: placementFor(map), guns: [], nextGun: 1, maxGuns: maxGuns(res),
+    place: placementFor(map), guns: [], nextGun: 1, maxGuns: maxGuns(res, map), maxSquads: maxSquads(res),
     obstacles: {}, grenades: [], nextLine: 1,
     // husen vars dörrar slagits upp i dag (vilande smittade, H101)
     burst: [],
@@ -344,11 +344,15 @@ const gunOf = (sim, id) => sim.guns.find(g => g.id === id);
 // Går det att ställa ett vapen i rutan key? Skälen i ordning: dagen slut, fullt, utanför
 // kartan, rutans innehåll (gata, hus, skog ...), för nära ett annat vapen. type: vapnet som ska
 // stå där. Ett vapen med roof (Psg 90) får också stå på ett hustak (en husruta med takhöjd).
+// 0.12.1: pjäserna och Hemvärnets grupper har var sitt tak (maxGuns, maxSquads).
+export const gunCount = sim => sim.guns.filter(g => !g.squad).length;
+export const squadCount = sim => sim.guns.filter(g => g.squad).length;
+export const capFull = (sim, type) => (isSquad(type) ? squadCount(sim) >= sim.maxSquads : gunCount(sim) >= sim.maxGuns);
 export const onRoof = (sim, key, type) => !!WEAPONS[type]?.roof && sim.place.kind[key] === KIND.house && roofAt(sim.place, key) > 0;
 // ignore (0.12.0, Move): pjäsen som flyttas räknas inte (varken mot taket eller avståndet).
 export function checkSpot(sim, key, type = null, { ignore = null } = {}) {
   if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
-  if (ignore == null && sim.guns.length >= sim.maxGuns) return { ok: false, reason: 'fullt' };
+  if (ignore == null && capFull(sim, type)) return { ok: false, reason: isSquad(type) ? 'fulltHv' : 'fullt' };
   if (ignore != null) return without(sim, ignore, () => checkSpot(sim, key, type));
   const p = sim.place;
   if (!p.valid(key)) return { ok: false, reason: 'utanför' };

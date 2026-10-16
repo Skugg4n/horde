@@ -6,7 +6,7 @@
 // levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
 // högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
 import { fileURLToPath } from 'node:url';
-import { createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
+import { gunCount, squadCount, createSim, startWave, step, build, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
@@ -94,7 +94,7 @@ export const e4Plan = () => coveragePlan(MAPS.riksvagen, placementFor(MAPS.riksv
 
 // Bygger nästa planerade plats som är ledig. Returnerar true om något byggdes.
 function buildNext(sim, spots, type) {
-  if (sim.guns.length >= maxGuns(sim.research)) return false;
+  if (gunCount(sim) >= sim.maxGuns) return false;
   for (const k of spots) {
     if (sim.guns.some(g => g.cell === k)) continue;
     const r = build(sim, k, type);
@@ -124,7 +124,7 @@ export const HV_POLICY = { riksvagen: { days: [1], gap: [] }, gnesta: { days: []
 function buySquad(sim, spots, { gap = false } = {}) {
   const pol = sim.hvPolicy ?? HV_POLICY[sim.map.id] ?? { days: [], gap: [] };
   if (gap ? !pol.gap.includes(sim.day) || sim.waveIndex < 1 : !pol.days.includes(sim.day)) return;
-  if (!weaponUnlocked('hv', sim.research, sim.map) || sim.guns.length >= sim.maxGuns) return;
+  if (!weaponUnlocked('hv', sim.research, sim.map) || squadCount(sim) >= sim.maxSquads) return;
   if (sim.guns.filter(g => g.squad).length >= HV_PER_DAY) return;
   if (sim.cash < WEAPONS.hv.cost) return 'saving';
   for (const k of spots) {
@@ -474,7 +474,7 @@ function gnestaBuild(sim, plan, maxKits, maxRoofs = GN_ROOFS) {
     }
   }
   if (!saving && weaponUnlocked('ak5', sim.research, sim.map) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) {
-    if (!buildNext(sim, plan.guns, 'ak5') && sim.cash < WEAPONS.ak5.cost && sim.guns.length < sim.maxGuns) saving = true;
+    if (!buildNext(sim, plan.guns, 'ak5') && sim.cash < WEAPONS.ak5.cost && gunCount(sim) < sim.maxGuns) saving = true;
   }
   // Hemvärnet fyller en lucka: när en position står tom efter första vågen och planen inte har
   // fler platser för pjäser köps en grupp på en egen plats, och policyn sparar till den (före
@@ -542,7 +542,7 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
     if (g) buyKit(sim, g.id);
   }
   // Fler pjäser före uppgraderingar: så länge en plats i planen är ledig sparas pengarna till nästa.
-  const freeSpot = sim.guns.length < sim.maxGuns && plan.guns.some(k => !sim.guns.some(g => g.cell === k) && checkSpot(sim, k, 'm249').ok);
+  const freeSpot = gunCount(sim) < sim.maxGuns && plan.guns.some(k => !sim.guns.some(g => g.cell === k) && checkSpot(sim, k, 'm249').ok);
   if (!freeSpot) upgradeAll(sim);
 }
 

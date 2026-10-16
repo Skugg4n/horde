@@ -70,3 +70,33 @@ test('fullt: alla positioner upptagna', () => {
   assert.equal(buyState(sim, 'm249').state, 'full');
   assert.equal(buyState(sim, 'wire').state, 'ok', 'hinder räknas inte mot positionerna');
 });
+
+// 0.12.1 (speltestet av 0.12.0: 5 av 5 platser med $ 900 över): Hemvärnet räknas inte mot pjäserna och
+// har ett eget tak (två grupper, More squads höjer). Gnesta South och North har fem pjäser från början.
+test('Hemvärnet har eget tak och räknas inte mot pjäsernas platser', async () => {
+  const { gunCount, squadCount } = await import('../src/sim/sim.js');
+  const sim = e4({ cash: 1e5 });
+  assert.equal(sim.maxGuns, 4);
+  assert.equal(sim.maxSquads, 2);
+  const open = [];
+  for (let k = 0; k < sim.place.n; k++) if (sim.place.kind[k] === 0) open.push(k);
+  let i = 0;
+  const put = type => { for (; i < open.length; i++) if (build(sim, open[i], type).ok) return true; return false; };
+  assert.ok(put('hv') && put('hv'));
+  assert.equal(buyState(sim, 'hv').state, 'full', 'två grupper är taket');
+  assert.equal(buyState(sim, 'm249').state, 'ok', 'grupperna tar inga pjäsplatser');
+  for (let n = 0; n < 4; n++) assert.ok(put('m249'));
+  assert.equal(gunCount(sim), 4);
+  assert.equal(squadCount(sim), 2);
+  assert.equal(buyState(sim, 'm249').state, 'full');
+  const more = e4({ cash: 1e5, research: ['hvRifles.1', 'hvPlatoon.1'] });
+  assert.equal(more.maxSquads, 3);
+});
+
+test('Gnesta South och North: fem pjäser från början, More positions ger en till', () => {
+  for (const map of [MAPS.gnesta, MAPS['gnesta-norr']]) {
+    assert.equal(createSim({ map, day: 1, cash: 0, research: [], seed: 1 }).maxGuns, 5, map.id);
+    assert.equal(createSim({ map, day: 1, cash: 0, research: ['m2.1', 'positions.1'], seed: 1 }).maxGuns, 6, map.id);
+  }
+  assert.equal(createSim({ map: MAPS.riksvagen, day: 1, cash: 0, research: ['m2.1', 'positions.1'], seed: 1 }).maxGuns, 5);
+});

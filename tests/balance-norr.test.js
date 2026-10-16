@@ -122,14 +122,17 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // 0.12.0: bytt avsiktligt. Vilande smittade i en villa på Vikingavägen dag 1 (H101), öppningen ur diset
 // (H115), smart flyttar öppningens Ksp 90 i stället för att sälja den (H102), sikten med höjd och Psg 90
 // med sektor (H106-H108), hp 2,8 / 3,1 / 4,05 / 4,1 / 5,45. Se docs/balance-log.md, 0.12.0.
-const BEFORE = { hash: '3d553082', length: 66951 };
+// 0.12.1: bytt avsiktligt. Fem pjäser från början (var fyra) och Hemvärnet utanför pjäsernas tak (eget
+// tak, två grupper), efter speltestet av 0.12.0 (5 av 5 platser och $ 900 över). Inga hp ändrade.
+// Se docs/balance-log.md, 0.12.1.
+const BEFORE = { hash: '4d717aee', length: 60032 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.12.0', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.12.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;

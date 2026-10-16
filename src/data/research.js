@@ -31,10 +31,11 @@ export const RESEARCH = [
   // Hette 'slot4' (New position) före 0.5.0; en gammal sparfils slot4 blir positions.1.
   { id: 'positions', name: 'More positions', tiers: [
     // 0.10.2: "5 in all" lästes som en bana; antalet gäller alla banor (src/sim/stats.js maxGuns).
-    { cost: 80, requires: ['m2.1'], effect: 'One more gun on every map: 5 instead of 4.', guns: 5 },
-    { cost: 140, requires: [], effect: 'One more gun on every map: 6 instead of 5.', guns: 6 },
-    { cost: 220, requires: [], effect: 'One more gun on every map: 7 instead of 6.', guns: 7 },
-    { cost: 320, requires: ['psg90.1'], effect: 'One more gun on every map: 8 instead of 7.', guns: 8 },
+    // 0.12.1: banorna har olika många från början (E4 4, Gnesta 5), så varje nivå är en till (guns: 1).
+    { cost: 80, requires: ['m2.1'], effect: 'One more gun position on every map.', guns: 1 },
+    { cost: 140, requires: [], effect: 'One more gun position on every map (two in all).', guns: 1 },
+    { cost: 220, requires: [], effect: 'One more gun position on every map (three in all).', guns: 1 },
+    { cost: 320, requires: ['psg90.1'], effect: 'One more gun position on every map (four in all).', guns: 1 },
   ] },
   { id: 'grenade', name: 'Grenades', tiers: [
     { cost: 60, requires: [], effect: 'Grenade kit for one gun. It throws when they bunch up: 75 damage, 3 m radius.', damage: 75, radius: 3, cooldown: 10, count: 1 },
@@ -72,6 +73,11 @@ export const RESEARCH = [
   { id: 'hvSquad', name: 'Bigger squad', tiers: [
     { cost: 120, requires: ['hvRifles.1'], effect: 'One more rifleman in every Hemvärnet squad.', men: 1 },
     { cost: 200, requires: [], effect: 'Two more riflemen in every Hemvärnet squad.', men: 2 },
+  ] },
+  // 0.12.1: Hemvärnet har ett eget tak (två grupper) och räknas inte mot pjäserna (src/sim/stats.js maxSquads).
+  { id: 'hvPlatoon', name: 'More squads', tiers: [
+    { cost: 90, requires: ['hvRifles.1'], effect: 'One more Hemvärnet squad on every map: 3 instead of 2.', squads: 3 },
+    { cost: 150, requires: [], effect: 'One more Hemvärnet squad on every map: 4 instead of 3.', squads: 4 },
   ] },
   { id: 'hvVeterans', name: 'Hemvärnet veterans', tiers: [
     { cost: 100, requires: ['hvSquad.1'], effect: 'Riflemen take 50 % more before they go down.', hp: 1.5 },

@@ -889,6 +889,8 @@ export const gnesta = {
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   grid: buildGrid(),
+  // 0.12.1: fem pjäser från början (var fyra), Hemvärnet räknas inte med (src/sim/stats.js maxGuns).
+  guns: 5,
   baseHp: 20, days: DAYS,
   // 0.10.1: dörrarna släpper in en zombie per 3,2 s (src/sim/sim.js, doorBreak)
   door: { gap: 3.2 },

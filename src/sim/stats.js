@@ -21,10 +21,18 @@ export function tierData(research, node) {
   return t ? researchNode(node).tiers[t - 1] : null;
 }
 
-// Hur många vapen som får stå ute: fyra, eller nivåns antal i More positions (guns, en per nivå).
+// Hur många pjäser som får stå ute: banans antal (map.guns, annars fyra) plus en per nivå i More positions.
+// 0.12.1 (speltestet av 0.12.0: 5 av 5 platser och $ 900 till $ 1 150 som inte gick att använda):
+// Gnesta South och North har fem från början, och Hemvärnet räknas inte längre mot pjäserna utan har
+// ett eget tak (maxSquads). Taggtråd och barrikader har inget tak.
 export const BASE_GUNS = 4;
-export function maxGuns(research) {
-  return tierData(research, 'positions')?.guns ?? BASE_GUNS;
+export function maxGuns(research, map = null) {
+  return (map?.guns ?? BASE_GUNS) + tierOf(research, 'positions');
+}
+// Hemvärnsgrupper ute samtidigt: två, eller nivåns antal i More squads.
+export const BASE_SQUADS = 2;
+export function maxSquads(research) {
+  return tierData(research, 'hvPlatoon')?.squads ?? BASE_SQUADS;
 }
 
 // map.unlocks: vapen och hinder som banan ger utan forskning (Gnesta lär ut barrikaden dag 1).

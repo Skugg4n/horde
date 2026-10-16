@@ -4,7 +4,7 @@ import { RESEARCH } from '../src/data/research.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { MAPS } from '../src/data/maps.js';
-import { BASE_GUNS, maxGuns } from '../src/sim/stats.js';
+import { BASE_GUNS, BASE_SQUADS, maxGuns } from '../src/sim/stats.js';
 import { squadSize } from '../src/sim/squad.js';
 
 // 0.10.2 (speltestet av 0.10.1: "More positions" och "Ksp 88" sade emot spelet): varje nivås text
@@ -33,11 +33,15 @@ for (const node of RESEARCH) {
       if (t.gCooldown != null) assert.ok(e.includes(`${t.gCooldown} seconds`), at);
       if (t.pierce != null) assert.ok(e.includes(`pierces ${word(t.pierce)}`), at);
       if (t.men != null) assert.ok(e.toLowerCase().startsWith(`${word(t.men)} more`), at);
+      // 0.12.1: banorna har olika många platser från början, så varje nivå säger "one more"
       if (node.id === 'positions') {
-        const have = maxGuns(node.tiers.slice(0, i + 1).map((_, j) => `positions.${j + 1}`));
-        assert.equal(t.guns, have, at);
-        assert.ok(e.includes(`${have} instead of ${i ? node.tiers[i - 1].guns : BASE_GUNS}`), at);
+        const res = node.tiers.slice(0, i + 1).map((_, j) => `positions.${j + 1}`);
+        assert.equal(maxGuns(res), BASE_GUNS + i + 1, at);
+        for (const m of Object.values(MAPS)) assert.equal(maxGuns(res, m), (m.guns ?? BASE_GUNS) + i + 1, at);
+        assert.match(e, /^One more gun position on every map/, at);
+        if (i) assert.ok(e.includes(`(${word(i + 1)} in all)`), at);
       }
+      if (t.squads != null) assert.ok(e.includes(`${t.squads} instead of ${i ? node.tiers[i - 1].squads : BASE_SQUADS}`), at);
       // första nivån i en vapen- eller hindernod låser upp den, och säger det
       if (i === 0 && WEAPONS[node.id]) assert.match(e, /^New gun/, at);
       if (i === 0 && OBSTACLES[node.id]) assert.match(e, /^New obstacle/, at);

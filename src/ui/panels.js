@@ -13,7 +13,7 @@ import { SHOP, BUY_MENU, shopItem, hotkeyOf } from '../data/shop.js';
 import { buyState } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
-import { MOVE_TIME, movePhase } from '../sim/sim.js';
+import { MOVE_TIME, movePhase, gunCount } from '../sim/sim.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -22,7 +22,8 @@ const REASONS = {
   'hus': 'Inside a house',
   'kant': 'No vantage point: flat roof, ridge by a chimney, or a tall building',
   'nära': 'Too close to another gun',
-  'fullt': 'Max guns reached (research more)',
+  'fullt': 'All gun positions taken (research More positions)',
+  'fulltHv': 'All squads out (research More squads)',
   'skog': 'In the forest',
   'vatten': 'In the water',
   'hinder': 'Something in the way',
@@ -163,7 +164,7 @@ export function buildBar(root, actions) {
       el.classList.toggle('choosing', openCat != null);
       for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', armed && Number(gEl.dataset.cat) === openCat); }
     }
-    set(el.querySelector('[data-n]'), `${sim.guns.length} / ${sim.maxGuns}`);
+    set(el.querySelector('[data-n]'), `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
       const sk = st.state + ':' + st.need + ':' + (holding === id);
@@ -181,7 +182,7 @@ export function buildBar(root, actions) {
       } else {
         // för dyrt: beloppet som fattas syns på det lilla kortet också
         set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : money(st.cost));
-        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? 'All positions taken' : '');
+        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? (WEAPONS[id]?.squad ? 'All squads out' : 'All gun positions taken') : '');
       }
     }
   }
@@ -212,7 +213,7 @@ export function gunPanel(root, gunId, sim, actions) {
       : `<button type="button" class="act" data-a="kit"><span class="a">${GRENADE_KIT.name}</span><span class="p" data-p></span></button>`;
     ui.body.innerHTML = `${statLine(weaponStats(w.type, w.level, s.research))}
       <div class="acts">
-        <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>
         <button type="button" class="act" data-a="move" title="Pack up, carry and set up somewhere else. No fire while moving."><span class="a">Move</span><span class="p">${moveText(w.type)}</span></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
       </div>${movingRow(g)}${kitRow ? `<div class="acts kitrow">${kitRow}</div>` : ''}`;
@@ -262,7 +263,7 @@ export function gunPanel(root, gunId, sim, actions) {
     ui.body.innerHTML = `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Ak 4 <b>×${g.soldiers.length}</b></span></div>
       <ul class="men">${men}</ul>
       <div class="acts">
-        <button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span></button>
+        <button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>
         <button type="button" class="act" data-a="move" title="The squad runs to a new spot. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span></button>
         <button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>
       </div>${standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}`;

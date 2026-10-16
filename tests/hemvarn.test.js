@@ -55,6 +55,7 @@ test('skyddet: hörn, vägg, bil och öppet gräs känns igen', () => {
 test('valet är deterministiskt: samma bana och ruta ger samma grupp', () => {
   for (const map of [MAPS.riksvagen, gnesta]) {
     const a = createSim({ map, day: 1, cash: 9999, seed: 1 }), b = createSim({ map, day: 1, cash: 9999, seed: 7 });
+    a.maxSquads = b.maxSquads = 99;   // 0.12.1: eget tak för grupperna; provet vill se många
     const p = a.place;
     let n = 0;
     for (let k = 0; k < p.n && n < 6; k += 53) {
@@ -75,7 +76,7 @@ test('valet är deterministiskt: samma bana och ruta ger samma grupp', () => {
 test('gruppen sprider ut sig: minst 3 m mellan soldaterna, även mellan grupper och från pjäser', () => {
   for (const map of [MAPS.riksvagen, gnesta]) {
     const sim = createSim({ map, day: 1, cash: 1e6, seed: 1 });
-    sim.maxGuns = 99;
+    sim.maxGuns = 99; sim.maxSquads = 99;
     const p = sim.place;
     for (let k = 0; k < p.n; k += 11) if (p.kind[k] === KIND.open) build(sim, k, sim.guns.length % 3 ? 'hv' : 'm249');
     const all = sim.guns.filter(g => g.squad).flatMap(g => g.soldiers);

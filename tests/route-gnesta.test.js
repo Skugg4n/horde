@@ -36,7 +36,10 @@ import { logs, naives } from './gnesta-logs.js';
 // (första skottet inom 15 s), överraskningen dag 3 i våg 2. Sikten räknas med husens höjd för alla pjäser
 // (H107), Psg 90 bara på utsiktspunkter med en skjutsektor (H106, H108). Dag 2 hp 5,7 (var 5,9), dag 5
 // 4,0 (var 4,3). Se docs/balance-log.md, 0.12.0.
-const BEFORE = { hash: '94964f8b', length: 41808 };
+// 0.12.1: bytt avsiktligt. Fem pjäser från början (var fyra), More positions ger en till per nivå och
+// Hemvärnet räknas inte mot pjäserna (eget tak, två grupper), efter speltestet av 0.12.0 (5 av 5 platser
+// och $ 900 till $ 1 150 som inte gick att använda). Inga hp ändrade. Se docs/balance-log.md, 0.12.1.
+const BEFORE = { hash: 'eee09f27', length: 39187 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -46,6 +49,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.12.0', () => {
+test('Gnestas balanslogg är identisk med 0.12.1', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
