@@ -206,12 +206,18 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
         <span class="men">${u.men != null ? `${u.men} of ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}</span></div>
       <div class="ua">
         ${lc != null ? `<button type="button" class="mini ${p.rp < lc ? 'off' : ''}" data-a="lvl">Level ${ROMAN[u.level + 1]} <i>${rp(lc)}</i></button>` : '<span class="mini max">Max level</span>'}
-        ${rc ? `<button type="button" class="mini ${p.rp < rc ? 'off' : ''}" data-a="refill">Refill <i>${rp(rc)}</i></button>` : ''}
+        ${rc ? `<button type="button" class="mini ${p.rp < rc ? 'off' : ''}" data-a="refill">Refill <i>${rp(rc)}</i></button>` : u.men != null ? '<span class="mini max">Full</span>' : '<span class="mini gap"></span>'}
         ${canReturn(p, u.uid).ok ? `<button type="button" class="mini ${confirm?.uid === u.uid ? 'sel' : ''}" data-a="return" title="${u.granted && !u.spent ? 'Send it back to command. It was given, so no RP back.' : 'Back to the depot for about half of the RP spent on it'}">Return${returnValue(u) ? ` <i>+${returnValue(u)}</i>` : ''}</button>` : '<span class="mini max" title="The last unit here was given by command. Returning it would leave the sector empty with no RP back.">Last unit</span>'}
-        ${others.length ? `<select data-a="move"><option value="">Reassign…</option>${others.map(s => `<option value="${s}">${esc(MAPS[s].name)}</option>`).join('')}</select>` : ''}
-      </div></div>`;
+      </div>
+      ${others.length ? `<select data-a="move"><option value="">Reassign…</option>${others.map(s => `<option value="${s}">${esc(MAPS[s].name)}</option>`).join('')}</select>` : ''}</div>`;
   }
+  // 0.14.2 (speltestet av 0.14.1: "när Refill köps krymper kortet och mitt nästa klick hamnade fel"): varje
+  // enhetsrad har fast höjd och fasta platser för sina knappar (nivå, påfyllnad, tillbaka; omplaceringen uppe
+  // till höger), "Full" står kvar där Refill var, och varje kolumn behåller sin rullning när förrådet ritas om.
+  let scrollKey = null;
   function render() {
+    const keep = scrollKey === sector ? [...el.querySelectorAll('.cols section')].map(x => x.scrollTop) : null;
+    scrollKey = sector;
     const here = p.op.units.filter(u => u.sector === sector);
     const types = sector ? releasedTypes(p, sector) : [];
     const ups = upgradeList(p).filter(Boolean).filter(st => st.reason !== 'locked');
@@ -246,6 +252,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     el.querySelector('[data-a="deploy"]')?.addEventListener('click', () => handlers.onDeploy?.(sector));
     el.querySelector('[data-a="yes"]')?.addEventListener('click', () => act('return', confirm.uid));
     el.querySelector('[data-a="no"]')?.addEventListener('click', () => { confirm = null; render(); });
+    if (keep) [...el.querySelectorAll('.cols section')].forEach((x, i) => { x.scrollTop = keep[i] ?? 0; });
   }
   render();
   return { el, close: () => el.remove(), progress: () => p };

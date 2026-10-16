@@ -719,3 +719,15 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet .lead.story { font-size: 15px; color: var(--paper-dim); font-style: italic; border-top: 1px solid var(--plate-edge); padding-top: 10px; margin-top: 4px; }
 /* 0.14.1: "Volunteers" ryms på kortet */
 #buildbar .card .n.long { font-size: 9px; letter-spacing: -0.03em; }
+
+/* 0.14.2 (speltestet av 0.14.1): förrådets enhetsrader har fast höjd och fasta platser för knapparna, och
+   varje kolumn rullar för sig (förut rullade alla tre tillsammans och den femte enheten låg under kanten).
+   #ui button ärvde 16 px och tog över förrådets 12 px; nu gäller förrådets egen storlek. */
+.depot .cols { overflow: hidden; }
+.depot .cols section { height: 100%; overflow-y: auto; padding-right: 4px; }
+.depot .urow { position: relative; height: 86px; box-sizing: border-box; overflow: hidden; }
+.depot .ua { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 5px; }
+#ui .depot .mini, #ui .depot select { font: 500 13px Oswald, sans-serif; letter-spacing: 0.04em; }
+.depot .ua > .mini { min-width: 0; height: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; }
+.depot .urow > select { position: absolute; top: 7px; right: 9px; max-width: 42%; }
+.depot .mini.gap { visibility: hidden; }

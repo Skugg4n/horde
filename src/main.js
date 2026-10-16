@@ -1413,6 +1413,7 @@ if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, 
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; },
+  showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 
