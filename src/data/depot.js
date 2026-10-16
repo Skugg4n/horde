@@ -70,7 +70,7 @@ const NORTH_ALL = ['civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
 export const RELEASES = [
   // ---------- E4: arméns vägspärr ----------
   { id: 'e4-1', map: 'riksvagen', day: 1, from: 'FM',
-    text: 'We hold the E4 roadblock south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
+    text: 'We hold the E4 roadblock at the Lästringe off-ramp, south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
     grant: [{ type: 'inf' }, { type: 'm249', count: 2 }], unlock: ['inf', 'm249'], tiers: ['block.1'] },
   { id: 'e4-2', map: 'riksvagen', day: 2, from: 'FM',
     text: 'Engineers have welded an EPA pillbox at the roadblock. Runners reported on the E4.',
