@@ -286,6 +286,19 @@ export function grenadeModel() {
   return g;
 }
 
+// 0.10.2 (speltestet av 0.10.1: "skytten själv är svår att se"): skytten på taket ligger på en orange
+// signalduk, med en ljus ring runt som ritas ovanpå taket (ingen djuptest), så att platsen syns i
+// spelets zoom även på ett mörkt tak.
+const ROOF_RING = new THREE.MeshBasicMaterial({ color: 0xf0d7a8, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+const ROOF_RING_GEO = (() => { const g = new THREE.RingGeometry(1.35, 1.55, 28); g.rotateX(-Math.PI / 2); return g; })();
+function roofMarker(group) {
+  const tarp = box(1.9, 0.03, 1.3, mat(0xc8642a), -0.1, 0.02, 0);
+  tarp.receiveShadow = true; group.add(tarp);
+  const ring = new THREE.Mesh(ROOF_RING_GEO, ROOF_RING);
+  ring.position.y = 0.06; ring.renderOrder = 5; ring.castShadow = false; ring.name = 'roof-ring';
+  group.add(ring);
+}
+
 // kit: positionen har en granatlåda (ritas bredvid skytten). roof: pjäsen ligger på ett hustak
 // (Psg 90): ingen säckring, bara en säck under tvåbenet; gruppen ställs på takets höjd av vyn.
 export function weaponModel(type, level = 1, { kit = false, roof = false } = {}) {
@@ -299,6 +312,7 @@ export function weaponModel(type, level = 1, { kit = false, roof = false } = {})
   else {
     const bag = mesh(geo('sphere', 0.5, 7, 5), mat(P.sandbag[0]), 0.4, 0.12, 0);
     bag.scale.set(0.6, 0.26, 0.4); group.add(bag);
+    roofMarker(group);
   }
 
   if (K.tripod) {

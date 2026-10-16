@@ -25,11 +25,17 @@ export function createSquadView(scene) {
   const horde = createHorde(scene);
   const squads = new Map();         // gunId -> { men: Map(i -> e) }
   let sim = null;
+  // 0.10.2 (speltestet av 0.10.1: soldaterna försvann i trädskugga): ringen ritas ovanpå allt (ingen
+  // djuptest), så att den syns genom trädkronorna, ljusare, och med en mörk kant för ljust gräs.
   const markGeo = new THREE.RingGeometry(0.42, 0.62, 24); markGeo.rotateX(-Math.PI / 2);
-  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.42, depthWrite: false });
+  const markM = new THREE.MeshBasicMaterial({ color: MARK_COLOR, transparent: true, opacity: 0.8, depthTest: false, depthWrite: false });
   const marks = new THREE.InstancedMesh(markGeo, markM, MARK_MAX);
-  marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 3; marks.castShadow = false; marks.name = 'hv-marks';
-  scene.add(marks);
+  marks.count = 0; marks.frustumCulled = false; marks.renderOrder = 6; marks.castShadow = false; marks.name = 'hv-marks';
+  const edgeGeo = new THREE.RingGeometry(0.32, 0.74, 24); edgeGeo.rotateX(-Math.PI / 2);
+  const edgeM = new THREE.MeshBasicMaterial({ color: 0x0c0d0b, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false });
+  const edges = new THREE.InstancedMesh(edgeGeo, edgeM, MARK_MAX);
+  edges.count = 0; edges.frustumCulled = false; edges.renderOrder = 5; edges.castShadow = false; edges.name = 'hv-marks-edge';
+  scene.add(edges, marks);
   const mm = new THREE.Matrix4();
 
   function lean(e, p, s) {
@@ -97,10 +103,10 @@ export function createSquadView(scene) {
         parts.root.position.set(e.x, 0, e.z);
         parts.root.rotation.y = e.ry;
         horde.draw(parts);
-        if (!s.down && nm < MARK_MAX) { mm.makeTranslation(e.x, 0.06, e.z); marks.setMatrixAt(nm++, mm); }
+        if (!s.down && nm < MARK_MAX) { mm.makeTranslation(e.x, 0.06, e.z); edges.setMatrixAt(nm, mm); marks.setMatrixAt(nm++, mm); }
       }
     }
-    marks.count = nm; marks.instanceMatrix.needsUpdate = true;
+    marks.count = edges.count = nm; marks.instanceMatrix.needsUpdate = true; edges.instanceMatrix.needsUpdate = true;
     for (const [id, sq] of squads) if (!alive.has(id)) { for (const e of sq.men.values()) horde.release(e.parts); squads.delete(id); }
     horde.end();
   }
@@ -152,7 +158,7 @@ export function createSquadView(scene) {
     for (const sq of squads.values()) for (const e of sq.men.values()) horde.release(e.parts);
     squads.clear();
     horde.clear();
-    lines.visible = false; rings.count = 0; marks.count = 0;
+    lines.visible = false; rings.count = 0; marks.count = 0; edges.count = 0;
   }
   return { sync, fire, position, show, clear, horde, marks };
 }
