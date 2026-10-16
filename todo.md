@@ -210,3 +210,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H192 | balans | E4 dag 2 för lätt ($550 över), dag 3 våg 3 stup (82 fiender, 20 till 5).
 - [ ] H193 | ux | VICTORY och "fallen silent" motsäger varandra fortfarande; felaktig text "Only on the road"; förrådets rullist klipper priser.
 - [ ] H194 | grafik | Frivilliga och Hemvärnet fortfarande små och svåra att hitta.
+- [ ] H200 | banor | Mölnbo: bas = Folkets hus (Olas beslut 2026-10-16). Bron över spåren som flaskhals, övergivet X60 vid perrongen. Referenser lokalt i ~/Projects/horde-refs/molnbo/ (beskrivning.md + bilder). Skiss först, sedan förhandsvisning.
