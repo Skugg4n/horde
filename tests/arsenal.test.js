@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { free } from './free.js';
 import { createSim, startWave, step, build, spotAt, checkSpot, sightFor, onRoof } from '../src/sim/sim.js';
 import { weaponStats, launcherStats, weaponUnlocked } from '../src/sim/stats.js';
 import { placementFor, lineOfSight, lineOfSightH, sightFrom, roofSightFrom, distRect, KIND, PERCH_EYE, inCone, CONE } from '../src/sim/placement.js';
@@ -15,14 +16,14 @@ const dps = (t, r = []) => { const s = weaponStats(t, 1, new Set(r)); return s.r
 
 test('svenska beteckningar, stabila id', () => {
   assert.equal(WEAPONS.m249.name, 'Ksp 90');
-  assert.equal(WEAPONS.m249.desc, 'Light machine gun. Cheap and fast.');
+  assert.match(WEAPONS.m249.desc, /^Light machine gun\. Cheap and fast/);
   assert.equal(WEAPONS.m2.name, 'Ksp 88');
-  assert.equal(WEAPONS.m2.desc, 'Heavy 12.7 mm machine gun. Chews through brutes.');
+  assert.match(WEAPONS.m2.desc, /^Heavy 12\.7 mm machine gun/);
   assert.equal(WEAPONS.ak5.name, 'Ak 5 + granattillsats');
   assert.equal(WEAPONS.psg90.name, 'Psg 90');
   for (const w of Object.values(WEAPONS)) assert.ok(w.desc.length > 10 && !/[åäö]/.test(w.desc), `${w.id}: engelsk beskrivning`);
   // 0.11.0: köpraden i kategorier (Defenses, Units), id oförändrade
-  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'hv', 'm249', 'm2', 'ksp58', 'ak5', 'psg90']);
+  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
   assert.equal(WEAPONS.hv.name, 'Hemvärnet');
   assert.ok(!/militia/i.test(WEAPONS.hv.desc + WEAPONS.hv.name), 'aldrig "militia"');
 });
@@ -68,7 +69,7 @@ test('Psg 90: långsam, dödlig, lång räckvidd, går igenom två', () => {
 // Två zombier i rad på E4:s väg framför en Psg 90: båda träffas av samma skott.
 test('Psg 90 går igenom: två zombier i linje tar skada av ett skott', () => {
   const map = MAPS.riksvagen;
-  const sim = createSim({ map, day: 1, cash: 5000, research: ['m2.1', 'm2.2', 'psg90.1'], seed: 2 });
+  const sim = createSim({ map: free(map), day: 1, cash: 5000, research: ['m2.1', 'm2.2', 'psg90.1'], seed: 2 });
   // nästan i vägens linje (vid basen), så att kön av zombier står i skottlinjen
   const r = build(sim, spotAt(sim, -7, 5), 'psg90');
   assert.equal(r.ok, true, r.reason);
@@ -85,7 +86,7 @@ test('Psg 90 går igenom: två zombier i linje tar skada av ett skott', () => {
 
 test('Ak 5: enstaka skott hela tiden plus en 40 mm-granat med ytskada', () => {
   const map = MAPS.riksvagen;
-  const sim = createSim({ map, day: 1, cash: 5000, research: ['grenade.1', 'ak5.1'], seed: 4 });
+  const sim = createSim({ map: free(map), day: 1, cash: 5000, research: ['grenade.1', 'ak5.1'], seed: 4 });
   assert.equal(build(sim, spotAt(sim, 2, 8), 'ak5').ok, true);
   startWave(sim);
   sim.spawnQueue = Array.from({ length: 12 }, (_, i) => ({ at: i * 0.3, type: 'walker', wave: 0 }));
@@ -106,7 +107,7 @@ test('Ak 5: enstaka skott hela tiden plus en 40 mm-granat med ytskada', () => {
 const gp = placementFor(gnesta);
 const roofKeys = [];
 for (let k = 0; k < gp.n; k++) if (gp.roof[k] > 0) roofKeys.push(k);
-const mkG = () => createSim({ map: gnesta, day: 1, cash: 9000, research: ALL.concat('m2.2'), seed: 1 });
+const mkG = () => createSim({ map: free(gnesta), day: 1, cash: 9000, research: ALL.concat('m2.2'), seed: 1 });
 
 test('Gnesta har utsiktspunkter att ligga på, bara på husen (0.12.0: platta tak, nock vid skorsten, höga hallar)', () => {
   assert.ok(roofKeys.length > 150, `takrutor ${roofKeys.length}`);

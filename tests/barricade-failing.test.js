@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, placeObstacle, placeAcross, BARRICADE_FAILING } from '../src/sim/sim.js';
@@ -30,7 +31,7 @@ test('E4: betongblocket varnar en gång under en fjärdedel, före det går sön
 });
 
 test('Gnesta: en spärr tvärs över gatan varnar en gång, på sin svagaste ruta', () => {
-  const map = MAPS.gnesta, sim = createSim({ map, day: 1, cash: 5000, research: [], seed: 3 });
+  const map = free(MAPS.gnesta), sim = createSim({ map, day: 1, cash: 5000, research: [], seed: 3 });
   // varje väg in spärras nära basen: allt är stängt, så horden slår sig igenom den närmaste (H023)
   for (let n = 0; n < 8; n++) {
     const open = sim.route.paths(sim.route.spawns.map(q => q.id), sim.obstacles).filter(p => p.cells.length && !p.cells.some(c => sim.obstacles[c]));

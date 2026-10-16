@@ -38,8 +38,9 @@ test('tweaksActive och normalizeTweaks', () => {
 });
 
 test('reglarna verkar: hp ×, antal ×, god mode och nedräkningen', () => {
-  const run = tw => { const s = createSim({ map: MAPS.riksvagen, day: 1, cash: 0, seed: 1, tweaks: tw }); startWave(s); for (let i = 0; i < 30 * 60; i++) step(s, DT); return s; };
-  const a = run(null), b = run({ hp: 2, count: 2 });
+  const run = (tw, secs = 60) => { const s = createSim({ map: MAPS.riksvagen, day: 1, cash: 0, seed: 1, tweaks: tw }); startWave(s); for (let i = 0; i < 30 * secs; i++) step(s, DT); return s; };
+  // 0.13.0: räknas mitt i första vågen (efter 10 s), innan någon hunnit fram till basen
+  const a = run(null, 10), b = run({ hp: 2, count: 2 }, 10);
   const total = s => s.zombies.length + s.spawnQueue.length;
   assert.equal(total(b), total(a) * 2);
   assert.equal(b.zombies[0].maxHp, a.zombies[0].maxHp * 2);

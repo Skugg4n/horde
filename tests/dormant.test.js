@@ -17,8 +17,9 @@ const run = (map, day, secs, seed = 1) => {
 test('dörren slås upp när vågen börjar och de väller ut på gatan framför huset', () => {
   const { sim, evs } = run(gnesta, 1, 3);
   const bursts = evs.filter(e => e.t === 'dormantBurst');
-  assert.deepEqual(bursts.map(b => b.house), ['B2-00', 'B2-12']);
-  assert.deepEqual(sim.burst, ['B2-00', 'B2-12']);
+  // 0.13.0: dag 1 är de civila, med ett hus med vilande vid stickgatan
+  assert.deepEqual(bursts.map(b => b.house), ['B2-12']);
+  assert.deepEqual(sim.burst, ['B2-12']);
   for (const d of gnesta.days[0].dormant) {
     const door = houseDoor(gnesta, d.house, sim.route);
     const out = sim.zombies.filter(z => z.house === d.house);

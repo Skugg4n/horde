@@ -9,11 +9,12 @@ import { RESEARCH, ROMAN, researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { canBuyResearch, nextTier, hasTier, mapState, mapUnlocked } from '../meta/progress.js';
 import { ICONS } from './icons.js';
-import { SHOP, BUY_MENU, shopItem, hotkeyOf } from '../data/shop.js';
+import { SHOP, BUY_MENU, shopItem, hotkeyOf, dayMenu } from '../data/shop.js';
+import { inArsenal } from '../sim/stats.js';
 import { buyState } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
-import { MOVE_TIME, movePhase, gunCount } from '../sim/sim.js';
+import { movePhase, gunCount, canMoveType } from '../sim/sim.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -96,7 +97,7 @@ const itemShort = (it) => { const d = it.kind === 'gun' ? WEAPONS[it.id] : OBSTA
 const num = x => (Math.abs(x - Math.round(x)) < 0.05 ? String(Math.round(x)) : x.toFixed(1));
 export function cardStats(type, research = []) {
   const st = weaponStats(type, 1, research), w = WEAPONS[type];
-  return `DMG ${Math.round(st.damage)}${w.squad ? ' ×' + squadSize(1, research) : ''} · RNG ${Math.round(st.range)} m · RATE ${num(st.rate)}/s`;
+  return `DMG ${Math.round(st.damage)}${w.squad ? ' ×' + squadSize(1, research, type) : ''} · RNG ${Math.round(st.range)} m · RATE ${num(st.rate)}/s`;
 }
 export function cardLines(it, research = []) {
   const head = `${itemShort(it)} · ${it.role}`;
@@ -110,7 +111,7 @@ export function cardCompact(it, research = []) {
   if (it.kind !== 'gun') { const o = OBSTACLES[it.id]; return o.kind === 'block' ? 'Holds' : `Slow ${Math.round((1 - o.slow) * 100)}%`; }
   const st = weaponStats(it.id, 1, research), w = WEAPONS[it.id];
   const rate = st.rate >= 2 ? String(Math.round(st.rate)) : st.rate.toFixed(1).replace(/^0/, '');
-  return `${Math.round(st.damage)}${w.squad ? '×' + squadSize(1, research) : ''}·${Math.round(st.range)}m·${rate}/s`;
+  return `${Math.round(st.damage)}${w.squad ? '×' + squadSize(1, research, it.id) : ''}·${Math.round(st.range)}m·${rate}/s`;
 }
 const itemDesc = (it, sim) => {
   if (it.kind === 'gun') { const w = WEAPONS[it.id], st = weaponStats(it.id, 1, sim.research); return `${w.short ? w.name + '. ' : ''}${w.desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
@@ -138,12 +139,14 @@ export function buildBar(root, actions) {
     // med vad saken gör, skada och räckvidd, och varför det inte går (speltestet: raden tog en
     // fjärdedel av kartan).
     // 0.11.0: korten i kategorier (BUY_MENU) med små rubriker, snabbvalet "2-1" på varje kort.
-    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="groups">${BUY_MENU.map((c, ci) => `
+    // 0.13.0: bara det sektorn har i förrådet i dag, snabbvalen räknade på det
+    const menu = dayMenu(id => inArsenal(id, sim.map, sim.dayCfg));
+    el.innerHTML = `<div class="k">BUY <span class="guns">GUNS <b data-n></b></span></div><div class="groups">${menu.map((c, ci) => `
       <div class="grp" data-cat="${ci + 1}"><div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div><div class="cards">${c.items.map(x => {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
       <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
-        <kbd>${hotkeyOf(it.id)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
+        <kbd>${hotkeyOf(it.id, menu)}</kbd>${ICONS[it.id] || ''}<div class="n">${itemShort(it)}</div>
         <div class="p" data-price></div><div class="cs">${cardCompact(it, sim.research)}</div>
         <div class="more"><div class="r">${role}</div><div class="st">${stats}</div><div class="why" data-why></div></div></button>`;
     }).join('')}</div></div>`).join('')}</div>`;
@@ -159,7 +162,7 @@ export function buildBar(root, actions) {
   function update(sim, holding, show, openCat = null, armed = false) {
     el.hidden = !show;
     if (!show) return;
-    const k = [...sim.research].join(',') + '|' + sim.map.id;
+    const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day;
     if (k !== key || barR < 0) { key = k; render(sim); catKey = ''; measure(); }
     const ck = openCat + ':' + armed;
     if (ck !== catKey) {
@@ -400,7 +403,7 @@ function on(el, sel, fn) {
 
 // cash: pengarna dagen börjar med (dagens kassa plus forskningen Större budget).
 // 0.12.0 (H102): hur lång tid en flytt tar, och raden medan den pågår.
-const moveText = type => `${MOVE_TIME[type] ?? 8} s`;
+const moveText = type => { const m = WEAPONS[type]?.move; return m ? `${Math.round(m.pack + m.setup)} s + walk` : ''; };
 function movingRow(g) {
   const ph = movePhase(g);
   if (!ph) return '';

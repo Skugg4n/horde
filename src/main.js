@@ -1105,7 +1105,7 @@ if (DEBUG) window.__horde = { get worlds() { return worlds; }, get speed() { ret
 const allResearch = () => RESEARCH.flatMap(n => n.tiers.map((_, i) => `${n.id}.${i + 1}`));
 function applyResearch(list) {
   progress = { ...progress, research: [...list] }; save();
-  if (sim) { sim.research = new Set(list); sim.maxGuns = maxGuns(sim.research, sim.map); sim.maxSquads = maxSquads(sim.research); }
+  if (sim) { sim.research = new Set(list); sim.maxGuns = maxGuns(sim.research, sim.map); sim.maxSquads = maxSquads(sim.research, sim.dayCfg); }
   return { ok: true };
 }
 const overlays = new Map();

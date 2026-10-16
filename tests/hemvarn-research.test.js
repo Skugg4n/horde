@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, build, upgrade, squadPreview } from '../src/sim/sim.js';
@@ -42,7 +43,7 @@ test('Bigger squad och veteraner: en femte och sjätte man, mer liv, redan när 
   assert.equal(squadSize(1, ['hvSquad.1', 'hvSquad.2']), 6);
   assert.equal(soldierHp(1, ['hvVeterans.2']), SQUAD.hp[0] * 2);
   const research = ['hvRifles.1', 'hvSquad.1', 'hvSquad.2', 'hvVeterans.1'];
-  const sim = createSim({ map: gnesta, day: 1, cash: 5000, research, seed: 1 });
+  const sim = createSim({ map: free(gnesta), day: 1, cash: 5000, research, seed: 1 });
   const p = sim.place;
   let k = -1;
   for (let i = 0; i < p.n; i += 7) if (p.kind[i] === KIND.open && squadPreview(sim, i).length === 6 && build(sim, i, 'hv').ok) { k = i; break; }

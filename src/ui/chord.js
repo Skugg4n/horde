@@ -11,15 +11,17 @@ import { BUY_MENU } from '../data/shop.js';
 
 export const WINDOW = 2;
 
-export function createChord({ menu = BUY_MENU, window: win = WINDOW } = {}) {
+// menu: köpraden, eller en funktion som ger dagens (0.13.0: förrådet per sektor och dag, shop.js dayMenu).
+export function createChord({ menu: m = BUY_MENU, window: win = WINDOW } = {}) {
   let cat = null, at = -Infinity;
-  const valid = n => Number.isInteger(n) && n >= 1 && n <= menu.length;
+  const cur = () => (typeof m === 'function' ? m() : m);
+  const valid = n => Number.isInteger(n) && n >= 1 && n <= cur().length;
   return {
     get open() { return cat; },
     // n: siffran (1-9), now: sekunder. Svar: { t: 'category', cat } | { t: 'pick', id } | { t: 'none' }.
     press(n, now) {
       if (cat != null) {
-        const id = menu[cat - 1]?.items[n - 1]?.id ?? null;
+        const id = cur()[cat - 1]?.items[n - 1]?.id ?? null;
         if (!id) return { t: 'none' };
         cat = null;
         return { t: 'pick', id };

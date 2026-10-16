@@ -204,10 +204,11 @@ test('siktet: minst kvar att gå vinner, barrikadens straff räknas inte', () =>
   ]);
   const map = { id: 't', grid: two, baseHp: 20,
     days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }, { type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'b' }] }] }] };
-  const sim = createSim({ map, day: 1, cash: 5000, research: ['block'], seed: 1 });
+  const sim = createSim({ map, day: 1, cash: 5000, research: ['block', 'ak5.1'], seed: 1 });
   const k = (i, j) => j * two.w + i;
   assert.equal(placeObstacle(sim, k(2, 0), 'block').ok, true);
-  assert.equal(build(sim, k(3, 1), 'm249').ok, true);     // i husraden mellan gatorna
+  // 0.13.0 (H132): Ak 5 har ingen skjutvinkel och ser båda gatorna (Ksp 90 skjuter bara inom 180 grader)
+  assert.equal(build(sim, k(3, 1), 'ak5').ok, true);     // i husraden mellan gatorna
   startWave(sim); step(sim, DT);
   const za = sim.zombies.find(z => z.spawn === 'a'), zb = sim.zombies.find(z => z.spawn === 'b');
   // a står framför barrikaden (3 rutor kvar att gå), b har 5 rutor kvar runt hörnet

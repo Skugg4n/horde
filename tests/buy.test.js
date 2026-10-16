@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, build } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
-import { SHOP, BUY_MENU, hotkeyOf, itemAt } from '../src/data/shop.js';
+import { SHOP, BUY_MENU, hotkeyOf, itemAt, dayMenu } from '../src/data/shop.js';
+import { inArsenal } from '../src/sim/stats.js';
 import { createChord, WINDOW } from '../src/ui/chord.js';
 import { buyState, canPickUp } from '../src/sim/buy.js';
 
@@ -10,18 +11,28 @@ const e4 = (o = {}) => createSim({ map: MAPS.riksvagen, day: 1, cash: 500, resea
 
 // 0.11.0 (Olas önskan): kategorier med tvåstegs snabbval, ordningen bara i BUY_MENU. Units från
 // svagast och billigast till starkast, Hemvärnet först.
-test('köpraden: Defenses och Units; snabbvalen 1-1 till 2-6', () => {
+// 0.13.0: de civila, infanteriet och pillboxen in i ordningen från svagast till starkast; snabbvalen räknas
+// på dagens köprad (förrådet per sektor och dag).
+test('köpraden: Defenses och Units; snabbvalen följer dagens förråd', () => {
   assert.deepEqual(BUY_MENU.map(c => c.name), ['Defenses', 'Units']);
-  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'hv', 'm249', 'm2', 'ksp58', 'ak5', 'psg90']);
-  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6']);
-  assert.equal(itemAt(2, 2), 'm249'); assert.equal(itemAt(1, 3), null); assert.equal(itemAt(3, 1), null);
+  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
+  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8', '2-9']);
+  assert.equal(itemAt(2, 4), 'm249'); assert.equal(itemAt(1, 3), null); assert.equal(itemAt(3, 1), null);
+  const e4 = dayMenu(id => inArsenal(id, MAPS.riksvagen, MAPS.riksvagen.days[0]));
+  assert.deepEqual(e4[1].items.map(i => i.id), ['inf', 'm249', 'm2', 'epa'], 'E4: armén, inget Hemvärn');
+  assert.equal(hotkeyOf('m249', e4), '2-2');
+  const g1 = dayMenu(id => inArsenal(id, MAPS.gnesta, MAPS.gnesta.days[0]));
+  assert.deepEqual(g1.map(c => c.items.map(i => i.id)), [['block', 'wire'], ['civ']], 'Gnesta dag 1: civila, barrikader och tråd');
+  assert.equal(itemAt(2, 1, g1), 'civ');
+  const c = createChord({ menu: () => e4 });
+  c.press(2, 0); assert.deepEqual(c.press(4, 0.1), { t: 'pick', id: 'epa' });
 });
 
 test('tvåstegsvalet: kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0)', () => {
   const c = createChord();
   assert.deepEqual(c.press(2, 0), { t: 'category', cat: 2 });
   assert.equal(c.open, 2);
-  assert.deepEqual(c.press(2, 0.5), { t: 'pick', id: 'm249' });
+  assert.deepEqual(c.press(4, 0.5), { t: 'pick', id: 'm249' });
   assert.equal(c.open, null, 'kategorin stängs när saken är vald');
   c.press(1, 10); assert.deepEqual(c.press(1, 10.4), { t: 'pick', id: 'block' });
   // en plats som inte finns gör ingenting, kategorin står kvar
@@ -34,8 +45,8 @@ test('tvåstegsvalet: kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0
   assert.equal(c.open, 1, 'men fortfarande öppen');
   assert.deepEqual(c.press(1, 30 + WINDOW + 5), { t: 'pick', id: 'block' }, '1, paus, 1 = barrikaden');
   c.press(2, 40);
-  assert.deepEqual(c.press(3, 40 + WINDOW + 3), { t: 'pick', id: 'm2' }, '2, paus, 3 = Ksp 88');
-  c.press(2, 60); assert.deepEqual(c.press(6, 60 + 30), { t: 'pick', id: 'psg90' });
+  assert.deepEqual(c.press(5, 40 + WINDOW + 3), { t: 'pick', id: 'm2' }, '2, paus, 5 = Ksp 88');
+  c.press(2, 60); assert.deepEqual(c.press(9, 60 + 30), { t: 'pick', id: 'psg90' });
   // siffror utan kategori gör ingenting
   assert.deepEqual(c.press(0, 50), { t: 'none' }); assert.deepEqual(c.press(3, 50), { t: 'none' }); assert.equal(c.open, null);
 });
@@ -49,15 +60,29 @@ test('för dyrt: gråat med hur mycket som saknas, går inte att ta upp', () => 
   assert.equal(canPickUp(sim, 'm249'), true);
 });
 
-test('låst av forskningen: E4 kräver forskning för Ksp 88 och barrikaden, inte Gnesta (0.10.1: Ksp 88 också)', () => {
+// 0.13.0 (H104): E4 är vägspärren med armén (Ksp 88, infanteriet och pillboxen utan forskning, inget
+// Hemvärn); Gnesta dag 1 har bara de civila; forskningen gäller ovanpå förrådet.
+test('förrådet per sektor och dag, och forskningen ovanpå', () => {
   const sim = e4();
-  assert.equal(buyState(sim, 'm2').state, 'locked');
+  assert.equal(buyState(sim, 'm2').state, 'poor', 'E4 har Ksp 88 utan forskning');
+  assert.equal(buyState(sim, 'inf').state, 'ok');
+  assert.equal(buyState(sim, 'hv').state, 'absent', 'inget Hemvärn på E4');
   assert.equal(buyState(sim, 'block').state, 'locked');
   assert.equal(buyState(sim, 'wire').state, 'ok');
+  assert.equal(build(sim, sim.place.walkKeys[0] + 2 * sim.place.w, 'hv').reason, 'ej här');
   const g = createSim({ map: MAPS.gnesta, day: 1, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(g, 'block').state, 'ok');
-  assert.equal(buyState(g, 'm2').state, 'ok', 'Gnesta har Ksp 88 från dag 1 (0.10.1)');
-  assert.equal(buyState(g, 'psg90').state, 'locked');
+  assert.equal(buyState(g, 'civ').state, 'ok');
+  for (const t of ['hv', 'm249', 'm2', 'inf', 'psg90']) assert.equal(buyState(g, t).state, 'absent', `Gnesta dag 1: ${t}`);
+  const g2 = createSim({ map: MAPS.gnesta, day: 2, cash: 800, research: [], seed: 1 });
+  assert.equal(buyState(g2, 'hv').state, 'ok', 'Hemvärnet dag 2');
+  assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först dag 5');
+  const g5 = createSim({ map: MAPS.gnesta, day: 5, cash: 800, research: [], seed: 1 });
+  assert.equal(buyState(g5, 'm2').state, 'ok');
+  assert.equal(buyState(g5, 'psg90').state, 'locked', 'forskningen gäller ovanpå');
+  const n3 = createSim({ map: MAPS['gnesta-norr'], day: 3, cash: 800, research: [], seed: 1 });
+  assert.equal(buyState(n3, 'inf').state, 'ok', 'infanteriet på North från dag 3');
+  assert.equal(buyState(createSim({ map: MAPS['gnesta-norr'], day: 1, cash: 800, research: [], seed: 1 }), 'inf').state, 'absent');
 });
 
 test('fullt: alla positioner upptagna', () => {
@@ -75,8 +100,8 @@ test('fullt: alla positioner upptagna', () => {
 // har ett eget tak (två grupper, More squads höjer). Gnesta South och North har fem pjäser från början.
 test('Hemvärnet har eget tak och räknas inte mot pjäsernas platser', async () => {
   const { gunCount, squadCount } = await import('../src/sim/sim.js');
-  const sim = e4({ cash: 1e5 });
-  assert.equal(sim.maxGuns, 4);
+  const sim = createSim({ map: MAPS['gnesta-norr'], day: 1, cash: 1e5, research: [], seed: 1 });
+  assert.equal(sim.maxGuns, 5);
   assert.equal(sim.maxSquads, 2);
   const open = [];
   for (let k = 0; k < sim.place.n; k++) if (sim.place.kind[k] === 0) open.push(k);
@@ -85,12 +110,13 @@ test('Hemvärnet har eget tak och räknas inte mot pjäsernas platser', async ()
   assert.ok(put('hv') && put('hv'));
   assert.equal(buyState(sim, 'hv').state, 'full', 'två grupper är taket');
   assert.equal(buyState(sim, 'm249').state, 'ok', 'grupperna tar inga pjäsplatser');
-  for (let n = 0; n < 4; n++) assert.ok(put('m249'));
-  assert.equal(gunCount(sim), 4);
+  for (let n = 0; n < 5; n++) assert.ok(put('m249'));
+  assert.equal(gunCount(sim), 5);
   assert.equal(squadCount(sim), 2);
   assert.equal(buyState(sim, 'm249').state, 'full');
   const more = e4({ cash: 1e5, research: ['hvRifles.1', 'hvPlatoon.1'] });
   assert.equal(more.maxSquads, 3);
+  assert.equal(createSim({ map: MAPS.gnesta, day: 1, cash: 0, research: [], seed: 1 }).maxSquads, 4, 'Gnesta dag 1: fyra grupper civila');
 });
 
 test('Gnesta South och North: fem pjäser från början, More positions ger en till', () => {

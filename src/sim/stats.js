@@ -31,16 +31,26 @@ export function maxGuns(research, map = null) {
 }
 // Hemvärnsgrupper ute samtidigt: två, eller nivåns antal i More squads.
 export const BASE_SQUADS = 2;
-export function maxSquads(research) {
-  return tierData(research, 'hvPlatoon')?.squads ?? BASE_SQUADS;
+// 0.13.0: en dag kan ha fler grupper från början (dayCfg.squads, Gnesta dag 1: de civila); More squads
+// lägger till lika många som förut.
+export function maxSquads(research, dayCfg = null) {
+  const base = dayCfg?.squads ?? BASE_SQUADS;
+  return base + (tierData(research, 'hvPlatoon')?.squads ?? BASE_SQUADS) - BASE_SQUADS;
 }
 
 // map.unlocks: vapen och hinder som banan ger utan forskning (Gnesta lär ut barrikaden dag 1).
 // Forskningen gäller som vanligt på andra banor.
 export const mapUnlocks = (map, id) => !!map?.unlocks?.includes(id);
 export function weaponUnlocked(type, research, map = null) {
-  // Ksp 90 och Hemvärnet (0.9.0) finns från början.
-  return type === 'm249' || type === 'hv' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
+  // Ksp 90 och Hemvärnet (0.9.0) finns från början, de civila (0.13.0) också.
+  return type === 'm249' || type === 'hv' || type === 'civ' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
+}
+// 0.13.0 (H104, H105): vad sektorn har i förrådet i dag. dayCfg.arsenal (annars map.arsenal) är en lista
+// med köpradens id; saknas den finns allt som forskningen låst upp (som förut, och i proven). Det som inte
+// finns i förrådet syns inte i köpraden och går inte att ställa ut. Forskningen gäller fortfarande ovanpå.
+export function inArsenal(id, map = null, dayCfg = null) {
+  const list = dayCfg?.arsenal ?? map?.arsenal;
+  return !list || list.includes(id);
 }
 export function obstacleUnlocked(type, research, map = null) {
   return type === 'wire' || mapUnlocks(map, type) || tierOf(research, type) >= 1;

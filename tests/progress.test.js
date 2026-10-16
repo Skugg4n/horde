@@ -50,7 +50,7 @@ test('krav kan peka på en nivå i en annan nod', () => {
   assert.equal(canBuyResearch(p, 'grenade').ok, true);
 });
 test('budget i nivåer ger mer pengar', () => {
-  assert.equal(startConfig({ ...newProgress(), research: ['budget.1', 'budget.2'] }, 1).cash, 750);
+  assert.equal(startConfig({ ...newProgress(), research: ['budget.1', 'budget.2'] }, 1).cash, MAPS.riksvagen.days[0].startCash + 250);
 });
 test('gamla platta forsknings-id flyttas till nivå I', () => {
   assert.deepEqual(migrateResearch(['m2', 'm249Rate', 'wireTough', 'block', 'budget', 'slot4']),
@@ -72,7 +72,7 @@ test('gammal sparfil läses in med nivåer och kan forska vidare', () => {
 });
 test('större budget ger mer startpengar', () => {
   const p = { ...newProgress(), research: ['budget'] };
-  assert.equal(startConfig(p, 1).cash, 650);
+  assert.equal(startConfig(p, 1).cash, MAPS.riksvagen.days[0].startCash + 150);
 });
 test('spara och läsa', () => {
   const st = mem();

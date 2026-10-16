@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim } from '../src/sim/sim.js';
@@ -7,7 +8,7 @@ import { KIND } from '../src/sim/placement.js';
 
 // 0.12.1 (speltestet av 0.12.0: Psg 90 siktad på ishallens tak hamnade på marken bakom hallen): en
 // byggnad under pekaren ger byggnadens bästa utsiktspunkt, eller taket med skälet, aldrig marken.
-const mk = map => createSim({ map, day: 1, cash: 1e5, research: ['m2.1', 'psg90.1'], seed: 1 });
+const mk = map => createSim({ map: free(map), day: 1, cash: 1e5, research: ['m2.1', 'psg90.1'], seed: 1 });
 
 for (const map of [MAPS.gnesta, MAPS['gnesta-norr']]) {
   test(`${map.id}: husrutor utan utsiktspunkt snäpper till byggnadens utsiktspunkt eller säger varför`, () => {

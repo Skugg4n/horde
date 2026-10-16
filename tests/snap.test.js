@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, checkObstacle, build } from '../src/sim/sim.js';
@@ -42,7 +43,7 @@ for (const map of [gnesta, gnestaNorr]) test(`${map.name}: tråd och barrikad g�
 });
 
 test('en pjäs vid gatukanten hamnar på marken bredvid, inte "On the road"', () => {
-  const sim = createSim({ map: gnesta, day: 1, cash: 9999, seed: 1 });
+  const sim = createSim({ map: free(gnesta), day: 1, cash: 9999, seed: 1 });
   let tried = 0, ok = 0;
   for (const r of gnesta.roads.filter(q => q.walk && !q.fog && q.surface === 'asphalt')) for (let i = 1; i < r.pts.length; i += 3) {
     const [x, z] = r.pts[i], q = r.pts[i - 1], dx = x - q[0], dz = z - q[1], L = Math.hypot(dx, dz) || 1;

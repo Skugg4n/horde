@@ -39,9 +39,12 @@ test('kan inte bygga för nära, på vägen, när det är fullt eller utan penga
   const u = mk({ cash: 9000, research: ['positions.1'] });
   for (const n of ['A', 'B', 'C', 'D', 'E']) assert.equal(build(u, n, 'm249').ok, true, n);
 });
-test('M2 kräver forskning', () => {
-  assert.equal(build(mk(), 'A', 'm2').reason, 'ej upplåst');
-  assert.equal(build(mk({ research: ['m2'] }), 'A', 'm2').ok, true);
+// 0.13.0: E4 har Ksp 88 utan forskning (vägspärren); utan banans upplåsning kräver den forskning som förut
+test('M2 kräver forskning där banan inte ger den', () => {
+  const bare = { ...map, unlocks: [], arsenal: null };
+  const s = createSim({ map: bare, day: 1, cash: 2000, research: [], seed: 3 });
+  assert.equal(buildAt(s, spotAt(s, ...SPOTS.A), 'm2').reason, 'ej upplåst');
+  assert.equal(build(mk(), 'A', 'm2').ok, true, 'E4 ger den');
 });
 test('uppgradering höjer nivå och värden, max 3', () => {
   const s = mk();

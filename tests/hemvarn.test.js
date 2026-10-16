@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gridFromAscii } from '../src/sim/grid.js';
@@ -53,7 +54,7 @@ test('skyddet: hörn, vägg, bil och öppet gräs känns igen', () => {
 });
 
 test('valet är deterministiskt: samma bana och ruta ger samma grupp', () => {
-  for (const map of [MAPS.riksvagen, gnesta]) {
+  for (const map of [free(MAPS.riksvagen), free(gnesta)]) {
     const a = createSim({ map, day: 1, cash: 9999, seed: 1 }), b = createSim({ map, day: 1, cash: 9999, seed: 7 });
     a.maxSquads = b.maxSquads = 99;   // 0.12.1: eget tak för grupperna; provet vill se många
     const p = a.place;
@@ -74,7 +75,7 @@ test('valet är deterministiskt: samma bana och ruta ger samma grupp', () => {
 });
 
 test('gruppen sprider ut sig: minst 3 m mellan soldaterna, även mellan grupper och från pjäser', () => {
-  for (const map of [MAPS.riksvagen, gnesta]) {
+  for (const map of [free(MAPS.riksvagen), free(gnesta)]) {
     const sim = createSim({ map, day: 1, cash: 1e6, seed: 1 });
     sim.maxGuns = 99; sim.maxSquads = 99;
     const p = sim.place;
@@ -213,11 +214,12 @@ test('uppgradering: nivå 2 ger en femte soldat och mer liv, sälj ger tillbaka 
 });
 
 test('köpkortet: Hemvärnet finns från början, kostar en position och kräver rum', () => {
-  const sim = createSim(startConfig(newProgress(), 1));
+  // 0.13.0: Hemvärnet kommer till Gnesta dag 2 (E4 är arméns, Gnesta dag 1 de civilas)
+  const sim = createSim(startConfig(newProgress(), 2, 'gnesta'));
   assert.equal(buyState(sim, 'hv').state, 'ok');
   assert.ok(WEAPONS.hv.cost >= 200 && WEAPONS.hv.cost <= 300);
   // en ruta mitt i skogen eller inne bland husen utan sikt får ingen grupp
-  const g = createSim({ map: gnesta, day: 1, cash: 9999, seed: 1 });
+  const g = createSim({ map: free(gnesta), day: 1, cash: 9999, seed: 1 });
   const bad = [];
   for (let k = 0; k < g.place.n; k++) if (g.place.kind[k] === KIND.open && squadPreview(g, k).length < 4) bad.push(k);
   if (bad.length) assert.equal(checkSpot(g, bad[0], 'hv').reason, 'trångt');
@@ -236,7 +238,7 @@ test('sparfiler från 0.8.0 läses in oförändrade och raderas aldrig', () => {
   assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över');
   assert.equal(st.getItem('horde.save.broken'), null);
   // och spelet med den sparfilen kan köpa Hemvärnet
-  const sim = createSim(startConfig(p, 1));
+  const sim = createSim(startConfig(p, 2));
   assert.equal(buyState(sim, 'hv').state, 'ok');
   // sparas och läses tillbaka likadant
   saveProgress(p, st);

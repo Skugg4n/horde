@@ -1,3 +1,4 @@
+import { free } from './free.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, build } from '../src/sim/sim.js';
@@ -10,7 +11,7 @@ import { gnestaPlan, daySpawns } from '../scripts/balance.mjs';
 // Värnet anpassar sig efter miljön (0.12.0, H098).
 test('värnet vänds mot hordens väg och är detsamma för samma plats', () => {
   const plan = gnestaPlan(gnesta, daySpawns(gnesta, 1));
-  const a = createSim({ map: gnesta, day: 1, cash: 9999, seed: 1 }), b = createSim({ map: gnesta, day: 1, cash: 9999, seed: 9 });
+  const a = createSim({ map: free(gnesta), day: 1, cash: 9999, seed: 1 }), b = createSim({ map: free(gnesta), day: 1, cash: 9999, seed: 9 });
   for (const k of plan.guns.slice(0, 4)) {
     const ia = build(a, k, 'm249').id, ib = build(b, k, 'm249').id;
     const ga = a.guns.find(g => g.id === ia), gb = b.guns.find(g => g.id === ib);

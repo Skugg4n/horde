@@ -76,8 +76,11 @@ export const inArc = (s, a) => Math.abs(Math.atan2(Math.sin(a - s.face), Math.co
 export const isSquad = type => !!WEAPONS[type]?.squad;
 // Antal man och liv per man: nivån, plus forskningen (0.10.0, H054): Bigger squad ger en eller två
 // man till, Hemvärnet veterans mer liv. research: Set eller lista med köpta nivåer.
-export const squadSize = (level, research = []) => SQUAD.size[Math.min(level, SQUAD.size.length) - 1] + (tierData(research, 'hvSquad')?.men ?? 0);
-export const soldierHp = (level, research = []) => SQUAD.hp[Math.min(level, SQUAD.hp.length) - 1] * (tierData(research, 'hvVeterans')?.hp ?? 1);
+// 0.13.0 (H130, H105): infanteriet och de civila har egna siffror (WEAPONS[type].men och hp); forskningen
+// gäller bara Hemvärnet.
+const per = (arr, level) => arr[Math.min(level, arr.length) - 1];
+export const squadSize = (level, research = [], type = 'hv') => per(WEAPONS[type]?.men ?? SQUAD.size, level) + (type === 'hv' ? (tierData(research, 'hvSquad')?.men ?? 0) : 0);
+export const soldierHp = (level, research = [], type = 'hv') => per(WEAPONS[type]?.hp ?? SQUAD.hp, level) * (type === 'hv' ? (tierData(research, 'hvVeterans')?.hp ?? 1) : 1);
 export const runTime = d => Math.min(SQUAD.runMax, Math.max(SQUAD.runMin, d / SQUAD.runSpeed));
 
 const N8 = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
@@ -139,7 +142,7 @@ export function hordeWeight(sim) {
 // Väljer rutor åt gruppen runt markeringens ruta key. count: hur många, fixed: soldater som
 // redan står (en femte soldat väljs med de fyra på plats). Returnerar en lista i valordning:
 // { cell, x, z, cover, stance, face, sight, score }. Kan bli kortare än count om ringen är trång.
-export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed = [], range = null } = {}) {
+export function planSquad(sim, key, { type = 'hv', count = squadSize(1, [], type), fixed = [], range = null } = {}) {
   const p = sim.place, c0 = p.center(key), R = SQUAD.radius;
   const def = WEAPONS[type];
   const reach = range ?? def.range;                     // sikten räknas för nivå 1
@@ -199,8 +202,8 @@ export function planSquad(sim, key, { type = 'hv', count = squadSize(1), fixed =
 }
 
 // En soldat ur en vald ruta. from: markeringens mitt (han springer därifrån).
-export function makeSoldier(c, i, level, from, research = []) {
-  const hp = soldierHp(level, research);
+export function makeSoldier(c, i, level, from, research = [], type = 'hv') {
+  const hp = soldierHp(level, research, type);
   return { i, cell: c.cell, x: c.x, z: c.z, cover: c.cover, stance: c.stance, face: c.face, sight: c.sight,
     hp, maxHp: hp, down: false, run: runTime(Math.hypot(c.x - from.x, c.z - from.z)), cooldown: 0.13 * i, angle: c.face, targetId: null };
 }

@@ -98,7 +98,7 @@ test('dagarna öppnar ingångarna i tur och ordning', () => {
   assert.ok(spawnsOf(gnesta.days[2]).has('forest'));
   assert.ok(!types(gnesta.days[2]).has('brute') && types(gnesta.days[3]).has('brute'));
   assert.equal(spawnsOf(gnesta.days[4]).size, 3);
-  assert.match(gnesta.days[0].intro.text, /Block a street and they'll walk around the block/);
+  assert.match(gnesta.days[0].intro.text, /Block a street and the horde walks around the block/);
 });
 
 test('sporthallen och parkeringen ligger inte på någon väg', () => {

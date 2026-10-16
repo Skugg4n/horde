@@ -39,30 +39,37 @@ export const MAPS = {
     // 0.11.0 (Olas önskan): sektornamnen i banvalet och på skyltarna; id:na är oförändrade.
     name: 'Sector E4',
     // Sektorns slut (0.11.0): texten på vinstskylten efter sista dagen och banan den leder till.
-    outro: { text: 'Sector E4 is secure. The horde is moving on Gnesta. Civilians are trapped in the ice rink. Hold Gnesta South.', next: 'gnesta' },
+    // 0.13.0 (H104): sektorsövergången. Vägspärren tystnar, Gnesta har bara sitt Hemvärn.
+    outro: { text: 'The roadblock at E4 has fallen silent. Gnesta has only its Home Guard.', next: 'gnesta' },
     camera: { target: [-2, 0], view: 25 },
     path: [[27, 0], [-12, 0]],
     // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång, utan mellanrum.
     // Ordnade från basen: ruta 0 täcker x -6..-9, ruta 5 x 9..6.
     cells: [33, 30, 27, 24, 21, 18],
     baseHp: 20,
+    // 0.13.0 (H104, H130): E4 är den militära vägspärren, en smak av riktig militär kraft. Inget Hemvärn
+    // här: infanteriet, Ksp 90, Ksp 88 och EPA-pillboxen finns från början (utan forskning), plus tråd och
+    // betong som förut. Lite som en övning: dag 1 lär ut pjäsen och vinkeln, dag 2 tråden och pillboxen,
+    // dag 3 den tunga pjäsen mot bjässarna.
+    arsenal: ['block', 'wire', 'inf', 'm249', 'm2', 'epa'],
+    unlocks: ['inf', 'm2', 'epa'],
     days: [
-      { n: 1, startCash: 500, intro: { title: 'Day 1', text: 'Place a Ksp 90 machine gun by the road. It fires on its own at what it can see.' },
+      { n: 1, startCash: 700, hp: 1, intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 roadblock south of Gnesta. Place a Ksp 90 by the road: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
         // Tipsen första gången: rader och stegen som bockar av dem (main.js updateHint).
-        hints: { lines: ['Pick the Ksp 90 (2-2).', 'Place it by the road.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
-        waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
-      { n: 2, startCash: 550, hp: 1.5, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Put barbed wire on the road to buy time to shoot.' },
-        waves: [ { groups: [{ type: 'walker', count: 12, interval: 1.0, delay: 0 }] },
-                 { groups: [{ type: 'walker', count: 10, interval: 1.2, delay: 0 }, { type: 'runner', count: 18, interval: 1.0, delay: 4 }] },
-                 { groups: [{ type: 'walker', count: 14, interval: 0.9, delay: 0 }, { type: 'runner', count: 48, interval: 0.32, delay: 3 }] } ] },
-      { n: 3, startCash: 1000, hp: 1.15, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. Heavy caliber works best.' },
-        waves: [ { groups: [{ type: 'walker', count: 16, interval: 0.9, delay: 0 }, { type: 'runner', count: 6, interval: 1.2, delay: 5 }] },
-                 { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }, { type: 'brute', count: 3, interval: 4, delay: 8 }] },
-                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 24, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },
+        hints: { lines: ['Pick the Ksp 90 (2-2).', 'Place it by the road. Drag to aim.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
+        waves: [ { groups: [{ type: 'walker', count: 10, interval: 1.4, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 26, interval: 0.7, delay: 0 }] } ] },
+      { n: 2, startCash: 800, hp: 1.6, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
+        waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }] },
+                 { groups: [{ type: 'walker', count: 12, interval: 1.1, delay: 0 }, { type: 'runner', count: 22, interval: 0.9, delay: 4 }] },
+                 { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 56, interval: 0.3, delay: 3 }] } ] },
+      { n: 3, startCash: 1200, hp: 1.25, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
+        waves: [ { groups: [{ type: 'walker', count: 18, interval: 0.9, delay: 0 }, { type: 'runner', count: 8, interval: 1.2, delay: 5 }] },
+                 { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }, { type: 'brute', count: 4, interval: 4, delay: 8 }] },
+                 { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }, { type: 'runner', count: 26, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },
                    { type: 'brute', count: 7, interval: 1.5, delay: 22 }, { type: 'brute', count: 7, interval: 1.5, delay: 36 },
-                   { type: 'brute', count: 7, interval: 1.5, delay: 50 }, { type: 'brute', count: 7, interval: 1.5, delay: 64 }] } ] },
+                   { type: 'brute', count: 7, interval: 1.5, delay: 50 }, { type: 'brute', count: 8, interval: 1.5, delay: 64 }] } ] },
     ],
     props: [
       { kind: 'car', x: 12, z: 7.5, ry: 0.5, color: '#6b2f22' },
