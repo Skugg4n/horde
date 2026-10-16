@@ -35,6 +35,9 @@ const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
+// Laddningsskydd (index.html): huvudfilen och version.js ska vara samma version. Skiljer de sig har en
+// fil kommit ur cachen från en annan publicering.
+{ const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
 let progress = loadProgress();
 if (!mapUnlocked(progress, progress.mapId, { debug: DEBUG })) progress = selectMap(progress, 'riksvagen');
 const renderer = createRenderer(document.getElementById('stage'));
@@ -795,3 +798,4 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
+window.__hordeReady = true;   // laddningsskyddet i index.html: från nu är vanliga fel inte cachefel

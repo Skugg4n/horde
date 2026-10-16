@@ -469,6 +469,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* Laddningsskylten (0.6.0): banan byggs i steg och shaders kompileras i förväg */
 #loading { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 200; padding: 16px 22px 18px; min-width: 300px; text-align: center; }
 #loading[hidden] { display: none; }
+#stale { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 300; padding: 18px 24px 20px; min-width: 300px; text-align: center; }
+#stale .t { font-family: 'Saira Stencil One', sans-serif; font-size: 22px; letter-spacing: 0.04em; margin-bottom: 12px; }
+#stale button { font: inherit; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 22px; background: var(--rust); color: var(--paper); border: 0; cursor: pointer; }
 #loading .t { font-family: 'Saira Stencil One', sans-serif; font-size: 26px; letter-spacing: 0.04em; }
 #loading .bar { height: 5px; background: rgba(233,223,201,0.15); margin: 10px 0 8px; }
 #loading .bar i { display: block; height: 100%; width: 0; background: var(--rust); transition: width 0.25s; }
