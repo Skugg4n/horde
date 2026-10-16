@@ -895,7 +895,7 @@ export function createView(scene, initialSim) {
         case 'obstacleBroken': {
           const c = cellCenter(ev.cell), sp = sim.route.kind === 'grid' ? 0.9 : 3.5;
           for (let k = 0; k < (sp < 1 ? 2 : 4); k++) fx.puff(c.x, c.z + rnd(-sp, sp), 4);
-          if (ev.type === 'block') for (let k = 0; k < (sp < 1 ? 3 : 5); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
+          if (ev.type === 'block' || ev.type === 'car') for (let k = 0; k < (sp < 1 ? 3 : 5); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
           removeCell(ev.cell);
           break;
         }

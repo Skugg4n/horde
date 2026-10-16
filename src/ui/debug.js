@@ -9,7 +9,7 @@ import { money } from './format.js';
 const CLICKS = 5, CLICK_WINDOW = 1600;   // fem klick inom 1,6 s
 const RULES = [
   ['hp', 'Zombie hp ×'], ['speed', 'Zombie speed ×'], ['count', 'Spawn count ×'],
-  ['cash', 'Cash income ×'], ['intel', 'Intel income ×'],
+  ['cash', 'Supplies income ×'], ['intel', 'RP income ×'],
 ];
 
 export function versionClicks(el, onOpen, now = () => performance.now()) {
@@ -41,8 +41,8 @@ export function mountDebug(root, api) {
     el.innerHTML = `
       <div class="dh"><b>Debug</b><span data-k="where"></span><button type="button" class="x" data-a="close" aria-label="Close">×</button></div>
       <section><h4>State</h4>
-        <div class="row"><label>Intel</label><input data-k="intel" type="number" step="10"><button data-a="intel-set">Set</button><button data-a="intel-add">Add</button></div>
-        <div class="row"><label>Research</label><button data-a="res-none">None</button><button data-a="res-arrival">Arrival</button><button data-a="res-all">All</button><button data-a="res-reset">Reset</button></div>
+        <div class="row"><label>RP</label><input data-k="intel" type="number" step="50"><button data-a="intel-set">Set</button><button data-a="intel-add">Add</button></div>
+        <div class="row"><label>Depot</label><button data-a="res-none">None</button><button data-a="res-arrival">Arrival</button><button data-a="res-all">All</button></div>
         <div class="row"><label>Cash</label><input data-k="cash" type="number" step="100"><button data-a="cash-set">Set</button><button data-a="cash-add">Add</button></div>
         <div class="row"><label>Base hp</label><input data-k="hp" type="number" step="1" min="1"><button data-a="hp-set">Set</button><label class="ck"><input type="checkbox" data-k="god"> God mode</label></div>
         <div class="row"><label>Jump to</label>${sel('map', maps.map(x => [x.id, x.name]))}<input data-k="day" type="number" min="1" max="5" value="${api.day()}" title="Day"><input data-k="wave" type="number" min="1" value="1" title="Wave"><button data-a="jump">Go</button></div>
@@ -87,12 +87,11 @@ export function mountDebug(root, api) {
   const ok = (r, good) => say(r === false || r?.ok === false ? `Not now${r?.reason ? ` (${r.reason})` : ''}` : good);
   const ACT = {
     close: () => close(),
-    'intel-set': () => ok(api.setIntel(num('intel')), 'Intel set'),
-    'intel-add': () => ok(api.setIntel(api.progress().intel + num('intel')), 'Intel added'),
-    'res-none': () => ok(api.setResearch('none'), 'Research: none'),
-    'res-arrival': () => ok(api.setResearch('arrival'), 'Research: arrival for ' + api.map().name),
-    'res-all': () => ok(api.setResearch('all'), 'Research: all'),
-    'res-reset': () => ok(api.setResearch('none'), 'Research reset'),
+    'intel-set': () => ok(api.setIntel(num('intel')), 'RP set'),
+    'intel-add': () => ok(api.setIntel(api.progress().rp + num('intel')), 'RP added'),
+    'res-none': () => ok(api.setResearch('none'), 'Depot: no upgrades'),
+    'res-arrival': () => ok(api.setResearch('arrival'), 'Depot: arrival upgrades for ' + api.map().name),
+    'res-all': () => ok(api.setResearch('all'), 'Depot: all upgrades'),
     'cash-set': () => ok(api.setCash(num('cash')), 'Cash set'),
     'cash-add': () => ok(api.setCash((api.sim()?.cash ?? 0) + num('cash')), 'Cash added'),
     'hp-set': () => ok(api.setBaseHp(num('hp')), 'Base hp set'),
@@ -136,10 +135,10 @@ export function mountDebug(root, api) {
     if (el.hidden || acc < 0.25) return;
     acc = 0;
     const s = api.sim(), p = api.progress();
-    el.querySelector('[data-k="where"]').textContent = s ? `${api.map().name} · day ${api.day()} · ${s.phase} · ${money(Math.round(s.cash))} · hp ${Math.max(0, s.baseHp)} · intel ${p.intel}` : '';
+    el.querySelector('[data-k="where"]').textContent = s ? `${api.map().name} · day ${api.day()} · ${s.phase} · ${money(Math.round(s.cash))} · hp ${Math.max(0, s.baseHp)} · RP ${p.rp}` : '';
     if (fresh) {
       fresh = false;
-      el.querySelector('[data-k="intel"]').value = p.intel;
+      el.querySelector('[data-k="intel"]').value = p.rp;
       el.querySelector('[data-k="cash"]').value = s ? Math.round(s.cash) : 0;
       el.querySelector('[data-k="hp"]').value = s ? Math.max(1, s.baseHp) : 1;
     }

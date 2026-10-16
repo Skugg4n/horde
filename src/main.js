@@ -1,5 +1,5 @@
-// Spelet: meny med banval, dagar på E4 och Gnesta, och forskning mellan dagarna.
-// Lägen: menu -> intro -> play -> result -> (intro samma dag | intro nästa dag | research).
+// Spelet (0.14.0, Operation Södermanland): meny, operationskartan, förrådet, uppställningen och striden.
+// Lägen: menu -> opmap -> (depot) -> intro -> play (uppställning, sedan vågorna) -> result -> opmap | intro (försök igen).
 // Simuleringen stegas bara i play; scenen ritas alltid (dammet rör sig bakom skyltarna).
 import { VERSION } from './version.js';
 import { MAPS } from './data/maps.js';
@@ -10,23 +10,26 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, arrivedLine, dayResultPanel, researchPanel, mainMenu, note } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note } from './ui/panels.js';
+import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
-import { buyState } from './sim/buy.js';
-import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
+import { OBSTACLES } from './data/obstacles.js';
+import { buyState, inBar } from './sim/buy.js';
+import { abandonDay, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
+import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitsIn, pressureOf, PRESSURE_HP, unitName } from './meta/operation.js';
+import { RELEASES, FROM_NAME } from './data/depot.js';
 import { loadProgress, saveProgress, resetSave } from './meta/save.js';
 import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { RESEARCH } from './data/research.js';
-import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType } from './sim/sim.js';
+import { barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND } from './sim/placement.js';
 import { pointAt } from './sim/path.js';
-import { weaponStats, upgradeCost, maxGuns, maxSquads, inArsenal } from './sim/stats.js';
+import { weaponStats, upgradeCost } from './sim/stats.js';
 import { crewPassable } from './sim/crew-path.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
@@ -45,9 +48,6 @@ const SHAKE_TIME = 0.35, SHAKE_AMP = 0.18;
 const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare och svagare än basen
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
-// ?debug&fresh: ingen forskning läggs till (0.10.1); annars spelas en upplåst bana med forskningen en
-// typisk spelare har när den kommer dit (src/data/arrival.js).
-const FRESH = DEBUG && new URLSearchParams(location.search).has('fresh');
 // Laddningsskydd (index.html): huvudfilen och version.js ska vara samma version. Skiljer de sig har en
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
@@ -96,7 +96,7 @@ async function buildMapWorld(m) {
   const d = Math.min(mapState(progress, m.id).unlockedDay, m.days.length);
   // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
   // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
-  w.sim = createSim(withTweaks(startConfig(progress, d, m.id) ?? startConfig(newProgress(), 1)));
+  w.sim = createSim(withTweaks(opStartConfig(progress, d, m.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
   w.day = d;
   w.view = createView(w.scene, w.sim);
   w.routeLines = createRouteLines(w.scene);
@@ -126,7 +126,7 @@ async function loadMap(id) {
     if (rig) rig.active = false;
     map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines;
     day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
-    sim = createSim(withTweaks(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1)));
+    sim = createSim(withTweaks(opStartConfig(progress, day, map.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
     view.setSim(sim);
     stage.resize(); rig.apply(); rig.goHome();
     routeKeys.now = routeKeys.preview = null;
@@ -184,7 +184,7 @@ let placing = null;          // { type, kind: 'gun' | 'obstacle' } medan något 
 let placedAt = -Infinity;    // när något senast ställdes ut och släpptes ur handen (H095)
 const JUST_PLACED_MS = 1200;
 // 0.13.0: snabbvalen räknas på dagens köprad (förrådet per sektor och dag)
-const chord = createChord({ menu: () => (sim ? dayMenu(id => inArsenal(id, sim.map, sim.dayCfg)) : BUY_MENU) });
+const chord = createChord({ menu: () => (sim ? dayMenu(id => inBar(sim, id)) : BUY_MENU) });
 let spot = null;             // under pekaren: { key, x, z, ok, reason }
 const sightCache = new Map();  // 'typ:ruta' -> synliga rutor (för spöket; byggs om per dag)
 const pointer = { x: 0, y: 0 };
@@ -477,6 +477,7 @@ const actions = {
   upgrade: withCash('click', id => upgrade(sim, id)),
   sell: withCash('click', id => sell(sim, id)),
   kit: withCash('click', id => buyKit(sim, id)),
+  supply: withCash('click', (id, what) => buySupply(sim, id, what)),
   reinforce: withCash('click', id => reinforce(sim, id)),
   move: withCash('place', (id, key, facing, via = []) => moveGun(sim, id, key, { facing, via })),
   startMove: id => guideMove(id),
@@ -591,7 +592,13 @@ function updateEvac() {
   evacEl.querySelector('.n').innerHTML = `<b>${ev.safe}</b> of ${ev.need} safe · ${left} on the way${ev.lost ? ` · <span class="lost">${ev.lost} lost (max ${ev.total - ev.need})</span>` : ''}`;
 }
 function updateSpare() {
-  if (mode !== 'play' || spareTold || sim.phase !== 'wave' || gunCount(sim) < sim.maxGuns) return;
+  // 0.14.0: med kärntrupperna går överskottet till förnödenheter
+  if (mode === 'play' && sim.core && !spareTold && sim.phase === 'wave' && sim.cash >= 320) {
+    spareTold = true;
+    note(uiRoot, 'Supplies to spare: click a unit for an ammo crate, sandbags or a grenade kit, or lay more wire.');
+    return;
+  }
+  if (sim.core || mode !== 'play' || spareTold || sim.phase !== 'wave' || gunCount(sim) < sim.maxGuns) return;
   const cheapest = Math.min(...sim.guns.map(g => upgradeCost(g.weapon.type, g.weapon.level) ?? Infinity));
   if (sim.cash < cheapest) return;
   spareTold = true;
@@ -631,7 +638,7 @@ function blockLines() {
   const lines = new Map();
   for (const key of Object.keys(sim.obstacles)) {
     const o = sim.obstacles[key];
-    if (o.type !== 'block') continue;
+    if (OBSTACLES[o.type]?.kind !== 'block') continue;
     const id = barricadeId(o, key), c = sim.route.cellCenter(Number(key));
     if (!lines.has(id)) lines.set(id, { frac: 1, x: 0, z: 0, n: 0 });
     const l = lines.get(id);
@@ -698,7 +705,7 @@ function handleEvents() {
     // 0.12.2: en grupp sent i vågen säger till när den kommer (vändningen)
     else if (ev.t === 'groupToast') note(uiRoot, ev.text, 'warn');
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
-    else if (ev.t === 'obstacleBroken' && ev.type === 'block') barricadeBroken(ev);
+    else if (ev.t === 'obstacleBroken' && OBSTACLES[ev.type]?.kind === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     // 0.13.0: de civila, pillboxen och lagen på väg
     else if (ev.t === 'civilianDown') { if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } alerts.push({ x: ev.x, z: ev.z, until: time + 5, kind: 'house' }); }
@@ -719,9 +726,18 @@ function handleEvents() {
 // Mellanslag och knappen: Start wave före våg 1, annars Next wave (under nedräkningen eller mitt
 // i en våg). Tidigt kall ger bonus, som visas under kassan. Mitt i en våg staplar bara ett
 // uttryckligt klick på knappen eller Shift+Space (stack); mellanslaget ensamt gör då ingenting.
+// 0.14.0: i uppställningen säger första trycket till om enheter väntar kvar i reserven (och frontbredden räcker);
+// nästa tryck startar ändå.
+let reserveWarned = false;
 function go({ stack = false } = {}) {
   if (mode !== 'play') return;
   if (sim.phase === 'build' && sim.nextWaveIn == null) {
+    const left = sim.reserve?.length ?? 0;
+    if (deployPhase(sim) && left && sim.guns.length < frontage(sim) && !reserveWarned) {
+      reserveWarned = true;
+      note(uiRoot, `${left} unit${left > 1 ? 's' : ''} still in reserve. Deploy them (2), or press again to start.`, 'warn');
+      return;
+    }
     if (!startWave(sim)) return;
   } else {
     if (!callNextWave(sim, { stack }).ok) return;
@@ -970,7 +986,7 @@ addEventListener('keydown', e => {
       category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS });
     if (what === 'close-category') chord.escape();
     else if (what === 'menu-back') menu.back();
-    else if (what === 'close-research') sheetAction('close');
+    else if (what === 'close-research') sheetAction('done');
     else if (what === 'cancel-placing') { stopPlacing(); rotating = null; }
     else if (what === 'close-panel') { closePanel(); hovered = null; }
     else if (what === 'open-menu') menu.show();
@@ -984,8 +1000,11 @@ addEventListener('keydown', e => {
     if (r.t === 'pick') startPlacing(r.id);
     else if (r.t === 'category' || r.t === 'close') audio.ui('click');
   }
-  if (e.key === 'Enter' && mode === 'intro' && !e.repeat) { e.preventDefault(); sheetAction('go'); }
-  if (e.key === 'Enter' && mode === 'result' && !e.repeat) { e.preventDefault(); sheetAction('nextmap'); }
+  // en Enter gör en sak (skylten byts i samma tryck: else if)
+  if (e.key === 'Enter' && !e.repeat) {
+    const a = { intro: 'go', result: 'opmap', opmap: 'go', menu: 'continue' }[mode];
+    if (a && !menu.isOpen()) { e.preventDefault(); sheetAction(a); }
+  }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
   if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
@@ -1029,7 +1048,6 @@ addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
 let mode = 'menu';
 let sheet = null;            // skylten som visas (meny, intro, resultat, forskning)
 let lastResult = null;       // det som resultatskylten visar, för att komma tillbaka från forskning
-let researchFrom = 'menu';
 let hinting = false;         // stegen för första dagen visas
 let hintDone = 0;
 let warnedSave = false;
@@ -1043,8 +1061,9 @@ function setMode(m, makeSheet) {
   if (sheet) sheet.close();
   closePanel();
   stopPlacing();
-  // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna.
-  for (const n of uiRoot.querySelectorAll('.note.warn')) n.remove();
+  // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna. 0.14.0: utanför striden
+  // tas alla bort (operationskartan och förrådet täcker skärmen).
+  for (const n of uiRoot.querySelectorAll(m === 'play' ? '.note.warn' : '.note')) n.remove();
   hovered = null;
   mode = m;
   uiRoot.dataset.mode = m;
@@ -1057,20 +1076,60 @@ function sheetAction(a) {
 }
 
 function showMenu() {
-  setMode('menu', () => mainMenu(uiRoot, progress, {
-    version: VERSION,
-    debug: DEBUG,
-    onDay: n => startDay(n),
-    onResearch: () => showResearch('menu'),
-    onMap: id => { progress = selectMap(progress, id); save(); loadMap(id).then(() => { hud.reset(); showMenu(); }); },
+  const started = Object.values(progress.maps).some(m => Object.keys(m.attempts).length || m.unlockedDay > 1);
+  setMode('menu', () => mainMenu(uiRoot, {
+    version: VERSION, started, rp: progress.rp,
+    onContinue: () => showOpMap(),
+    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); loadMap(progress.mapId).then(() => showOpMap()); },
   }));
 }
+// ---------- operationskartan och förrådet (0.14.0) ----------
+function showOpMap() {
+  setMode('opmap', () => opMapSheet(uiRoot, progress, {
+    onGo: id => goSector(id),
+    onDepot: id => showDepot(id),
+    onMenu: () => showMenu(),
+    // inkorgen är läst när kartan har visats (de nya står markerade just den gången)
+    onSeen: () => { progress = markRead(progress); save(); },
+  }));
+}
+function goSector(id) {
+  const d = nextDay(progress, id);
+  if (!d) return;
+  progress = selectMap(progress, id); save();
+  loadMap(id).then(() => { hud.reset(); startDay(d); });
+}
+const DEPOT_ACTS = {
+  requisition: (p, type, sector) => { const r = requisition(p, type, sector); return { ...r, text: r.ok ? `${unitName({ type })} requisitioned for ${MAPS[sector].name}.` : null }; },
+  level: (p, uid) => { const r = levelUp(p, uid); return { ...r, text: r.ok ? 'Level bought.' : null }; },
+  refill: (p, uid) => { const r = refill(p, uid); return { ...r, text: r.ok ? 'Back at full strength.' : null }; },
+  return: (p, uid) => { const r = returnUnit(p, uid); return { ...r, text: r.ok ? `Returned to the depot: +${r.refund} RP.` : null }; },
+  reassign: (p, uid, sector) => { const r = reassign(p, uid, sector); return { ...r, text: r.ok ? `Reassigned to ${MAPS[sector].name}.` : null }; },
+  upgrade: (p, id) => { const r = buyUpgrade(p, id); return { ...r, text: r.ok ? 'Upgrade bought.' : null }; },
+};
+let depotFrom = 'opmap';
+function showDepot(sector, from = 'opmap') {
+  depotFrom = from;
+  setMode('depot', () => depotSheet(uiRoot, progress, sector, {
+    act: (kind, ...args) => {
+      const r = DEPOT_ACTS[kind](progress, ...args);
+      if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
+      return r;
+    },
+    onDone: () => (depotFrom === 'result' ? showResult() : showOpMap()),
+  }));
+}
+// Leveransen som hör till dagen (meddelandet i introt), eller ingenting.
+function releaseLine(mapId, n) {
+  const r = RELEASES.find(x => x.map === mapId && x.day === n);
+  return r ? `<p class="lead arrived">${FROM_NAME[r.from]}: ${r.text}</p>` : '';
+}
 function startDay(n) {
-  const cfg = startConfig(DEBUG ? debugArrival(progress, map.id, { fresh: FRESH }) : progress, n);
-  if (!cfg) { showMenu(); return; }
+  const cfg = opStartConfig(progress, n);
+  if (!cfg) { showOpMap(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false;
+  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; reserveWarned = false;
   sightCache.clear();
   view.setSim(sim);
   hud.reset();
@@ -1079,7 +1138,8 @@ function startDay(n) {
   const frame = dayFrame();
   if (frame) rig.focus(frame.x, frame.z, frame.view);
   hinting = n === 1 && !hintSeen(progress, map.id) && !!map.days[0].hints; hintDone = 0;
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, { arrived: arrivedLine(map, n) }));
+  const op = { units: cfg.core.length, pressure: Math.round(pressureOf(progress, map.id) * PRESSURE_HP * 100) };
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, { arrived: releaseLine(map.id, n), op }));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
@@ -1120,35 +1180,29 @@ function updateHint() {
 }
 function finishDay() {
   const won = sim.phase === 'won';
-  progress = dayResult(progress, { day, won, intelEarned: sim.intelEarned, mapId: map.id });
+  const report = dayReport(sim);
+  const before = progress;
+  const f = finishOpDay(progress, { mapId: map.id, day, won, intelEarned: sim.intelEarned, report, evac: sim.evac });
+  progress = f.progress;
   save();
+  // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)
+  const losses = (report?.units ?? []).map(u => {
+    const unit = before.op.units.find(x => x.uid === u.uid);
+    return { name: unit ? unitName(unit) : '?', men: unit?.men != null && u.alive != null ? unit.men - u.alive : 0, destroyed: !!u.destroyed };
+  });
   lastResult = {
-    won, day, intelEarned: sim.intelEarned, lesson: sim.lesson ?? 0, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac } : null,
-    wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length,
-    lastDay: day >= map.days.length,
-    cashLeft: won ? Math.round(sim.cash) : 0,
+    won, day, rp: f.rp, attempt: f.attempt, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac } : null,
+    wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lastDay: day >= map.days.length, losses,
   };
   showResult();
 }
 function showResult() {
-  const next = map.outro?.next && MAPS[map.outro.next];
-  const outro = map.outro ? { text: map.outro.text, nextName: next?.name ?? null } : null;
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalIntel: progress.intel, outro }, {
+  const outro = map.outro ? { text: map.outro.text } : null;
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro }, {
     onRetry: () => startDay(day),
-    onNext: () => startDay(day + 1),
-    // 0.11.0: sektorns slut leder rakt in i nästa sektors dag 1 (den är upplåst av vinsten)
-    onNextMap: () => { if (!next) return; progress = selectMap(progress, next.id); save(); loadMap(next.id).then(() => { hud.reset(); startDay(1); }); },
-    onResearch: () => showResearch('result'),
+    onOpMap: () => showOpMap(),
     onMenu: showMenu,
   }));
-}
-function showResearch(from) {
-  researchFrom = from;
-  setMode('research', () => researchPanel(uiRoot, progress, id => {
-    progress = buyResearch(progress, id);
-    save();
-    return progress;
-  }, () => (researchFrom === 'result' ? showResult() : showMenu())));
 }
 
 function rangeFor(p) {
@@ -1235,10 +1289,10 @@ if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, 
 
 // ---------- debugmenyn (0.12.2, Olas önskan) ----------
 // Fem snabba klick på versionsnumret (hörnet eller menyn) öppnar den; med ?debug finns knappen DEBUG.
-const allResearch = () => RESEARCH.flatMap(n => n.tiers.map((_, i) => `${n.id}.${i + 1}`));
-function applyResearch(list) {
-  progress = { ...progress, research: [...list] }; save();
-  if (sim) { sim.research = new Set(list); sim.maxGuns = maxGuns(sim.research, sim.map); sim.maxSquads = maxSquads(sim.research, sim.dayCfg); }
+// 0.14.0: forskningens förval blir förrådets (debugDepot): none, arrival (src/data/arrival.js) eller all.
+function applyDepot(preset) {
+  progress = debugDepot(progress, preset, ARRIVAL[map.id] ?? []); save();
+  if (sim) sim.research = new Set(progress.research);
   return { ok: true };
 }
 const overlays = new Map();
@@ -1251,13 +1305,14 @@ const debugUi = mountDebug(uiRoot, {
     const all = (map?.lots?.plots ?? []).filter(p => p.house && p.id).map(p => ({ id: p.id, label: p.id + (today.has(p.id) ? ' (today)' : '') }));
     return [...all.filter(h => today.has(h.id)), ...all.filter(h => !today.has(h.id))];
   },
-  setIntel: v => { if (!Number.isFinite(v)) return { ok: false }; progress = { ...progress, intel: Math.max(0, Math.round(v)) }; save(); return { ok: true }; },
-  setResearch: preset => applyResearch(preset === 'all' ? allResearch() : preset === 'arrival' ? (ARRIVAL[map.id] ?? []) : []),
+  setIntel: v => { if (!Number.isFinite(v)) return { ok: false }; progress = { ...progress, rp: Math.max(0, Math.round(v)) }; save(); return { ok: true }; },
+  setResearch: preset => applyDepot(preset),
   setCash: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.cash = Math.max(0, Math.round(v)); return { ok: true }; },
   setBaseHp: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.baseHp = Math.max(1, Math.round(v)); return { ok: true }; },
   jump: async (mapId, d, wave) => {
     if (!MAPS[mapId]) return;
-    progress = selectMap(progress, mapId); save();
+    // 0.14.0: sektorerna före räknas som klara, så att leveranserna och trupperna finns där
+    progress = selectMap(debugReach(progress, mapId, Math.max(1, Math.round(d) || 1)), mapId); save();
     await loadMap(mapId);
     startDay(Math.max(1, Math.min(map.days.length, Math.round(d) || 1)));
     sheetAction('go');
@@ -1270,7 +1325,7 @@ const debugUi = mountDebug(uiRoot, {
     return { ok: true };
   },
   resetSave: () => {
-    const ok = resetSave(newProgress());
+    const ok = resetSave(newCampaign());
     progress = loadProgress();
     loadMap(progress.mapId).then(() => showMenu());
     return { ok };

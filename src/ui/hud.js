@@ -44,7 +44,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     <div class="bar"><i data-k="bar"></i></div>
   </div>
   <div id="res" class="plate">
-    <div class="cash-box"><div class="k">CASH</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
+    <div class="cash-box"><div class="k">SUPPLIES</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
     <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
   <div id="hint" class="plate" hidden><button type="button" class="fold" data-k="fold" aria-label="Fold the steps" title="Fold the steps">–</button><ol></ol></div>

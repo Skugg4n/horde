@@ -37,6 +37,10 @@ export const ICONS = {
   wire: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2">
     <path d="M14 6 V30 M106 6 V30"/><path d="M14 12 C30 2 40 22 56 12 S82 2 106 12"/><path d="M14 22 C30 12 40 32 56 22 S82 12 106 22"/>
     <path d="M34 9 l4 4 M38 9 l-4 4 M74 15 l4 4 M78 15 l-4 4 M50 24 l4 4 M54 24 l-4 4"/></g></svg>`,
+  // 0.14.0: skrotbil
+  car: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <path d="M14 24 H106 V18 L92 16 L80 7 H42 L30 16 L14 18 Z"/><path d="M44 10 H78 L86 16 H36 Z"/>
+    <circle cx="34" cy="26" r="5"/><path d="M80 26 l10 0"/><path d="M58 9 L62 15 L57 18"/></g></svg>`,
   block: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
     <path d="M22 30 L30 8 H50 L58 30 Z"/><path d="M62 30 L70 8 H90 L98 30 Z"/><path d="M14 30 H106"/>
     <path d="M38 14 L42 20 L39 25"/></g></svg>`,

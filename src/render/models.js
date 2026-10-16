@@ -559,8 +559,39 @@ function blockObstacle(span = 9) {
   return g;
 }
 
+// 0.14.0: skrotbilar tvärs över gatan (förnödenheter). Två vrak på en bred gata, ett på en smal; rost,
+// olikfärgad lack, krossade rutor, utan hjul på ena sidan. Slitet lutar vraken och mörknar plåten.
+const WRECK = ['#5b3a2a', '#4a4f46', '#6b5a3a', '#3f4650', '#6d2f22'];
+function carObstacle(span = 9) {
+  const g = new THREE.Group();
+  const narrow = span < 6, bodies = [];
+  const rust = new THREE.MeshStandardMaterial({ color: '#5a3422', roughness: 0.95, metalness: 0.15, flatShading: true });
+  rust.userData.own = true;
+  const glass = mat('#1a1d1c'), tyre = mat(P.ink);
+  for (const [i, z] of (narrow ? [0] : [-2.3, 2.3]).entries()) {
+    const paint = new THREE.MeshStandardMaterial({ color: WRECK[(i * 3 + Math.floor(rnd(0, 5))) % WRECK.length], roughness: 0.9, metalness: 0.2, flatShading: true });
+    paint.userData.own = true;
+    const c = new THREE.Group();
+    c.add(box(1.8, 0.62, 4.1, paint, 0, 0.55, 0));                    // karossen
+    c.add(box(1.6, 0.5, 2.0, paint, 0, 1.1, -0.2));                   // kupén
+    c.add(box(1.62, 0.36, 1.9, glass, 0, 1.12, -0.2));                // rutorna (svarta, krossade)
+    c.add(box(1.82, 0.18, 4.12, rust, 0, 0.3, 0));                     // rost längs tröskeln
+    for (const [wx, wz] of [[0.86, 1.35], [0.86, -1.35], [-0.86, 1.35]]) {
+      const w = mesh(geo('cylinder', 0.32, 0.32, 0.22, 10), tyre, wx, 0.32, wz); w.rotation.z = Math.PI / 2; c.add(w);
+    }
+    c.position.set(rnd(-0.25, 0.25), 0, z + rnd(-0.2, 0.2));
+    // en ruta på stadsbanornas rutnät (2 m): vraket står med längden längs gatan, sida vid sida över den
+    c.rotation.y = (narrow ? Math.PI / 2 : 0) + rnd(-0.18, 0.18);
+    c.rotation.z = -0.06;                                              // vilar på fälgen där hjulet saknas
+    c.userData = { ry: c.rotation.y, tilt: rnd(0.15, 0.3), paint, base: paint.color.clone() };
+    g.add(c); bodies.push(c);
+  }
+  g.userData = { kind: 'obstacle', type: 'car', bodies, rust };
+  return g;
+}
+
 export function obstacleModel(type, { span = 9 } = {}) {
-  const g = type === 'block' ? blockObstacle(span) : wireObstacle(span);
+  const g = type === 'block' ? blockObstacle(span) : type === 'car' ? carObstacle(span) : wireObstacle(span);
   setObstacleWear(g, 1);
   return g;
 }
@@ -595,6 +626,13 @@ export function setObstacleWear(group, fraction) {
       }
     }
     for (const p of u.posts) p.rotation.z = p.userData.rz + (1 - f) * p.userData.fall * 0.45;
+  } else if (u.type === 'car') {
+    const w = 1 - f;
+    for (const c of u.bodies) {
+      c.rotation.z = -0.06 - w * c.userData.tilt;
+      c.rotation.y = c.userData.ry + w * 0.25;
+      c.userData.paint.color.copy(c.userData.base).lerp(C_CRACK, w * 0.6);
+    }
   } else if (u.type === 'block') {
     const w = 1 - f;
     for (const b of u.blocks) {

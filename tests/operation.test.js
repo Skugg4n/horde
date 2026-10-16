@@ -204,3 +204,9 @@ test('förrådets uppgraderingar: forskningens nivåer köps med RP när typen �
   assert.deepEqual(cfg.core.map(u => u.type).sort(), ['epa', 'inf', 'm2', 'm249', 'm249']);
   assert.equal(cfg.hpMul, 1);
 });
+
+test('Esc stänger förrådet som det stängde forskningen; på operationskartan gör det ingenting', async () => {
+  const { escapeAction } = await import('../src/sim/clock.js');
+  assert.equal(escapeAction({ mode: 'depot' }), 'close-research');
+  assert.equal(escapeAction({ mode: 'opmap' }), 'none');
+});

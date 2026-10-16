@@ -24,7 +24,8 @@ export function advance(st, frameDt, { playing, paused, mul = 1, dt, maxPerSpeed
 export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false, category = false, justPlaced = false }) {
   if (repeat) return 'none';
   if (menuOpen) return 'menu-back';
-  if (mode === 'research') return 'close-research';
+  // 0.14.0: förrådet stängs med Esc som forskningen gjorde
+  if (mode === 'research' || mode === 'depot') return 'close-research';
   // 0.12.1 (speltestet): på resultatskylten, introt och huvudmenyn gör Esc ingenting (pausmenyn lade
   // sig över resultatet efter en förlust). Bara forskningen stängs med Esc (ovan).
   if (mode !== 'play') return 'none';

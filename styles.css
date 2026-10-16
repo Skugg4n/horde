@@ -272,6 +272,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui[data-mode="intro"] .dim { background: rgba(16, 12, 8, 0.3); }
 #ui[data-mode="menu"] #day, #ui[data-mode="menu"] #res,
 #ui[data-mode="research"] #day, #ui[data-mode="research"] #res,
+#ui[data-mode="opmap"] #day, #ui[data-mode="opmap"] #res, #ui[data-mode="depot"] #day, #ui[data-mode="depot"] #res,
+#ui[data-mode="opmap"] #minimap, #ui[data-mode="depot"] #minimap, #ui[data-mode="menu"] #minimap,
 #ui:not([data-mode="play"]) #go, #ui:not([data-mode="play"]) #speedcd, #ui:not([data-mode="play"]) #wavebar { display: none; }
 
 .sheet {
@@ -609,3 +611,70 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel .info.armour.low { color: #e0866a; }
 .sheet .objective { color: #f2c46b; }
 .sheet .arrived { color: #b9d3dc; }
+
+/* ---------- Operation Södermanland (0.14.0): operationskartan, förrådet, resultatets RP ---------- */
+#ui[data-mode="opmap"] .dim, #ui[data-mode="depot"] .dim { background: rgba(10, 9, 6, 0.86); }
+.opmap, .depot { width: min(1080px, calc(100vw - 32px)); text-align: left; padding: 18px 20px 16px; }
+.opmap .oh, .depot .oh { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.opmap .h, .depot .h { font-size: 32px; margin: 0; }
+.oh .rp { display: flex; flex-direction: column; align-items: flex-end; }
+.oh .rp span { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--paper-dim); }
+.oh .rp b { font: 600 24px 'IBM Plex Mono', monospace; color: #d9a441; }
+.opmap .ob { display: flex; gap: 14px; flex-wrap: wrap; }
+.opmap .mapwrap { flex: 1 1 520px; min-width: 0; }
+.opmap canvas { display: block; width: 100%; height: min(52vh, 440px); border: 1px solid var(--plate-edge); border-radius: 2px; cursor: pointer; background: #14160f; }
+.opmap .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; font-size: 11px; letter-spacing: 0.08em; color: var(--paper-dim); text-transform: uppercase; }
+.opmap .legend i { display: inline-block; width: 9px; height: 9px; border: 2px solid; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.opmap .legend i.pr { border-radius: 0; transform: rotate(45deg); border: 1px solid var(--paper-dim); background: #e0603c; width: 7px; height: 7px; }
+.opmap .side { flex: 1 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.opmap .card.sector { width: auto; cursor: default; padding: 10px 12px 12px; }
+.opmap .sc-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.opmap .sc-h b { font-family: 'Saira Stencil One', sans-serif; font-size: 22px; font-weight: 400; }
+.opmap .sc-h .tag { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
+.opmap .card p { font-size: 14px; letter-spacing: 0.02em; color: var(--paper); margin: 0 0 6px; }
+.opmap .card .act { margin-top: 6px; width: 100%; justify-content: center; }
+.opmap .inbox { border: 1px solid var(--plate-edge); border-radius: 2px; padding: 8px 10px; max-height: min(30vh, 250px); overflow-y: auto; }
+.opmap .ih { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper-dim); margin-bottom: 4px; }
+.opmap .ih span { color: #e0603c; margin-left: 6px; }
+.opmap .inbox ul { list-style: none; margin: 0; padding: 0; }
+.opmap .inbox li { font-size: 13px; line-height: 1.4; padding: 6px 0; border-top: 1px solid rgba(233,223,201,0.07); color: var(--paper-dim); }
+.opmap .inbox li:first-child { border-top: 0; }
+.opmap .inbox li b { display: block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper); }
+.opmap .inbox li.new { color: var(--paper); }
+.opmap .inbox li.new b::after { content: 'NEW'; margin-left: 8px; color: #e0603c; font-size: 10px; }
+.opmap .acts, .depot .acts { justify-content: flex-start; margin-top: 12px; }
+.depot .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.depot .tab { padding: 6px 12px; border: 1px solid var(--plate-edge); border-radius: 2px; background: rgba(233,223,201,0.05); color: var(--paper); cursor: pointer; font: 500 14px Oswald, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.depot .tab span { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-left: 4px; }
+.depot .tab.on { border-color: rgba(181,83,42,0.9); background: rgba(181,83,42,0.2); }
+.depot .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; max-height: min(62vh, 560px); overflow-y: auto; }
+.depot h4 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper-dim); margin: 0 0 6px; font-weight: 500; }
+.depot .muted { color: var(--paper-dim); font-size: 13px; }
+.depot .small { font-size: 12px; margin-top: 8px; }
+.depot .urow { border: 1px solid var(--plate-edge); border-radius: 2px; padding: 7px 9px; margin-bottom: 6px; background: rgba(233,223,201,0.04); }
+.depot .un { font-size: 14px; }
+.depot .un .lv { font: 600 12px 'IBM Plex Mono', monospace; color: #d9a441; margin-left: 4px; }
+.depot .un .men { display: block; font-size: 12px; color: var(--paper-dim); letter-spacing: 0.03em; }
+.star { color: #d9a441; margin-left: 4px; }
+.depot .ua { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.depot .mini, .depot select { font: 500 12px Oswald, sans-serif; letter-spacing: 0.05em; padding: 3px 8px; border: 1px solid var(--plate-edge); border-radius: 2px; background: rgba(233,223,201,0.07); color: var(--paper); cursor: pointer; }
+.depot .mini i { font: normal 11px 'IBM Plex Mono', monospace; color: #d9a441; margin-left: 4px; }
+.depot .mini.off { opacity: 0.45; }
+.depot .mini.max { opacity: 0.5; cursor: default; }
+.depot select { background: #1d1913; }
+.depot .req { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; width: 100%; text-align: left; padding: 7px 9px; margin-bottom: 6px; border: 1px solid rgba(217,164,65,0.4); border-radius: 2px; background: rgba(233,223,201,0.04); color: var(--paper); cursor: pointer; }
+.depot .req:hover { background: rgba(217,164,65,0.1); }
+.depot .req b { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; }
+.depot .req span { grid-column: 1; font-size: 12px; color: var(--paper-dim); }
+.depot .req i { grid-column: 2; grid-row: 1 / span 2; align-self: center; font: normal 13px 'IBM Plex Mono', monospace; color: #d9a441; }
+.depot .req.off { opacity: 0.5; border-color: var(--plate-edge); }
+.depot .dmsg { min-height: 1.3em; font-size: 14px; color: #e0603c; margin-top: 8px; opacity: 0; transition: opacity 0.2s; }
+.depot .dmsg.show { opacity: 1; }
+.depot .dmsg.good { color: #9fc46a; }
+.rptab { display: inline-flex; flex-direction: column; gap: 2px; min-width: 260px; margin: 0 auto 10px; text-align: left; }
+.rptab div { display: flex; justify-content: space-between; gap: 18px; font-size: 14px; color: var(--paper-dim); }
+.rptab b { font: 600 14px 'IBM Plex Mono', monospace; color: var(--paper); }
+.rptab .tot { border-top: 1px solid var(--plate-edge); padding-top: 4px; margin-top: 2px; color: var(--paper); }
+.rptab .tot b { color: #d9a441; font-size: 16px; }
+.lead.arrived { font-size: 15px; color: #c8bfa8; }
+#buildbar.deploy .k { color: #9fc46a; }
