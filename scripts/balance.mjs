@@ -1,17 +1,23 @@
-// Balanssimulering: spelar kampanjen headless med deterministiska policyer.
-//   greedy  : en människa som spenderar pengar när de kommer in, även mitt i vågen (koll varje sekund).
-//             Pjäserna ställs där de ser mest av hordens väg (coveragePlan).
-//   minimal : bara det dag 1 ber om, en M249 på en given plats, inget mer.
-// greedy kallar nästa våg tidigt (bonus) när försvaret har det bekvämt: basen hel och ingen
-// levande zombie förbi halva vägen, och mitt i en våg dessutom när allt i vågen har kommit och
-// högst tre lever. Annars väntar den ut nedräkningen. minimal väntar alltid ut den.
+// Balanssimulering (0.14.0, Operation Södermanland): spelar hela kampanjen headless med deterministiska
+// policyer: E4, Gnesta South och Gnesta North dag för dag, med försök, RP, kärntrupper, leveranser och
+// rekvisition mellan försöken (src/meta/operation.js). Två spelare:
+//   skilled : läser kartan (Gnesta: smart, spärren som leder horden dit pjäserna ser), kallar vågor
+//             tidigt när det är lugnt, köper ammunition och sandsäckar.
+//   normal  : ställer allt efter sin egen väg (Gnesta: naive, aldrig en barrikad), väntar ut
+//             nedräkningarna, köper samma förnödenheter.
+// Båda rekvirerar i samma ordning (REQUISITION) och ställer ut allt de har i uppställningen (deployAll).
+// Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
+// köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
+// 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
 import { fileURLToPath } from 'node:url';
-import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove } from '../src/sim/sim.js';
+import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
-import { WEAPONS, GRENADE_KIT } from '../src/data/weapons.js';
+import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
-import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch, selectMap } from '../src/meta/progress.js';
+import { selectMap, mapState } from '../src/meta/progress.js';
+import { newCampaign, opStartConfig, finishDay, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
+import { UPGRADES } from '../src/data/depot.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
@@ -20,20 +26,6 @@ import { distPolyline } from '../src/data/gnesta.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
-// Nod-id; varje förekomst köper nästa nivå i noden.
-// 0.8.0: Psg 90 direkt efter Ksp 88 III (Psg 90 kräver Ksp 88 II), Ksp 58 och Ak 5 efter
-// Grenades III och Bigger budget III, sedan nivåerna. Policyn har Psg 90 från Gnesta dag 4 och
-// alla tre dag 5. E4-kampanjen stannar långt före, så E4:s kvitto är orört. (Ksp 58 före dag 4
-// gjorde granatlådan sämre än pengarna dag 4: se docs/balance-log.md.)
-const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'positions',
-  'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'psg90', 'm249Rate', 'grenade', 'budget', 'ksp58', 'ak5', 'block', 'positions',
-  'ksp58', 'ak5', 'psg90', 'positions', 'ksp58', 'ak5', 'psg90'];
-// Gnesta Norr (0.10.0): Hemvärnets forskning först (H054), sedan resten i samma ordning. E4 och Gnesta
-// använder RESEARCH_ORDER som förut, så deras kvitton påverkas inte.
-export const NORR_HV_ORDER = ['hvRifles', 'hvSquad', 'hvRifles', 'hvVeterans', 'hvRifles', 'hvSquad', 'hvVeterans', ...RESEARCH_ORDER];
-// En spelare som kommer till en bana utan forskning (?debug&fresh): billigast nyttiga först (Faster
-// Ksp 90 I, Heavy wire I), sedan som vanligt.
-export const FRESH_ORDER = ['budget', 'm249Rate', 'grenade', 'm249Rate', 'budget', ...RESEARCH_ORDER];
 const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
 const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever
 const WIRE_CELLS = [0, 1, 2];
@@ -99,7 +91,7 @@ function buildNext(sim, spots, type) {
     if (sim.guns.some(g => g.cell === k)) continue;
     const r = build(sim, k, type);
     if (r.ok) return true;
-    if (r.reason === 'pengar' || r.reason === 'fullt') return false;
+    if (r.reason === 'pengar' || r.reason === 'fullt' || r.reason === 'reserv' || r.reason === 'uppställd') return false;
   }
   return false;
 }
@@ -108,7 +100,8 @@ function buildNext(sim, spots, type) {
 // köps för sig (gnestaBuild).
 // 0.13.0: bara det sektorn har i förrådet i dag (inArsenal); Gnesta dag 1 har inga pjäser alls (null).
 const GROUND = ['m249', 'ksp58', 'm2'];
-const has = (sim, id) => weaponUnlocked(id, sim.research, sim.map) && inArsenal(id, sim.map, sim.dayCfg);
+// 0.14.0: med kärntrupperna det som väntar i reserven, och bara i uppställningen
+const has = (sim, id) => (sim.core ? deployPhase(sim) && reserveCount(sim, id) > 0 : weaponUnlocked(id, sim.research, sim.map) && inArsenal(id, sim.map, sim.dayCfg));
 const wantedWeapon = sim => {
   const opts = GROUND.map(id => WEAPONS[id]).filter(w => has(sim, w.id));
   if (!opts.length) return null;
@@ -140,7 +133,7 @@ function buySquad(sim, spots, { gap = false } = {}) {
     if (sim.guns.some(g => g.cell === k)) continue;
     const r = build(sim, k, type);
     if (r.ok) return 'built';
-    if (r.reason === 'pengar' || r.reason === 'fullt') return;
+    if (r.reason === 'pengar' || r.reason === 'fullt' || r.reason === 'reserv') return;
   }
 }
 const upgradeAll = sim => {
@@ -177,28 +170,6 @@ function greedyBuild(sim, spots) {
     if (g) buyKit(sim, g.id);
   }
   upgradeAll(sim);
-}
-
-// Minimal policy: en M249 i given ruta, sedan ingenting.
-function minimalBuild(sim, spot) {
-  if (!sim.guns.length) build(sim, spot, 'm249');
-}
-// Platser för minimal-policyn på E4 (världskoordinater): där en förstagångsspelare gärna ställer
-// sin första pjäs. A: tätt intill vägen mitt på sträckan, B: snett framför basen, C: långt från
-// vägen bakom basen. Ingen av dem är den bästa platsen.
-export const MINIMAL_SPOTS = { A: [4, 6], B: [-6, -8], C: [-16, 9] };
-const spotKey = (map, [x, z]) => placementFor(map).keyAt(x, z);
-
-// Spelar en dag. Returnerar resultat plus kassa och bas efter varje våg, och hur basen föll:
-// firstHit = simtid då basen först tog skada, fallTime = tid från första skadan till 0.
-export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot = 'A', onSecond = null, early: allowEarly = true } = {}) {
-  const cfg = startConfig(progress, day);
-  const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
-  const think = policy === 'greedy' ? (spots => () => greedyBuild(sim, spots))(e4Plan().spots)
-    : policy === 'minimal' ? () => minimalBuild(sim, spotKey(cfg.map, MINIMAL_SPOTS[slot] ?? slot))
-    : (() => { throw new Error('okänd policy ' + policy); })();
-  const early = allowEarly && policy === 'greedy';
-  return runDay(sim, think, early, onSecond);
 }
 
 // Dagens slinga, gemensam för båda banorna: policyn tänker före varje våg och en gång per
@@ -265,50 +236,9 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex, lostBy: sim.lostBy ?? null,
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
-    ...(sim.map.grid ? { peak, sim } : {}),
+    peak, sim, report: dayReport(sim),
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
-}
-
-// Forskning mellan dagarna: köper i RESEARCH_ORDER och sparar till nästa i ordningen, stannar vid
-// första som inte går att köpa än. Den n:te förekomsten av en nod i listan betyder nivå n.
-export function buyInOrder(progress, order = RESEARCH_ORDER) {
-  const seen = {};
-  for (const id of order) {
-    const want = (seen[id] = (seen[id] || 0) + 1);
-    if (progress.research.includes(`${id}.${want}`)) continue;
-    const c = canBuyResearch(progress, id);
-    if (c.reason === 'redan') continue;
-    if (!c.ok) break;
-    progress = buyResearch(progress, id);
-  }
-  return progress;
-}
-
-export function campaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0 } = {}) {
-  return runCampaign(policy, maxAttempts, { seedOffset }).log;
-}
-// Som campaign, men returnerar även framsteget efter sista dagen (forskning och poäng kvar).
-export function runCampaign(policy = 'greedy', maxAttempts = 6, { seedOffset = 0 } = {}) {
-  let progress = newProgress();
-  const log = [];
-  for (let day = 1; ; day++) {
-    if (!startConfig(progress, day)) break;
-    let won = false;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const research = [...progress.research];
-      const r = playDay(progress, day, policy, { seedOffset });
-      progress = dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned });
-      // Sparar till nästa i ordningen: stannar vid första som inte går att köpa än.
-      // Den n:te förekomsten av en nod i listan betyder nivå n.
-      progress = buyInOrder(progress);
-      log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves, bonus: r.bonus,
-        waveLog: r.waveLog, fallTime: r.fallTime, had: research, research: [...progress.research] });
-      if (r.won) { won = true; break; }
-    }
-    if (!won) break; // dagen klarades aldrig: kampanjen stannar här
-  }
-  return { log, progress };
 }
 
 // ---------- Gnesta: styr horden med barrikader ----------
@@ -587,26 +517,6 @@ function norrBuild(sim, plan, maxKits, maxRoofs) {
   if (!freeSpot) upgradeAll(sim);
 }
 
-// Spelar en Gnesta-dag med policyn smart eller naive. progress: framsteget med forskningen.
-export function playGnestaDay(progress, day, policy = 'smart', { seedOffset = 0, onSecond = null, plan: given = null, kits = true } = {}) {
-  return playTownDay(progress, day, policy, { seedOffset, onSecond, plan: given, kits, mapId: 'gnesta' });
-}
-// En dag på Gnesta eller Gnesta Norr. TOWN[mapId] säger hur policyn läser kartan.
-function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, plan: given = null, kits = true, mapId, hv = false }) {
-  const T = TOWN[mapId];
-  if (policy !== 'smart' && policy !== 'naive') throw new Error('okänd policy ' + policy);
-  const cfg = startConfig(progress, day, mapId);
-  const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
-  sim.policy = policy;
-  // hv (Gnesta Norr): spelaren som köper Hemvärnet varje dag (HV_NORR), i stället för banans policy
-  if (hv) sim.hvPolicy = HV_NORR;
-  const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { ...T.planOpts(day, policy), blocks: policy === 'smart' ? T.blocks(day) : [] });
-  const buildFn = T.build ?? gnestaBuild;
-  const r = runDay(sim, () => buildFn(sim, plan, kits ? T.kits[day] : 0, T.roofsDay[day]), true, onSecond, T.maxTicks, mapId !== 'gnesta');
-  const { sim: _s, ...rest } = r;
-  return { ...rest, plan, barricades: Object.values(_s.obstacles).filter(o => o.type === 'block').length };
-}
-
 // ---------- Gnesta Norr (0.10.0): horden norrifrån ----------
 // smart : en människa som läser kartan. Hon spärrar Vikingavägen söder om den andra stigen till
 //         Gångvägen, så att horden från Dansutvägen och Vikingavägen norr måste gå hela Gångvägen förbi
@@ -642,71 +552,8 @@ export const TOWN = {
     kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
   },
 };
-// 0.10.1: Norr balanseras mot spelaren som INTE köper Hemvärnet (granskningen av 0.10: gruppen var
-// ett sämre köp än pjäserna, och hp-faktorerna var satta för en handikappad spelare). Den som köper
-// gruppen varje dag och forskar i den först (hv: true, NORR_HV_ORDER) ska också vinna; det provas för sig.
+// Gnesta Norr: Hemvärnet köps inte av policyn (den använder det den har i reserven).
 HV_POLICY['gnesta-norr'] = { days: [], gap: [] };
-export const HV_NORR = { days: [1, 2, 3, 4, 5], gap: [] };
-export function playNorrDay(progress, day, policy = 'smart', opts = {}) {
-  return playTownDay(progress, day, policy, { ...opts, mapId: 'gnesta-norr' });
-}
-// Gnesta dag 1 till 5 med smart policy efter E4, och framsteget efteråt (Gnesta Norr vald).
-export function gnestaFinished(seedOffset = 0) {
-  return selectMap(runGnestaCampaign('smart', 6, { seedOffset }).progress, 'gnesta-norr');
-}
-export function norrCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = gnestaFinished(seedOffset), hv = false, days } = {}) {
-  return runTownCampaign('gnesta-norr', policy, maxAttempts, { seedOffset, start, hv, order: hv ? NORR_HV_ORDER : RESEARCH_ORDER, days }).log;
-}
-// En ny spelare på en stadsbana (?debug&fresh): ingen forskning alls, FRESH_ORDER mellan försöken.
-// days: hur många dagar som spelas.
-export function freshCampaign(mapId, policy = 'smart', maxAttempts = 6, { seedOffset = 0, days = 1 } = {}) {
-  return runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start: selectMap(newProgress(), mapId), order: FRESH_ORDER, days }).log;
-}
-
-// ?debug-tabellen för Gnesta Norr (0.10.2, src/data/arrival.js). Förut var den forskningen smart
-// policy slutar Gnesta med (23 nivåer, alla vapen, 6 platser), och speltestet av 0.10.1 fann banan
-// för lätt med den. Nu: en spelare som vinner varje dag på första försöket, utan förlusternas
-// forskning, och köper i RESEARCH_ORDER: forskningen från de vunna försöken på E4 (girig) och
-// Gnesta (smart), köpt i ordning från noll.
-export function norrArrival(seedOffset = 0) {
-  const e4 = runCampaign('greedy', 6, { seedOffset }).log;
-  const gn = runGnestaCampaign('smart', 6, { seedOffset }).log;
-  const intel = [...e4, ...gn].filter(r => r.won).reduce((a, r) => a + r.intel, 0);
-  return buyInOrder({ ...newProgress(), intel }).research;
-}
-
-// Spelarens framsteg när E4 är klar med girig policy: forskningen och poängen som blev över.
-export function e4Finished(seedOffset = 0) {
-  return selectMap(runCampaign('greedy', 6, { seedOffset }).progress, 'gnesta');
-}
-
-// Gnesta dag 1 till 5 efter E4. Forskning köps mellan dagarna som på E4.
-export function gnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset), days } = {}) {
-  return runGnestaCampaign(policy, maxAttempts, { seedOffset, start, days }).log;
-}
-export function runGnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset), days } = {}) {
-  return runTownCampaign('gnesta', policy, maxAttempts, { seedOffset, start, days });
-}
-function runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start, hv = false, order = RESEARCH_ORDER, days = MAPS[mapId].days.length }) {
-  days ??= MAPS[mapId].days.length;
-  let progress = start;
-  const log = [];
-  for (let day = 1; day <= days; day++) {
-    let won = false;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const before = progress;
-      const r = playTownDay(progress, day, policy, { seedOffset, mapId, hv });
-      progress = buyInOrder(dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned, mapId }), order);
-      log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves, bonus: r.bonus, peak: r.peak, lostBy: r.lostBy, ...(r.evac ? { evac: r.evac } : {}),
-        grenades: r.grenades, waveLog: r.waveLog, fallTime: r.fallTime, firstHit: r.firstHit, firstShot: r.firstShot, time: r.time, barricades: r.barricades,
-        ...(mapId === 'gnesta' ? {} : { squads: r.squads, squadHits: r.squadHits, squadDown: r.squadDown }),
-        before, had: [...before.research], research: [...progress.research] });
-      if (r.won) { won = true; break; }
-    }
-    if (!won) break;
-  }
-  return { log, progress };
-}
 
 // Gnesta, rök-körning: en trivial våg, tre vandrare från varje spawn, inga vapen eller hinder.
 // Inga balansmål än; den visar att horden hittar fram och hur lång tid det tar per ingång.
@@ -733,49 +580,194 @@ export function gnestaSmoke({ check = false, seed = 1, base = gnesta, blocks = [
   return { phase: sim.phase, time: sim.time, arrivals, offRoad, len: sim.route.len };
 }
 
+
+// ---------- Operation Södermanland (0.14.0): kampanjen ----------
+export const SECTOR_ORDER = ['riksvagen', 'gnesta', 'gnesta-norr'];
+const SQUAD_ORDER = ['inf', 'hv', 'civ'];
+// Uppställningens ordning när frontbredden inte räcker till alla: tyngst först.
+const DEPLOY_ORDER = ['m2', 'ksp58', 'epa', 'psg90', 'ak5', 'inf', 'm249', 'hv', 'civ'];
+
+// Uppställningen: allt i reserven ut på planens platser. Öppningens Ksp 90 först (Gnesta North), Psg 90 på
+// planens tak (sedan marken), pjäserna från den tyngsta på de platser som ser mest av hordens väg, grupperna
+// på sina egna platser. Det som inte får plats på planen provas på de andras platser.
+function deployAll(sim, plan) {
+  const tryAt = (spots, type, opts = () => ({})) => {
+    for (const k of spots) {
+      if (sim.guns.some(g => g.cell === k)) continue;
+      const r = build(sim, k, type, opts(k));
+      if (r.ok) return true;
+      if (r.reason === 'reserv' || r.reason === 'uppställd' || r.reason === 'front') return false;
+    }
+    return false;
+  };
+  const guns = [...plan.guns, ...plan.squads], squads = [...plan.squads, ...plan.guns];
+  if (plan.openerGun != null && reserveCount(sim, 'm249')) tryAt([plan.openerGun], 'm249');
+  // frontbredden: de tyngsta först (DEPLOY_ORDER), högst nivå först inom typen (build tar den)
+  for (const t of DEPLOY_ORDER) {
+    while (reserveCount(sim, t) && sim.guns.length < frontage(sim)) {
+      const ok = t === 'psg90' ? tryAt(plan.roofs ?? [], t, k => ({ facing: plan.roofFacing?.[plan.roofs.indexOf(k)] })) || tryAt(guns, t)
+        : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t);
+      if (!ok) break;
+    }
+  }
+}
+// Förnödenheterna utöver hindren och granatlådorna: ammunition till pjäserna, sandsäckar till grupperna,
+// med pengar kvar till en ny taggtråd. Efter första vågen (en människa bygger först).
+function spendSupplies(sim) {
+  if (sim.waveIndex < 1) return;
+  const keep = OBSTACLES.wire.cost;
+  for (const g of sim.guns) if (!g.squad && !g.weapon.ammo && sim.cash >= SUPPLIES.ammo.cost + keep) buySupply(sim, g.id, 'ammo');
+  for (const g of sim.guns) if (g.squad && !g.weapon.sandbags && sim.cash >= SUPPLIES.sandbags.cost + keep) buySupply(sim, g.id, 'sandbags');
+}
+const lay = (sim, cells, type) => {
+  for (const c of cells) {
+    if (sim.obstacles[c]) continue;
+    if (!acrossCells(sim, c).length || sim.cash < OBSTACLES[type].cost) return;
+    placeAcross(sim, c, type);
+  }
+};
+// Dagens plan: E4 platserna som ser mest av vägen, stadsbanorna gnestaPlan (smart med spärrarna, naive utan).
+function opPlan(map, day, town) {
+  if (!town) { const sp = e4Plan().spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; }
+  const T = TOWN[map.id];
+  return gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, town), blocks: town === 'smart' ? T.blocks(day) : [] });
+}
+// Spelarna. plan: hur pjäserna ställs ('smart' läser kartan, 'naive' efter sin egen väg), blocks: spärrar
+// som smart (leder horden), early: kallar vågor tidigt när det är lugnt, supplies: köper ammunition och
+// sandsäckar. E4 har ingen spärr att välja; där skiljer bara early och supplies.
+// 0.14.0: på Gnesta North är spärren på Vikingavägen med pjäserna där de ser hordens väg bättre än 0.13:s
+// smarta plan (dödszonen, radhustaken) när styrkan är kärntrupper; skilled spelar så där (planBy).
+export const POLICIES = {
+  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true },
+  normal: { plan: 'naive', blocks: true, early: false, supplies: false },
+  naive: { plan: 'naive', blocks: false, early: false, supplies: false },
+};
+// En dag i operationen. policy: namnet i POLICIES. Returnerar runDay:s resultat med dagens rapport.
+export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset = 0, onSecond = null } = {}) {
+  const P0 = typeof policy === 'string' ? POLICIES[policy] : policy;
+  const P = { ...P0, plan: P0.planBy?.[mapId] ?? P0.plan };
+  const cfg = opStartConfig(progress, day, mapId);
+  const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
+  const map = cfg.map, isTown = !!map.grid, T = TOWN[mapId];
+  sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
+  let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks ? T.blocks(day) : [] });
+  // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
+  if (isTown && P.blocks && P.plan !== 'smart') {
+    const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
+    plan = { ...own, lines: plan.lines, wire: plan.wire };
+  }
+  const builder = !isTown ? () => greedyBuild(sim, plan.guns)
+    : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
+  const think = () => {
+    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); deployAll(sim, plan); }
+    builder();
+    if (P.supplies) spendSupplies(sim);
+  };
+  const r = runDay(sim, think, P.early, onSecond, T?.maxTicks ?? MAX_TICKS, isTown);
+  const { sim: _s, ...rest } = r;
+  void _s;
+  return { ...rest, plan };
+}
+
+// Rekvisitionen mellan försöken: mål i ordning per sektor. 'unit:T:N' (minst N av typen i sektorn),
+// 'lvl:T:L' (alla av typen minst nivå L, lägsta först), 'up:X:N' (förrådets uppgradering X till nivå N).
+// Ett mål som inte är uppfyllt köps mot; går det inte att betala sparas RP till det (inget längre ned
+// köps). Typer som inte är släppta i sektorn hoppas över. Påfyllnad av grupperna först, om RP räcker.
+export const REQUISITION = {
+  riksvagen: ['up:m249Rate:1', 'lvl:inf:2', 'unit:m249:3', 'up:wireTough:1', 'lvl:m249:2', 'lvl:epa:2', 'up:m249Rate:2', 'up:m2:2', 'unit:inf:2'],
+  gnesta: ['lvl:civ:2', 'unit:m249:3', 'lvl:m249:2', 'lvl:hv:2', 'up:m249Rate:2', 'up:grenade:2', 'unit:ksp58:2', 'lvl:ksp58:2', 'up:ksp58:2', 'unit:ksp58:3',
+    'lvl:ak5:2', 'up:grenade:3', 'lvl:ksp58:3', 'up:wireTough:2', 'up:block:2', 'lvl:m2:2', 'up:m2:2', 'unit:ksp58:4', 'up:ksp58:3', 'up:budget:1', 'unit:psg90:2', 'up:hvRifles:1'],
+  'gnesta-norr': ['up:hvRifles:2', 'lvl:ksp58:2', 'unit:ksp58:4', 'up:ksp58:2', 'lvl:psg90:2', 'unit:psg90:3', 'up:psg90:2', 'lvl:inf:2', 'up:budget:2', 'lvl:ksp58:3', 'unit:inf:2',
+    'up:m2:3', 'up:ksp58:3', 'unit:ak5:2', 'lvl:ak5:3', 'up:psg90:3', 'up:budget:3', 'unit:ksp58:5'],
+};
+function requisitionPolicy(p, mapId) {
+  for (const u of unitsIn(p, mapId)) if (refillCost(p, u) && refillCost(p, u) <= p.rp) p = refill(p, u.uid).progress;
+  const released = releasedTypes(p, mapId);
+  for (const t of REQUISITION[mapId] ?? []) {
+    const [kind, id, nStr] = t.split(':'), n = Number(nStr);
+    for (let guard = 0; guard < 12; guard++) {
+      if (kind === 'unit') {
+        if (!released.includes(id) || unitsIn(p, mapId).filter(u => u.type === id).length >= n) break;
+        const r = requisition(p, id, mapId);
+        if (!r.ok) return p;
+        p = r.progress;
+      } else if (kind === 'lvl') {
+        const low = unitsIn(p, mapId).filter(u => u.type === id && u.level < n).sort((a, b) => a.level - b.level || a.uid - b.uid)[0];
+        if (!low) break;
+        const r = levelUp(p, low.uid);
+        if (!r.ok) return p;
+        p = r.progress;
+      } else if (kind === 'up') {
+        const st = upgradeState(p, id);
+        if (!st || st.tier == null || st.tier > n || st.reason === 'locked') break;
+        if (!st.ok) return p;
+        p = buyUpgrade(p, id).progress;
+      }
+    }
+  }
+  return p;
+}
+// Otilldelade enheter (en sektor som håller) och enheter i sektorer utan fler dagar flyttas till sektorn
+// som spelas, om typen är släppt där.
+function gatherUnits(p, mapId) {
+  for (const u of p.op.units) if (u.sector !== mapId && (u.sector == null || mapState(p, u.sector).unlockedDay > MAPS[u.sector].days.length) && canReassign(p, u.uid, mapId).ok) p = reassign(p, u.uid, mapId).progress;
+  return p;
+}
+const forceOf = (p, mapId) => {
+  const c = {};
+  for (const u of unitsIn(p, mapId)) { const k = u.type + 'L' + u.level + (u.wins >= 3 ? '*' : ''); c[k] = (c[k] ?? 0) + 1; }
+  return Object.entries(c).map(([k, n]) => (n > 1 ? `${n}x` : '') + k).join(' ');
+};
+// Hela kampanjen: varje sektor i ordning, varje dag tills den vinns (högst maxAttempts försök).
+// Loggen har en rad per försök. stuck: dagen som aldrig vanns (kampanjen stannar där).
+// start: framsteget att börja från (standard: en ny kampanj); sectors: sektorerna som spelas.
+export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8, sectors = SECTOR_ORDER, start = null } = {}) {
+  let p = start ?? newCampaign();
+  const log = [];
+  for (const mapId of sectors) {
+    p = selectMap(p, mapId);
+    const days = MAPS[mapId].days.length;
+    for (let day = mapState(p, mapId).unlockedDay; day <= days; day++) {
+      let won = false;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        p = requisitionPolicy(gatherUnits(p, mapId), mapId);
+        const force = forceOf(p, mapId), rpBefore = p.rp, pressure = pressureOf(p, mapId);
+        const r = playOpDay(p, mapId, day, policy, { seedOffset });
+        const f = finishDay(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
+        log.push({ mapId, day, attempt, won: r.won, baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
+          lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
+          ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime) });
+        p = f.progress;
+        if (r.won) { won = true; break; }
+      }
+      if (!won) return { log, progress: p, stuck: { mapId, day } };
+    }
+  }
+  return { log, progress: p, stuck: null };
+}
+// Försök till vinst per kampanjsteg ('riksvagen 1' ...), eller 'x' om dagen aldrig vanns.
+export const STEPS = SECTOR_ORDER.flatMap(m => MAPS[m].days.map(d => `${m} ${d.n}`));
+export function attemptsPerStep(log) {
+  return STEPS.map(s => { const [m, d] = s.split(' '); const t = log.filter(r => r.mapId === m && r.day === Number(d)); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+}
+// Kampanjstegens fingeravtryck: varje stegs utfall (försök, bas kvar, RP, förluster) i en kort hash, så att
+// ett prov kan peka ut vilket steg som ändrades.
+export function stepPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d))))]; }));
+}
+
+const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const pl = placementFor(MAPS.riksvagen), ep = e4Plan();
-  console.log('E4-planen (ruta: mitt, synliga vägrutor): ' + ep.spots.map((k, i) => { const c = pl.center(k); return `${c.x},${c.z}:${ep.cover[i]}`; }).join('  '));
-  console.log('dag försök vann bas forskning bonus  bas/kassa efter våg 1, 2, 3       fall  hade');
-  for (const r of campaign('greedy', 6)) {
-    const wl = r.waveLog.map(w => `${String(w.baseHp).padStart(2)}/${String(w.cash).padStart(4)}`).join('  ');
-    const fall = r.fallTime == null ? '   -' : `${r.fallTime.toFixed(0).padStart(3)}s`;
-    console.log(`${r.day}   ${r.attempt}      ${r.won ? 'ja ' : 'nej'}  ${String(r.baseHp).padStart(2)}  ${String(r.intel).padStart(3)}        ${String(r.bonus).padStart(4)}  ${wl.padEnd(30)}  ${fall}  ${r.had.join(',') || '-'}`);
+  const only = process.argv[2];
+  const name = { riksvagen: 'E4', gnesta: 'South', 'gnesta-norr': 'North' };
+  for (const policy of only ? [only] : ['skilled', 'normal']) {
+    console.log(`\n=== ${policy} ===`);
+    console.log('seed  ' + STEPS.map(s => { const [m, d] = s.split(' '); return `${name[m][0]}${d}`; }).join(' '));
+    const runs = SEEDS.map(seedOffset => opCampaign(policy, { seedOffset }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${attemptsPerStep(r.log).map(x => String(x).padStart(2)).join(' ')}${r.stuck ? `  fast: ${r.stuck.mapId} dag ${r.stuck.day}` : ''}`));
+    const r0 = runs[0];
+    console.log('seed 0, försök för försök: sektor dag försök vann bas rp (före→efter) tryck förluster bonus  styrka');
+    for (const x of r0.log) console.log(`  ${name[x.mapId].padEnd(5)} ${x.day} ${x.attempt} ${x.won ? 'ja ' : 'nej'} ${String(x.baseHp).padStart(2)} ${String(x.rp).padStart(4)} (${x.rpBefore}→${x.rpAfter}) p${x.pressure} -${x.lostMen}/${x.lostUnits} ${x.bonuses.join(',') || '-'} ${x.evac ? `civ ${x.evac.safe}/${x.evac.need} ` : ''}${x.time}s  ${x.force}`);
   }
-  const mins = ['A', 'B', 'C'].map(s => `${s} ${playDay(newProgress(), 1, 'minimal', { slot: s }).baseHp}`);
-  console.log('minimal dag 1 (en M249), bas kvar per position: ' + mins.join(', '));
-  const seeds = [0, 1, 2, 3, 4, 5, 6, 7].map(o => campaign('greedy', 6, { seedOffset: o * 7919 }))
-    .map(log => [1, 2, 3].map(d => { const t = log.filter(r => r.day === d); const i = t.findIndex(r => r.won); return i < 0 ? 'x' : i + 1; }).join('/'));
-  console.log('seed-offsets, försök till vinst dag 1/2/3: ' + seeds.join('  '));
-  for (const d of [1, 2, 3]) {
-    const gp = gnestaPlan(gnesta, daySpawns(gnesta, d)), gpl = placementFor(gnesta);
-    console.log(`Gnesta dag ${d} smart plan: ` + gp.guns.map((k, i) => { const c = gpl.center(k); return `${c.x},${c.z}:${gp.cov[i]}`; }).join('  '));
-  }
-  console.log('Gnesta efter E4 (smart: försök till vinst/bas kvar, flest levande; naive: dagens första försök med samma forskning)');
-  for (const o of [0, 1, 2, 3, 4]) {
-    const log = gnestaCampaign('smart', 6, { seedOffset: o * 7919 });
-    const cells = [1, 2, 3, 4, 5].map(d => {
-      const t = log.filter(r => r.day === d);
-      if (!t.length) return `d${d} -`;
-      const w = t.find(r => r.won);
-      const n = playGnestaDay(t[0].before, d, 'naive', { seedOffset: o * 7919 });
-      return `d${d} ${w ? `${t.indexOf(w) + 1}/${String(w.baseHp).padStart(2)}` : ' x/ 0'} p${String(Math.max(...t.map(r => r.peak))).padStart(3)} naive ${n.won ? `vann ${String(n.baseHp).padStart(2)}` : 'förlust'}`;
-    });
-    console.log(`  seed ${o}: ${cells.join(' | ')}`);
-  }
-  console.log('Gnesta Norr efter Gnesta (smart: försök till vinst/bas kvar, flest levande, Hemvärnets träffar; naive: dagens första försök med samma forskning)');
-  for (const o of [0, 1, 2, 3, 4]) {
-    const log = norrCampaign('smart', 6, { seedOffset: o * 7919 });
-    const cells = [1, 2, 3, 4, 5].map(d => {
-      const t = log.filter(r => r.day === d);
-      if (!t.length) return `d${d} -`;
-      const w = t.find(r => r.won);
-      const n = playNorrDay(t[0].before, d, 'naive', { seedOffset: o * 7919 });
-      return `d${d} ${w ? `${t.indexOf(w) + 1}/${String(w.baseHp).padStart(2)}` : ' x/ 0'} p${String(Math.max(...t.map(r => r.peak))).padStart(3)} hv${t.at(-1).squadHits} naive ${n.won ? `vann ${String(n.baseHp).padStart(2)}` : 'förlust'}`;
-    });
-    console.log(`  seed ${o}: ${cells.join(' | ')}`);
-  }
-  const gs = gnestaSmoke({ check: true });
-  console.log(`Gnesta rök (3 vandrare per ingång, tom karta): ${gs.phase}, ${gs.time.toFixed(0)} s, utanför gatan ${gs.offRoad}`);
-  for (const [id, a] of Object.entries(gs.arrivals)) console.log(`  ${id.padEnd(7)} framme ${a.count}/3, första ${a.first?.toFixed(1)} s, sista ${a.last?.toFixed(1)} s`);
 }

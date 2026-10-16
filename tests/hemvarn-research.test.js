@@ -16,7 +16,7 @@ import { placementFor, KIND } from '../src/sim/placement.js';
 test('forskningen: tre noder, gevären först, fler man och veteraner efter', () => {
   const ids = RESEARCH.map(n => n.id);
   for (const id of ['hvRifles', 'hvSquad', 'hvVeterans']) assert.ok(ids.includes(id), id);
-  let p = { ...newProgress(), intel: 5000 };
+  let p = { ...newProgress(), rp: 5000 };
   assert.equal(canBuyResearch(p, 'hvSquad').reason, 'kräver');
   p = buyResearch(p, 'hvRifles');
   assert.equal(canBuyResearch(p, 'hvVeterans').reason, 'kräver');

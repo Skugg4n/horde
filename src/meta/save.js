@@ -1,12 +1,14 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress, migrateResearch, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
+import { newProgress, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
+import { newCampaign, migrateToV4, syncOperation } from './operation.js';
 import { MAPS } from '../data/maps.js';
 
 const KEY = 'horde.save';
 const BROKEN = 'horde.save.broken';
 const V1_COPY = 'horde.save.v1';     // kopia av en v1-sparfil, sparas när den läses första gången
 const V2_COPY = 'horde.save.v2';     // kopia av en v2-sparfil (0.4.x), likadant
+const V3_COPY = 'horde.save.v3';     // kopia av en v3-sparfil (0.5.0 till 0.13.x), likadant (0.14.0)
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -36,17 +38,22 @@ const nonNegative = x => Number.isFinite(x) && x >= 0;
 
 const validDay = d => Number.isInteger(d) && d >= 1;
 const validAttempts = a => isObject(a) && Object.values(a).every(n => Number.isInteger(n) && n >= 0);
-const common = p => isObject(p)
+// v1 till v3 har forskningspoäng (intel), v4 rekvisitionspoäng (rp) och operationen (op).
+const common = (p, v = 3) => isObject(p)
   && typeof p.mapId === 'string' && Object.hasOwn(MAPS, p.mapId)
-  && nonNegative(p.intel)
+  && (v >= 4 ? nonNegative(p.rp) : nonNegative(p.intel))
   && Array.isArray(p.research) && p.research.every(r => typeof r === 'string');
+const validUnit = u => isObject(u) && Number.isInteger(u.uid) && typeof u.type === 'string' && Number.isInteger(u.level) && u.level >= 1
+  && (u.sector === null || typeof u.sector === 'string') && Number.isInteger(u.wins) && nonNegative(u.spent) && (u.men == null || (Number.isInteger(u.men) && u.men >= 0));
+const validOp = o => isObject(o) && Array.isArray(o.units) && o.units.every(validUnit) && Number.isInteger(o.nextUid)
+  && Array.isArray(o.released) && Array.isArray(o.inbox) && isObject(o.pressure) && Array.isArray(o.closed);
 
 function isValidV1(p) {
   return common(p) && p.v === 1 && validDay(p.unlockedDay) && validAttempts(p.attempts);
 }
 // v2 och v3: maps får innehålla banor som den här versionen inte känner (de behålls).
 function isValidMaps(p, v) {
-  return common(p) && p.v === v && isObject(p.maps)
+  return common(p, v) && p.v === v && isObject(p.maps) && (v < 4 || validOp(p.op))
     && Object.values(p.maps).every(m => isObject(m) && validDay(m.unlockedDay) && validAttempts(m.attempts));
 }
 
@@ -57,9 +64,9 @@ export function loadProgress(storage) {
     raw = s.getItem(KEY);
   } catch (err) {
     console.warn('Sparfilen gick inte att läsa. Spelet startar om.', err);
-    return newProgress();
+    return newCampaign();
   }
-  if (raw == null) return newProgress();
+  if (raw == null) return newCampaign();
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -67,24 +74,22 @@ export function loadProgress(storage) {
     parsed = null;
   }
   if (isValidMaps(parsed, SAVE_VERSION)) {
-    const p = { ...newProgress(), ...parsed, research: migrateResearch(parsed.research) };
+    const p = { ...newProgress(), ...parsed };
+    return syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } });
+  }
+  // Äldre versioner: kopian behålls som den var (horde.save.v1, .v2, .v3; skrivs aldrig över), och
+  // framsteget flyttas steg för steg till v3 och sedan v4 (0.14.0, operation.js migrateToV4).
+  let v3 = null;
+  if (isValidMaps(parsed, 3)) { keepCopy(s, raw, V3_COPY); v3 = parsed; }
+  else if (isValidMaps(parsed, 2)) { keepCopy(s, raw, V2_COPY); v3 = migrateV2(parsed); }
+  else if (isValidV1(parsed)) { keepCopy(s, raw, V1_COPY); v3 = migrateV1(parsed); }
+  if (v3) {
+    const p = migrateToV4({ ...v3, maps: { ...newProgress().maps, ...v3.maps } });
     return { ...p, maps: { ...newProgress().maps, ...p.maps } };
-  }
-  if (isValidMaps(parsed, 2)) {
-    // Gamla sparfilen behålls som den var under horde.save.v2 (skrivs aldrig över).
-    keepCopy(s, raw, V2_COPY);
-    const p = migrateV2(parsed);
-    return { ...newProgress(), ...p, maps: { ...newProgress().maps, ...p.maps } };
-  }
-  if (isValidV1(parsed)) {
-    // Gamla sparfilen behålls som den var under horde.save.v1 (skrivs aldrig över).
-    keepCopy(s, raw, V1_COPY);
-    const p = migrateV1(parsed);
-    return { ...newProgress(), ...p, maps: { ...newProgress().maps, ...p.maps } };
   }
   console.warn('Sparfilen gick inte att läsa. Den sparas under horde.save.broken.');
   keepCopy(s, raw, BROKEN);
-  return newProgress();
+  return newCampaign();
 }
 
 // Returnerar false om framsteget inte gick att spara; kastar aldrig.

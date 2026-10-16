@@ -18,6 +18,8 @@ export const BUY_MENU = [
   { id: 'defenses', name: 'Defenses', items: [
     { id: 'block', kind: 'obstacle', role: 'Blocks the street' },
     { id: 'wire', kind: 'obstacle', role: 'Slows them down' },
+    // 0.14.0: förnödenheter, skrotbilar tvärs över gatan
+    { id: 'car', kind: 'obstacle', role: 'Cheap roadblock' },
   ] },
   { id: 'units', name: 'Units', items: [
     { id: 'civ', kind: 'gun', role: 'Volunteers · hunting rifles' },

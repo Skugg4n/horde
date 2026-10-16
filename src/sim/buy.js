@@ -5,7 +5,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { shopItem } from '../data/shop.js';
 import { weaponUnlocked, obstacleUnlocked, inArsenal } from './stats.js';
-import { canAct, capFull } from './sim.js';
+import { canAct, capFull, reserveCount, deployPhase } from './sim.js';
 
 // { state: 'ok' | 'poor' | 'locked' | 'full' | 'closed' | 'absent', cost, need, research }
 //   absent (0.13.0): sektorn har inte saken i förrådet i dag; kortet syns inte i köpraden
@@ -14,8 +14,16 @@ export function buyState(sim, id) {
   const item = shopItem(id);
   if (!item) return { state: 'closed', cost: 0, need: 0 };
   const gun = item.kind === 'gun';
+  // 0.14.0: med kärntrupperna (sim.core) är trupperna reserven, gratis och bara i uppställningen; köpraden har
+  // bara förnödenheter (hinder) när striden börjat. count: hur många av typen som väntar i reserven.
+  if (sim.core && gun) {
+    const count = reserveCount(sim, id);
+    if (!count || !deployPhase(sim)) return { state: 'absent', cost: 0, need: 0 };
+    if (capFull(sim, id)) return { state: 'full', cost: 0, need: 0, count };
+    return { state: 'ok', cost: 0, need: 0, count };
+  }
   const cost = gun ? WEAPONS[id].cost : OBSTACLES[id].cost;
-  if (!inArsenal(id, sim.map, sim.dayCfg)) return { state: 'absent', cost, need: 0 };
+  if (!sim.core && !inArsenal(id, sim.map, sim.dayCfg)) return { state: 'absent', cost, need: 0 };
   const unlocked = gun ? weaponUnlocked(id, sim.research, sim.map) : obstacleUnlocked(id, sim.research, sim.map);
   if (!unlocked) return { state: 'locked', cost, need: 0, research: id };
   if (!canAct(sim)) return { state: 'closed', cost, need: 0 };
@@ -24,3 +32,5 @@ export function buyState(sim, id) {
   return { state: 'ok', cost, need: 0 };
 }
 export const canPickUp = (sim, id) => buyState(sim, id).state === 'ok';
+// Syns saken i köpraden i dag? (köpradens och snabbvalens urval, main.js och panels.js)
+export const inBar = (sim, id) => buyState(sim, id).state !== 'absent';

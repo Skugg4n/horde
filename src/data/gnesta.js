@@ -855,7 +855,7 @@ const ARSENAL = [
   ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'],
 ];
 export const DAYS = [
-  { n: 1, startCash: 700, hp: 2.2, arsenal: ARSENAL[0], squads: 4,
+  { n: 1, supplies: 350, startCash: 700, hp: 2.8, arsenal: ARSENAL[0], squads: 4,
     intro: { title: 'Day 1: Civilians', text: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard, and they are not here yet. Hunters and neighbours take up their rifles. Families are still in the houses east of the roundabout: hold until the civilians reach the ice rink. Block a street and the horde walks around the block. The red arrows show where each group will walk; V hides and shows them." },
     hints: { lines: ['Pick the civilian volunteers (2-1).', 'Drop them where they see the street.', 'Start the wave and cover the families.'], steps: ['pick:civ', 'gun', 'wave'] },
     objective: 'Hold until the civilians reach the ice rink.',
@@ -871,23 +871,23 @@ export const DAYS = [
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, startCash: 1300, hp: 2.4, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
+  { n: 2, supplies: 450, startCash: 1300, hp: 3.3, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Hemvärnet is here, with Ksp 90s. A second group comes down the north road. Two ways in, and runners.' },
     dormant: [{ house: 'B2-00', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
              { groups: [g('walker', 50, 0.28, 0, 'east1'), g('walker', 30, 0.35, 0, 'east2'), g('runner', 50, 0.25, 10, 'east1')] } ] },
-  { n: 3, startCash: 1300, hp: 4.3, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now. The army sends Ksp 58s and grenade launchers.' },
+  { n: 3, supplies: 500, startCash: 1300, hp: 3.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now. The army sends Ksp 58s and grenade launchers.' },
     // 0.12.0 (H101): överraskningen. Ingen förvarning: ett hus vid fältet slås upp när våg 2 börjar.
     dormant: [{ house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, startCash: 1800, hp: 3.6, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Snipers and a welded EPA pillbox arrive. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
+  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Snipers and a welded EPA pillbox arrive. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, startCash: 1600, hp: 2.5, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. The heavy Ksp 88 is here. Hold the roundabout in front of the doors.' },
+  { n: 5, supplies: 600, startCash: 1600, hp: 2.4, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. The heavy Ksp 88 is here. Hold the roundabout in front of the doors.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
              { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
@@ -908,6 +908,8 @@ export const gnesta = {
   grid: buildGrid(),
   // 0.12.1: fem pjäser från början (var fyra), Hemvärnet räknas inte med (src/sim/stats.js maxGuns).
   guns: 5,
+  // 0.14.0: frontbredden, så många kärntrupper får stå ute samtidigt (src/sim/sim.js frontage)
+  frontage: 8,
   baseHp: 20, days: DAYS,
   // 0.10.1: dörrarna släpper in en zombie per 3,2 s (src/sim/sim.js, doorBreak)
   door: { gap: 3.2 },

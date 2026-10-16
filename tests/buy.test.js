@@ -15,9 +15,10 @@ const e4 = (o = {}) => createSim({ map: MAPS.riksvagen, day: 1, cash: 500, resea
 // på dagens köprad (förrådet per sektor och dag).
 test('köpraden: Defenses och Units; snabbvalen följer dagens förråd', () => {
   assert.deepEqual(BUY_MENU.map(c => c.name), ['Defenses', 'Units']);
-  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
-  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8', '2-9']);
-  assert.equal(itemAt(2, 4), 'm249'); assert.equal(itemAt(1, 3), null); assert.equal(itemAt(3, 1), null);
+  // 0.14.0: skrotbilarna (förnödenheter) sist i Defenses
+  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'car', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
+  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '1-3', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8', '2-9']);
+  assert.equal(itemAt(2, 4), 'm249'); assert.equal(itemAt(1, 4), null); assert.equal(itemAt(3, 1), null);
   const e4 = dayMenu(id => inArsenal(id, MAPS.riksvagen, MAPS.riksvagen.days[0]));
   assert.deepEqual(e4[1].items.map(i => i.id), ['inf', 'm249', 'm2', 'epa'], 'E4: armén, inget Hemvärn');
   assert.equal(hotkeyOf('m249', e4), '2-2');

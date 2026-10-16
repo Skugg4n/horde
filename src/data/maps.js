@@ -40,13 +40,15 @@ export const MAPS = {
     name: 'Sector E4',
     // Sektorns slut (0.11.0): texten på vinstskylten efter sista dagen och banan den leder till.
     // 0.13.0 (H104): sektorsövergången. Vägspärren tystnar, Gnesta har bara sitt Hemvärn.
-    outro: { text: 'The roadblock at E4 has fallen silent. Gnesta has only its Home Guard.', next: 'gnesta' },
+    outro: { text: 'The roadblock at E4 has fallen silent. Gnesta has only its Home Guard.', next: 'gnesta', withdraw: true },
     camera: { target: [-2, 0], view: 25 },
     path: [[27, 0], [-12, 0]],
     // Hinderrutor: d-värdet (meter från spawn) där rutan börjar, 3 m lång, utan mellanrum.
     // Ordnade från basen: ruta 0 täcker x -6..-9, ruta 5 x 9..6.
     cells: [33, 30, 27, 24, 21, 18],
     baseHp: 20,
+    // 0.14.0: frontbredden, så många kärntrupper får stå ute samtidigt (src/sim/sim.js frontage)
+    frontage: 6,
     // 0.13.0 (H104, H130): E4 är den militära vägspärren, en smak av riktig militär kraft. Inget Hemvärn
     // här: infanteriet, Ksp 90, Ksp 88 och EPA-pillboxen finns från början (utan forskning), plus tråd och
     // betong som förut. Lite som en övning: dag 1 lär ut pjäsen och vinkeln, dag 2 tråden och pillboxen,
@@ -54,17 +56,17 @@ export const MAPS = {
     arsenal: ['block', 'wire', 'inf', 'm249', 'm2', 'epa'],
     unlocks: ['inf', 'm2', 'epa'],
     days: [
-      { n: 1, startCash: 700, hp: 1, intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 roadblock south of Gnesta. Place a Ksp 90 by the road: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
+      { n: 1, supplies: 300, startCash: 700, hp: 1.8, intro: { title: 'Day 1: The roadblock', text: 'The army holds the E4 roadblock south of Gnesta. Place a Ksp 90 by the road: a plain click aims it at the road, click and drag to aim it yourself. It only fires inside its arc. Infantry find their own cover.' },
         // Tipsen första gången: rader och stegen som bockar av dem (main.js updateHint).
         hints: { lines: ['Pick the Ksp 90 (2-2).', 'Place it by the road. Drag to aim.', 'Start the wave.'], steps: ['pick:m249', 'gun', 'wave'] },
         waves: [ { groups: [{ type: 'walker', count: 8, interval: 1.6, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 12, interval: 1.2, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }] } ] },
-      { n: 2, startCash: 800, hp: 1.9, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
+      { n: 2, supplies: 350, startCash: 800, hp: 3.2, intro: { title: 'Day 2: Runners', text: 'Fast and fragile. Barbed wire buys time to shoot. The welded EPA pillbox takes a beating while it fires.' },
         waves: [ { groups: [{ type: 'walker', count: 14, interval: 1.0, delay: 0 }] },
                  { groups: [{ type: 'walker', count: 12, interval: 1.1, delay: 0 }, { type: 'runner', count: 22, interval: 0.9, delay: 4 }] },
                  { groups: [{ type: 'walker', count: 18, interval: 0.8, delay: 0 }, { type: 'runner', count: 56, interval: 0.3, delay: 3 }] } ] },
-      { n: 3, startCash: 1200, hp: 1.2, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
+      { n: 3, supplies: 400, startCash: 1200, hp: 1.2, intro: { title: 'Day 3: Brutes', text: 'Big and tough. Wire barely holds them. The mounted Ksp 88 turns slowly but hits hard.' },
         waves: [ { groups: [{ type: 'walker', count: 18, interval: 0.9, delay: 0 }, { type: 'runner', count: 8, interval: 1.2, delay: 5 }] },
                  { groups: [{ type: 'walker', count: 16, interval: 1.0, delay: 0 }, { type: 'brute', count: 4, interval: 4, delay: 8 }] },
                  { groups: [{ type: 'walker', count: 20, interval: 0.8, delay: 0 }, { type: 'runner', count: 26, interval: 0.5, delay: 4 }, { type: 'brute', count: 7, interval: 1.5, delay: 8 },

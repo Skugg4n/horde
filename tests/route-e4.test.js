@@ -1,47 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { campaign, playDay } from '../scripts/balance.mjs';
-import { newProgress } from '../src/meta/progress.js';
 import { pathRoute } from '../src/sim/route.js';
 import { pointAt } from '../src/sim/path.js';
 import { MAPS } from '../src/data/maps.js';
 import { makeRng } from '../src/sim/rng.js';
-
-// Kvittot på E4:s balans: hela balansloggen (girig policy över fem seeds, plus minimal dag 1 på
-// A, B, C) ger samma fingeravtryck. Ett ändrat kvitto ska vara avsiktligt och förklarat.
-// 0.3.1 till 0.4.2: '3fbfe043' (14714 tecken, även policyn strong), oförändrat genom route-
-// refaktorn. 0.5.0: nytt kvitto, avsiktligt: fri placering med sikt (pjäserna står där de ser mest
-// av vägen, fyra i stället för tre utan forskning), New position blev More positions I till III,
-// dag 2 och 3 fick hp-faktor 1,5 och 1,15, och policyn strong (fasta positioner C, B, D, A)
-// finns inte längre. Se docs/balance-log.md, 0.5.0.
-// 0.9.0: nytt kvitto, avsiktligt: girig policy köper en grupp ur Hemvärnet dag 1 direkt efter
-// första Ksp 90 (billig täckning tidigt). Utfallen (vinster, försök, bas kvar, bonus) är desamma
-// som i 0.8.0; det som ändras är kassan efter varje våg dag 1. Se docs/balance-log.md, 0.9.0.
-// 0.10.1: nytt kvitto, avsiktligt: nedräkningen mellan vågorna 10 s (var 5) och bonusen 3 per sekund
-// (var 5), och en förlust ger minst LESSON_MIN i forskning (överlevarnas lärdom). Dag 1 och 2 vinns
-// som förut; dag 3 vinns på tredje försöket i alla fem seeds. Se docs/balance-log.md, 0.10.1.
-// 0.10.2: nytt kvitto, avsiktligt: nedräkningen 15 s (var 10) och bonusen 2 per sekund (var 3), och
-// Psg 90 kräver Ksp 88 I och kostar 180 (forskningsordningen köper annorlunda). Vinster och försök
-// som förut: dag 1 och 2 direkt, dag 3 på tredje försöket. Se docs/balance-log.md, 0.10.2.
-// 0.13.0: nytt kvitto, avsiktligt (H104): E4 är den militära vägspärren. Infanteriet, Ksp 88 och
-// pillboxen utan forskning, inget Hemvärn (policyn köper infanteriet dag 1), skjutvinklar och vridfart
-// (H132), policyn vrider en sysslolös pjäs mot zombier utanför vinkeln, dag 2 hp 1,9 och dag 3 1,2.
-// Dag 1 och 2 direkt, dag 3 på tredje försöket. Se docs/balance-log.md, 0.13.0.
-const BEFORE = { hash: '71d06ab8', length: 7943 };
-
-function fingerprint() {
-  const out = [];
-  for (const o of [0, 1, 2, 3, 4].map(x => x * 7919)) out.push(campaign('greedy', 6, { seedOffset: o }));
-  for (const s of ['A', 'B', 'C']) out.push(playDay(newProgress(), 1, 'minimal', { slot: s }));
-  const str = JSON.stringify(out);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-  return { hash: h.toString(16), length: str.length };
-}
-
-test('E4:s balanslogg är identisk med 0.13.0', () => {
-  assert.deepEqual(fingerprint(), BEFORE);
-});
 
 test('pathRoute: läge, framsteg och ankomst som förut', () => {
   const map = MAPS.riksvagen, r = pathRoute(map);

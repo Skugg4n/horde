@@ -22,15 +22,15 @@ test('reglarna i horde.debug: identitet utan lagring, sparas och läses, aldrig 
 
 test('Reset save: sparfilen kopieras till horde.save.backup, och en äldre kopia skrivs aldrig över', () => {
   const s = mem();
-  const a = { ...newProgress(), intel: 123 };
+  const a = { ...newProgress(), rp: 123 };
   saveProgress(a, s);
   assert.equal(resetSave(newProgress(), s), true);
-  assert.equal(JSON.parse(s.getItem(BACKUP)).intel, 123);
-  assert.equal(loadProgress(s).intel, 0);
-  saveProgress({ ...newProgress(), intel: 456 }, s);
+  assert.equal(JSON.parse(s.getItem(BACKUP)).rp, 123);
+  assert.equal(loadProgress(s).rp, 0);
+  saveProgress({ ...newProgress(), rp: 456 }, s);
   resetSave(newProgress(), s);
-  assert.equal(JSON.parse(s.getItem(BACKUP)).intel, 123);
-  assert.equal(JSON.parse(s.getItem(BACKUP + '.1')).intel, 456);
+  assert.equal(JSON.parse(s.getItem(BACKUP)).rp, 123);
+  assert.equal(JSON.parse(s.getItem(BACKUP + '.1')).rp, 456);
 });
 
 test('fem snabba klick på versionen öppnar menyn, långsamma gör det inte', () => {

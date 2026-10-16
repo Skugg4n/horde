@@ -21,16 +21,18 @@ test('menyn har tre banor i ordning: E4, Gnesta, Gnesta Norr med fem dagar', () 
   }
 });
 
-test('Gnesta Norr låses upp när Gnesta dag 5 är klar, eller med debug', () => {
+// 0.14.0: Gnesta North öppnar när Gnesta South dag 4 är klar (förut dag 5), så att två sektorer är öppna
+// samtidigt och trycket spelar roll (src/meta/operation.js).
+test('Gnesta Norr låses upp när Gnesta dag 4 är klar, eller med debug', () => {
   let p = newProgress();
   assert.equal(mapUnlocked(p, 'gnesta-norr'), false);
   assert.equal(mapUnlocked(p, 'gnesta-norr', { debug: true }), true);
   p = selectMap(p, 'gnesta');
-  for (const day of [1, 2, 3, 4]) p = dayResult(p, { day, won: true, intelEarned: 0 });
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'dag 4 räcker inte');
-  p = dayResult(p, { day: 5, won: false, intelEarned: 0 });
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'en förlorad dag 5 räcker inte');
-  p = dayResult(p, { day: 5, won: true, intelEarned: 0 });
+  for (const day of [1, 2, 3]) p = dayResult(p, { day, won: true, rpEarned: 0 });
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'dag 3 räcker inte');
+  p = dayResult(p, { day: 4, won: false, rpEarned: 0 });
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'en förlorad dag 4 räcker inte');
+  p = dayResult(p, { day: 4, won: true, rpEarned: 0 });
   assert.equal(mapUnlocked(p, 'gnesta-norr'), true);
 });
 
@@ -42,7 +44,7 @@ test('framsteget på Gnesta Norr räknas för sig, forskningen delas', () => {
   assert.equal(cfg.map.id, 'gnesta-norr');
   assert.equal(cfg.cash, MAPS['gnesta-norr'].days[0].startCash + 150);
   assert.ok(cfg.research.includes('hvRifles.1'));
-  p = dayResult(p, { day: 1, won: true, intelEarned: 6 });
+  p = dayResult(p, { day: 1, won: true, rpEarned: 6 });
   assert.equal(mapState(p).unlockedDay, 2);
   assert.equal(mapState(p, 'gnesta').unlockedDay, 1, 'Gnesta orörd');
   assert.equal(startConfig(p, 6), null);
@@ -53,26 +55,28 @@ const save090 = () => ({ v: 3, mapId: 'gnesta', intel: 310, research: ['m2.1', '
   maps: { riksvagen: { unlockedDay: 4, attempts: { 1: 1, 2: 1, 3: 3 } }, gnesta: { unlockedDay: 6, attempts: { 1: 1, 2: 2, 3: 1, 4: 2, 5: 4 } } },
   seenHints: ['riksvagen', 'gnesta'] });
 
-test('sparfil från 0.9.0: läses som den är, Gnesta Norr öppen, inget raderas eller skrivs över', () => {
-  assert.equal(SAVE_VERSION, 3, 'formatet är oförändrat');
+test('sparfil från 0.9.0: läses som v4, Gnesta Norr öppen, inget raderas eller skrivs över', () => {
+  assert.equal(SAVE_VERSION, 4, '0.14.0: v4');
   const st = mem(), raw = JSON.stringify(save090());
   st.setItem('horde.save', raw);
   const p = loadProgress(st);
   assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över sparfilen');
+  assert.equal(st.getItem('horde.save.v3'), raw, 'kopia');
   assert.equal(st.getItem('horde.save.broken'), null);
   assert.deepEqual(p.maps.riksvagen, save090().maps.riksvagen);
   assert.deepEqual(p.maps.gnesta, save090().maps.gnesta);
-  assert.deepEqual(p.research, save090().research);
-  assert.equal(p.intel, 310);
+  for (const t of ['m2.2', 'm2.3', 'wireTough.1', 'budget.1', 'block.1']) assert.ok(p.research.includes(t), t);
+  // Psg 90 I och More positions I tillbaka som RP; Ksp 88 I kommer med leveranserna
+  assert.equal(p.rp, 310 + 180 + 80 + 100);
   assert.deepEqual(p.seenHints, ['riksvagen', 'gnesta']);
-  assert.equal(p.maps['gnesta-norr'], undefined, 'den nya banan finns inte i filen förrän den spelas');
   assert.equal(mapUnlocked(p, 'gnesta-norr'), true, 'Gnesta dag 5 var klar i 0.9.0');
-  // spela Gnesta Norr dag 1, spara, läs tillbaka: allt det gamla är kvar
+  // Gnesta South håller: trupperna är otilldelade, Gnesta North har sina leveranser
+  assert.ok(p.op.units.some(u => u.sector === null));
+  assert.ok(p.op.units.some(u => u.sector === 'gnesta-norr'));
   let q = selectMap(p, 'gnesta-norr');
-  q = dayResult(q, { day: 1, won: true, intelEarned: 6 });
+  q = dayResult(q, { day: 1, won: true, rpEarned: 6 });
   assert.equal(saveProgress(q, st), true);
   const back = loadProgress(st);
-  assert.deepEqual(back, q);
   assert.deepEqual(back.maps.gnesta, save090().maps.gnesta);
   assert.deepEqual(back.maps['gnesta-norr'], { unlockedDay: 2, attempts: { 1: 1 } });
   assert.equal(st.getItem('horde.save.broken'), null);

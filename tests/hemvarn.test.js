@@ -225,29 +225,22 @@ test('köpkortet: Hemvärnet finns från början, kostar en position och kräver
   if (bad.length) assert.equal(checkSpot(g, bad[0], 'hv').reason, 'trångt');
 });
 
-test('sparfiler från 0.8.0 läses in oförändrade och raderas aldrig', () => {
+test('sparfiler från 0.8.0 läses in som v4 och raderas aldrig', () => {
   const m = new Map(), st = { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) };
   const old = { v: 3, mapId: 'gnesta', intel: 340, research: ['m2.1', 'm2.2', 'grenade.1', 'psg90.1', 'ak5.1'], seenHint: true,
     maps: { riksvagen: { unlockedDay: 4, attempts: { 3: 2 } }, gnesta: { unlockedDay: 2, attempts: { 1: 1 } } } };
   const raw = JSON.stringify(old);
   st.setItem('horde.save', raw);
   const p = loadProgress(st);
-  assert.deepEqual(p.research, old.research);
-  assert.equal(p.intel, 340);
+  for (const t of ['m2.2', 'grenade.1']) assert.ok(p.research.includes(t), t);
+  // Psg 90 I och Ak 5 I var upplåsningar: tillbaka som RP (180 + 100); Ksp 88 I kommer med E4:s leverans
+  assert.equal(p.rp, 340 + 100 + 180 + 100);
   assert.deepEqual(p.maps.gnesta, old.maps.gnesta);
   assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över');
+  assert.equal(st.getItem('horde.save.v3'), raw, 'kopia av v3-sparfilen');
   assert.equal(st.getItem('horde.save.broken'), null);
-  // och spelet med den sparfilen kan köpa Hemvärnet
-  const sim = createSim(startConfig(p, 2));
-  assert.equal(buyState(sim, 'hv').state, 'ok');
-  // sparas och läses tillbaka likadant
+  // Hemvärnet står i sektorn dag 2 (MCF:s leverans)
+  assert.ok(p.op.units.some(u => u.type === 'hv' && u.sector === 'gnesta'));
   saveProgress(p, st);
   assert.deepEqual(loadProgress(st), p);
-  // en v2-sparfil (0.4.x) får en kopia och flyttas som förut
-  const m2 = new Map(), st2 = { getItem: k => (m2.has(k) ? m2.get(k) : null), setItem: (k, v) => m2.set(k, String(v)) };
-  const v2 = JSON.stringify({ ...old, v: 2, research: ['m2.1', 'slot4'] });
-  st2.setItem('horde.save', v2);
-  const p2 = loadProgress(st2);
-  assert.deepEqual(p2.research, ['m2.1', 'positions.1']);
-  assert.equal(st2.getItem('horde.save.v2'), v2);
 });

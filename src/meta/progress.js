@@ -5,12 +5,17 @@ import { MAPS } from '../data/maps.js';
 import { tierOf, tierData } from '../sim/stats.js';
 import { ARRIVAL } from '../data/arrival.js';
 
-// Sparfil v3 (0.5.0): som v2, forskningen New position (slot4) heter More positions (positions).
+// Sparfil v4 (0.14.0, Operation Södermanland): rekvisitionspoäng (rp) i stället för forskningspoäng
+// (intel), research är förrådets ägda nivåer (uppgraderingar och leveransernas upplåsningar), och op är
+// operationens läge (kärntrupperna, leveranserna, inkorgen, trycket per sektor; src/meta/operation.js).
+// v3 (0.5.0): som v2, forskningen New position (slot4) heter More positions (positions).
 // v2: forskningen och forskningspoängen delas av alla banor, upplåsta dagar och försök
 // är per bana (maps). mapId är banan som spelas nu.
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
+export const emptyOp = () => ({ units: [], nextUid: 1, released: [], inbox: [], seq: 0, pressure: {}, closed: [] });
+// Ett tomt framsteg utan leveranser. Ett nytt spel är src/meta/operation.js newCampaign (leveranserna för E4 dag 1).
 export function newProgress() {
-  return { v: SAVE_VERSION, mapId: 'riksvagen', intel: 0, research: [], maps: { riksvagen: newMapState() } };
+  return { v: SAVE_VERSION, mapId: 'riksvagen', rp: 0, research: [], maps: { riksvagen: newMapState() }, op: emptyOp() };
 }
 const newMapState = () => ({ unlockedDay: 1, attempts: {} });
 
@@ -64,13 +69,15 @@ export function startConfig(progress, day, mapId = progress.mapId) {
   };
 }
 
-export function dayResult(progress, { day, won, intelEarned, mapId = progress.mapId }) {
+// rpEarned: rekvisitionspoängen försöket gav (src/meta/operation.js rpForAttempt). intelEarned är det gamla
+// namnet och gäller om rpEarned saknas.
+export function dayResult(progress, { day, won, rpEarned, intelEarned = 0, mapId = progress.mapId }) {
   const st = mapState(progress, mapId);
   const maxDay = MAPS[mapId].days.length + 1;
   const unlockedDay = won ? Math.min(Math.max(st.unlockedDay, day + 1), maxDay) : st.unlockedDay;
   return {
     ...progress,
-    intel: progress.intel + intelEarned,
+    rp: (progress.rp ?? 0) + (rpEarned ?? intelEarned),
     maps: { ...progress.maps, [mapId]: { ...st, unlockedDay, attempts: { ...st.attempts, [day]: (st.attempts[day] || 0) + 1 } } },
   };
 }
@@ -78,7 +85,7 @@ export function dayResult(progress, { day, won, intelEarned, mapId = progress.ma
 // Dagen lämnas mitt i (Restart day eller Main menu): försöket räknas, så att nästa start får
 // en ny seed som efter Try again. Ingen forskning, inget upplåst.
 export function abandonDay(progress, { day, mapId = progress.mapId }) {
-  return dayResult(progress, { day, won: false, intelEarned: 0, mapId });
+  return dayResult(progress, { day, won: false, rpEarned: 0, mapId });
 }
 
 // Sparfil v1 (före 0.4.0): en bana, unlockedDay och attempts på toppen. Blir v3 med banans
@@ -86,12 +93,31 @@ export function abandonDay(progress, { day, mapId = progress.mapId }) {
 export function migrateV1(p) {
   const { unlockedDay, attempts, v, ...rest } = p;
   void v;
-  return { ...rest, v: SAVE_VERSION, research: migrateResearch(p.research), maps: { [p.mapId]: { unlockedDay, attempts: { ...attempts } } } };
+  return { ...rest, v: 3, research: migrateResearch(p.research), maps: { [p.mapId]: { unlockedDay, attempts: { ...attempts } } } };
 }
 
 // Sparfil v2 (0.4.x) blir v3: forskningen flyttas (slot4 blir positions.1), allt annat följer med.
 export function migrateV2(p) {
-  return { ...p, v: SAVE_VERSION, research: migrateResearch(p.research) };
+  return { ...p, v: 3, research: migrateResearch(p.research) };
+}
+
+// Sparfil v3 (0.5.0 till 0.13.x) blir v4 (0.14.0). Forskningspoängen blir RP ett till ett. Forskningen
+// blir förrådets nivåer: noder som inte finns längre (More positions, More squads) och vapnens första
+// nivå (en upplåsning, nu en leverans) lämnas tillbaka som RP till samma pris (retired, unlockTiers).
+// Allt annat följer med. Kärntrupperna och leveranserna fylls i av operation.js syncOperation, efter
+// hur långt spelaren kommit på varje bana.
+export function migrateV3(p, { retired = [], unlockTiers = [] } = {}) {
+  const { intel = 0, v, ...rest } = p;
+  void v;
+  let rp = intel;
+  const research = [];
+  for (const id of migrateResearch(p.research ?? [])) {
+    const [node, t] = id.split('.');
+    const back = retired.includes(node) || unlockTiers.includes(id);
+    if (back) { rp += researchNode(node)?.tiers[Number(t) - 1]?.cost ?? 0; continue; }
+    research.push(id);
+  }
+  return { ...rest, v: SAVE_VERSION, rp, research, op: emptyOp() };
 }
 
 // Noder som bytt namn. Gamla New position (slot4) hade en nivå och blir More positions I,
@@ -136,7 +162,7 @@ export function canBuyResearch(progress, nodeId) {
   const next = nextTier(progress, nodeId);
   if (!next) return { ok: false, reason: 'redan' };
   if (!next.data.requires.every(req => hasTier(progress, req))) return { ok: false, reason: 'kräver' };
-  if (progress.intel < next.data.cost) return { ok: false, reason: 'forskning' };
+  if ((progress.rp ?? 0) < next.data.cost) return { ok: false, reason: 'forskning' };
   return { ok: true };
 }
 
@@ -144,5 +170,5 @@ export function buyResearch(progress, nodeId) {
   const check = canBuyResearch(progress, nodeId);
   if (!check.ok) throw new Error(`Kan inte köpa forskning ${nodeId}: ${check.reason}`);
   const next = nextTier(progress, nodeId);
-  return { ...progress, intel: progress.intel - next.data.cost, research: [...progress.research, `${nodeId}.${next.tier}`] };
+  return { ...progress, rp: progress.rp - next.data.cost, research: [...progress.research, `${nodeId}.${next.tier}`] };
 }

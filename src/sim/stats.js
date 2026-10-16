@@ -53,7 +53,8 @@ export function inArsenal(id, map = null, dayCfg = null) {
   return !list || list.includes(id);
 }
 export function obstacleUnlocked(type, research, map = null) {
-  return type === 'wire' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
+  // 0.14.0: skrotbilarna finns överallt
+  return type === 'wire' || type === 'car' || mapUnlocks(map, type) || tierOf(research, type) >= 1;
 }
 export function weaponStats(type, level, research) {
   const w = WEAPONS[type], l = level - 1;

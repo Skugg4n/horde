@@ -55,3 +55,12 @@ export const PIERCE_WIDTH = 0.7;
 // per kast kommer från forskningens nivå (src/data/research.js).
 // falloff: andel av skadan som försvinner ut mot kanten (0,6 = 40 % kvar vid kanten).
 export const GRENADE_KIT = { name: 'Grenade kit', cost: 200, range: 13, minCount: 4, flight: 0.8, falloff: 0.6 };
+
+// 0.14.0 (Operation Södermanland): förnödenheter i striden till en utställd enhet, en gång per dag.
+// ammo: fortare eld resten av dagen (alla). sandbags: grupperna gräver ner sig, soldaterna tar mindre skada.
+export const SUPPLIES = {
+  ammo: { id: 'ammo', name: 'Ammo crate', cost: 120, rate: 1.2 },
+  sandbags: { id: 'sandbags', name: 'Sandbags', cost: 100, take: 0.65 },
+};
+// Erfarenhet (src/data/depot.js VET_WINS): en stjärna ger lite bättre träff och omladdning.
+export const VETERAN = { accuracy: 0.05, rate: 1.08, maxAccuracy: 0.97 };

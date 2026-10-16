@@ -23,7 +23,7 @@ test('svenska beteckningar, stabila id', () => {
   assert.equal(WEAPONS.psg90.name, 'Psg 90');
   for (const w of Object.values(WEAPONS)) assert.ok(w.desc.length > 10 && !/[åäö]/.test(w.desc), `${w.id}: engelsk beskrivning`);
   // 0.11.0: köpraden i kategorier (Defenses, Units), id oförändrade
-  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
+  assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'car', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
   assert.equal(WEAPONS.hv.name, 'Hemvärnet');
   assert.ok(!/militia/i.test(WEAPONS.hv.desc + WEAPONS.hv.name), 'aldrig "militia"');
 });
@@ -32,7 +32,8 @@ test('en gammal sparfil med M2 och M249-forskning behåller allt (id oförändra
   const m = new Map([['horde.save', JSON.stringify({ v: 3, mapId: 'riksvagen', intel: 5, research: ['m2.1', 'm2.2', 'm249Rate.1'], maps: { riksvagen: { unlockedDay: 3, attempts: {} } } })]]);
   const st = { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
   const p = loadProgress(st);
-  assert.deepEqual(p.research, ['m2.1', 'm2.2', 'm249Rate.1']);
+  // 0.14.0 (v4): nivåerna följer med; Ksp 88 I kommer med E4:s leverans (dag 3 är spelbar)
+  for (const t of ['m2.1', 'm2.2', 'm249Rate.1']) assert.ok(p.research.includes(t), t);
   assert.equal(weaponUnlocked('m2', p.research), true);
   assert.equal(m.has('horde.save.broken'), false);
 });
