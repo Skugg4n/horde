@@ -107,6 +107,7 @@ export function gridRoute(map) {
   const { size, w } = grid;
   const half = size / 2;
   const spawnIds = grid.spawns.map(s => s.id);
+  const laneGuard = !!map.grid.laneGuard;
   let blocked = new Set();        // rutor med barrikad
   let version = 0;                // ökar när hindren ändras (siktpunkterna räknas om)
   // Gångsträcka i meter längs flödet till basen, utan barrikadernas straff. Siktet använder den.
@@ -163,6 +164,11 @@ export function gridRoute(map) {
         const mid = (a - b) / 2, room = Math.max(0, (a + b) / 2 - LANE_EDGE);
         const off = mid + z.lane * room;
         tx = bx + nx * off; tz = bz + nz * off;
+        // Vakt (Gnesta Norr, 1.0.0): där två smala gångar möts kan filen hamna i den andra gången,
+        // uppströms, och zombien pendlar mellan två rutor för alltid. Med laneGuard godtas inte en
+        // siktpunkt i en ruta längre från basen än den zombien står i. Gnesta och E4 har ingen vakt
+        // (deras kvitton är oförändrade, och där har det aldrig hänt).
+        if (laneGuard) { const tk = grid.keyAt(tx, tz); if (tk < 0 || !(flow.dist[tk] <= flow.dist[z.cell])) continue; }
       } else {
         if (i === 0) continue;
         const [ax, az] = grid.center(chain[i - 1]), [bx, bz] = grid.center(c);

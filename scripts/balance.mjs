@@ -14,6 +14,9 @@ import { OBSTACLES } from '../src/data/obstacles.js';
 import { newProgress, startConfig, dayResult, canBuyResearch, buyResearch, selectMap } from '../src/meta/progress.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
+import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
+import { planSquad } from '../src/sim/squad.js';
+import { distPolyline } from '../src/data/gnesta.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
@@ -25,6 +28,9 @@ const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1
 const RESEARCH_ORDER = ['m2', 'wireTough', 'budget', 'block', 'grenade', 'm249Rate', 'positions',
   'm2', 'm249Rate', 'grenade', 'budget', 'block', 'wireTough', 'm2', 'psg90', 'm249Rate', 'grenade', 'budget', 'ksp58', 'ak5', 'block', 'positions',
   'ksp58', 'ak5', 'psg90', 'positions', 'ksp58', 'ak5', 'psg90'];
+// Gnesta Norr (1.0.0): Hemvärnets forskning först (H054), sedan resten i samma ordning. E4 och Gnesta
+// använder RESEARCH_ORDER som förut, så deras kvitton påverkas inte.
+export const NORR_ORDER = ['hvRifles', 'hvSquad', 'hvRifles', 'hvVeterans', 'hvRifles', 'hvSquad', 'hvVeterans', ...RESEARCH_ORDER];
 const MAX_KITS = 1;               // granatlådor per dag på E4: ett stöd, inte huvudsaken
 const EARLY_ALIVE = 3;            // mitt i en våg kallas nästa bara när högst så många lever
 const WIRE_CELLS = [0, 1, 2];
@@ -186,12 +192,12 @@ export function playDay(progress, day, policy = 'greedy', { seedOffset = 0, slot
 // Dagens slinga, gemensam för båda banorna: policyn tänker före varje våg och en gång per
 // simulerad sekund under vågen, och kallar nästa våg tidigt när försvaret har det bekvämt.
 // peak: flest levande zombier samtidigt.
-function runDay(sim, think, early, onSecond = null) {
+function runDay(sim, think, early, onSecond = null, maxTicks = MAX_TICKS, trackSquads = false) {
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
-  let bonus = 0, thrown = 0, blastKills = 0, blastNow = false;
+  let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];
   let ticks = 0, firstHit = null, waveIdx = 0, peak = 0;
-  while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < MAX_TICKS) {
+  while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < maxTicks) {
     if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
     else if (sim.phase === 'build') {
       think();
@@ -205,9 +211,12 @@ function runDay(sim, think, early, onSecond = null) {
       if (ev.t === 'grenade') thrown++;
       else if (ev.t === 'blast') blastNow = true;
       else if (ev.t === 'kill' && blastNow) blastKills++;
+      else if (trackSquads && ev.t === 'shot' && ev.soldier != null && ev.hit) squadHits++;
+      else if (trackSquads && ev.t === 'soldierDown') squadDown++;
     }
     blastNow = false;
     if (onSecond && ticks % 30 === 0) onSecond(sim);
+    if (trackSquads && ticks % 30 === 0) squads = Math.max(squads, sim.guns.filter(g => g.squad).length);
     if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; }
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
     if (sim.waveIndex > waveIdx || sim.phase === 'lost' || sim.phase === 'won') {
@@ -219,6 +228,7 @@ function runDay(sim, think, early, onSecond = null) {
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex,
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
     ...(sim.map.grid ? { peak, sim } : {}),
+    ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
 
@@ -302,9 +312,9 @@ const planCache = new Map();
 // med spärrarna på plats, M2:ns räckvidd) och taggtrådens rutor. Beror bara på banan,
 // ingångarna och spärrarna, så den räknas en gång och sparas. research används inte längre
 // (antalet pjäser styrs av sim.maxGuns), men argumentet finns kvar för anroparna.
-export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = {}) {
+export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS, roofs: roofCount = GN_ROOFS, roofFilter = null, roofFirst = null, squadNear = null, near = GN_NEAR, focus = null, squadFocus = null, lastLine = 0 } = {}) {
   void research;
-  const key = JSON.stringify([map.id, ids, blocks]);
+  const key = JSON.stringify([map.id, ids, blocks, ...(roofFilter || roofFirst || squadNear || focus || roofCount !== GN_ROOFS || near !== GN_NEAR ? [roofCount, !!roofFilter, !!roofFirst, squadNear, near, focus?.id, lastLine] : [])]);
   if (planCache.has(key)) return planCache.get(key);
   const sim = createSim({ map, day: 1, cash: 0, seed: 1 });
   const route = sim.route, g = route.grid;
@@ -318,8 +328,26 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
   const ps = route.paths(ids, obs);
   if (ps.some(p => !p.reaches || p.through != null)) throw new Error('planen stänger alla vägar');
   // Vägrutorna väger mer ju närmare basen de ligger (dit når alla som inte dött än).
-  const weighted = ps.flatMap(p => p.cells.map((c, i) => [c, 1 + GN_NEAR * i / Math.max(1, p.cells.length - 1)]));
-  const cp = coveragePlan(map, weighted, { range: PLAN_RANGE, count: 8, decay: GN_DECAY, cacheKey: key });
+  // focus (Gnesta Norr): vägrutorna i dödszonen väger mer (där spelaren vill slåss)
+  const fw = c => (focus ? focus.weight(...g.center(c)) : 1);
+  const weighted = ps.flatMap(p => p.cells.map((c, i) => [c, (1 + near * i / Math.max(1, p.cells.length - 1)) * fw(c)]));
+  let cp = coveragePlan(map, weighted, { range: PLAN_RANGE, count: 8, decay: GN_DECAY, cacheKey: key });
+  if (lastLine) {
+    // Gnesta Norr: två linjer. Varannan pjäs i dödszonen (focus), varannan i sista linjen framför
+    // entrén (den sista delen av vägen, lastLine av längden), sista linjen först.
+    const tail = ps.flatMap(p => p.cells.map((c, i) => [c, i >= p.cells.length * (1 - lastLine) ? 1 : 0])).filter(([, wt]) => wt > 0);
+    const cb = coveragePlan(map, tail, { range: PLAN_RANGE, count: 6, decay: GN_DECAY, cacheKey: key + '|last' });
+    const merged = { spots: [], cover: [], sees: [] };
+    const take = (src, i) => {
+      const k = src.spots[i];
+      if (k == null || merged.spots.includes(k)) return;
+      const a = placementFor(map).center(k);
+      if (merged.spots.some(q => { const b = placementFor(map).center(q); return Math.hypot(a.x - b.x, a.z - b.z) < MIN_SPACING; })) return;
+      merged.spots.push(k); merged.cover.push(src.cover[i]); merged.sees.push(src.sees[i]);
+    };
+    for (let i = 0; i < 8; i++) { take(cb, i); take(cp, i); }
+    cp = merged;
+  }
   const keep = cp.spots.map((k, i) => i).filter(i => cp.cover[i] >= MIN_COVER);
   const guns = keep.map(i => cp.spots[i]);
   const seenBy = new Map();
@@ -337,9 +365,27 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
     // spärren och en ruta runt den hålls fri, så att trådarna inte klumpar ihop sig
     for (const k of span) for (const d of [0, 1, -1, g.w, -g.w]) taken.add(k + d);
   }
-  const roofs = roofPlan(map, weighted, { count: GN_ROOFS });
-  // Hemvärnet: egna platser, där gevären (kortare räckvidd) ser mest av vägen
-  const squads = coveragePlan(map, weighted, { range: WEAPONS.hv.range, count: 8, decay: GN_DECAY, cacheKey: key }).spots;
+  // roofFirst (Gnesta Norr): första skytten på det radhustak som ser mest, de andra på vilket tak som
+  // helst. (Prövat: bara radhustak gav dag 3 lika många läckor som naive; alla skyttar på villataken
+  // tog bort radhusens roll helt.)
+  let roofs = roofPlan(map, weighted, { count: roofCount, filter: roofFilter });
+  if (roofFirst) {
+    const first = roofPlan(map, weighted, { count: 1, filter: roofFirst });
+    const pl = placementFor(map), at = k => pl.center(k);
+    const rest = roofs.spots.map((k, i) => [k, roofs.cover[i]]).filter(([k]) => first.spots.every(f => Math.hypot(at(k).x - at(f).x, at(k).z - at(f).z) >= MIN_SPACING));
+    roofs = { spots: [...first.spots, ...rest.map(r => r[0])].slice(0, roofCount), cover: [...first.cover, ...rest.map(r => r[1])].slice(0, roofCount) };
+  }
+  // Hemvärnet: egna platser, där gevären (kortare räckvidd) ser mest av vägen. squadNear (Gnesta
+  // Norr): platser där gruppen får minst så många man bakom tegelmurar eller husknutar först.
+  // squadFocus (Gnesta Norr): gruppen ställs där den ser dödszonen (Gångvägen förbi radhusen)
+  const sw = squadFocus ? ps.flatMap(p => p.cells.map(c => [c, squadFocus.weight(...g.center(c))])) : weighted;
+  let squads = coveragePlan(map, sw, { range: WEAPONS.hv.range, count: squadNear ? 16 : 8, decay: GN_DECAY, cacheKey: key + (squadFocus ? '|sq' : '') }).spots;
+  if (squadNear) {
+    const s0 = createSim({ map, day: 1, cash: 0, seed: 1 });
+    for (const k of Object.keys(obs)) s0.obstacles[k] = obs[k];
+    const good = k => planSquad(s0, k).filter(c => c.cover === 'brick').length >= squadNear;
+    squads = [...squads.filter(good), ...squads.filter(k => !good(k))];
+  }
   const plan = { lines, guns, wire, squads, roofs: roofs.spots, roofCov: roofs.cover, len: ps.map(p => p.cells.length), cov: keep.map(i => cp.cover[i]) };
   planCache.set(key, plan);
   return plan;
@@ -348,7 +394,7 @@ export function gnestaPlan(map, ids, research = [], { blocks = SMART_BLOCKS } = 
 // Taken för Psg 90 (0.8.0): som coveragePlan, men kandidaterna är takrutor och sikten är takets
 // (allt inom räckvidd utom närmast det egna huset, placement.js ROOF_DEAD). Minst MIN_SPACING
 // mellan skyttarna, lika: lägst rutnyckel. Deterministiskt.
-export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, decay = GN_DECAY } = {}) {
+export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, decay = GN_DECAY, filter = null } = {}) {
   const p = placementFor(map);
   if (!p.roof) return { spots: [], cover: [] };
   const weight = new Map();
@@ -356,7 +402,7 @@ export function roofPlan(map, route, { range = ROOF_RANGE, count = GN_ROOFS, dec
   const targets = [...weight.keys()].sort((a, b) => a - b);
   const reach = range + p.size * 0.7072, cands = [];
   for (let c = 0; c < p.n; c++) {
-    if (!(p.roof[c] > 0)) continue;
+    if (!(p.roof[c] > 0) || (filter && !filter(p.bldg[c] - 1))) continue;
     const at = p.center(c), own = p.buildings[p.bldg[c] - 1], sees = [];
     for (const t of targets) {
       const q = p.center(t);
@@ -428,15 +474,103 @@ function gnestaBuild(sim, plan, maxKits, maxRoofs = GN_ROOFS) {
   if (!squadSaving) upgradeAll(sim);
 }
 
+// Gnesta Norr: köpordningen följer det kartan lär ut. Barrikaden på Vikingavägen först, sedan en
+// Psg 90 på ett radhustak och en Hemvärnsgrupp vid tegelmurarna, sedan pjäser på marken och
+// taggtråd, fler tak, granatlådor när första vågen är klar och sist uppgraderingar (gruppen med).
+// Pengarna sparas till taket och gruppen: inget annat köps förrän de står.
+function norrBuild(sim, plan, maxKits, maxRoofs) {
+  const lay = (cells, type) => {
+    for (const c of cells) {
+      if (sim.obstacles[c]) continue;
+      if (!acrossCells(sim, c).length || sim.cash < OBSTACLES[type].cost) return;
+      placeAcross(sim, c, type);
+    }
+  };
+  lay(plan.lines, 'block');
+  let saving = false;
+  if (weaponUnlocked('psg90', sim.research)) {
+    for (const k of plan.roofs.slice(0, Math.max(1, maxRoofs))) {
+      if (sim.guns.some(g => g.cell === k)) continue;
+      // fler tak först när två pjäser står på marken
+      if (sim.guns.some(g => g.roof) && sim.guns.filter(g => !g.roof && !g.squad).length < 2) break;
+      const r = build(sim, k, 'psg90');
+      if (!r.ok) { saving = r.reason === 'pengar'; break; }
+    }
+  }
+  if (!saving && buySquad(sim, plan.squads) === 'saving') saving = true;
+  if (saving && sim.guns.length) { lay(plan.wire.slice(0, 1), 'wire'); return; }
+  while (buildNext(sim, plan.guns, wantedWeapon(sim)));
+  lay(plan.wire, 'wire');
+  if (weaponUnlocked('ak5', sim.research) && sim.guns.filter(g => g.weapon.type === 'ak5').length < GN_AK5) buildNext(sim, plan.guns, 'ak5');
+  const kits = sim.guns.filter(g => g.weapon.kit).length;
+  if (grenadeStats(sim.research) && sim.waveIndex >= GN_KIT_FROM_WAVE && kits < maxKits && sim.cash >= GRENADE_KIT.cost + OBSTACLES.wire.cost) {
+    const g = plan.guns.map(k => sim.guns.find(x => x.cell === k)).find(x => x && !x.weapon.kit);
+    if (g) buyKit(sim, g.id);
+  }
+  // Fler pjäser före uppgraderingar: så länge en plats i planen är ledig sparas pengarna till nästa.
+  const freeSpot = sim.guns.length < sim.maxGuns && plan.guns.some(k => !sim.guns.some(g => g.cell === k) && checkSpot(sim, k, 'm249').ok);
+  if (!freeSpot) upgradeAll(sim);
+}
+
 // Spelar en Gnesta-dag med policyn smart eller naive. progress: framsteget med forskningen.
 export function playGnestaDay(progress, day, policy = 'smart', { seedOffset = 0, onSecond = null, plan: given = null, kits = true } = {}) {
+  return playTownDay(progress, day, policy, { seedOffset, onSecond, plan: given, kits, mapId: 'gnesta' });
+}
+// En dag på Gnesta eller Gnesta Norr. TOWN[mapId] säger hur policyn läser kartan.
+function playTownDay(progress, day, policy, { seedOffset = 0, onSecond = null, plan: given = null, kits = true, mapId }) {
+  const T = TOWN[mapId];
   if (policy !== 'smart' && policy !== 'naive') throw new Error('okänd policy ' + policy);
-  const cfg = startConfig(progress, day, 'gnesta');
+  const cfg = startConfig(progress, day, mapId);
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
-  const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { blocks: policy === 'smart' ? SMART_BLOCKS : [] });
-  const r = runDay(sim, () => gnestaBuild(sim, plan, kits ? GN_KITS[day] : 0, GN_ROOFS_DAY[day]), true, onSecond);
+  const plan = given ?? gnestaPlan(cfg.map, daySpawns(cfg.map, day), cfg.research, { ...T.planOpts(day, policy), blocks: policy === 'smart' ? T.blocks(day) : [] });
+  const buildFn = T.build ?? gnestaBuild;
+  const r = runDay(sim, () => buildFn(sim, plan, kits ? T.kits[day] : 0, T.roofsDay[day]), true, onSecond, T.maxTicks, mapId !== 'gnesta');
   const { sim: _s, ...rest } = r;
   return { ...rest, plan, barricades: Object.values(_s.obstacles).filter(o => o.type === 'block').length };
+}
+
+// ---------- Gnesta Norr (1.0.0): horden norrifrån ----------
+// smart : en människa som läser kartan. Hon spärrar Vikingavägen söder om den andra stigen till
+//         Gångvägen, så att horden från Dansutvägen och Vikingavägen norr måste gå hela Gångvägen förbi
+//         radhusen och sedan Fornminnesvägen och gångarna ner mot ishallen. Utan spärren viker horden
+//         av mot Vikingavägen vid stigen. Hennes dödszon är Gångvägens södra del (radhuslängorna E, G
+//         och H): där ställs pjäserna (varannan, varannan i sista linjen framför entrén), gruppen vid
+//         tegelmurarna och den första Psg 90 på det radhustak som ser mest. Dag 5, när Sigtunavägen
+//         öst öppnar igen, spärrar hon också Sigtunavägen vid rondellen som på Gnesta.
+// naive : samma köp, allt ställt efter sin egen väg (vilket tak som helst, vilken plats som helst),
+//         aldrig en barrikad.
+// Prövat och förkastat (docs/balance-log.md, 1.0.0): spärren söder om Gångvägens början (horden
+// tog en U-sväng vid Vikingavägens krök som var bättre för naive), två spärrar genom
+// radhuskvarteret, dödszonen över hela Gångvägen.
+export const NORR_BLOCKS = [normK(1305, 650)];   // Vikingavägen, söder om den andra stigen
+// Dödszonen: vägrutor närmare Gångvägens södra del än 14 m väger tre gånger så mycket.
+const GANGVAG = gnestaNorr.roads.find(r => r.id === 'gangvag').pts;
+const NORR_FOCUS = { id: 'gangvag-syd', weight: (x, z) => (z > -112 && distPolyline(x, z, GANGVAG) < 14 ? 3 : 1) };
+const NORR_ROW_ROOFS = (() => {
+  // radhuslängornas tak kommer efter villornas i placeringens byggnadslista
+  const villas = gnestaNorr.lots.plots.filter(p => p.house).length;
+  return i => i >= villas;
+})();
+export const TOWN = {
+  gnesta: { blocks: () => SMART_BLOCKS, planOpts: () => ({}), kits: GN_KITS, roofsDay: GN_ROOFS_DAY, maxTicks: MAX_TICKS },
+  'gnesta-norr': {
+    blocks: day => (day >= 5 ? [...NORR_BLOCKS, ...SMART_BLOCKS] : NORR_BLOCKS),
+    // smart läser kartan (dödszonen, radhustaken, tegelmurarna); naive ställer allt efter sin egen väg
+    planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25 }
+      : { roofs: 3, near: 0, lastLine: 0.25 }),
+    kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
+  },
+};
+HV_POLICY['gnesta-norr'] = { days: [1, 2, 3, 4, 5], gap: [] };
+export function playNorrDay(progress, day, policy = 'smart', opts = {}) {
+  return playTownDay(progress, day, policy, { ...opts, mapId: 'gnesta-norr' });
+}
+// Gnesta dag 1 till 5 med smart policy efter E4, och framsteget efteråt (Gnesta Norr vald).
+export function gnestaFinished(seedOffset = 0) {
+  return selectMap(runGnestaCampaign('smart', 6, { seedOffset }).progress, 'gnesta-norr');
+}
+export function norrCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = gnestaFinished(seedOffset) } = {}) {
+  return runTownCampaign('gnesta-norr', policy, maxAttempts, { seedOffset, start }).log;
 }
 
 // Spelarens framsteg när E4 är klar med girig policy: forskningen och poängen som blev över.
@@ -446,37 +580,45 @@ export function e4Finished(seedOffset = 0) {
 
 // Gnesta dag 1 till 5 efter E4. Forskning köps mellan dagarna som på E4.
 export function gnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset) } = {}) {
+  return runGnestaCampaign(policy, maxAttempts, { seedOffset, start }).log;
+}
+export function runGnestaCampaign(policy = 'smart', maxAttempts = 6, { seedOffset = 0, start = e4Finished(seedOffset) } = {}) {
+  return runTownCampaign('gnesta', policy, maxAttempts, { seedOffset, start });
+}
+function runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start }) {
   let progress = start;
   const log = [];
-  for (let day = 1; day <= gnesta.days.length; day++) {
+  for (let day = 1; day <= MAPS[mapId].days.length; day++) {
     let won = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const before = progress;
-      const r = playGnestaDay(progress, day, policy, { seedOffset });
-      progress = buyInOrder(dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned, mapId: 'gnesta' }));
+      const r = playTownDay(progress, day, policy, { seedOffset, mapId });
+      progress = buyInOrder(dayResult(progress, { day, won: r.won, intelEarned: r.intelEarned, mapId }), mapId === 'gnesta' ? RESEARCH_ORDER : NORR_ORDER);
       log.push({ day, attempt, won: r.won, intel: r.intelEarned, baseHp: r.baseHp, waves: r.waves, bonus: r.bonus, peak: r.peak,
         grenades: r.grenades, waveLog: r.waveLog, fallTime: r.fallTime, firstHit: r.firstHit, time: r.time, barricades: r.barricades,
+        ...(mapId === 'gnesta' ? {} : { squads: r.squads, squadHits: r.squadHits, squadDown: r.squadDown }),
         before, had: [...before.research], research: [...progress.research] });
       if (r.won) { won = true; break; }
     }
     if (!won) break;
   }
-  return log;
+  return { log, progress };
 }
 
 // Gnesta, rök-körning: en trivial våg, tre vandrare från varje spawn, inga vapen eller hinder.
 // Inga balansmål än; den visar att horden hittar fram och hur lång tid det tar per ingång.
 // check: kontrollera varje steg att varje zombie står på en gångbar ruta.
-export function gnestaSmoke({ check = false, seed = 1 } = {}) {
-  const groups = gnesta.spawns.map((s, i) => ({ type: 'walker', count: 3, interval: 2, delay: i * 0.5, spawn: s.id }));
-  const map = { ...gnesta, baseHp: 99, days: [{ n: 1, startCash: 0, waves: [{ groups }] }] };
-  const sim = createSim({ map, day: 1, cash: 0, seed });
+export function gnestaSmoke({ check = false, seed = 1, base = gnesta, blocks = [], count = 3, types = ['walker'] } = {}) {
+  const groups = base.spawns.flatMap((s, i) => types.map(type => ({ type, count, interval: 2, delay: i * 0.5, spawn: s.id })));
+  const map = { ...base, baseHp: 999, days: [{ n: 1, startCash: 0, waves: [{ groups }] }] };
+  const sim = createSim({ map, day: 1, cash: blocks.length * OBSTACLES.block.cost, seed });
+  for (const [x, z] of blocks) if (!placeAcross(sim, sim.route.cellAt(x, z), 'block').ok) throw new Error(`ingen spärr vid ${x}, ${z}`);
   const g = sim.route.grid;
-  const arrivals = Object.fromEntries(gnesta.spawns.map(s => [s.id, { count: 0, first: null, last: null }]));
+  const arrivals = Object.fromEntries(base.spawns.map(s => [s.id, { count: 0, first: null, last: null }]));
   let offRoad = 0;
   const from = new Map();      // zombie-id -> spawn (framme-zombier tas bort i samma steg)
   startWave(sim);
-  while (sim.phase === 'wave' && sim.time < 600) {
+  while (sim.phase === 'wave' && sim.time < 900) {
     step(sim, DT);
     for (const z of sim.zombies) if (!from.has(z.id)) from.set(z.id, z.spawn);
     for (const ev of sim.events) if (ev.t === 'breach') {
@@ -515,6 +657,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const w = t.find(r => r.won);
       const n = playGnestaDay(t[0].before, d, 'naive', { seedOffset: o * 7919 });
       return `d${d} ${w ? `${t.indexOf(w) + 1}/${String(w.baseHp).padStart(2)}` : ' x/ 0'} p${String(Math.max(...t.map(r => r.peak))).padStart(3)} naive ${n.won ? `vann ${String(n.baseHp).padStart(2)}` : 'förlust'}`;
+    });
+    console.log(`  seed ${o}: ${cells.join(' | ')}`);
+  }
+  console.log('Gnesta Norr efter Gnesta (smart: försök till vinst/bas kvar, flest levande, Hemvärnets träffar; naive: dagens första försök med samma forskning)');
+  for (const o of [0, 1, 2, 3, 4]) {
+    const log = norrCampaign('smart', 6, { seedOffset: o * 7919 });
+    const cells = [1, 2, 3, 4, 5].map(d => {
+      const t = log.filter(r => r.day === d);
+      if (!t.length) return `d${d} -`;
+      const w = t.find(r => r.won);
+      const n = playNorrDay(t[0].before, d, 'naive', { seedOffset: o * 7919 });
+      return `d${d} ${w ? `${t.indexOf(w) + 1}/${String(w.baseHp).padStart(2)}` : ' x/ 0'} p${String(Math.max(...t.map(r => r.peak))).padStart(3)} hv${t.at(-1).squadHits} naive ${n.won ? `vann ${String(n.baseHp).padStart(2)}` : 'förlust'}`;
     });
     console.log(`  seed ${o}: ${cells.join(' | ')}`);
   }

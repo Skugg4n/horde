@@ -50,7 +50,7 @@ export const COVER = {
   car: { score: 8, stance: 'crouch', name: 'car or tree' },
   wall: { score: 7, stance: 'crouch', name: 'wall' },
   // Gnesta Norr (1.0.0): radhusens låga tegelmurar mellan förgårdarna. Bröstvärn i sten.
-  brick: { score: 8, stance: 'crouch', name: 'brick wall' },
+  brick: { score: 9, stance: 'crouch', name: 'brick wall' },
   sandbag: { score: 7, stance: 'kneel', name: 'sandbags' },
   ditch: { score: 7, stance: 'prone', name: 'ditch' },
   hedge: { score: 6, stance: 'kneel', name: 'hedge' },

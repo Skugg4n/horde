@@ -49,6 +49,10 @@ const NEW_ROADS = [
     pts: [w(1287, 45), ...KS([[1190, 1080], [1197, 960], [1204, 878]])] },
   // Förskolans slinga: från Fornminnesvägens stickgata förbi parkeringen ner till Fornminnesvägen.
   { id: 'forskP', surface: 'asphalt', width: 4.5, curbs: true, pts: [...KS([[1190, 1093], [1120, 1092], [1072, 1091], [1044, 1106], [1034, 1130]]), w(1108, 36)] },
+  // Grusstigar mellan villatomterna från stickgatornas vändplaner till Gångvägen (tomtgränserna i
+  // kartbilden; i satellitbilden går de som upptrampade gångar mellan häckarna).
+  { id: 'stig1', surface: 'gravel', width: 2.4, pts: KS([[1328, 290], [1410, 296], [1494, 304]]) },
+  { id: 'stig2', surface: 'gravel', width: 2.4, pts: KS([[1436, 562], [1510, 548], [1580, 534]]) },
   // Gångvägen: den långa raka asfaltsgången från Vikingavägens krök ner till Sigtunavägens
   // norra gren (Gnestas 'east'), förbi radhusen.
   { id: 'gangvag', name: 'Gångvägen', surface: 'asphalt', width: 3.4,
@@ -469,28 +473,28 @@ export const SURROUNDINGS = {
 // med det mesta av forskningen). Balanserad i 1.0.0 (docs/balance-log.md).
 const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
 export const DAYS = [
-  { n: 1, startCash: 1200, hp: 6.0, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
+  { n: 1, startCash: 2100, hp: 3.7, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
     hints: { lines: ['Pick the barricade (3).', 'Block Vikingavägen.', 'Watch them take the footpath past the terraced houses.'], steps: ['pick:block', 'block', 'watch'] },
-    waves: [ { groups: [g('walker', 40, 0.45, 0, 'dansW')] },
-             { groups: [g('walker', 60, 0.3, 0, 'dansW'), g('runner', 20, 0.4, 8, 'dansW')] },
-             { groups: [g('walker', 80, 0.22, 0, 'dansW'), g('runner', 40, 0.3, 6, 'dansW')] } ] },
-  { n: 2, startCash: 1300, hp: 6.4, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
+    waves: [ { groups: [g('walker', 40, 0.45, 0, 'vikN')] },
+             { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
+             { groups: [g('walker', 80, 0.22, 0, 'vikN'), g('runner', 40, 0.3, 6, 'vikN')] } ] },
+  { n: 2, startCash: 2100, hp: 7.2, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },
     waves: [ { groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 4, 'vikN')] },
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.3, 6, 'dansW')] },
              { groups: [g('walker', 60, 0.25, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.22, 8, 'vikN')] } ] },
-  { n: 3, startCash: 1300, hp: 6.6, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes come down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
-    waves: [ { groups: [g('walker', 50, 0.35, 0, 'dansW'), g('brute', 4, 3, 10, 'vikN')] },
-             { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.25, 4, 'dansW'), g('brute', 6, 2.5, 12, 'dansW')] },
-             { groups: [g('walker', 60, 0.28, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.2, 6, 'vikN'), g('brute', 8, 2, 14, 'dansW'), g('brute', 6, 2, 22, 'vikN')] } ] },
-  { n: 4, startCash: 1400, hp: 6.8, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
-    waves: [ { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.35, 2, 'vikN'), g('brute', 6, 2.5, 10, 'vikN')] },
-             { groups: [g('walker', 50, 0.3, 0, 'ostra'), g('runner', 50, 0.25, 4, 'dansW'), g('brute', 8, 2.5, 10, 'ostra')] },
-             { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 0, 'ostra'), g('runner', 50, 0.2, 6, 'vikN'), g('brute', 10, 2, 12, 'dansW'), g('brute', 8, 2, 20, 'ostra')] } ] },
-  { n: 5, startCash: 1500, hp: 6.4, intro: { title: 'Day 5: The whole town', text: 'From the north, from the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
-    waves: [ { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.35, 4, 'ostra')] },
-             { groups: [g('runner', 50, 0.2, 0, 'vikN'), g('walker', 40, 0.3, 0, 'east1'), g('brute', 10, 2.5, 8, 'dansW')] },
-             { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 0, 'vikN'), g('walker', 40, 0.3, 0, 'ostra'),
-               g('runner', 60, 0.15, 8, 'east1'), g('brute', 10, 2, 12, 'vikN'), g('brute', 10, 2, 18, 'ostra'), g('brute', 10, 2, 24, 'dansW')] } ] },
+  { n: 3, startCash: 2000, hp: 7.6, intro: { title: 'Day 3: Brutes from the north', text: 'Brutes walk behind the others down both roads. They smash a barricade in seconds if every way is shut, so leave them a long way round.' },
+    waves: [ { groups: [g('walker', 40, 0.35, 0, 'vikN'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 2, 4, 25, 'vikN')] },
+             { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.25, 4, 'dansW'), g('brute', 3, 3, 24, 'vikN')] },
+             { groups: [g('walker', 60, 0.28, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), g('runner', 50, 0.2, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'vikN')] } ] },
+  { n: 4, startCash: 2200, hp: 7.9, intro: { title: 'Day 4: Through the terraces', text: 'Something has broken through from Östra Storgatan. Later in the day they come from the east, through the terraced houses, behind your northern line.' },
+    waves: [ { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.35, 2, 'vikN'), g('brute', 2, 4, 26, 'vikN')] },
+             { groups: [g('walker', 40, 1.4, 0, 'ostra'), g('runner', 40, 0.9, 40, 'dansW'), g('brute', 3, 3, 24, 'ostra')] },
+             { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 1.0, 0, 'ostra'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'ostra')] } ] },
+  { n: 5, startCash: 1800, hp: 9.0, intro: { title: 'Day 5: The whole town', text: 'From the north, through the terraces and down Sigtunavägen from the east, all at once. Hold the roundabout in front of the doors.' },
+    waves: [ { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'ostra'), g('brute', 2, 4, 30, 'vikN')] },
+             { groups: [g('runner', 40, 0.4, 0, 'vikN'), g('walker', 25, 0.8, 0, 'east1'), g('walker', 40, 0.35, 10, 'dansW'), g('brute', 4, 3, 30, 'dansW')] },
+             { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 0, 'vikN'), g('walker', 40, 0.3, 20, 'ostra'),
+               g('runner', 25, 0.7, 40, 'east1'), g('brute', 4, 3, 30, 'vikN'), g('brute', 3, 3, 40, 'ostra'), g('brute', 3, 3, 50, 'dansW')] } ] },
 ];
 
 // ---------- staden ----------
@@ -514,7 +518,8 @@ export const gnestaNorr = {
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   rows: ROWS, parkingLots: PARKING_LOTS, yards: YARDS, forskolaYard: FORSKOLA_YARD, clearings: CLEARINGS,
-  grid: townGrid(NORR_TOWN),
+  // laneGuard: zombierna byter aldrig fil in i en gång uppströms (src/sim/route.js)
+  grid: { ...townGrid(NORR_TOWN), laneGuard: true },
   baseHp: 20, days: DAYS,
   baseModel: 'rink',
   unlocks: ['block'],
