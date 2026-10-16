@@ -107,6 +107,39 @@ function launch(sim) {
   return index;
 }
 
+// ---------- debugmenyn (0.12.2) ----------
+// Lägger till zombier mitt i en våg: count av type från ingången spawn (E4: vägens enda), räknas till
+// den senast startade vågen så att vågen inte är klar förrän de är döda. Bara under en våg.
+export function debugSpawn(sim, { type = 'walker', count = 1, spawn: spawnId = undefined } = {}) {
+  if (sim.phase !== 'wave' || !ZOMBIES[type]) return { ok: false, reason: 'fel läge' };
+  const n = Math.max(1, Math.min(500, Math.round(count)));
+  const wave = Math.max(0, sim.wavesStarted - 1);
+  for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + i * 0.25, type, wave, spawn: spawnId });
+  sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
+  return { ok: true, count: n };
+}
+// Slår upp dörren till ett hus nu (dagens vilande, eller vilket hus som helst på kartan): count
+// smittade väller ut som i launch. Bara under en våg.
+export function debugBurst(sim, house, { count = 4, type = 'walker' } = {}) {
+  if (sim.phase !== 'wave') return { ok: false, reason: 'fel läge' };
+  const door = houseDoor(sim.map, house, sim.route);
+  const wave = Math.max(0, sim.wavesStarted - 1);
+  for (let i = 0; i < count; i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type, wave, door: house, cell: door.cell });
+  sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
+  if (!sim.burst.includes(house)) sim.burst.push(house);
+  if (sim.pendingBursts) sim.pendingBursts = sim.pendingBursts.filter(b => b.ev.house !== house);
+  sim.events.push({ t: 'dormantBurst', house, x: door.x, z: door.z, ry: door.ry, intel: true });
+  return { ok: true };
+}
+// Hoppar till våg n (1 = första) före dagens första våg: vågorna före räknas som klara utan zombier.
+export function debugJumpWave(sim, n) {
+  if (sim.phase !== 'build' || sim.wavesStarted > 0) return { ok: false, reason: 'fel läge' };
+  const k = Math.max(0, Math.min(sim.dayCfg.waves.length - 1, Math.round(n) - 1));
+  for (let i = 0; i < k; i++) sim.cleared[i] = true;
+  sim.waveIndex = sim.wavesStarted = k;
+  return { ok: true, wave: k + 1 };
+}
+
 // Startar nästa våg utan bonus (första vågen, eller policyer som inte vill vänta).
 export function startWave(sim) {
   if (sim.phase !== 'build' || !hasNextWave(sim)) return false;

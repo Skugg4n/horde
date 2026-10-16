@@ -15,13 +15,18 @@ import { shopItem } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { buyState } from './sim/buy.js';
 import { newProgress, startConfig, dayResult, abandonDay, buyResearch, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen, debugArrival } from './meta/progress.js';
-import { loadProgress, saveProgress } from './meta/save.js';
-import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview } from './sim/sim.js';
+import { loadProgress, saveProgress, resetSave } from './meta/save.js';
+import { loadDebug, saveDebug } from './meta/debug-store.js';
+import { mountDebug, versionClicks } from './ui/debug.js';
+import { createDebugOverlay } from './render/debug-overlay.js';
+import { ARRIVAL } from './data/arrival.js';
+import { RESEARCH } from './data/research.js';
+import { barricadeId, BARRICADE_FAILING, gunCount, createSim, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND } from './sim/placement.js';
 import { pointAt } from './sim/path.js';
-import { weaponStats, upgradeCost } from './sim/stats.js';
+import { weaponStats, upgradeCost, maxGuns, maxSquads } from './sim/stats.js';
 import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/settings.js';
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
@@ -46,6 +51,9 @@ const FRESH = DEBUG && new URLSearchParams(location.search).has('fresh');
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
 let progress = loadProgress();
+// 0.12.2: debugmenyns reglar och hjälplager ('horde.debug', aldrig i sparfilen)
+const dbg = loadDebug();
+const withTweaks = cfg => ({ ...cfg, tweaks: dbg.tweaks });
 if (!mapUnlocked(progress, progress.mapId, { debug: DEBUG })) progress = selectMap(progress, 'riksvagen');
 const renderer = createRenderer(document.getElementById('stage'));
 document.getElementById('ver').textContent = 'v' + VERSION;
@@ -87,7 +95,7 @@ async function buildMapWorld(m) {
   const d = Math.min(mapState(progress, m.id).unlockedDay, m.days.length);
   // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
   // Simuleringen ersätts ändå när spelaren väljer dag i menyn.
-  w.sim = createSim(startConfig(progress, d, m.id) ?? startConfig(newProgress(), 1));
+  w.sim = createSim(withTweaks(startConfig(progress, d, m.id) ?? startConfig(newProgress(), 1)));
   w.day = d;
   w.view = createView(w.scene, w.sim);
   w.routeLines = createRouteLines(w.scene);
@@ -117,7 +125,7 @@ async function loadMap(id) {
     if (rig) rig.active = false;
     map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines;
     day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
-    sim = createSim(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1));
+    sim = createSim(withTweaks(startConfig(progress, day, map.id) ?? startConfig(newProgress(), 1)));
     view.setSim(sim);
     stage.resize(); rig.apply(); rig.goHome();
     routeKeys.now = routeKeys.preview = null;
@@ -830,6 +838,8 @@ function updateRoutes() {
   return { cells, tone: ob ? 'paper' : 'rust' };
 }
 addEventListener('keydown', e => {
+  // 0.12.2: det man skriver i debugmenyns fält styr inte spelet; Esc stänger menyn
+  if (e.target?.closest?.('#debug')) { if (e.key === 'Escape') { e.preventDefault(); debugUi.close(); } return; }
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
     e.preventDefault();
@@ -926,7 +936,7 @@ function startDay(n) {
   const cfg = startConfig(DEBUG ? debugArrival(progress, map.id, { fresh: FRESH }) : progress, n);
   if (!cfg) { showMenu(); return; }
   day = n;
-  sim = createSim(cfg);
+  sim = createSim(withTweaks(cfg));
   failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false;
   sightCache.clear();
   view.setSim(sim);
@@ -1090,6 +1100,83 @@ if (DEBUG) window.__horde = { get worlds() { return worlds; }, get speed() { ret
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 
+// ---------- debugmenyn (0.12.2, Olas önskan) ----------
+// Fem snabba klick på versionsnumret (hörnet eller menyn) öppnar den; med ?debug finns knappen DEBUG.
+const allResearch = () => RESEARCH.flatMap(n => n.tiers.map((_, i) => `${n.id}.${i + 1}`));
+function applyResearch(list) {
+  progress = { ...progress, research: [...list] }; save();
+  if (sim) { sim.research = new Set(list); sim.maxGuns = maxGuns(sim.research, sim.map); sim.maxSquads = maxSquads(sim.research); }
+  return { ok: true };
+}
+const overlays = new Map();
+const debugUi = mountDebug(uiRoot, {
+  sim: () => sim, progress: () => progress, map: () => map, day: () => day,
+  maps: () => Object.values(MAPS).map(m => ({ id: m.id, name: m.name })),
+  spawns: () => map?.spawns ?? [],
+  houses: () => {
+    const today = new Set((sim?.dayCfg.dormant ?? []).map(d => d.house));
+    const all = (map?.lots?.plots ?? []).filter(p => p.house && p.id).map(p => ({ id: p.id, label: p.id + (today.has(p.id) ? ' (today)' : '') }));
+    return [...all.filter(h => today.has(h.id)), ...all.filter(h => !today.has(h.id))];
+  },
+  setIntel: v => { if (!Number.isFinite(v)) return { ok: false }; progress = { ...progress, intel: Math.max(0, Math.round(v)) }; save(); return { ok: true }; },
+  setResearch: preset => applyResearch(preset === 'all' ? allResearch() : preset === 'arrival' ? (ARRIVAL[map.id] ?? []) : []),
+  setCash: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.cash = Math.max(0, Math.round(v)); return { ok: true }; },
+  setBaseHp: v => { if (!sim || !Number.isFinite(v)) return { ok: false }; sim.baseHp = Math.max(1, Math.round(v)); return { ok: true }; },
+  jump: async (mapId, d, wave) => {
+    if (!MAPS[mapId]) return;
+    progress = selectMap(progress, mapId); save();
+    await loadMap(mapId);
+    startDay(Math.max(1, Math.min(map.days.length, Math.round(d) || 1)));
+    sheetAction('go');
+    if (wave > 1) debugJumpWave(sim, wave);
+  },
+  unlockAll: () => {
+    const maps = { ...progress.maps };
+    for (const m of Object.values(MAPS)) { const st = mapState(progress, m.id); maps[m.id] = { ...st, unlockedDay: Math.max(st.unlockedDay, m.days.length + 1) }; }
+    progress = { ...progress, maps }; save();
+    return { ok: true };
+  },
+  resetSave: () => {
+    const ok = resetSave(newProgress());
+    progress = loadProgress();
+    loadMap(progress.mapId).then(() => showMenu());
+    return { ok };
+  },
+  tweaks: () => dbg.tweaks,
+  setTweaks: t => { dbg.tweaks = normalizeTweaks(t); saveDebug(dbg); if (sim) sim.tweaks = dbg.tweaks; },
+  spawn: (type, n, spawnId) => (sim && mode === 'play' ? debugSpawn(sim, { type, count: n, spawn: spawnId || undefined }) : { ok: false }),
+  burst: house => (sim && mode === 'play' && house ? debugBurst(sim, house) : { ok: false }),
+  visuals: () => ({ ...dbg.visuals, routes: showRoute, minimap: minimap.visible }),
+  setVisual: (k, on) => {
+    if (k === 'routes') { showRoute = on; hud.routeKey(mode === 'play' && sim?.route.kind === 'grid', showRoute); }
+    else if (k === 'minimap') { minimap.toggle(on); try { localStorage.setItem(MM_KEY, on ? 'on' : 'off'); } catch { /* ingen lagring */ } }
+    else { dbg.visuals[k] = on; saveDebug(dbg); }
+  },
+});
+if (DEBUG) debugUi.reveal();
+versionClicks(document.getElementById('ver'), () => debugUi.open());
+uiRoot.addEventListener('click', e => { if (e.target.closest?.('.v') && e.target.closest('.sheet')) verClick(); });
+let verTimes = [];
+function verClick() {
+  const t = performance.now();
+  verTimes = verTimes.filter(x => t - x < 1600); verTimes.push(t);
+  if (verTimes.length >= 5) { verTimes = []; debugUi.open(); }
+}
+let fpsT = 0, fpsN = 0, fpsText = '';
+function updateDebug(dt) {
+  debugUi.update(dt);
+  if (scene) {
+    let ov = overlays.get(scene);
+    if (!ov && (dbg.visuals.los || dbg.visuals.grid)) { ov = createDebugOverlay(scene); overlays.set(scene, ov); }
+    ov?.update(mode === 'play' ? sim : null, dbg.visuals);
+  }
+  if (dbg.visuals.fps) {
+    fpsT += dt; fpsN++;
+    if (fpsT >= 0.5) { const i = renderer.info.render; fpsText = `${Math.round(fpsN / fpsT)} fps · ${i.calls} draws · ${Math.round(i.triangles / 1000)}k tris`; fpsT = 0; fpsN = 0; }
+  }
+  debugUi.showFps(dbg.visuals.fps, fpsText);
+}
+
 // ---------- spelmenyn och paus ----------
 // Medan menyn är öppen går ingen tid i spelet (se tick). Scenen ritas ändå, så dammet rör sig.
 // Restart day och Main menu mitt i en dag räknar försöket (ny seed, som efter Try again).
@@ -1155,6 +1242,7 @@ function tick(now) {
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);
   renderer.render(scene, camera);
+  updateDebug(frameDt);
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
