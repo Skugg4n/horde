@@ -32,7 +32,7 @@ export function createCoach(root, { onRelease, onFewer }) {
   function show(step) {
     cur = step;
     el.hidden = false;
-    el.className = 'k-' + step.kind + (step.dim ? ' dim' : '') + (step.pause ? ' pausing' : '');
+    el.className = 'k-' + step.kind + (step.dim ? ' dimmed' : '') + (step.pause ? ' pausing' : '');
     text.innerHTML = `${esc(step.text)}${step.keys?.length ? ' ' + keysHtml(step.keys) : ''}`;
     fewer.hidden = !step.fewer;
     pausedEl.hidden = !step.pause;
@@ -66,10 +66,13 @@ export function createCoach(root, { onRelease, onFewer }) {
     ];
     const fits = c => c.x >= 8 && c.y >= 8 && c.x + pw <= vw - 8 && c.y + ph <= vh - 36;
     const hits = (c, a) => a && c.x < a.x1 && a.x0 < c.x + pw && c.y < a.y1 && a.y0 < c.y + ph;
-    const best = cands.find(c => fits(c) && !hits(c, avoid)) ?? cands.find(fits) ?? { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
+    // ett stort mål (en väg över halva skärmen): plåten uppe i mitten, inne i hålet, utan ledlinje
+    const big = r && (r.x1 - r.x0) * (r.y1 - r.y0) > vw * vh * 0.35;
+    const best = big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' }
+      : cands.find(c => fits(c) && !hits(c, avoid)) ?? cands.find(fits) ?? { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
     plate.style.left = Math.round(best.x) + 'px'; plate.style.top = Math.round(best.y) + 'px';
     // ledlinjen: från plåtens kant till målets kant, rak
-    const L = { b: [best.x + pw / 2, best.y, cx, t.y1], t: [best.x + pw / 2, best.y + ph, cx, t.y0], r: [best.x, best.y + ph / 2, t.x1, cy], l: [best.x + pw, best.y + ph / 2, t.x0, cy] }[best.side];
+    const L = { b: [best.x + pw / 2, best.y, cx, t.y1], t: [best.x + pw / 2, best.y + ph, cx, t.y0], r: [best.x, best.y + ph / 2, t.x1, cy], l: [best.x + pw, best.y + ph / 2, t.x0, cy], none: [0, 0, 0, 0] }[best.side];
     const len = Math.hypot(L[2] - L[0], L[3] - L[1]);
     lead.hidden = len < 4;
     Object.assign(lead.style, { left: L[0] + 'px', top: L[1] + 'px', width: len + 'px', transform: `rotate(${Math.atan2(L[3] - L[1], L[2] - L[0])}rad)` });

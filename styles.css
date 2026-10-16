@@ -750,8 +750,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #coach .catch { position: fixed; inset: 0; pointer-events: auto; cursor: pointer; }
 #coach:not(.k-show) .catch { display: none; }
 #coach .hole { position: fixed; border-radius: 4px; transition: left .25s, top .25s, width .25s, height .25s; }
-#coach.dim .hole { box-shadow: 0 0 12px 9999px rgba(22, 18, 14, 0.55); }
-#coach.dim .hole[hidden] + .marks + .lead + .cplate { box-shadow: 0 0 0 9999px rgba(22, 18, 14, 0.45), 0 6px 18px rgba(0,0,0,.35); }
+#coach.dimmed .hole { box-shadow: 0 0 12px 9999px rgba(22, 18, 14, 0.55); }
+#coach.dimmed .hole[hidden] + .marks + .lead + .cplate { box-shadow: 0 0 0 9999px rgba(22, 18, 14, 0.45), 0 6px 18px rgba(0,0,0,.35); }
 #coach .marks { position: fixed; animation: coachPulse 1.2s ease-in-out infinite; transition: left .25s, top .25s, width .25s, height .25s; }
 #coach .marks[hidden], #coach .hole[hidden], #coach .edge[hidden], #coach .lead[hidden] { display: none; }
 #coach .marks i { position: absolute; width: 14px; height: 14px; border: 0 solid var(--rust); }
@@ -877,3 +877,5 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .sent { margin: 0 0 6px; }
 .depot .srow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--paper-dim); padding: 4px 8px; border: 1px dashed var(--plate-edge); border-radius: 2px; margin-bottom: 4px; }
 .depot .bulk { display: block; margin: 0 0 8px; }
+.depot .acts .act.main { white-space: nowrap; }
+#ui[data-manual="on"] + #ver { left: 66px; }

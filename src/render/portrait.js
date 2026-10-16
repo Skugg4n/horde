@@ -32,6 +32,8 @@ function render(type) {
   scene.add(new THREE.HemisphereLight(P.hemiSky, P.hemiGround, 0.6));
   const sun = new THREE.DirectionalLight(P.sun, 2.4); sun.position.set(-2.5, 3, 3); scene.add(sun);
   const rim = new THREE.DirectionalLight('#c0602e', 1.6); rim.position.set(2, 2, -3); scene.add(rim);
+  // svag fyllning framifrån, som spelets kalla fyllning från kamerans håll: ansiktet syns
+  const fill = new THREE.DirectionalLight(P.fill, 1.1); fill.position.set(1, 1.6, 3.5); scene.add(fill);
   // marken: mörk asfalt med en blodfläck
   const ground = new THREE.Mesh(new THREE.CircleGeometry(3, 24), new THREE.MeshLambertMaterial({ color: '#3a342b' }));
   ground.rotation.x = -Math.PI / 2; scene.add(ground);

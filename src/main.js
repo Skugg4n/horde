@@ -1245,7 +1245,7 @@ function lessonTarget(t) {
   const w = t.world, pts = [];
   if (w === 'pointer') return { rect: { x0: pointer.x - 16, y0: pointer.y - 16, x1: pointer.x + 16, y1: pointer.y + 16 }, light: true };
   if (w === 'marked') { for (const k of sim.marked ?? []) if (!sim.guns.some(g => g.cell === k)) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
-  else if (w === 'route') { for (const p of nowPaths ?? []) for (let i = Math.floor(p.cells.length * 0.35); i < p.cells.length; i += 2) pts.push(cellWorld(p.cells[i])); }
+  else if (w === 'route') { for (const p of nowPaths ?? []) for (let i = Math.floor(p.cells.length * 0.55); i < p.cells.length; i += 2) pts.push(cellWorld(p.cells[i])); }
   else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
@@ -1310,7 +1310,7 @@ function updateLessons(dt) {
       return;
     }
     lesson.missing = 0;
-    coach.el.classList.toggle('dim', lesson.pause && !placing && !tg?.light && !!tg?.rect);
+    coach.el.classList.toggle('dimmed', lesson.pause && !placing && !tg?.light && !!tg?.rect);
     coach.place(tg?.rect ?? null, { off: tg?.off ?? null });
     return;
   }
