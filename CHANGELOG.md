@@ -1,5 +1,24 @@
 # Ändringslogg
 
+## 0.12.0 (2026-10-16)
+
+Nya mekaniker (H098 till H102, H106 till H108) och rättningarna efter speltestet av 0.11.0 (docs/playtests/2026-10-16-0.11.0.md, "SPELBART: NEJ").
+
+- Vilande smittade i husen (H101): en dag kan ha hus med 3 till 5 smittade. Dagintrot säger "Intel: dormant infected reported on Sigtunavägen.", huset har en svag röd ton på dörren och ett fönster och en ping på minikartan. När vågen börjar slås dörren upp (ljud, flisor, dörren flyger ut) och de kliver ut på gatan och följer horden. Gnesta South dag 1 och 2 och Gnesta North dag 1 har förvarnade hus, så första skottet kommer inom 10 till 15 s (H110); dag 3 på Gnesta South har ett hus utan förvarning i våg 2 ("Infected breaking out of a house!").
+- Flytta (H102): Move i panelen. Pjäsen packas ihop, bärs och ställs upp (Ksp 88 15 s, Ksp 90 och Ksp 58 8 s, Ak 5 5 s, Psg 90 10 s) och skjuter inte under tiden; Hemvärnet springer och kan slås ner på vägen. Uppgraderingar och granatlådan följer med, den gamla befästningen ligger kvar och den nya platsen befästs. Samma spöke och regler som ett köp. Sälj ger fortfarande 60 %.
+- Värnet anpassar sig (H098): pjäserna och säckringen vänds mot hordens väg, säckar läggs bara där det saknas skydd (husknut, vägg, tegelmur, häck, staket, bil) och pjäsen trycker sig mot skyddet framför sig. Samma plats ger alltid samma värn. Före och efter: docs/0.12.0-varn.jpg.
+- Skymda enheter (H099): en pjäs eller grupp bakom ett högre hus får en tunn siluett i lagets färg (bara där den skyms) och en liten flagga som går att klicka på. Syns enheten ritas inget extra.
+- Prickskytten (H106 till H108): Psg 90 ligger bara på riktiga utsiktspunkter: platta tak (garagen, förskolan, ishallen med tillbyggnaden, sporthallen) och nocken intill en skorsten (villor och radhus). Skytten följer takets lutning och inget går genom taket. Sikten räknas med husens höjd för alla pjäser: från ett lågt tak ser man över låga villor nära, en tvåvåningslänga skymmer, ett högt tak ser längre; på marken är ögat 1,5 m upp. Psg 90 har en skjutsektor på 75 grader som vrids med hjulet eller Q/E när den ställs ut (och när den flyttas), och skjuter bara inom den. Inget vattentorn eller kyrktorn: inget sådant finns inom kartan.
+- Taktisk minikarta (H100): uppe till höger under kassan. Gatorna, ett rutnät med koordinater, den aktiva kartans kant, ingångarnas pilar, horden som röda prickar med svans, pingar för förvarnade hus och barrikader som går sönder, pjäserna som små NATO-lika tecken, basen och kamerans ruta. Klick eller drag flyttar kameran; M slår av och på.
+- Placeringen (speltestet, H113): skälet står vid pekaren, också efter ett nekat klick. Orsaken till var tredje misslyckad placering: gatan ritas med sin riktiga bredd men rutnätet har 2 m-rutor, så pekaren på den synliga vägytan låg i ungefär var sjätte fall i en ruta som inte var gata (och en pjäs vid gatukanten i en gaturuta). Nu tas närmaste ruta inom 2,3 m som går. Tråd och barrikad går att lägga på grus- och cykelvägar. Spöket syns genom tak och hus (svagare där det skyms).
+- Barrikaderna (H114): en skadad spärr har en liten stapel, "Barricade failing" vid en fjärdedel kvar (med ping på minikartan), och när den går sönder "Barricade down. They are taking another way." och den nya vägen blinkar.
+- Gnesta Norths öppning kommer ur diset (H115): Sigtunavägen fortsätter västerut ut i dimman och ingången heter "Sigtunavägen west". Provet täcker nu varje bana, ingång och våg.
+- Tvåstegsvalet (H116): en öppen kategori väntar alltid på andra siffran ("1", paus, "1" ger barrikaden). Bara Esc eller ett klick utanför köpraden stänger.
+- Zoomen (H117): längst ut ryms hela den aktiva kartan på 1440 x 900.
+- Pengar över (H118): U uppgraderar den valda pjäsen, och när alla platser är tagna och kassan räcker säger spelet det en gång.
+- ?mute: spelet startar helt tyst (inget ljud skapas alls) utan att röra de sparade inställningarna.
+- Balans: Gnesta dag 2 mjukare (hp 5,7) och dag 5 4,0; Gnesta North omvägd för sikten, sektorn och flytten. Nya kvitton för Gnesta och Gnesta North, E4 oförändrad (docs/balance-log.md, 0.12.0).
+
 ## 0.11.0 (2026-10-16)
 
 Efter speltestet av 0.10.2 (docs/playtests/2026-10-16-0.10.2.md) och Olas önskemål samma dag.

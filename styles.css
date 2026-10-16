@@ -526,8 +526,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.12.0 (H114): barrikadens hälsa, en liten stapel ovanför en skadad spärr */
 #obbars { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 #ui:not([data-mode="play"]) #obbars { display: none; }
-.obbar { position: absolute; width: 34px; height: 5px; transform: translate(-50%, -50%); background: rgba(20, 18, 16, 0.75); border: 1px solid rgba(233, 223, 201, 0.5); }
-.obbar i { display: block; height: 100%; background: #c9b98f; }
+.obbar { position: absolute; width: 46px; height: 7px; transform: translate(-50%, -50%); background: rgba(14, 12, 10, 0.85); border: 1px solid rgba(233, 223, 201, 0.75); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.obbar i { display: block; height: 100%; background: #d9a441; }
 .obbar.low i { background: #d4482c; }
 .obbar.low { animation: obpulse 0.8s ease-in-out infinite alternate; }
 @keyframes obpulse { from { opacity: 0.6; } to { opacity: 1; } }

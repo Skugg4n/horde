@@ -403,3 +403,31 @@ Gnesta Norr (North):
 E4: oförändrad (ingen dimma, kvittot detsamma).
 
 Kvitton: E4 4d617fb6/7775, Gnesta 1d49e790/44538, Gnesta Norr e96d3147/74040.
+
+## 0.12.0: vilande hus, flytt, sikt med höjd och prickskyttens sektor
+
+Uppdraget: H098 till H102, H106 till H108 och speltestet av 0.11.0 (Gnesta dag 2 gick inte att vinna på två försök, första skottet efter 45 till 56 s).
+
+Regler (alla banor):
+- Sikten räknas med husens höjd (src/sim/placement.js lineOfSightH): ögat 1,5 m över marken för pjäserna och Hemvärnet, 0,6 m över utsiktspunkten för Psg 90 på ett tak, målet 1,0 m. Varje husruta har byggnadens höjd (det högsta av byggnaden i rutan; för marginalen runt huset takfoten). E4 har inga höjder och samma regel som förut, så E4:s kvitto är oförändrat.
+- Psg 90: bara utsiktspunkter (platta tak, nocken vid en skorsten, ishallen och sporthallen) och en sektor på 75 grader. Policyn väljer utsiktspunkt och riktning efter hur mycket av hordens väg sektorn ser (scripts/balance.mjs roofPlan, 48 riktningar). Taken ser nu 20 till 24 rutor av vägen (var över 40 med sikt över alla hus).
+- Flytten: Ksp 88 15 s, Ksp 90 och Ksp 58 8 s, Ak 5 5 s, Psg 90 10 s (40 % packa, 20 % bära, 40 % ställa upp). Före första vågen står pjäsen klar direkt.
+- Vilande smittade: de kommer ut 0,4 s efter vågens start, en per 0,45 s, på närmaste gata framför huset.
+
+Gnesta (South):
+- Dag 1: villorna B2-00 och B2-12, tre vandrare var. Första skottet 14 s för smart (var 52 till 54) och 9 s för naive. Prövat: ett hus (B2-12 ensam gav smart 48 s, policyns pjäser står vid fältet), B2-01 och B2-02 (smart 20 till 30 s).
+- Dag 2: B2-00 och B2-02, fyra var. Första skottet 10 s. hp 5,7 (var 5,9; först 6,1 med husen, men H118: dagen ska gå för en människa inom två försök). Smart 20 kvar i alla seeds, naive vinner alla fem med 3 till 7 (var 2 till 5 och en förlust). Prövat 5,4 (naive 7 till 10, för likt dag 1).
+- Dag 3: överraskningen B1-10 (fyra vandrare) när våg 2 börjar, utan förvarning. Prövat dag 4: gruppen med Hemvärnets forskning förlorade dag 4 i en seed.
+- Dag 5: hp 4,0 (var 4,3): med sektorn och utsiktspunkterna tog dag 5 tre till fem försök. Nu 1 till 2 försök med 2 till 8 kvar, fortfarande svårast.
+- Smart (försök/bas kvar): dag 1 1/14 till 19, dag 2 1/20, dag 3 1/8 till 13, dag 4 1/9 till 11, dag 5 1 till 2/2 till 8. Dagarna 490 till 520 s.
+
+Gnesta North:
+- Öppningen ur diset: ingången 66 m ut på Sigtunavägen västerut (var 15 m utanför den skarpa ytan), med 8 s försprång i diset. Första skottet 14 till 15 s alla dagar.
+- Dag 1: N-16 på Vikingavägen, fyra vandrare med öppningen.
+- Smart flyttar öppningens Ksp 90 till den sista lediga platsen i planen (var: sälja den). Naive säljer som förut (läser inte kartan). Prövat: flytta till planens första lediga plats (dag 5 ovinnbar i fyra seeds: en Ksp 90 tog platsen för en tyngre pjäs), och att naive också flyttar (naive vann dag 1 med 15 kvar i alla seeds).
+- hp 2,8 / 3,1 / 4,05 / 4,1 / 5,45 (var 2,8 / 4,6 / 5,0 / 5,15 / 6,7): taken bar banan, och med sektorn ser de mindre. Dag 2 är brantast (två ingångar, Psg 90 ännu inte forskad i alla seeds). Klippor: dag 3 vid 4,15 (5 kvar i snitt) och 4,4 till 4,7 (förlust i alla), dag 5 vid 5,6 (fem försök i en seed).
+- Smart: dag 1 1/20, dag 2 1 till 3/4 till 13, dag 3 1/9 till 16, dag 4 1/6 till 9, dag 5 1 till 2/1 till 8. Naive förlorar alla dagar. Dagarna 290 till 550 s.
+
+E4: oförändrad (kvittot detsamma).
+
+Kvitton: E4 4d617fb6/7775, Gnesta 94964f8b/41808, Gnesta Norr 3d553082/66951.
