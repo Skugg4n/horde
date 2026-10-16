@@ -571,6 +571,8 @@ function handleEvents() {
       const toast = sim.dayCfg.waves[ev.index]?.toast;
       if (toast) note(uiRoot, toast, 'warn');
     }
+    // 0.12.2: en grupp sent i vågen säger till när den kommer (vändningen)
+    else if (ev.t === 'groupToast') note(uiRoot, ev.text, 'warn');
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
     else if (ev.t === 'obstacleBroken' && ev.type === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
@@ -1084,6 +1086,7 @@ function placePanel() {
 if (DEBUG) window.__horde = { get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
+  open,
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } } };
 

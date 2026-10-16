@@ -87,13 +87,17 @@ function launch(sim) {
   const kc = sim.tweaks?.count ?? 1;
   // debug: spawn count × (gruppens tid behålls; identitet = exakt dagens data)
   const nOf = n => kc === 1 ? n : Math.max(1, Math.round(n * kc));
-  for (const g of wave.groups) { const n = nOf(g.count), iv = kc === 1 ? g.interval : g.interval * g.count / n; for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * iv, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) }); }
+  // 0.12.2: group.toast = en rad när gruppens första kommer (vändningen sent i en våg)
+  for (const g of wave.groups) { const n = nOf(g.count), iv = kc === 1 ? g.interval : g.interval * g.count / n; for (let i = 0; i < n; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * iv, type: g.type, wave: index, spawn: g.spawn, ...(g.toast && i === 0 ? { toast: g.toast } : {}), ...(g.lead ? { lead: g.lead } : {}), ...(g.hp ? { hp: g.hp } : {}) }); }
   for (const d of sim.dayCfg.dormant ?? []) {
     if ((d.wave ?? 0) !== index) continue;
     const door = houseDoor(sim.map, d.house, sim.route);
-    for (let i = 0; i < nOf(d.count); i++) sim.spawnQueue.push({ at: sim.time + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
-    sim.burst.push(d.house);
-    sim.events.push({ t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false });
+    // 0.12.2: d.delay = sekunder in i vågen innan dörren slås upp (överraskningen sent i vågen)
+    const dl = d.delay ?? 0;
+    for (let i = 0; i < nOf(d.count); i++) sim.spawnQueue.push({ at: sim.time + dl + DORMANT_DELAY + i * DORMANT_GAP, type: d.type ?? 'walker', wave: index, door: d.house, cell: door.cell, ...(d.hp ? { hp: d.hp } : {}) });
+    const ev = { t: 'dormantBurst', house: d.house, x: door.x, z: door.z, ry: door.ry, intel: d.intel !== false };
+    if (dl > 0) (sim.pendingBursts ??= []).push({ at: sim.time + dl, ev });
+    else { sim.burst.push(d.house); sim.events.push(ev); }
   }
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
@@ -163,7 +167,8 @@ export function fogFactor(map, x, z) {
   return 1 + (FOG_SPEED - 1) * t * t * (3 - 2 * t);
 }
 // group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
-function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1 }) {
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1, toast = null }) {
+  if (toast) sim.events.push({ t: 'groupToast', text: toast, wave });
   const id = sim.nextId++;
   const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1) * (sim.tweaks?.hp ?? 1);
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
@@ -201,6 +206,7 @@ export function step(sim, dt) {
   }
   if (sim.phase !== 'wave') return;
   sim.time += dt;
+  if (sim.pendingBursts?.length) for (const b of sim.pendingBursts.filter(q => q.at <= sim.time)) { sim.pendingBursts.splice(sim.pendingBursts.indexOf(b), 1); sim.burst.push(b.ev.house); sim.events.push(b.ev); }
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
   // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
   const ov = sim.dayCfg.overlap;

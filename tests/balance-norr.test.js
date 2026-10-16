@@ -125,14 +125,19 @@ test('Gnesta Norr: spärren på Vikingavägen leder horden förbi radhusen, take
 // 0.12.1: bytt avsiktligt. Fem pjäser från början (var fyra) och Hemvärnet utanför pjäsernas tak (eget
 // tak, två grupper), efter speltestet av 0.12.0 (5 av 5 platser och $ 900 över). Inga hp ändrade.
 // Se docs/balance-log.md, 0.12.1.
-const BEFORE = { hash: '4d717aee', length: 60032 };
+// 0.12.2: bytt avsiktligt. Varje dag har en egen idé och våg 1 kommer från olika håll (väster,
+// Vikingavägen, husen på Valsvägen och förskolan med Dansutvägen, Östra Storgatan, Sigtunavägen öst),
+// kniptång, bjässar först, löparsvärmar, vilande hus och oannonserade hus sent i vågen. Policyns
+// öppningspjäs möter dagens första grupp (scripts/balance.mjs norrOpener). Svårare: dag 1 bas kvar 15
+// (var 19), hp 2,8 / 3,1 / 3,25 / 4,6 / 5,1 med den tyngre formen. Se docs/balance-log.md, 0.12.2.
+const BEFORE = { hash: 'b4f7c1a4', length: 60476 };
 function fingerprint() {
   const str = JSON.stringify({ smart: logs, naive: naives });
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return { hash: h.toString(16), length: str.length };
 }
-test('Gnesta Norrs balanslogg är identisk med 0.12.1', () => {
+test('Gnesta Norrs balanslogg är identisk med 0.12.2', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 void SEEDS;
@@ -147,4 +152,22 @@ test('?debug-tabellen (src/data/arrival.js) är ankomsten för den som vinner va
   assert.ok(ARRIVAL['gnesta-norr'].length < starts[0].research.length);
   const r = playNorrDay({ ...starts[0], research: ARRIVAL['gnesta-norr'] }, 1, 'smart');
   assert.equal(r.won, true, `smart med tabellen vinner dag 1 (bas ${r.baseHp})`);
+});
+
+// 0.12.2 (speltestet: "varje dag är några från väster, sedan alla norrifrån"): dagarna skiljer sig.
+test('Gnesta Norr: våg 1 kommer från olika håll, en rad intro per dag, och dag 5 är kulmen', async () => {
+  const { gnestaNorr: m } = await import('../src/data/gnesta-norr.js');
+  const firstFrom = m.days.map(d => d.waves[0].groups[0]?.spawn);
+  assert.equal(new Set(firstFrom).size, 5, firstFrom.join(','));
+  for (const d of m.days) {
+    assert.ok(!/\n/.test(d.intro.text) && d.intro.text.length <= 130, `dag ${d.n}: ${d.intro.text.length} tecken`);
+    assert.ok(!d.intro.text.includes('\u2014'), 'inget tankstreck');
+  }
+  // flera ingångar per dag och fler i slutet
+  const spawns = d => new Set(d.waves.flatMap(w => w.groups.map(q => q.spawn))).size;
+  assert.ok(m.days.slice(1).every(d => spawns(d) >= 2));
+  assert.equal(Math.max(...m.days.map(spawns)), spawns(m.days[4]));
+  // en våg som leds av bjässar (bjässarna först) och en vändning sent i en våg på dag 1, 2 och 5
+  assert.ok(m.days[2].waves.some(w => w.groups[0]?.type === 'brute' && w.groups[0].delay === 0));
+  for (const i of [0, 1, 4]) assert.ok(m.days[i].waves.some(w => w.groups.some(q => q.toast && q.delay > 0)), `dag ${i + 1}`);
 });

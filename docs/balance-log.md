@@ -449,3 +449,37 @@ Utfall (smart: försök/bas kvar; naive dagens första försök):
 - Alla balansprov håller (vinster, försök, naive tar mer skada, tempo).
 
 Kvitton: E4 4d617fb6/7775, Gnesta eee09f27/39187, Gnesta Norr 4d717aee/60032.
+
+## 0.12.2: Gnesta North, en idé per dag och lite svårare
+
+Speltestet av 0.12.1: "varje dag är några från väster, sedan alla norrifrån", och North (liksom South dag 1 och E4) kändes lite för lätt med mycket forskning. Dagarna är omgjorda med verktygen som finns (vilande hus, oannonserade hus, flera ingångar, kniptång, flank, bjässar först, löparsvärm, vändning sent i en våg). Våg 1 kommer från ett nytt håll varje dag.
+
+| Dag | Idé | Våg 1 | Resten |
+|---|---|---|---|
+| 1 | Norrifrån | Sigtunavägen väster (öppningen) och huset på Vikingavägen | Vikingavägen; sista vågen får löpare i ryggen efter 22 s ("Runners coming up behind them!") |
+| 2 | Kniptången | Vikingavägen rakt ner och huset på Fornminnesvägen | två kolonner samtidigt, en löparsvärm (60), sista vågen löpare på båda vägarna; huset på Gångvägen i våg 2, Fornminnesvägen 25 s in i sista vågen |
+| 3 | Bjässarna först | husen på Valsvägen, förskolan och Fornminnesvägen, och en grupp på Dansutvägen | bjässar först med de andra bakom, sista vågen bjässar först i båda kolonnerna, två bjässar ur ett oannonserat hus 40 s in |
+| 4 | Flanken | Östra Storgatan genom radhusen och huset på Gångvägen | norr och öster samtidigt, löpare genom radhusen, ett oannonserat hus vid ishallen 35 s in i sista vågen |
+| 5 | Hela stan | Sigtunavägen öst och huset vid rondellen | alla ingångar, löpare från tre håll, bjässar först, ett oannonserat hus 45 s in och en grupp från väster i ryggen 55 s in |
+
+Nytt i simuleringen (bara data som använder det ändras): `dormant.delay` (dörren slås upp så många sekunder in i vågen) och `group.toast` (en rad när gruppens första kommer). Policyn (scripts/balance.mjs): öppningspjäsen möter dagens första grupp (`norrOpener`). Kommer den norr- eller österifrån ställs pjäsen där den ser första tredjedelen av vägen, som en människa som möter dem vid dimkanten; söderifrån som förut.
+
+Prövat och förkastat:
+- Våg 1 från Dansutvägen eller Vikingavägen utan öppningspjäs: första skottet efter 37 till 60 s, inga pengar den första minuten, och dagen förlorades i våg 2 i alla seeds. Vilande hus nära linjen hjälpte inte: husen skymmer och de gick ut ur sikten.
+- Bjässar först med dagens hp (4,05): dag 3 förlorades i våg 2 i alla seeds och med båda ankomsterna. Formen är tyngre än siffran, så hp sänktes till 3,25.
+- Dag 5 med 5,2 till 5,45: alla förlorade i våg 2 (en klippa mellan 5,0 och 5,2). Vald 5,1.
+
+hp: 2,8 / 3,1 / 3,25 / 4,6 / 5,1 (var 2,8 / 3,1 / 4,05 / 4,1 / 5,45). Dag 4 upp eftersom öppningspjäsen vid radhusen tar flanken tidigt.
+
+Resultat, smart över fem seeds (försök till vinst, bas kvar), före och efter:
+
+| | Dag 1 | Dag 2 | Dag 3 | Dag 4 | Dag 5 |
+|---|---|---|---|---|---|
+| balansens ankomst, 0.12.1 | 1, 17 till 20 | 1 till 2, 1 till 15 | 1, 2 till 17 | 1, 4 till 8 | 1 till 2, 1 till 6 |
+| balansens ankomst, 0.12.2 | 1, 15 till 16 | 1 till 2, 2 till 15 | 1, 2 till 11 | 1 till 2, 3 till 12 | 1 till 2, 1 till 5 |
+| realistisk ankomst (ARRIVAL), 0.12.1 | 1, 20 | 1 till 3, 1 till 5 | 1 till 2, 2 till 11 | 1, 4 till 7 | 1 till 2, 1 till 7 |
+| realistisk ankomst (ARRIVAL), 0.12.2 | 1, 12 till 16 | 2 till 3, 8 till 12 | 1, 2 till 11 | 1 till 2, 3 till 12 | 1 till 2, 1 till 5 |
+
+Naive förlorar varje dag. Dag 5 har lägst bas kvar i snitt (3,2 mot 6,2 till 7,4). Första skottet inom 15 s varje dag, dagarna tar 320 till 532 s, flest levande 169. Kurvmålen i tests/balance-norr.test.js gäller oförändrade. Kvittot bytt avsiktligt: b4f7c1a4 / 60476 (var 4d717aee / 60032). E4 och Gnesta South är orörda.
+
+Öppet: South dag 1 och E4 kändes också för lätta i speltestet. De är inte ändrade här.
