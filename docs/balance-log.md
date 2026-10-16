@@ -489,3 +489,28 @@ Naive förlorar varje dag. Dag 5 har lägst bas kvar i snitt (3,2 mot 6,2 till 7
 Liggande soldater skjuter bara inom 120 grader runt sin skyddsriktning. Ett mål utanför: han reser sig på knä på 0,8 s och vänder sig (skjuter inte under tiden), eller tar en annan man målet; utan mål utanför bågen i 3 s lägger han sig igen. Ställningen varierar deterministiskt per ruta inom skyddets två (huk eller knä vid husknut, bil och mur, knä eller huk bakom häck och säckar, liggande eller knä på öppet gräs, alltid liggande i diket). Bilden ändras mest; i simuleringen är det bara bågen.
 
 Effekt: E4 orörd. Gnesta South: seed 1 dag 4 bas 4 till 5, dag 5 2 till 4, allt annat lika; kvittot f36af1a6 / 39183 (var eee09f27 / 39187). Gnesta North (smart köper ingen grupp, naive gör det): kvittot 2dd1da63 / 60500 (var b4f7c1a4 / 60476 efter omgörningen ovan). Kurvmålen gäller.
+
+## 0.13.0: kampanjpasset (H104, H105, H130 till H136)
+
+Mätt med scripts/balance.mjs, fem seeds (0, 7919, 15838, 23757, 31676), smart och naiv på Gnesta och Gnesta North, girig på E4.
+
+Vad som ändrade förutsättningarna:
+- Skjutvinklar och vridfart (H132): Ksp 90 180 grader, Ksp 58 120, Ksp 88 90 och långsam, pillboxen 90, Psg 90 75 som förut. Ett mål utanför vinkeln skjuts inte, och pipan vrids i vapnets fart innan den skjuter. Det är en stor försvagning av Ksp 88 på stadsbanorna: med 90 grader ser den en bit av en krokig väg. Prövat på Gnesta dag 5 (seed 0, 1, 2): med Ksp 88 vann policyn aldrig (hp 2,6), utan den på försök 4; utan vinklar alls på första försöket.
+- Förrådet per sektor och dag (H104, H105): E4 har infanteriet, Ksp 90, Ksp 88 och pillboxen utan forskning, inget Hemvärn. Gnesta dag 1 bara de civila, barrikader och tråd; Hemvärnet och Ksp 90 dag 2, Ksp 58 och Ak 5 dag 3, Psg 90 och pillboxen dag 4, Ksp 88 dag 5. Gnesta lånar ut dem (map.unlocks), forskningens senare nivåer gäller. North har allt, infanteriet från dag 3.
+- Gnesta dag 1 är evakueringen: 20 civila ur fem villor öster om rondellen, 13 måste in i ishallen. De går hordens väg (också runt en spärr), så att de går där spelarens skyttar ser. Prövat och förkastat: att de klättrar över spelarens egna spärrar och går raka vägen. Då gick de längs Sigtunavägen före horden, där smart inte har några skyttar, och smart förlorade dag 1 i alla fem seeds (0 till 5 framme).
+
+Policyerna:
+- Köper bara det som finns i dagens förråd. Gruppen är den sektorn har: infanteriet på E4 (dag 1, som Hemvärnet förut), de civila på Gnesta dag 1 (så många grupper som taket tillåter, fyra den dagen), Hemvärnet därefter.
+- Smart lägger spärren före första pjäsen, så att pjäsens vinkel vänds mot vägen horden tar med spärren.
+- Ksp 58 före Ksp 88 när den finns (se ovan). På E4 finns ingen Ksp 58, där köps Ksp 88 som förut.
+- Alla policyer vrider en pjäs som stått sysslolös i 3 s medan zombier går förbi inom räckvidd men utanför vinkeln (Rotate). Utan det fastnade North dag 1 med tabellens forskning: 20 zombier stod utanför alla vinklar i en minut och läckte in en i taget (bas 11 till 0).
+
+E4 (vägspärren): dag 1 vågor 8, 12, 20 vandrare som förut (10, 16, 26 gav minimal C förlust med vinklarna), dag 2 hp 1,9 (1,6 gav ingen skada alls, 2,2 tre försök: en klippa), dag 3 hp 1,2. Startkassor 700, 800, 1 200. Resultat: dag 1 och 2 direkt i alla seeds, dag 2 bas kvar 6 till 13, dag 3 på tredje försöket, en förlorad dag 3 faller på 35 till 44 s. En Ksp 90 på A, B, C vinner dag 1 med 20, 18 till 20, 6 till 9 kvar. Utan forskning förloras dag 3.
+
+Gnesta South: dag 1 hp 2,2, dag 2 2,4 (var 5,7), dag 3 4,3 (5,8), dag 4 3,6 (4,85), dag 5 2,5 (4,0) och dag 5:s sista löpargrupp 48 (var 60, toppen 254 levande). Resultat smart: dag 1 direkt med 16 till 17 civila framme (på 253 till 261 s), dag 2 direkt utan skada, dag 3 direkt, dag 4 inom tre försök (bas 3 till 10), dag 5 inom tre (bas 2 till 14). Naiv: dag 1 förloras i fyra av fem (6 till 13 framme), dag 2 vinns i alla (bas 8 till 13, våg 1 17 till 20), dag 4 och 5 förloras. Vilande dag 1 i B2-02 (förut B2-00 och B2-12): första skottet inom 40 s med de frivilligas korta räckvidd.
+
+Gnesta North: hp 2,8 / 2,4 / 2,1 / 3,8 / 3,9 (var 2,8 / 3,1 / 3,25 / 4,6 / 5,1) och dag 1:s sista våg 66 vandrare och 30 löpare (var 80 och 35). Dag 5 är en klippa mellan 3,9 (bas 5, första försöket) och 4,05 (förlust i fyra av fem). Resultat smart: alla dagar inom två försök, dag 5 bas 5. Naiv förlorar varje dag. Med Hemvärnet (hv): dag 1 till 3 inom två försök.
+
+Kvitton: E4 71d06ab8 / 7943, Gnesta 41231870 / 45379, Gnesta North cf67c451 / 59164. ?debug-tabellerna (src/data/arrival.js) omräknade: E4-kampanjen vinns nu med färre förluster, så spelaren kommer till Gnesta med åtta nivåer (var nio) och till North med 18 (var 20).
+
+Osäkert och värt ett speltest: Gnesta dag 1 i händerna (de civila dör fort utan spärr), Ksp 88:s smala vinkel på stadsbanorna, och om dag 2 på Gnesta är för lätt för den som spärrar (smart tar ingen skada).

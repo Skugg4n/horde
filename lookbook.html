@@ -47,7 +47,7 @@ import { asphaltTexture } from './src/render/world.js';
 import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP, rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard } from './src/render/gnesta-kit.js';
 import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
-import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost } from './src/render/models.js';
+import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost, crewCarryModel } from './src/render/models.js';
 import { SQUAD } from './src/sim/squad.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
@@ -393,6 +393,43 @@ const hvMen = [];
   b.flush(scene);
 }
 
+// rad 12 (0.13.0, kampanjpasset): armén och de civila. Infanteriet (m/90, skyddsväst, hjälm 18, svart Ak 5C)
+// bredvid Hemvärnet (ljust hjälmband, Ak 4 med trästock) så att de går att skilja; de civila frivilliga
+// (jaktjackor, orange väst, keps eller mössa, jaktgevär eller hagel) och en civil på väg till ishallen;
+// Ksp 90-laget som bär pjäsen; EPA-pillboxen i tre nivåer.
+const campMen = [];
+{
+  const CV = 236;
+  const yaw = Math.atan2(R.x, R.z) + Math.PI / 2 - 0.5;
+  [['hv', 'kneel', -26, 'Hemvärnet', 'helmet band, Ak 4'], ['inf', 'kneel', -20, 'Infantry', 'vest, helmet 18, Ak 5C'], ['inf', 'crouch', -14, 'Infantry', 'crouching'],
+   ['civ', 'kneel', -8, 'Civilian volunteer', 'hunting rifle'], ['civ', 'crouch', -2, 'Civilian volunteer', 'shotgun or rifle'], ['civ', 'run', 4, 'Civilian', 'on the way to the rink']].forEach(([kind, st, u, t, sub], i) => {
+    const m = hvSoldierModel(300 + i * 3, kind, { armed: st !== 'run' });
+    const p = at(u, CV);
+    m.root.position.set(p.x, 0, p.z); m.root.rotation.y = yaw;
+    if (st === 'run') hvRun(m, 0.9); else hvPose(m, st, {});
+    scene.add(m.root);
+    campMen.push({ m, st });
+    label(u, CV, t, sub, 3.2);
+  });
+  // laget som bär Ksp 90 (skytt och ammunitionsbärare) och Ksp 58 (tre man), i springposen
+  [['m249', 2, 12, 'Ksp 90 team', 'gunner and ammo bearer'], ['ksp58', 3, 20, 'Ksp 58 team', 'three men']].forEach(([type, n, u, t, sub]) => {
+    const c = crewCarryModel(type, n, 9);
+    const p = at(u, CV);
+    c.men.forEach((m, i) => { m.root.position.set(p.x - i * 0.9, 0, p.z + i * 0.9); m.root.rotation.y = yaw; hvRun(m, 0.9 + i); });
+    scene.add(c.root);
+    for (const m of c.men) campMen.push({ m, st: 'run' });
+    label(u, CV, t, sub, 3.2);
+  });
+  // EPA-pillboxen, nivå 1 till 3
+  [1, 2, 3].forEach((lv, i) => {
+    const w = weaponModel('epa', lv, { seed: 11 + i });
+    const p = at(-22 + i * 10, CV + 14);
+    w.group.position.set(p.x, 0, p.z); w.group.rotation.y = -0.6; w.pivot.rotation.y = -0.3;
+    scene.add(w.group);
+    label(-22 + i * 10, CV + 14, 'EPA pillbox', 'level ' + lv, 4.8);
+  });
+}
+
 // dra och zooma
 let drag = null;
 const stage = document.getElementById('stage');
@@ -448,6 +485,7 @@ function tick(now) {
   rings.end();
   grenadeLoop(dt);
   for (const h of hvMen) if (h.st === 'run') hvRun(h.m, now / 1000 * 9);
+  for (const h of campMen) if (h.st === 'run') hvRun(h.m, now / 1000 * 9);
   renderer.render(scene, camera);
   for (const l of labels) {
     v3.copy(l.p).project(camera);

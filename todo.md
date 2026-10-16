@@ -119,8 +119,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H101 | spel | Vilande zombier i hus: förvarnade i dagintrot ("Intel: dormant infected reported on <gata>"), huset svagt markerat, dörren slås upp och 3-5 Z väller ut i våg 1. Senare dagar kan ha ett oförvarnat hus.
 - [x] H102 | spel | Flytta (Move) i stället för att bara sälja: nedmontering + förflyttning + uppställning tar tid (Ksp 88 ~15 s, Hemvärnet några s), skjuter inte under tiden, Hemvärnet sårbart på vägen. Befästningen blir kvar på gamla platsen. Uppgraderingar/granatkit följer med. Sälj finns kvar (60 %).
 - [ ] H103 | framtid | Kampanjen börjar med bara Hemvärnet; riktiga trupper låses upp successivt: infanteri (Ak 5-grupp), kulsprutegrupp, fallskärmsjägare senare, m.fl. Riktiga trupper som grupper med skydds-AI som Hemvärnet.
-- [ ] H104 | kampanj | E4 = militär vägspärr med riktiga trupper (smak på full kraft). Gnesta = bara Hemvärnet som successivt får bättre försvar. Övergångstext: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard."
-- [ ] H105 | kampanj | Gnesta dag 1: civila (jaktgevär, hagel) med uppdrag "Hold until the civilians reach the ice rink" (går att lyckas/misslyckas, kort). Hemvärnet tar över dag 2.
+- [x] H104 | kampanj | E4 = militär vägspärr med riktiga trupper (smak på full kraft). Gnesta = bara Hemvärnet som successivt får bättre försvar. Övergångstext: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard."
+- [x] H105 | kampanj | Gnesta dag 1: civila (jaktgevär, hagel) med uppdrag "Hold until the civilians reach the ice rink" (går att lyckas/misslyckas, kort). Hemvärnet tar över dag 2. (0.13.0: evakueringen, 13 av 20 in i ishallen)
 - [x] H106 | vapen | Psg 90: inga tak-genomskärningar; placeras på riktiga utsiktspunkter (platta tak, nock vid skorsten, torn/höga byggnader) i rätt vinkel.
 - [x] H107 | vapen | Sikt med höjd: varje byggnad har höjd, siktlinjen räknas i höjdled (enplansvilla ser över låga hus nära, tvåvåningsradhus skymmer; högt tak/torn ser mer).
 - [x] H108 | vapen | Prickskyttens skjutsektor: kon 60-90° som väljs/vrids vid placering; belönar att ligga längst bort på en gata och sikta längs den.
@@ -149,13 +149,13 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H126 | barrikad | Varningen räknas på spärrens svagaste ruta (summan hoppade upp när en ruta gick sönder, så den kom aldrig). Händelse i simuleringen, prov, verifierat i webbläsaren.
 - [ ] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser.
 - [ ] H128 | ux | Små fel från speltestet: scrollhjulet vrider sektorn bara ~2° per hack i panelen, zoomen går mot mitten i stället för pekaren, forskningsrutans stängknapp syns dåligt, ?debug erbjuder More positions I fast den redan är given, svag spöktext kvar efter vågbanderollen.
-- [ ] H130 | kampanj | E4 utan Hemvärnet: riktig militär (infanterigrupp med Ak 5 m.m.) i stället. Del av H104.
-- [ ] H131 | grafik | Soldater som "spinner" liggande: vridning runt höften med begränsad fart, krypande, skjutvinkel ~120°, blandade ställningar (huk/knä/liggande), tomgångsliv (andas, spanar, laddar om). Pågår i 0.12.2.
-- [ ] H132 | vapen | Skjutvinkel per vapenklass: infanteri/Hemvärnet flexibelt (per soldat), Ksp 90 ~180° snabb, Ksp 58 ~120°, Ksp 88 ~90° långsam vridning, Psg 90 60-90°. Placering: klicka-och-dra för att sikta, vanligt klick = auto mot hordens väg; Rotate-knapp i panelen; Move väljer riktning på nytt.
-- [ ] H133 | vapen | Bunker med kulspruta: fast befästning, ~90° skottglugg, tålig, dyr, lång byggtid, går ej att flytta. Passar E4-vägspärren.
-- [ ] H134 | spel | Riktig förflyttning: besättningen springer synligt med vapnet längs vägsökningen och är sårbar på vägen. Infanteri/Hemvärnet (senare insatsstyrka MP5) snabbt; Ksp 90-lag (skytt + ammunitionsbärare) packar på några s och springer; Ksp 58 tre man, långsammare; Ksp 88 monterad kan EJ flyttas (bara säljas); Psg 90 skytt + observatör smyger.
-- [ ] H135 | vapen | "Bunker" = improviserad pillbox: EPA-traktor/gammal bil med svetsade plåtar, skottgluggar och Ksp i luckan (rost, olikfärgad plåt, LGF-skylt kvar). Snabb att bygga, tålig, ~90° skottglugg; kan krypa långsamt till ny plats. Ersätter betongbunker i H133.
-- [ ] H136 | ux | M = Move; minikartan flyttar till Tab. Waypoints: klick = flytta direkt (kortaste väg), Shift-klick lägger till waypoints (linje syns), slutpunkt + klicka-och-dra för riktning. Framtid: eld under förflyttning, språng skydd till skydd.
+- [x] H130 | kampanj | E4 utan Hemvärnet: riktig militär (infanterigrupp med Ak 5 m.m.) i stället. Del av H104.
+- [x] H131 | grafik | Soldater som "spinner" liggande: vridning runt höften med begränsad fart, krypande, skjutvinkel ~120°, blandade ställningar (huk/knä/liggande), tomgångsliv (andas, spanar, laddar om). Gjort i 0.12.2 (dubblett av H129).
+- [x] H132 | vapen | Skjutvinkel per vapenklass: infanteri/Hemvärnet flexibelt (per soldat), Ksp 90 ~180° snabb, Ksp 58 ~120°, Ksp 88 ~90° långsam vridning, Psg 90 60-90°. Placering: klicka-och-dra för att sikta, vanligt klick = auto mot hordens väg; Rotate-knapp i panelen; Move väljer riktning på nytt.
+- [x] H133 | vapen | Bunker med kulspruta: fast befästning, ~90° skottglugg, tålig, dyr, lång byggtid, går ej att flytta. Passar E4-vägspärren. (0.13.0: ersatt av EPA-pillboxen, H135)
+- [x] H134 | spel | Riktig förflyttning: besättningen springer synligt med vapnet längs vägsökningen och är sårbar på vägen. Infanteri/Hemvärnet (senare insatsstyrka MP5) snabbt; Ksp 90-lag (skytt + ammunitionsbärare) packar på några s och springer; Ksp 58 tre man, långsammare; Ksp 88 monterad kan EJ flyttas (bara säljas); Psg 90 skytt + observatör smyger.
+- [x] H135 | vapen | "Bunker" = improviserad pillbox: EPA-traktor/gammal bil med svetsade plåtar, skottgluggar och Ksp i luckan (rost, olikfärgad plåt, LGF-skylt kvar). Snabb att bygga, tålig, ~90° skottglugg; kan krypa långsamt till ny plats. Ersätter betongbunker i H133.
+- [x] H136 | ux | M = Move; minikartan flyttar till Tab. Waypoints: klick = flytta direkt (kortaste väg), Shift-klick lägger till waypoints (linje syns), slutpunkt + klicka-och-dra för riktning. Framtid: eld under förflyttning, språng skydd till skydd. (0.13.0: M, Tab, waypoints och riktning gjorda; framtiden kvar som H150)
 
 ## Efter speltestet av 0.12.1
 
@@ -165,3 +165,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H142 | verktyg | Debugmeny: fem klick på versionen eller ?debug (0.12.2).
 - [ ] H143 | balans | South dag 1 och E4 kändes för lätta i speltestet med mycket forskning. Inte ändrat i 0.12.2.
 - [ ] H144 | balans | Speltesta North 0.12.2 i händerna: dag 3 (bjässar först) har en klippa i hp, dag 5 likaså (5,0 till 5,2).
+
+## Efter kampanjpasset 0.13.0
+
+- [ ] H150 | spel | Eld under förflyttning och språng från skydd till skydd (framtiden i H136).
+- [ ] H151 | balans | Speltesta Gnesta dag 1 (de civila) i händerna: utan spärr dör de fort, policyn får in 16 av 20 med spärren vid rondellen. Ksp 88:s 90 grader är svag på stadsbanornas krokiga vägar (policyn köper Ksp 58 före den).
+- [ ] H152 | ux | Speltesta dra-för-att-sikta, Rotate (R), Move (M) med Shift-waypoints och Tab för minikartan med mus och på pekskärm (bara provat headless).
+- [ ] H153 | grafik | Laget som bär pjäsen och de civila på väg är små på normal zoom; överväg en tydligare markering medan de springer.
+

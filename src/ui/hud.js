@@ -225,7 +225,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // etikett. Bara om ingen ryms används reserven vid kanten (vägen syns inte alls).
   const entryEl = root.querySelector('#entry');
   const entries = [entryEl];
-  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel', '#minimap:not(.off)'];
+  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel', '#minimap:not(.off)', '#evac:not([hidden])'];
   const PADE = 8;
   function uiRects() {
     const out = [];

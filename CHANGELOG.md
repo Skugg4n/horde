@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.13.0 (2026-10-16)
+
+Kampanjpasset (H104, H105, H130 till H136). Byggs före operationskartan (docs/superpowers/specs/2026-10-16-operation-design.md), och forskningen finns kvar tills dess.
+
+- Skjutvinklar (H132): Ksp 90 skjuter inom 180 grader och vrider snabbt, Ksp 58 120, Ksp 88 90 och vrider långsamt, Psg 90 75, pillboxen 90. Infanteriet, Hemvärnet och de civila är rörliga per soldat. Ett mål utanför vinkeln skjuts inte, och pipan vrids i vapnets fart innan den skjuter. Vid placeringen: klicka och dra för att sikta (vinkeln syns medan man drar), ett vanligt klick vänder pjäsen mot hordens väg. Rotate i panelen eller R vrider vinkeln dit pekaren pekar; pjäsen vrids i sin egen fart och skjuter inte under tiden. Hordens väg slås av och på med V (var R).
+- Riktig förflyttning (H134, H136): M flyttar pjäsen eller gruppen under pekaren (minikartan slås av och på med Tab, var M). Laget går en riktig väg över gator, tomter och gräs, aldrig genom hus. Vanligt klick tar kortaste vägen, Shift-klick lägger till waypoints (vägen ritas som en streckad linje), och vid slutpunkten ger klicka och dra riktningen. Ksp 90-laget (skytt och ammunitionsbärare) packar på 3 s, springer med pjäsen och lådorna och ställer upp på 3 s; Ksp 58 är tre man och långsammare; Psg 90 skytt och observatör smyger; infanteriet, Hemvärnet och de civila springer. Ksp 88 är monterad och kan inte flyttas ("Mounted, can't move"), bara säljas. Den som flyttar skjuter inte, syns springa med vapnet och kan slås ner av zombier (laget har liv; faller det är pjäsen förlorad). Befästningen ligger kvar på den gamla platsen.
+- Infanterigruppen (H130): fyra man med Ak 5, bättre skytte och mer liv än Hemvärnet, dyrare ($ 450). Samma skydd, ställningar och tomgångsliv. Uniformen är m/90 med skyddsväst, hjälm 18, knäskydd och svart Ak 5C; Hemvärnet behåller det ljusa hjälmbandet och Ak 4 med trästock.
+- EPA-pillboxen (H135, ersätter betongbunkern i H133): en gammal A-traktor med svetsade plåtar i olika färger, rost, skottgluggar, Ksp 58 i takluckan och LGF-triangeln kvar bak. Tålig, zombierna slår på den (pansaret står i panelen, röken kommer när det är lågt), 90 graders glugg, svetsas ihop på 6 s innan den skjuter, kryper i en fjärdedel av infanteriets fart. I lookbooken med infanteriet, de civila och lagen som bär sina pjäser.
+- E4 är den militära vägspärren (H104): inget Hemvärn; infanteriet, Ksp 90, Ksp 88 och pillboxen från början, som en övning. Sektorns slut: "The roadblock at E4 has fallen silent. Gnesta has only its Home Guard."
+- Gnesta dag 1, de civila (H105): frivilliga med jaktgevär och hagelbössor (billiga, svaga, samma skydds-AI), barrikader och tråd. Uppdraget "Hold until the civilians reach the ice rink.": 20 civila kommer ut ur fem villor och går hordens väg till ishallen; 13 måste in. Rutan nere i mitten räknar framme, på väg och förlorade. Hemvärnet kommer dag 2, sedan armén pö om pö (Ksp 58 och Ak 5 dag 3, Psg 90 och pillboxen dag 4, Ksp 88 dag 5, infanteriet på Gnesta North från dag 3). Köpraden visar bara det som finns i förrådet, och snabbvalen räknas på det; introt säger vad som kommit i dag.
+- Balans: alla tre sektorerna omgjorda för vinklarna och förrådet, policyerna vrider sysslolösa pjäser, nya kvitton (docs/balance-log.md, 0.13.0).
+
 ## 0.12.2 (2026-10-16)
 
 Efter Olas speltest av 0.12.1.
