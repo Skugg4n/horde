@@ -478,11 +478,20 @@ export const SURROUNDINGS = {
 // Dag 1 lär ut att horden kommer norrifrån nu, dag 2 andra ingången, dag 3 bjässar, dag 4
 // överraskningen genom radhusen, dag 5 allt. hp: dagens hp-faktor (spelaren kommer från Gnesta
 // med det mesta av forskningen). Balanserad i 0.10.0 (docs/balance-log.md).
-const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
+// lead (0.10.2, tempot): som på Gnesta, de första i dagens första grupp har redan gått en bit
+// (src/sim/sim.js), så att första skottet kommer efter 15 till 20 s i stället för 36 till 40.
+const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
+// Bara dag 1 (första intrycket). Prövat och förkastat: försprång på Dansutvägen väster (dag 4
+// ovinnbar för policyn i fyra seeds av fem), på dag 2 och 5 (pengarna kommer tidigare: dag 5 vanns
+// med full bas i alla seeds) och på dag 3 (bas kvar 17 i snitt; hp 4,2 till 4,4 i stället gav klippor).
+// Dag 2 till 5 har första skottet efter 30 till 40 s, som i 0.10.1.
+const LEAD = { vikN: 25 };
+// Dagens första grupp delas: de första sex går före.
+const first = (type, count, interval, delay, spawn) => [g(type, 6, interval, delay, spawn, LEAD[spawn]), g(type, count - 6, interval, delay + 6 * interval, spawn)];
 export const DAYS = [
   { n: 1, startCash: 2100, hp: 2.8, overlap: 60, intro: { title: 'Day 1: From the north', text: 'The fog has lifted over the north side of town. This time the horde comes from the north, down Dansutvägen and into Vikingavägen, for the doors of the ice rink. The dead up here move faster. Block Vikingavägen and they take the footpath past the terraced houses instead. Their roofs are good for a sniper.' },
     hints: { lines: ['Pick the barricade (3).', 'Block Vikingavägen.', 'Watch them take the footpath past the terraced houses.'], steps: ['pick:block', 'block', 'watch'] },
-    waves: [ { groups: [g('walker', 40, 0.45, 0, 'vikN')] },
+    waves: [ { groups: [...first('walker', 40, 0.45, 0, 'vikN')] },
              { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
              { groups: [g('walker', 80, 0.22, 0, 'vikN'), g('runner', 40, 0.3, 6, 'vikN')] } ] },
   { n: 2, startCash: 2100, hp: 3.8, overlap: 60, intro: { title: 'Day 2: Vikingavägen north', text: 'A second group comes down Vikingavägen from the east end of Dansutvägen. The paths between the terraced rows lead south too.' },

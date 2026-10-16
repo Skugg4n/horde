@@ -588,6 +588,18 @@ export function freshCampaign(mapId, policy = 'smart', maxAttempts = 6, { seedOf
   return runTownCampaign(mapId, policy, maxAttempts, { seedOffset, start: selectMap(newProgress(), mapId), order: FRESH_ORDER, days }).log;
 }
 
+// ?debug-tabellen för Gnesta Norr (0.10.2, src/data/arrival.js). Förut var den forskningen smart
+// policy slutar Gnesta med (23 nivåer, alla vapen, 6 platser), och speltestet av 0.10.1 fann banan
+// för lätt med den. Nu: en spelare som vinner varje dag på första försöket, utan förlusternas
+// forskning, och köper i RESEARCH_ORDER: forskningen från de vunna försöken på E4 (girig) och
+// Gnesta (smart), köpt i ordning från noll.
+export function norrArrival(seedOffset = 0) {
+  const e4 = runCampaign('greedy', 6, { seedOffset }).log;
+  const gn = runGnestaCampaign('smart', 6, { seedOffset }).log;
+  const intel = [...e4, ...gn].filter(r => r.won).reduce((a, r) => a + r.intel, 0);
+  return buyInOrder({ ...newProgress(), intel }).research;
+}
+
 // Spelarens framsteg när E4 är klar med girig policy: forskningen och poängen som blev över.
 export function e4Finished(seedOffset = 0) {
   return selectMap(runCampaign('greedy', 6, { seedOffset }).progress, 'gnesta');

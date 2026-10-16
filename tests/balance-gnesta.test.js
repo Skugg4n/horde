@@ -17,7 +17,10 @@ test('dag 1: smart vinner direkt, naiv tar klart mer skada', () => {
   logs.forEach((log, i) => {
     assert.equal(tries(log, 1)[0].won, true, `seed ${i}: dag 1 första försöket`);
     const n = naives[i][0];
-    assert.ok(!n.won || n.baseHp < winner(log, 1).baseHp, `seed ${i}: naiv ${n.baseHp} mot smart ${winner(log, 1).baseHp}`);
+    // 0.10.2: <= i stället för <. Med försprånget (lead) ser naives pjäser på Sigtunavägen de första
+    // löparna direkt, och i en seed av fem klarar naive dag 1 utan skada. Skillnaden i snitt nedan
+    // (minst 5) är kravet som bär: smart är klart bättre, inte i varje enskild seed.
+    assert.ok(!n.won || n.baseHp <= winner(log, 1).baseHp, `seed ${i}: naiv ${n.baseHp} mot smart ${winner(log, 1).baseHp}`);
   });
   const smart = mean(logs.map(log => winner(log, 1).baseHp));
   const nv = mean(naives.map(n => n[0].baseHp));
@@ -27,6 +30,16 @@ test('dag 1: smart vinner direkt, naiv tar klart mer skada', () => {
 test('dag 2: smart vinner på 1 till 2 försök, naiv förlorar ibland', () => {
   logs.forEach((log, i) => assert.ok(winIdx(log, 2) >= 0 && winIdx(log, 2) <= 1, `seed ${i}: index ${winIdx(log, 2)}`));
   assert.ok(naives.some(n => !n[1].won), 'naiv ska förlora dag 2 i minst en seed');
+});
+
+// 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dagen förlorad på två minuter): dag 2 är ett
+// steg upp från dag 1, inte en vägg. Naive klarar våg 1 nästan utan skada, vinner oftast men med
+// klart mindre kvar än dag 1.
+test('dag 2: ett steg upp från dag 1, inte en vägg', () => {
+  naives.forEach((n, i) => assert.ok(n[1].waveLog[0].baseHp >= 17, `seed ${i}: naiv efter våg 1 ${n[1].waveLog[0].baseHp}`));
+  assert.ok(naives.filter(n => n[1].won).length >= 3, `naiv vinner dag 2 i ${naives.filter(n => n[1].won).length} av 5`);
+  const d1 = mean(naives.map(n => n[0].baseHp)), d2 = mean(naives.map(n => n[1].baseHp));
+  assert.ok(d2 <= d1 - 4, `naiv bas kvar dag 1 ${d1}, dag 2 ${d2}`);
 });
 
 test('dag 3: smart vinner på 1 till 3 försök', () => {
@@ -142,9 +155,11 @@ test('Hemvärnet med forskningen (0.10.0, H054) är ett riktigt val på Gnesta d
 });
 
 // 0.10.1 (speltestet av 0.10.0): dagarna var 7 till 13 minuter och första skottet kom efter 110 s.
-test('en dag på Gnesta tar 4 till 8 minuter vid 1x, och första skottet dag 1 kommer inom 45 s', () => {
+// 0.10.2 (speltestet av 0.10.1: 35 till 45 s): de första i dagens första grupp har ett försprång
+// (lead), så första skottet kommer inom 22 s varje dag.
+test('en dag på Gnesta tar 4 till 8 minuter vid 1x, och första skottet kommer inom 22 s', () => {
   for (const log of logs) for (const r of log.filter(q => q.won)) assert.ok(r.time >= 240 && r.time <= 480, `dag ${r.day}: ${r.time.toFixed(0)} s`);
-  for (const log of logs) assert.ok(tries(log, 1)[0].firstShot <= 45, `första skottet ${tries(log, 1)[0].firstShot}`);
+  for (const log of logs) for (let d = 1; d <= 5; d++) assert.ok(tries(log, d)[0].firstShot <= 22, `dag ${d}: första skottet ${tries(log, d)[0].firstShot}`);
 });
 
 test('?debug-tabellen (src/data/arrival.js) är forskningen balansen ger vid ankomsten till Gnesta', async () => {

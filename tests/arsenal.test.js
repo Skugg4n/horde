@@ -50,7 +50,8 @@ test('de nya vapnen låses upp av forskning, med krav', () => {
     assert.equal(researchNode(id).tiers.length, 3);
   }
   assert.deepEqual(researchNode('ksp58').tiers[0].requires, ['m2.1']);
-  assert.deepEqual(researchNode('psg90').tiers[0].requires, ['m2.2']);
+  // 0.10.2: Ksp 88 I (var II), så att vägen till Psg 90 kostar 280 i stället för 420
+  assert.deepEqual(researchNode('psg90').tiers[0].requires, ['m2.1']);
   assert.deepEqual(researchNode('ak5').tiers[0].requires, ['grenade.1']);
   // forskningen är djupare än förut: över 2000 poäng mer att lägga
   const total = RESEARCH.reduce((a, n) => a + n.tiers.reduce((b, t) => b + t.cost, 0), 0);

@@ -21,10 +21,10 @@ export function tierData(research, node) {
   return t ? researchNode(node).tiers[t - 1] : null;
 }
 
-// Hur många vapen som får stå ute: fyra, plus en per nivå i More positions.
+// Hur många vapen som får stå ute: fyra, eller nivåns antal i More positions (guns, en per nivå).
 export const BASE_GUNS = 4;
 export function maxGuns(research) {
-  return BASE_GUNS + tierOf(research, 'positions');
+  return tierData(research, 'positions')?.guns ?? BASE_GUNS;
 }
 
 // map.unlocks: vapen och hinder som banan ger utan forskning (Gnesta lär ut barrikaden dag 1).

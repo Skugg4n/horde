@@ -16,8 +16,10 @@ export { CELL_LEN } from './cells.js';
 // Nästa våg: nedräkning efter en klarad våg, och bonus för att kalla den tidigt.
 // 0.10.1: 10 s (var 5, speltestet hann inte bygga om); bonusen per sekund sänkt så att en hel
 // nedräkning är värd ungefär lika mycket som förut.
-export const COUNTDOWN = 10;        // sekunder från klarad våg till nästa startar av sig själv
-export const EARLY_PER_SEC = 3;     // pengar per sekund som sparas
+// 0.10.2: 15 s (speltestet av 0.10.1: 10 s räckte till ett köp). Bonusen 2 per sekund, så att en hel
+// nedräkning fortfarande är värd 30 och Next wave tidigt är det snabba valet med bonus.
+export const COUNTDOWN = 15;        // sekunder från klarad våg till nästa startar av sig själv
+export const EARLY_PER_SEC = 2;     // pengar per sekund som sparas
 export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många sekunder kvarvarande spawn
 // dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg startar så många sekunder efter att
 // föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
@@ -47,7 +49,7 @@ export const hasNextWave = sim => sim.wavesStarted < sim.dayCfg.waves.length;
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
-  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn });
+  for (const g of wave.groups) for (let i = 0; i < g.count; i++) sim.spawnQueue.push({ at: sim.time + g.delay + i * g.interval, type: g.type, wave: index, spawn: g.spawn, ...(g.lead ? { lead: g.lead } : {}) });
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   sim.wavesStarted++;
   sim.phase = 'wave';
@@ -98,10 +100,20 @@ export function callNextWave(sim, { stack = true } = {}) {
 // group.spawn väljer ingång på banor med flera (standard: den första). dayCfg.hp: dagens
 // hp-faktor för alla zombier (banans data, standard 1), så att en senare bana kan möta en spelare
 // med mer forskning utan fler zombier i bild.
-function spawn(sim, { type, wave, spawn: spawnId }) {
+// group.lead (0.10.2, tempot): gruppen har redan gått så många sekunder när den kommer (den kliver
+// upp ur diket längre in längs vägen), så att första skottet kommer efter 15 till 20 s i stället för
+// 35 till 45. Högst LEAD_MAX av vägen, så att de aldrig dyker upp vid pjäserna framför entrén.
+export const LEAD_MAX = 0.5;
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0 }) {
   const id = sim.nextId++;
   const hp = ZOMBIES[type].hp * (sim.dayCfg.hp ?? 1);
   const z = { id, type, wave, hp, maxHp: hp, ...sim.route.spawn(sim.rng, spawnId, id), wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+  if (lead > 0) {
+    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1);
+    const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
+    for (let left = lead * speed; left > 1e-9 && sim.route.fraction(z) < stop; left -= 1) sim.route.advance(z, Math.min(1, left));
+    z.lead = true;
+  }
   sim.zombies.push(z);
   sim.events.push({ t: 'spawn', id: z.id });
 }

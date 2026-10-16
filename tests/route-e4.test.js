@@ -20,7 +20,10 @@ import { makeRng } from '../src/sim/rng.js';
 // 0.10.1: nytt kvitto, avsiktligt: nedräkningen mellan vågorna 10 s (var 5) och bonusen 3 per sekund
 // (var 5), och en förlust ger minst LESSON_MIN i forskning (överlevarnas lärdom). Dag 1 och 2 vinns
 // som förut; dag 3 vinns på tredje försöket i alla fem seeds. Se docs/balance-log.md, 0.10.1.
-const BEFORE = { hash: 'f3366f27', length: 7775 };
+// 0.10.2: nytt kvitto, avsiktligt: nedräkningen 15 s (var 10) och bonusen 2 per sekund (var 3), och
+// Psg 90 kräver Ksp 88 I och kostar 180 (forskningsordningen köper annorlunda). Vinster och försök
+// som förut: dag 1 och 2 direkt, dag 3 på tredje försöket. Se docs/balance-log.md, 0.10.2.
+const BEFORE = { hash: '4d617fb6', length: 7775 };
 
 function fingerprint() {
   const out = [];
@@ -32,7 +35,7 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('E4:s balanslogg är identisk med 0.10.1', () => {
+test('E4:s balanslogg är identisk med 0.10.2', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });
 

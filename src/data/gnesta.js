@@ -740,27 +740,33 @@ export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
 // dag 5 allt). Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
-const g = (type, count, interval, delay, spawn) => ({ type, count, interval, delay, spawn });
+// lead (0.10.2, tempot): gruppen har redan gått så många sekunder när vågen startar (src/sim/sim.js),
+// så att första skottet kommer efter 15 till 20 s. Dagens första grupp delas: de första går före.
+const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
+const LEAD_RUN = 20, LEAD_WALK = 62;
 export const DAYS = [
   { n: 1, startCash: 900, hp: 4.3, intro: { title: 'Day 1: Barricades', text: "The survivors are inside Gnesta ishall. The horde comes down Sigtunavägen from the east, for the doors. Block a street and they'll walk around the block, past your guns. They're fresh here and take more to put down." },
     hints: { lines: ['Pick the barricade (3).', 'Block Sigtunavägen.', 'Watch them walk around the block.'], steps: ['pick:block', 'block', 'watch'] },
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1'), g('walker', 20, 0.7, 2, 'east1')] },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.7, 2, 'east1')] },
              { groups: [g('walker', 36, 0.45, 0, 'east1')] },
              { groups: [g('walker', 60, 0.25, 0, 'east1'), g('runner', 40, 0.3, 6, 'east1')] } ] },
-  { n: 2, startCash: 1300, hp: 5.8, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
-    waves: [ { groups: [g('walker', 40, 0.4, 0, 'east1'), g('walker', 20, 0.5, 4, 'east2')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 40, 0.3, 6, 'east2')] },
-             { groups: [g('walker', 60, 0.25, 0, 'east1'), g('walker', 40, 0.3, 0, 'east2'), g('runner', 60, 0.2, 8, 'east1')] } ] },
+  // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
+  // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
+  // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
+  { n: 2, startCash: 1300, hp: 5.0, intro: { title: 'Day 2: The north road', text: 'A second group comes down the north road. Two ways in, and runners.' },
+    waves: [ { groups: [g('walker', 6, 0.6, 0, 'east1', LEAD_WALK), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
+             { groups: [g('walker', 50, 0.28, 0, 'east1'), g('walker', 30, 0.35, 0, 'east2'), g('runner', 50, 0.25, 10, 'east1')] } ] },
   { n: 3, startCash: 1300, hp: 5.8, intro: { title: 'Day 3: The forest road', text: 'The forest road opens in the south-east. Three ways in now.' },
-    waves: [ { groups: [g('walker', 26, 0.5, 0, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
+    waves: [ { groups: [g('walker', 6, 0.5, 0, 'east1', LEAD_WALK), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
              { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
   { n: 4, startCash: 1800, hp: 5.1, overlap: 100, intro: { title: 'Day 4: Brutes', text: 'Brutes, and plenty of them. Grenades help. Shut every road and they smash a barricade in seconds, so leave them a way round.' },
-    waves: [ { groups: [g('walker', 50, 0.3, 0, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
+    waves: [ { groups: [g('walker', 6, 0.3, 0, 'east1', LEAD_WALK), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
   { n: 5, startCash: 1600, hp: 4.0, overlap: 100, intro: { title: 'Day 5: Everything', text: 'All roads, all kinds, all at once. Hold the roundabout in front of the doors.' },
-    waves: [ { groups: [g('walker', 40, 0.35, 0, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
+    waves: [ { groups: [g('walker', 6, 0.35, 0, 'east1', LEAD_WALK), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
              { groups: [g('walker', 44, 0.3, 0, 'east1'), g('walker', 38, 0.3, 0, 'east2'), g('walker', 38, 0.3, 0, 'forest'),
                g('runner', 60, 0.15, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },

@@ -26,7 +26,9 @@ import { logs, naives } from './gnesta-logs.js';
 // 0.10.1, balanspasset: bytt avsiktligt. Ingångarna närmare (dagarna 6 till 7,5 minuter, första
 // skottet efter 38 s), dörrarna släpper in en zombie per 3,2 s, Ksp 88 från dag 1, nya hp-faktorer,
 // startkassor och dag 4 och 5 med överlapp. Se docs/balance-log.md, 0.10.1.
-const BEFORE = { hash: 'a2051b10', length: 38970 };
+// 0.10.2: bytt avsiktligt. Dag 2 mjukare (hp 5,0, mindre vågor), försprång (lead) för de första i
+// dagens första grupp, nedräkningen 15 s och Psg 90 billigare. Se docs/balance-log.md, 0.10.2.
+const BEFORE = { hash: '342091db', length: 38829 };
 
 function fingerprint() {
   // before (hela framsteget före försöket) är med: forskningen och försöken styr seeden.
@@ -36,6 +38,6 @@ function fingerprint() {
   return { hash: h.toString(16), length: str.length };
 }
 
-test('Gnestas balanslogg är identisk med 0.10.1', () => {
+test('Gnestas balanslogg är identisk med 0.10.2', () => {
   assert.deepEqual(fingerprint(), BEFORE);
 });

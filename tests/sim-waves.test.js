@@ -107,8 +107,9 @@ test('Next wave utan stack mitt i en våg gör inget så länge zombier är kvar
   assert.equal(s.wavesStarted, 3);
 });
 
-test('nedräkningen mellan vågorna är 10 s, och en hel nedräkning är värd ungefär som förut', () => {
-  assert.equal(COUNTDOWN, 10);
+// 0.10.2 (speltestet av 0.10.1): 10 s räckte till ett köp; nu 15 s, en hel nedräkning fortfarande värd ca 30.
+test('nedräkningen mellan vågorna är 15 s, och en hel nedräkning är värd ungefär som förut', () => {
+  assert.equal(COUNTDOWN, 15);
   assert.ok(COUNTDOWN * EARLY_PER_SEC >= 25 && COUNTDOWN * EARLY_PER_SEC <= 35);
 });
 
@@ -137,4 +138,15 @@ test('overlap: klaras vågen före nedräkningen är slut får spelaren minst CO
   clearNow(s);
   assert.equal(s.phase, 'build');
   assert.ok(Math.abs(s.nextWaveIn - COUNTDOWN) < 1e-9);
+});
+
+// 0.10.2 (tempot): en grupp med lead har redan gått så många sekunder när den kommer, högst halva vägen.
+test('lead: gruppen kommer längre in längs vägen, aldrig förbi halva', async () => {
+  const { gnesta } = await import('../src/data/gnesta.js');
+  const { LEAD_MAX } = await import('../src/sim/sim.js');
+  const mk = lead => ({ ...gnesta, days: [{ ...gnesta.days[0], waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 'east1', ...(lead ? { lead } : {}) }] }] }] });
+  const frac = lead => { const s = createSim({ map: mk(lead), day: 1, cash: 0, seed: 1 }); startWave(s); step(s, DT); return s.route.fraction(s.zombies[0]); };
+  const a = frac(0), b = frac(20), c = frac(1000);
+  assert.ok(b > a + 0.08, `20 s försprång: ${b} mot ${a}`);
+  assert.ok((c - a) / (1 - a) <= LEAD_MAX + 0.02, `högst halva vägen: ${c} från ${a}`);
 });
