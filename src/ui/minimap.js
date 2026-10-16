@@ -185,8 +185,21 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
   cv.addEventListener('pointermove', e => { if (dragging) pan(e); });
   cv.addEventListener('pointerup', e => { dragging = false; cv.releasePointerCapture?.(e.pointerId); });
 
+  // 0.14.2 (speltestet av 0.14.1: "minikartan visar förra försökets pjäser i början av ett nytt försök"): en ny
+  // dag (eller ett nytt försök) ritar om kartan direkt med den nya simuleringen. Förut ritades den bara i
+  // spelläget, så introt och de första bildrutorna visade förra försökets pjäser, horde och pingar.
+  let drawnSim = null;
+  function reset(sim) {
+    trails.clear(); clock = 0; acc = 0; drawnSim = sim ?? null;
+    if (!sim) return;
+    if (sim.map !== mapRef || !staticLayer) setMap(sim.map, sim);
+    if (on) draw({ sim, view: null, spawns: [], alerts: [] });
+  }
   return {
     el,
+    reset,
+    // för proven: vilken simulering som senast ritades och hur många svansar som finns
+    get state() { return { sim: drawnSim, trails: trails.size }; },
     get visible() { return on; },
     toggle(v = !on) { on = v; el.classList.toggle('off', !on); },
     // dt: sekunder sedan förra bildrutan. Ritar om ungefär HZ gånger i sekunden.
@@ -199,6 +212,7 @@ export function createMinimap(root, { onPan, visible = true } = {}) {
       acc += dt;
       if (acc < 1 / HZ && !state.force && !fresh) return;
       acc = 0;
+      drawnSim = state.sim;
       draw(state);
     },
     toWorld: (px, py) => toWorld(px, py),

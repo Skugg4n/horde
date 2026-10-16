@@ -129,6 +129,7 @@ async function loadMap(id) {
     day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
     sim = createSim(withTweaks(opStartConfig(progress, day, map.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
     view.setSim(sim);
+    minimap.reset(sim);
     stage.resize(); rig.apply(); rig.goHome();
     routeKeys.now = routeKeys.preview = routeKeys.evac = null;
     sightCache.clear();
@@ -702,13 +703,14 @@ function updatePips() {
 // (simuleringens idleOutside), en ping på minikartan första gången och klick väljer pjäsen.
 const arcFlags = new Map(), arcPinged = new Map();
 function updateArcFlags() {
-  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.idleOutside) : [];
+  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.idleOutside && rotating?.id !== g.id) : [];
   const ids = new Set(want.map(g => g.id));
   for (const [id, el] of arcFlags) if (!ids.has(id)) { el.remove(); arcFlags.delete(id); }
   for (const g of want) {
     let el = arcFlags.get(g.id);
     if (!el) {
-      el = document.createElement('button'); el.type = 'button'; el.className = 'arcflag'; el.textContent = 'R';
+      // 0.14.2 (speltestet av 0.14.1: "flaggan är liten, ungefär 12 punkter"): större, med en vridpil och R
+      el = document.createElement('button'); el.type = 'button'; el.className = 'arcflag'; el.innerHTML = '<i>&#8635;</i><b>R</b>';
       el.title = 'Target outside arc. Press R to rotate.';
       const id = g.id;
       el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
@@ -1249,6 +1251,7 @@ function startDay(n) {
   failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   sightCache.clear(); validCache.sig = '';
   view.setSim(sim);
+  minimap.reset(sim);
   hud.reset();
   hud.setSpeed(speed);
   entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
