@@ -25,8 +25,9 @@ import { loadSettings, saveSettings, normalizeSettings, SPEEDS } from './meta/se
 import { advance, escapeAction } from './sim/clock.js';
 import { mountMenu } from './ui/menu.js';
 import { createChord } from './ui/chord.js';
+import { createMinimap } from './ui/minimap.js';
 import { createAudio } from './audio/audio.js';
-import { Vector3, Box3 } from 'three';
+import { Vector3, Box3, Raycaster, Vector2, Plane } from 'three';
 
 const DT = 1 / 30;
 // Fart 1x, 2x, 3x (SPEEDS i settings.js): fler fasta steg per bildruta (simuleringen har samma dt),
@@ -129,6 +130,24 @@ async function loadMap(id) {
 const routeKeys = { now: null, preview: null };
 
 const hud = mountHud(uiRoot, { onStart: () => go(), onSpeed: () => toggleSpeed(), onNext: () => go({ stack: true }) });
+// ---------- minikartan (0.12.0, H100) ----------
+// M slår av och på; valet sparas i webbläsaren (bara en bekvämlighet, går det inte gäller "på").
+const MM_KEY = 'horde.minimap';
+let mmOn = true;
+try { mmOn = localStorage.getItem(MM_KEY) !== 'off'; } catch { /* ingen lagring */ }
+const minimap = createMinimap(uiRoot, { onPan: (x, z) => { if (map?.camera?.pan) rig?.focus(x, z); }, visible: mmOn });
+minimap.toggle(mmOn);
+const mmRay = new Raycaster(), mmNdc = new Vector2(), mmPlane = new Plane(new Vector3(0, 1, 0), 0), mmHit = new Vector3();
+// Kamerans ruta på marken: skärmens fyra hörn rakt ned på marken.
+function viewOnGround() {
+  const out = [];
+  for (const [x, y] of [[-1, 1], [1, 1], [1, -1], [-1, -1]]) {
+    mmNdc.set(x, y); mmRay.setFromCamera(mmNdc, camera);
+    if (!mmRay.ray.intersectPlane(mmPlane, mmHit)) return null;
+    out.push([mmHit.x, mmHit.z]);
+  }
+  return out;
+}
 const dim = document.createElement('div');
 dim.className = 'dim';
 uiRoot.prepend(dim);
@@ -745,6 +764,10 @@ addEventListener('keydown', e => {
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
+  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') {
+    minimap.toggle();
+    try { localStorage.setItem(MM_KEY, minimap.visible ? 'on' : 'off'); } catch { /* ingen lagring */ }
+  }
   if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
     showRoute = !showRoute;
     note(uiRoot, showRoute ? 'Horde route shown (R)' : 'Horde route hidden (R)');
@@ -909,7 +932,7 @@ function screenRect(object) {
 }
 function hudRects() {
   const out = [];
-  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd']) {
+  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();
@@ -1008,6 +1031,7 @@ function tick(now) {
   hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
   updateEntry();
   updateBarricades(paused ? 0 : frameDt);
+  if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
   rig.active = mode === 'play' && !paused;
   const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
   rig.update(vdt);

@@ -531,3 +531,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .obbar.low i { background: #d4482c; }
 .obbar.low { animation: obpulse 0.8s ease-in-out infinite alternate; }
 @keyframes obpulse { from { opacity: 0.6; } to { opacity: 1; } }
+
+/* 0.12.0 (H100): minikartan uppe till höger under kassan, i plåtens stil */
+#minimap { position: fixed; top: 92px; right: 18px; padding: 6px; line-height: 0; }
+#minimap canvas { display: block; cursor: crosshair; border: 1px solid rgba(233,223,201,0.18); }
+#minimap .mm-k { position: absolute; top: 9px; right: 9px; font: 500 9px 'IBM Plex Mono', monospace; line-height: 1; padding: 1px 4px; border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; color: var(--paper-dim); background: rgba(20,22,15,0.8); }
+#minimap.off { display: none; }
+#ui:not([data-mode="play"]) #minimap { display: none; }
+@media (max-width: 760px) { #minimap { display: none; } }
