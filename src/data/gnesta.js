@@ -873,7 +873,10 @@ export const DAYS = [
       { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
     // 0.16.0 (inlärningen): de vilande husen kommer dag 3 (designen avsnitt 3; förut här och dag 2, H101, H110)
     waves: [ { groups: [g('runner', 3, 1.4, 0, 'east1', LEAD_RUN), g('walker', 16, 0.8, 4, 'east1')] },
-             { groups: [g('walker', 24, 0.55, 0, 'east1'), g('runner', 8, 0.6, 10, 'east1')] },
+             // 0.16.1 (speltestet av 0.16.0: "dag 1 förlorad tre gånger utan att förstå varför"): våg 2:s löpare 12 s
+             // senare (22 i stället för 10), så att sista gruppen (B3-12) hinner förbi korsningen. Den som följer tipset
+             // (de frivilliga på de föreslagna platserna, src/sim/evac-danger.js) får in 17 till 18 av 20.
+             { groups: [g('walker', 24, 0.55, 0, 'east1'), g('runner', 8, 0.6, 22, 'east1')] },
              { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 20, 0.4, 6, 'east1')] } ] },
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3

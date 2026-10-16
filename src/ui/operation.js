@@ -14,7 +14,7 @@ import { mapState } from '../meta/progress.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, maxMen, vetOf, levelCost, refillCost, returnValue,
   upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive } from '../meta/operation.js';
 import { shopItem, SHOP } from '../data/shop.js';
-import { metaFeatures } from '../meta/unlocks.js';
+import { metaFeatures, STAGES } from '../meta/unlocks.js';
 import { ICONS } from './icons.js';
 
 const STATUS = {
@@ -133,6 +133,15 @@ function sectorCard(p, id, meta) {
     ${day ? `<button type="button" class="act main" data-a="go"><span class="a">Day ${day}${meta.has('depot') ? ': Requisition' : ''}</span><kbd>Enter</kbd></button>` : ''}`;
 }
 
+// 0.16.1 (speltestet av 0.16.0: "förrådet hittades inte"): före förrådet står en grå rad om när det öppnar,
+// räknad ur upplåsningsschemat (src/meta/unlocks.js).
+export function depotOpensText() {
+  const st = STAGES.find(x => x.adds.includes('depot'));
+  if (!st?.after) return 'Opens later';
+  const [m, d] = st.after;
+  return `Opens after ${PHASE_NAME[m] ?? MAPS[m]?.name ?? m} day ${d}`;
+}
+const PHASE_NAME = { gnesta: 'Ishallen', 'gnesta-norr': 'Vikingavägen', riksvagen: 'E4' };
 // handlers: { onGo(mapId), onDepot(mapId), onMenu(), onSeen() }
 // 0.16.0 (inlärningen): kartan i minsta form först (en sektor, en knapp, ledningens senaste meddelande); RP,
 // förrådet och trycket kommer i schemats takt (src/meta/unlocks.js). Main menu ligger i menyn uppe i hörnet.
@@ -158,7 +167,8 @@ export function opMapSheet(root, progress, handlers) {
       </div>
     </div>
     <div class="flow"><span class="on">Operations map</span><i>›</i>${meta.has('depot') ? '<span>Requisition</span><i>›</i>' : ''}<span>Deploy</span></div>
-    ${meta.has('depot') ? '<div class="acts"><button type="button" class="act" data-a="depot"><span class="a">Depot</span><span class="p">Units and upgrades</span></button></div>' : ''}`;
+    ${meta.has('depot') ? '<div class="acts"><button type="button" class="act" data-a="depot"><span class="a">Depot</span><span class="p">Units and upgrades</span></button></div>'
+    : `<div class="acts"><div class="act off depotlater" aria-disabled="true"><span class="a">Depot</span><span class="p">${esc(depotOpensText())}</span></div></div>`}`;
   const cv = el.querySelector('canvas'), card = el.querySelector('[data-card]');
   const renderCard = () => {
     card.innerHTML = sectorCard(progress, sel, meta);

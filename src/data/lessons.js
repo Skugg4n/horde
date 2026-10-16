@@ -39,7 +39,10 @@ export const LESSONS = {
   'gn-1': [
     { id: 'gn-1.line', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'Civilians walk this yellow line to the ice rink.', manual: 'evac' },
     { id: 'gn-1.goal', kind: 'show', when: 'start', target: { ui: '#evac' }, text: 'Get {need} of {total} inside. That wins the day.' },
-    { id: 'gn-1.vol', kind: 'step', when: 'start', done: 'placing:civ|placed:civ', target: { ui: '#buildbar .card[data-id="civ"]' }, text: 'Volunteers. Place them where they can see the line.', manual: 'squads' },
+    // 0.16.1 (speltestet av 0.16.0: "jag förstår inte varför de dör"): de röda fläckarna och de föreslagna platserna
+    { id: 'gn-1.cross', kind: 'show', when: 'start', target: { world: 'danger' }, text: 'Red: the horde meets their line here.', manual: 'evac' },
+    { id: 'gn-1.vol', kind: 'step', when: 'start', done: 'placing:civ|placed:civ', target: { ui: '#buildbar .card[data-id="civ"]' }, text: 'Volunteers. Cover the crossing.', manual: 'squads' },
+    { id: 'gn-1.spot', kind: 'step', when: 'placing:civ', done: 'placed:civ', target: { world: 'suggest' }, text: 'Cover the crossing: a marked spot.', manual: 'squads' },
     { id: 'gn-1.map', kind: 'caption', when: 'waveStarted', target: { ui: '#minimap' }, text: 'Map:', keys: ['Tab'], manual: 'minimap' },
   ],
   'gn-2': [

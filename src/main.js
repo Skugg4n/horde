@@ -8,6 +8,7 @@ import { buildWorld, updateWorld } from './render/world.js';
 import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
+import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
@@ -615,7 +616,9 @@ picker.onPick(p => {
   if (rotating) { commitRotate(); return; }
   // 0.13.0 (H136): Shift-klick lägger en waypoint på flyttens väg
   if (placing?.move && shiftHeld && p?.kind === 'spot') { addWaypoint(p); return; }
-  if (placing) { if (p?.kind === 'spot') placeHere(p); return; }
+  // 0.16.1 (speltestet av 0.16.0: "flera klick med valt kort gjorde ingenting"): ett klick som inte träffar en
+  // ruta säger också varför, vid pekaren
+  if (placing) { if (p?.kind === 'spot') placeHere(p); else { flashTip(reasonText('utanför')); audio.ui('deny'); } return; }
   if (p) open(p); else closePanel();
 });
 picker.onHover(p => {
@@ -772,6 +775,25 @@ function updateBarricades(dt) {
     el.classList.toggle('low', l.frac < FAILING);
   }
   for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].until < time) alerts.splice(i, 1);
+}
+// 0.16.1 (speltestet av 0.16.0: "andra infarten på E4 dag 2 kommer utan förvarning, basen 14 till 3"): en ingång som
+// inte använts tidigare (inte i en tidigare dag på banan, inte i en tidigare våg i dag) sägs före vågen: en rad,
+// minikartan pingar ingången och hordens väg därifrån blinkar. Etiketten vid infarten står där som vanligt.
+const toldSpawns = new Set();
+function spawnsOf(waves) { const first = sim.route.spawns[0]?.id; return new Set(waves.flatMap(w => w.groups.map(g => g.spawn ?? first))); }
+function updateNewSpawn() {
+  if (mode !== 'play' || sim.route.kind !== 'grid' || sim.phase !== 'build') return;
+  const idx = sim.wavesStarted, waves = sim.dayCfg.waves;
+  if (!waves[idx] || (day === 1 && idx === 0)) return;
+  const known = spawnsOf([...sim.map.days.slice(0, day - 1).flatMap(d => d.waves), ...waves.slice(0, idx)]);
+  for (const id of spawnsOf([waves[idx]])) {
+    if (known.has(id) || toldSpawns.has(id)) continue;
+    toldSpawns.add(id);
+    const sp = sim.map.spawns?.find(q => q.id === id), at = sim.route.spawns.find(q => q.id === id);
+    note(uiRoot, sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true });
+    routeFlash = 4;
+    if (at) alerts.push({ x: at.x, z: at.z, until: time + 10, kind: 'spawn' });
+  }
 }
 function barricadeBroken(ev) {
   // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
@@ -1095,7 +1117,7 @@ let nowPaths = null;
 let showRoute = true;
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
-  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); return null; }
+  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); routeLines.set('danger', null); return null; }
   // 0.10.2: från varje ingång som används nu (activeSpawns), som pilarna
   const ids = activeSpawns().ids;
   const obsKey = Object.keys(sim.obstacles).join(',');
@@ -1105,7 +1127,9 @@ function updateRoutes() {
     const houses = [...new Set(ev.groups.map(g => g.house))], eKey = obsKey + '|' + houses.join(',');
     if (routeKeys.evac !== eKey) { routeKeys.evac = eKey; routeKeys.evacPaths = houses.map(h => { const d = houseDoor(sim.map, h, sim.route); return [[d.x, d.z], ...sim.route.pathFrom(d.cell).map(cellWorld)]; }); }
     routeLines.set('evac', routeKeys.evacPaths, eKey);
-  } else routeLines.set('evac', null);
+    // 0.16.1 (speltestet av 0.16.0): där de civila går in på hordens väg, röda fläckar på den gula linjen
+    routeLines.set('danger', evacHelp().zones.map(z => z.pts), 'd' + day);
+  } else { routeLines.set('evac', null); routeLines.set('danger', null); }
   const nowKey = obsKey + '|' + ids.join(',');
   if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); if (nowPaths.some(p => p.through != null)) tip('tip.shut'); }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
@@ -1285,6 +1309,17 @@ function uiRect(sel) {
   const r = n.getBoundingClientRect();
   return r.width && r.height ? { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null;
 }
+// 0.16.1: det lektionsplåten inte ska täcka (etiketterna, gränssnittet, kortets utfällda ruta, ledningens rad)
+const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
+  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note'];
+function coachAvoid() {
+  const out = [];
+  for (const sel of COACH_AVOID) for (const n of uiRoot.querySelectorAll(sel)) {
+    const r = n.getBoundingClientRect();
+    if (r.width && r.height) out.push({ x0: r.left - 6, y0: r.top - 6, x1: r.right + 6, y1: r.bottom + 6 });
+  }
+  return out;
+}
 // Målet på skärmen: { rect } för något som syns, { off: { x, y, angle } } vid kanten för något utanför bild.
 function lessonTarget(t) {
   if (!t) return null;
@@ -1294,6 +1329,8 @@ function lessonTarget(t) {
   if (w === 'pointer') return { rect: { x0: pointer.x - 16, y0: pointer.y - 16, x1: pointer.x + 16, y1: pointer.y + 16 }, light: true };
   if (w === 'marked') { for (const k of sim.marked ?? []) if (!sim.guns.some(g => g.cell === k)) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'route') { for (const p of nowPaths ?? []) for (let i = Math.floor(p.cells.length * 0.55); i < p.cells.length; i += 2) pts.push(cellWorld(p.cells[i])); }
+  else if (w === 'danger') { for (const z of evacHelp().zones) for (const q of z.pts) pts.push(q); }
+  else if (w === 'suggest') { for (const k of suggestKeys()) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
@@ -1359,7 +1396,7 @@ function updateLessons(dt) {
     }
     lesson.missing = 0;
     coach.el.classList.toggle('dimmed', lesson.pause && !placing && !tg?.light && !!tg?.rect);
-    coach.place(tg?.rect ?? null, { off: tg?.off ?? null });
+    coach.place(tg?.rect ?? null, { off: tg?.off ?? null, avoid: coachAvoid() });
     return;
   }
   for (const l of lessonList()) {
@@ -1448,9 +1485,11 @@ function openManual(focus = null) {
   if (manual || !meta('manual')) return;
   if (menu.isOpen()) menu.close();
   stopPlacing();
-  void focus;
+  // 0.16.1 (speltestet av 0.16.0: "Field manual: Evacuation" på förlustskylten öppnade "Start the wave"): uppslaget
+  // som länken gäller öppnas, också om lektionen inte hunnit låsa upp det
+  const entries = manualUnlocked(progress);
   manual = manualSheet(uiRoot, {
-    entries: manualUnlocked(progress), fresh: manualNew(progress), portrait: portraitOf,
+    entries: focus && !entries.includes(focus) ? [...entries, focus] : entries, fresh: manualNew(progress), portrait: portraitOf, focus,
     onOpen: id => { progress = markManualRead(progress, id); save(); },
     onShowMe: id => { const st = showMeStep(id); closeManual(); if (st && !lesson) { lesson = { step: { ...st, kind: 'show' }, pause: true, missing: 0 }; coach.show({ ...st, kind: 'show', text: fillText(st.text), pause: true, dim: true }); } },
     onClose: () => closeManual(),
@@ -1458,10 +1497,28 @@ function openManual(focus = null) {
   });
 }
 function closeManual() { manual?.close(); manual = null; }
+// 0.16.1 (speltestet av 0.16.0: "civila dog innan mina frivilliga sköt, jag vet inte var de ska stå"): evakueringens
+// farozoner och de föreslagna platserna för de frivilliga (src/sim/evac-danger.js), räknade en gång per dag.
+let evacCache = { sim: null, zones: [], spots: [] };
+function evacHelp() {
+  if (evacCache.sim !== sim) {
+    const zones = sim.dayCfg.evac ? dangerZones(sim) : [];
+    evacCache = { sim, zones, spots: zones.length ? coverSpots(sim) : [] };
+  }
+  return evacCache;
+}
 // E4 dag 1: de markerade platserna pulserar medan det finns något att ställa ut (src/sim/sim.js marked).
+// 0.16.1: på en evakueringsdag pulserar de föreslagna platserna (gula hörn) medan de frivilliga står i reserven
+// eller hålls i handen, före första vågen; de är förslag, inte de enda platserna.
 const spotEls = new Map();
+function suggestKeys() {
+  if (mode !== 'play' || !sim.dayCfg.evac || sim.wavesStarted > 0) return [];
+  const civ = placing?.type === 'civ' || sim.reserve?.some(u => u.type === 'civ' && canDeploy(sim, u));
+  if (!civ) return [];
+  return evacHelp().spots.map(s => s.key).filter(k => !sim.guns.some(g => Math.hypot(g.x - sim.place.center(k).x, g.z - sim.place.center(k).z) < 4));
+}
 function updateSpotMarks() {
-  const keys = mode === 'play' && sim.marked && (placing || sim.reserve?.some(u => canDeploy(sim, u))) ? [...sim.marked].filter(k => !sim.guns.some(g => g.cell === k)) : [];
+  const keys = mode === 'play' && sim.marked && (placing || sim.reserve?.some(u => canDeploy(sim, u))) ? [...sim.marked].filter(k => !sim.guns.some(g => g.cell === k)) : suggestKeys();
   const want = new Set(keys);
   for (const [k, el] of spotEls) if (!want.has(k)) { el.remove(); spotEls.delete(k); }
   for (const k of keys) {
@@ -1569,7 +1626,7 @@ function startDay(n) {
   if (!cfg) { showOpMap(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
+  failingWarned.clear(); toldSpawns.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
   view.setSim(sim);
@@ -1657,7 +1714,7 @@ function showResult() {
     onRetry: () => (meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
     onOpMap: () => (meta('opmap') ? showOpMap() : deploySector(map.id)),
     onMenu: showMenu,
-    onManual: () => openManual(),
+    onManual: id => openManual(id),
   }));
 }
 
@@ -1876,6 +1933,7 @@ function tick(now) {
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons(frameDt);
   updateBaseArrow();
+  if (sim) updateNewSpawn();
   updateEnemies();
   updateReveals();
   updateManualBtn(frameDt);

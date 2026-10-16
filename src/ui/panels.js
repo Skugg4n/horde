@@ -162,7 +162,12 @@ export function buildBar(root, actions) {
     const chords = usesChords(menu), counter = !sim.core || allowed(sim, 'frontage');
     el.classList.toggle('deploy', deploy);
     el.classList.toggle('flat', !chords);
-    el.innerHTML = `<div class="k">${sim.core ? (deploy ? 'DEPLOY' : 'SUPPLIES') : 'BUY'}${counter ? ` <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
+    // 0.16.1 (speltestet av 0.16.0: rubriken bytte mellan DEPLOY och SUPPLIES när enheterna tog slut, och Supplies
+    // är också pengarnas namn): en rubrik per skede, DEPLOY före första vågen, DEFENCES under dagen (utom när
+    // raden bara har enheter som kommit fram, E4 dag 1)
+    const onlyUnits = menu.every(c => c.id === 'units');
+    const head = !sim.core ? 'BUY' : sim.wavesStarted === 0 || onlyUnits ? 'DEPLOY' : 'DEFENCES';
+    el.innerHTML = `<div class="k">${head}${counter ? ` <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
       <div class="grp" data-cat="${ci + 1}">${chords ? `<div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div>` : ''}<div class="cards">${c.items.map(x => {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
@@ -598,8 +603,10 @@ function dropNote(root, el) {
   const st = noteStack(root);
   while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls); }
 }
-export function note(root, text, cls = '') {
+// 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå
+export function note(root, text, cls = '', { prio = false } = {}) {
   const st = noteStack(root);
+  if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) { const old = st.querySelector('.note'); if (old) { clearTimeout(old._t); old.remove(); } }
   const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), NOTE_MS); return; }
   if (noteQueue.some(q => q.text === text)) return;

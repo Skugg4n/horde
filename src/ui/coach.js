@@ -33,7 +33,8 @@ export function createCoach(root, { onRelease, onFewer }) {
     cur = step;
     el.hidden = false;
     el.className = 'k-' + step.kind + (step.dim ? ' dimmed' : '') + (step.pause ? ' pausing' : '');
-    text.innerHTML = `${esc(step.text)}${step.keys?.length ? ' ' + keysHtml(step.keys) : ''}`;
+    // 0.16.1 (speltestet av 0.16.0: "tipset stod kvar utan synlig väg vidare"): ett 'show' säger hur man går vidare
+    text.innerHTML = `${esc(step.text)}${step.keys?.length ? ' ' + keysHtml(step.keys) : ''}${step.kind === 'show' ? '<span class="cgo">Click or <kbd>Enter</kbd></span>' : ''}`;
     fewer.hidden = !step.fewer;
     pausedEl.hidden = !step.pause;
     fadeT = step.kind === 'caption' ? 4 : 0;
@@ -63,13 +64,22 @@ export function createCoach(root, { onRelease, onFewer }) {
       { x: clampX(cx - pw / 2), y: t.y0 - g - ph, side: 't' },
       { x: t.x1 + g, y: clampY(cy - ph / 2), side: 'r' },
       { x: t.x0 - g - pw, y: clampY(cy - ph / 2), side: 'l' },
+      { x: t.x1 + g, y: t.y0 - g - ph, side: 'r' },
+      { x: t.x0 - g - pw, y: t.y0 - g - ph, side: 'l' },
+      { x: t.x1 + g, y: t.y1 + g, side: 'r' },
+      { x: t.x0 - g - pw, y: t.y1 + g, side: 'l' },
     ];
+    // 0.16.1 (speltestet av 0.16.0: plåten låg under fiendeetiketten, över COMMAND-texten och kortets ruta): plåten
+    // ställs där den inte täcker målet, gränssnittet (avoid: rutor) eller PAUSED längst ned
+    const others = [...(Array.isArray(avoid) ? avoid : avoid ? [avoid] : []), { x0: vw / 2 - 60, y0: vh - 96, x1: vw / 2 + 60, y1: vh }];
     const fits = c => c.x >= 8 && c.y >= 8 && c.x + pw <= vw - 8 && c.y + ph <= vh - 36;
     const hits = (c, a) => a && c.x < a.x1 && a.x0 < c.x + pw && c.y < a.y1 && a.y0 < c.y + ph;
+    const clear = c => !(r && hits(c, r)) && !others.some(a => hits(c, a));
     // ett stort mål (en väg över halva skärmen): plåten uppe i mitten, inne i hålet, utan ledlinje
     const big = r && (r.x1 - r.x0) * (r.y1 - r.y0) > vw * vh * 0.35;
-    const best = big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' }
-      : cands.find(c => fits(c) && !hits(c, avoid)) ?? cands.find(fits) ?? { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
+    const bigAt = big && [90, Math.max(r.y0 + 70, 90), 150, 220].map(y => ({ x: clampX(vw / 2 - pw / 2), y, side: 'none' })).find(c => fits(c) && !others.some(a => hits(c, a)));
+    const best = bigAt || (big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' } : null)
+      || cands.find(c => fits(c) && clear(c)) || cands.find(c => fits(c) && !(r && hits(c, r))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
     plate.style.left = Math.round(best.x) + 'px'; plate.style.top = Math.round(best.y) + 'px';
     // ledlinjen: från plåtens kant till målets kant, rak
     const L = { b: [best.x + pw / 2, best.y, cx, t.y1], t: [best.x + pw / 2, best.y + ph, cx, t.y0], r: [best.x, best.y + ph / 2, t.x1, cy], l: [best.x + pw, best.y + ph / 2, t.x0, cy], none: [0, 0, 0, 0] }[best.side];
@@ -104,11 +114,11 @@ export function enemyCard(root, { title, report, portrait, onContinue }) {
 
 // Field manual (avsnitt 5.5): ett uppslag per begrepp i fem grupper, nya med en rostfärgad prick tills de
 // öppnats, Show me spelar om lektionens markering. entries: upplåsta id, fresh: nya id, portrait(type).
-export function manualSheet(root, { entries, fresh, portrait, onOpen, onShowMe, onClose, canShow }) {
+export function manualSheet(root, { entries, fresh, portrait, onOpen, onShowMe, onClose, canShow, focus = null }) {
   const el = document.createElement('div');
   el.id = 'manual';
   const have = MANUAL.filter(m => entries.includes(m.id));
-  let sel = have.find(m => fresh.includes(m.id))?.id ?? have[0]?.id ?? null;
+  let sel = (focus && have.some(m => m.id === focus) ? focus : null) ?? have.find(m => fresh.includes(m.id))?.id ?? have[0]?.id ?? null;
   function icon(m) {
     if (m.icon?.startsWith('enemy:')) { const src = portrait(m.icon.slice(6)); return src ? `<img class="mimg" alt="" src="${src}">` : ''; }
     return m.icon && ICONS[m.icon] ? `<div class="micon">${ICONS[m.icon]}</div>` : '';

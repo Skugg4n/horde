@@ -601,14 +601,15 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #debug .dmsg.show { opacity: 1; }
 
 /* 0.13.0 (H105): uppdraget med de civila, nere i mitten ovanför vågens rad (notiserna ligger uppe) */
-#evac { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); padding: 8px 18px 9px; text-align: center; pointer-events: none; }
+/* 0.16.1 (speltestet av 0.16.0: "evakueringsrutan täcker stridszonen"): under DAY-rutan uppe till vänster, inte mitt nere */
+#evac { position: fixed; top: 150px; left: 18px; width: 210px; box-sizing: border-box; padding: 8px 14px 9px; text-align: left; pointer-events: none; }
 #evac[hidden] { display: none; }
 #evac .t { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-dim); }
 #evac .n { font-size: 16px; letter-spacing: 0.06em; margin-top: 3px; }
 #evac .n b { font: 600 20px 'IBM Plex Mono', monospace; color: #f2c46b; }
 #evac .n .lost { color: #e0866a; }
 /* 0.14.1: stapeln (framme gult, strecket vid så många som behövs, förlorade rött från höger) */
-#evac .evbar { position: relative; height: 6px; margin: 6px auto 0; width: 260px; max-width: 70vw; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
+#evac .evbar { position: relative; height: 6px; margin: 6px 0 0; width: 100%; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
 #evac .evbar .safe { position: absolute; left: 0; top: 0; bottom: 0; background: #f2c46b; }
 #evac .evbar .lostbar { position: absolute; right: 0; top: 0; bottom: 0; background: #c2321c; }
 #evac .evbar .need { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #e9dfc9; }
@@ -898,3 +899,5 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui:not([data-mode="play"]) #basearrow { display: none; }
 /* 0.16.1 (H191): enhet i handen: etiketterna vid infarterna tonas ned och släpper igenom klick */
 .entry.holding { opacity: 0.18; pointer-events: none !important; }
+.depotlater { cursor: default; }
+#coach .cplate .cgo { display: block; margin-top: 4px; font-size: 12px; color: var(--paper-dim); letter-spacing: 0.04em; }

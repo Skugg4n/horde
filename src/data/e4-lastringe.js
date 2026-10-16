@@ -84,8 +84,8 @@ export const BASE = (() => {
 // ---------- ingångarna ----------
 // I diset längs E4, utanför den skarpa ytan. Horden går fortare där (src/sim/sim.js fogFactor).
 export const SPAWNS = [
-  { id: 'nykoping', name: 'E4 från Nyköping', day: 1, at: w(270, 1114) },
-  { id: 'sodertalje', name: 'E4 från Södertälje', day: 2, at: w(2390, 631) },
+  { id: 'nykoping', name: 'E4 från Nyköping', from: 'Nyköping', day: 1, at: w(270, 1114) },
+  { id: 'sodertalje', name: 'E4 från Södertälje', from: 'Södertälje', day: 2, at: w(2390, 631) },
 ];
 
 // ---------- marken ----------
@@ -310,13 +310,15 @@ export const DAYS = [
     preset: [{ type: 'inf', at: INF_AT }], late: [{ type: 'm249', wave: 1 }], spots: E4_SPOTS,
     waves: [ { groups: [g('walker', 14, 1.2, 0, 'nykoping')] },
              { groups: [g('walker', 22, 0.8, 0, 'nykoping')] },
-             { groups: [g('walker', 22, 0.6, 0, 'nykoping'), g('walker', 18, 0.5, 18, 'nykoping')] } ] },
+             // 0.16.1 (speltestet av 0.16.0: "sista vågen 2 till 3 gånger den näst sista", 14 / 22 / 40): 32 i våg 3
+             { groups: [g('walker', 20, 0.6, 0, 'nykoping'), g('walker', 12, 0.5, 18, 'nykoping')] } ] },
   { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6,
     intro: { title: 'Day 2: Runners', text: 'Runners on the E4. Wire buys you time.' },
     preset: [{ type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 6, 1.2, 8, 'nykoping')] },
-             { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 13, 0.8, 4, 'sodertalje'), g('runner', 13, 0.8, 22, 'nykoping')] },
-             { groups: [g('walker', 20, 0.7, 0, 'nykoping'), ...[3, 14, 25, 36, 47, 58].map((delay, i) => g('runner', 8, 0.8, delay, i % 2 ? 'sodertalje' : 'nykoping'))] } ] },
+             // 0.16.1 (speltestet av 0.16.0, 20 / 40 / 68): våg 2 44, våg 3 60 (fem klungor löpare i stället för sex)
+             { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 15, 0.8, 4, 'sodertalje'), g('runner', 15, 0.8, 22, 'nykoping')] },
+             { groups: [g('walker', 20, 0.7, 0, 'nykoping'), ...[3, 14, 25, 36, 47].map((delay, i) => g('runner', 8, 0.8, delay, i % 2 ? 'sodertalje' : 'nykoping'))] } ] },
   // 0.16.1 (H192, speltestet av 0.14.2: "dag 3 våg 3 är ett stup, 82 fiender, 20 till 5"): våg 2 har två
   // klungor bjässar och löpare från påfarten, så att basen känner av den (0 till 2), och våg 3 har 26 bjässar i
   // fyra klungor (var 36 i fem). Förut kom all skada i våg 3. Bounty 0,4 till 0,3: överskottet efter dagen var

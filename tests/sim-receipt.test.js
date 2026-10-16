@@ -65,8 +65,9 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.16.0: E4 dag 2 be6e026f till cf609061 och South dag 3 3b601645 till db5f4217, avsiktligt (inlärningen,
 // docs/balance-log.md 0.16.0): infanteriet står vid bommen från början, E4 dag 2 har hp 3,2 och färre
 // förnödenheter per dödad, och de vilande husen är South dag 3:s begrepp (förut dag 1 och 2). North dag 2 står kvar.
+// 0.16.1: E4 dag 2 cf609061 till bfc5d385, avsiktligt (våg 2 och 3 jämnare, 40 / 68 till 44 / 60; docs/balance-log.md 0.16.1).
 const RECEIPTS = {
-  'E4 day 2': 'cf609061',
+  'E4 day 2': 'bfc5d385',
   'Gnesta South day 3': 'db5f4217',
   'Gnesta North day 2': 'b50f3d9a',
 };

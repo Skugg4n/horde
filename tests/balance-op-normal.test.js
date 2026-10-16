@@ -59,10 +59,10 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // andra Ksp 90 efter våg 1, pillboxen dag 3, barrikaderna från South dag 2, förrådet i steg från South dag 2,
 // knappheten i rekvisitionen och uppgraderingarna i ledningens takt, Hagstumosse som en sektor med en trupp;
 // docs/balance-log.md 0.16.0).
-// 0.16.1: alla steg utom E4 dag 1 nya, avsiktligt: E4 dag 2 och 3 lägger överskottet på fler trådar (policyn), dag 3
-// har bjässar i våg 2 och färre i våg 3 (stupet jämnat, H192), South dag 3 och 4 ger mindre förnödenheter per dödad
-// (H215). Kampanjen bär det vidare via RP (docs/balance-log.md 0.16.1).
-const BEFORE = {"riksvagen 1":"5097f90c","riksvagen 2":"c0a6732a","riksvagen 3":"85be0fb2","gnesta 1":"2125f6f0","gnesta 2":"3eace92b","gnesta 3":"a19195e1","gnesta 4":"2ea960f2","gnesta 5":"b60ca5b7","gnesta-norr 1":"18d1d6eb","gnesta-norr 2":"3e2e70a3","gnesta-norr 3":"ddd37540","gnesta-norr 4":"79ffcf5d","gnesta-norr 5":"9eacd136"};
+// 0.16.1: alla steg nya, avsiktligt: E4 dag 1 till 3 med jämnare sista vågor (32, 60, och bjässarna delade mellan
+// våg 2 och 3, H192), överskottet på fler trådar (policyn), Ishallen dag 1 med våg 2:s löpare senare (speltestet av
+// 0.16.0), South dag 3 och 4 med mindre förnödenheter per dödad (H215). docs/balance-log.md 0.16.1.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"fe84f3cb","gnesta 3":"b0bc6596","gnesta 4":"93911c1f","gnesta 5":"092479af","gnesta-norr 1":"a0865ae3","gnesta-norr 2":"afdb51ab","gnesta-norr 3":"540b4180","gnesta-norr 4":"4c2223ea","gnesta-norr 5":"58ae7dca"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));
