@@ -125,6 +125,8 @@ function applyRelease(p, r) {
   if (sector && r.adopt) {
     const done = id => !!SECTORS.find(x => x.id === id)?.maps?.every(m => MAPS[m] && mapState(p, m).unlockedDay > MAPS[m].days.length);
     for (const u of op.units) if (u.sector == null || (u.sector !== sector && done(u.sector))) u.sector = sector;
+    // en ny sektor börjar utan tryck (finishDay har just räknat den som öppen och under garnisonen)
+    delete op.pressure[sector];
   }
   op.released.push(r.id);
   op.inbox.push({ id: r.id, from: r.from, text: r.text, seq: op.seq++, unread: true });

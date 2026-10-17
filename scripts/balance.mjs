@@ -24,6 +24,7 @@ import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
 import { planSquad } from '../src/sim/squad.js';
 import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
+import { R as R_MB } from '../src/data/molnbo.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
@@ -806,8 +807,55 @@ export function stepPrints(log) {
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
+// ---------- Mölnbo (0.17.0-molnbo) ----------
+// Spelaren kommer från Hagstumosse med det en vanlig spelare har där (opCampaign('normal'): trupperna, nivåerna,
+// förrådets uppgraderingar och RP). Två spelare i Mölnbo:
+//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset (horden från Gnestavägen och Kvarnen måste runt
+//             genom rutnätet söder om spåret), gångbron när horden kommer norr om spåret (dag 4 och 5: allt därifrån
+//             måste över vägbron, flaskhalsen), Psg 90 på trapptornen och taken, grupperna bakom tåget.
+//   naive   : samma trupper och köp, ställer allt efter sin egen väg och spärrar aldrig.
+// Mål (uppdraget): mbSmart vinner dag 1 till 3 inom 2 försök och dag 4 och 5 inom 3 till 4, naive förlorar från dag 3,
+// högst cirka 250 levande zombier. docs/balance-log.md, Mölnbo.
+const MB_STENBY = [R_MB(-1.5, 56)];           // Stenbyvägen vid Missionshuset
+// Gångbrons södra ramp: horden norrifrån måste över vägbron, där tornen och caféets parkering ser dem. Prövat
+// (balansloggen): spärren på vägbron i stället (horden tar gångbron) och en tyngd på pjäserna vid broarna var sämre.
+const MB_FOOT = [R_MB(-17.5, 22)];
+TOWN.molnbo = {
+  blocks: day => (day >= 4 ? [...MB_STENBY, ...MB_FOOT] : MB_STENBY),
+  planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, near: 0.5, lastLine: 0.25 } : { roofs: 3, near: 0 }),
+  kits: [0, 1, 1, 2, 2, 3], roofsDay: [0, 2, 2, 3, 3, 3], maxTicks: 30 * 1200,
+};
+HV_POLICY.molnbo = { days: [], gap: [] };
+REQUISITION.molnbo = ['up:psg90:3', 'lvl:psg90:2', 'unit:psg90:4', 'lvl:ksp58:3', 'unit:ksp58:6', 'lvl:inf:2', 'unit:inf:3', 'lvl:m2:3', 'lvl:psg90:3', 'unit:ak5:3', 'lvl:ak5:3', 'unit:m249:6'];
+POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true };
+// Framsteget en vanlig spelare har när Mölnbo öppnar (sparas per seed).
+const mbArrival = new Map();
+export function molnboArrival(seedOffset = 0) {
+  if (!mbArrival.has(seedOffset)) mbArrival.set(seedOffset, opCampaign('normal', { seedOffset }).progress);
+  return mbArrival.get(seedOffset);
+}
+// Mölnbo från ankomsten. maxAttempts: försök per dag innan policyn ger upp.
+export function molnboCampaign(policy = 'mbSmart', { seedOffset = 0, maxAttempts = 6 } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['molnbo'], start: molnboArrival(seedOffset) });
+}
+export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
+export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+export function mbPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
+  return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
+}
+
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === 'molnbo') {
+  for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'naive']) {
+    console.log(`\n=== Mölnbo, ${policy} ===`);
+    console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');
+    const runs = SEEDS.map(seedOffset => molnboCampaign(policy, { seedOffset, maxAttempts: policy === 'naive' ? 4 : 6 }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${mbAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
+    for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
+  }
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const only = process.argv[2];
   const name = { riksvagen: 'E4', gnesta: 'South', 'gnesta-norr': 'North' };
   for (const policy of only ? [only] : ['skilled', 'normal']) {
