@@ -39,7 +39,7 @@ export const LESSONS = {
     { id: 'e4-3.speed', kind: 'caption', when: 'afterWave1', target: { ui: '#speedcd' }, text: 'Faster:', keys: ['F'], manual: 'speed' },
   ],
   'after-e4': [
-    { id: 'after-e4.map', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Gnesta is next. Open the sector.', manual: 'map' },
+    { id: 'after-e4.map', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Hagstumosse is next. Open the sector.', manual: 'map' },
   ],
   // 0.16.4 (Olas feedback: "dag 1 har ingen agens"): kartan visar husen, de civilas vägar, hordens väg och
   // korsningarna; spelaren väljer själv var de frivilliga står (inga föreslagna platser längre).
@@ -139,7 +139,7 @@ export const REVEALS = [
 // fienden setts. icon: köpradens ikon (src/ui/icons.js) eller 'enemy:TYP' (porträttet).
 export const MANUAL_GROUPS = ['Basics', 'Defences', 'Units', 'Operation', 'Enemies'];
 export const MANUAL = [
-  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its number. Click the ground to place it. Light ground shows where it may stand.', keys: ['1', '2', '3'] },
+  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its key. Each card keeps its key all campaign. Click the ground to place it.', keys: ['4', 'X'] },
   { id: 'start', group: 'Basics', title: 'Start the wave', text: 'Build first: nothing moves until you start. After a wave the next one counts down by itself.', keys: ['Space'] },
   { id: 'base', group: 'Basics', title: 'The base', text: 'Every infected that reaches the base takes a point. At zero the day is lost and starts over with the force you went in with.' },
   { id: 'speed', group: 'Basics', title: 'Speed', text: 'Run the day at 1x, 2x or 3x. The world pauses whenever a tip or the menu is open.', keys: ['F'] },

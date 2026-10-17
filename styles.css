@@ -674,7 +674,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .opmap .inbox li b { display: block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper); }
 .opmap .inbox li.new { color: var(--paper); }
 .opmap .inbox li.new b::after { content: 'NEW'; margin-left: 8px; color: #e0603c; font-size: 10px; }
-.opmap .acts, .depot .acts { justify-content: flex-start; margin-top: 12px; }
+/* 0.16.4 (Olas: en regel för alla skyltar): rubrik, text och knappar centrerade, knappar i par centrerade som grupp */
+.opmap .acts, .depot .acts { justify-content: center; margin-top: 12px; flex-wrap: wrap; }
 .depot .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .depot .tab { padding: 6px 12px; border: 1px solid var(--plate-edge); border-radius: 2px; background: rgba(233,223,201,0.05); color: var(--paper); cursor: pointer; font: 500 14px Oswald, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 .depot .tab span { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-left: 4px; }
@@ -837,7 +838,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 @keyframes hudReveal { 0% { opacity: 0; transform: translateY(6px); box-shadow: 0 0 0 2px rgba(181,83,42,0.9); } 30% { opacity: 1; transform: none; } 100% { box-shadow: 0 0 0 2px rgba(181,83,42,0); } }
 #res .cash-box[hidden] { display: none; }
 /* 0.16.2: nedräkningen före Next wave med bonus är ingen knapp: ingen rostfärg, ingen hovring; ett klick säger varför */
-#go.auto, #go.auto:hover { opacity: 0.9; background: var(--plate); color: var(--paper-dim); border-style: dashed; cursor: default; }
+/* 0.16.4 (speltestet av 0.16.2: "NEXT WAVE IN 15s" såg ut som en knapp men gjorde ingenting): före Next wave med
+   bonus är nedräkningen bara text på en svag platta, ingen knappform och inget klick */
+#go.auto, #go.auto:hover { opacity: 1; background: rgba(20,19,16,0.55); color: var(--paper-dim); border-color: transparent; box-shadow: none; cursor: default; pointer-events: none; font-size: 14px; letter-spacing: 0.14em; padding: 6px 14px; }
+#go.auto .cd { color: var(--paper); }
 #go kbd[hidden] { display: none; }
 
 /* E4 dag 1: de markerade platserna */
@@ -904,7 +908,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .sent { margin: 0 0 6px; }
 .depot .srow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--paper-dim); padding: 4px 8px; border: 1px dashed var(--plate-edge); border-radius: 2px; margin-bottom: 4px; }
 .depot .bulk { display: block; margin: 0 0 8px; }
-.depot .acts .act.main { white-space: nowrap; }
+/* 0.16.4 (speltestet av 0.16.2: "DEPLOY · HAGSTUMOSSE · ISHALLEN · DAY 3" klipptes och gick in i nästa knapp): två
+   rader i knappen, Deploy och vart, och texten bryts hellre än flyter över */
+.act .sub { font-size: 12px; letter-spacing: 0.06em; color: rgba(233,223,201,0.85); overflow-wrap: anywhere; }
+.act { max-width: 100%; box-sizing: border-box; }
+.act .a { overflow-wrap: anywhere; }
+.depot .acts .act.deploy { flex: 0 1 320px; }
 #ui[data-manual="on"] + #ver { left: 66px; }
 
 /* 0.16.1 (H190): basen tar skada utanför bild: pil vid skärmkanten med basens hälsa, B går dit */
@@ -936,3 +945,13 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sqtag.hv { color: #9fd38a; border-color: #9fd38a; }
 .sqtag.fire { box-shadow: 0 0 10px 2px currentColor; background: rgba(60, 50, 20, 0.9); }
 .sqtag.sel, .sqtag:hover { background: rgba(60, 54, 40, 0.95); }
+
+/* 0.16.4: tipsen mellan dagarna står i skyltens flöde (main.js inlineLesson), aldrig ovanpå innehållet */
+.sheet .inltip { margin: 6px auto 10px; padding: 6px 10px; max-width: 520px; text-align: center; font-size: 14px; letter-spacing: 0.03em; color: #1b1a16; background: #f2c46b; border-radius: 2px; animation: inltipIn 0.4s ease-out; }
+.sheet .inltip kbd { font: 500 11px 'IBM Plex Mono', monospace; padding: 0 5px; border: 1px solid rgba(27,26,22,0.5); border-radius: 2px; }
+@keyframes inltipIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.depot .capline { font-size: 13px; letter-spacing: 0.02em; color: var(--paper-dim); margin: -2px 0 8px; }
+.depot .capline b { color: var(--paper); font-weight: 600; }
+.depot .capline.over { color: #f2c46b; }
+.depot .req .cap { margin-left: 8px; font: 500 11px 'IBM Plex Mono', monospace; color: #9fc46a; }
+.depot .req .cap.over { color: #f2c46b; }

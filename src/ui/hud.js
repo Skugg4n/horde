@@ -183,6 +183,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     speedBtn2.hidden = !(build || wave) || !feat.speed;
     goBtn.classList.toggle('counting', counting);
     goBtn.classList.toggle('auto', passive);
+    goBtn.setAttribute('aria-disabled', passive ? 'true' : 'false');
     if (counting) set(el.cd, passive ? `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s` : `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
     // Mitt i en våg går nästa att kalla tidigt så länge det finns en, men bara uttryckligen:
     // klick på knappen eller Shift+Space. Knappen säger hur många som är kvar och är dämpad.

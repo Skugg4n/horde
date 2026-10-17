@@ -38,17 +38,18 @@ export const SHOP = BUY_MENU.flatMap((c, ci) => c.items.map((it, si) => ({ ...it
 export const shopItem = id => SHOP.find(s => s.id === id);
 // Dagens köprad: bara det som finns i förrådet (has(id)), tomma kategorier bort. Snabbvalen följer den.
 export const dayMenu = (has = () => true) => BUY_MENU.map(c => ({ ...c, items: c.items.filter(it => has(it.id)) })).filter(c => c.items.length);
-// 0.16.0 (Olas beslut 3, ersätter H097 tills vidare): köpraden har enkla siffror, 1, 2, 3 ..., ett tryck väljer
-// kortet. Tvåstegsvalet (kategori, sedan sak) gäller bara när raden har fler än CHORD_OVER kort.
-export const CHORD_OVER = 9;
+// 0.16.0 (Olas beslut 3, ersätter H097 tills vidare): köpraden har enkla siffror, ett tryck väljer kortet.
+// 0.16.4 (speltestet av 0.16.2: "Ksp 90 är 2 på E4 dag 1, 3 dag 2, 4 på Ishallen dag 2, 6 dag 3; snabbvalen går inte
+// att lära sig"): varje sak har ETT snabbval i hela kampanjen. Enheterna siffrorna 1 till 9 i Units ordning,
+// hindren bokstäverna Z, X och C (raden under, vänsterhanden ligger kvar). En siffra som inte finns i dag gör
+// ingenting. Tvåstegsvalet behövs inte längre (högst 9 enheter); det står kvar i chord.js men används inte.
+export const FIXED_KEYS = { civ: '1', hv: '2', inf: '3', m249: '4', m2: '5', epa: '6', ksp58: '7', ak5: '8', psg90: '9', block: 'Z', wire: 'X', car: 'C' };
+export const CHORD_OVER = Infinity;
 export const flatItems = (menu = BUY_MENU) => menu.flatMap(c => c.items);
 export const usesChords = (menu = BUY_MENU) => flatItems(menu).length > CHORD_OVER;
-// Snabbvalet som det skrivs på kortet och i tipsen: "2" (en siffra), eller "2-1" med tvåstegsvalet.
-// menu: dagens köprad (standard: hela).
-export const hotkeyOf = (id, menu = BUY_MENU) => {
-  if (!usesChords(menu)) { const i = flatItems(menu).findIndex(it => it.id === id); return i >= 0 ? String(i + 1) : ''; }
-  for (let ci = 0; ci < menu.length; ci++) { const si = menu[ci].items.findIndex(it => it.id === id); if (si >= 0) return `${ci + 1}-${si + 1}`; }
-  return '';
-};
+// Snabbvalet som det skrivs på kortet och i tipsen. menu används inte längre (samma tangent varje dag).
+export const hotkeyOf = id => FIXED_KEYS[id] ?? '';
+// Saken på en tangent ('4', 'X') i dagens köprad, eller null.
+export const itemForKey = (key, menu = BUY_MENU) => flatItems(menu).find(it => FIXED_KEYS[it.id] === String(key).toUpperCase())?.id ?? null;
 // Saken på snabbvalet (kategori, plats), eller null (tvåstegsvalet).
 export const itemAt = (cat, slot, menu = BUY_MENU) => menu[cat - 1]?.items[slot - 1]?.id ?? null;

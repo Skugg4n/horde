@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, build } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
-import { SHOP, BUY_MENU, hotkeyOf, itemAt, dayMenu } from '../src/data/shop.js';
+import { SHOP, BUY_MENU, hotkeyOf, itemAt, dayMenu, flatItems } from '../src/data/shop.js';
 import { inArsenal } from '../src/sim/stats.js';
 import { createChord, WINDOW } from '../src/ui/chord.js';
 import { buyState, canPickUp } from '../src/sim/buy.js';
@@ -17,56 +17,33 @@ test('köpraden: Defenses och Units; snabbvalen följer dagens förråd', () => 
   assert.deepEqual(BUY_MENU.map(c => c.name), ['Defenses', 'Units']);
   // 0.14.0: skrotbilarna (förnödenheter) sist i Defenses
   assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'car', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
-  // 0.16.0: tvåstegsvalet bara med fler än 9 kort (hela raden har 12)
-  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '1-3', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8', '2-9']);
+  // 0.16.4 (speltestet av 0.16.2: siffrorna bytte mellan dagarna): ett snabbval per sak i hela kampanjen
+  assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['Z', 'X', 'C', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
   assert.equal(itemAt(2, 4), 'm249'); assert.equal(itemAt(1, 4), null); assert.equal(itemAt(3, 1), null);
   const e4 = dayMenu(id => inArsenal(id, MAPS.riksvagen, MAPS.riksvagen.days[0]));
   assert.deepEqual(e4[1].items.map(i => i.id), ['inf', 'm249', 'm2', 'epa'], 'E4: armén, inget Hemvärn');
-  assert.equal(hotkeyOf('m249', e4), '4', '0.16.0: en siffra per kort när raden har högst 9');
   const g1 = dayMenu(id => inArsenal(id, MAPS.gnesta, MAPS.gnesta.days[0]));
   assert.deepEqual(g1.map(c => c.items.map(i => i.id)), [['block', 'wire'], ['civ']], 'Gnesta dag 1: civila, barrikader och tråd');
   assert.equal(itemAt(2, 1, g1), 'civ');
   const c = createChord({ menu: () => e4 });
   assert.equal(c.chords, false);
-  assert.deepEqual(c.press(6, 0), { t: 'pick', id: 'epa' }, 'block, wire, inf, m249, m2, epa: 6');
-  assert.deepEqual(c.press(9, 0), { t: 'none' });
+  assert.deepEqual(c.press(6, 0), { t: 'pick', id: 'epa' }, 'pillboxen är 6 varje dag');
+  assert.deepEqual(c.press(4, 0), { t: 'pick', id: 'm249' }, 'Ksp 90 är 4 varje dag');
+  assert.deepEqual(c.press('X', 0), { t: 'pick', id: 'wire' });
+  assert.deepEqual(c.press(1, 0), { t: 'none' }, 'inga frivilliga på E4');
   assert.equal(c.open, null);
 });
 
-// 0.16.0 (Olas beslut 3): enkla siffror 1, 2, 3; ett tryck väljer kortet.
-test('köpradens siffror: ett tryck per kort, tvåstegsvalet först med fler än 9 kort', () => {
-  const two = [{ id: 'units', name: 'Units', items: [{ id: 'inf' }, { id: 'm249' }] }];
-  const c = createChord({ menu: () => two });
-  assert.deepEqual(c.press(2, 0), { t: 'pick', id: 'm249' });
-  assert.deepEqual(c.press(1, 0), { t: 'pick', id: 'inf' });
-  assert.deepEqual(c.press(3, 0), { t: 'none' });
-  assert.equal(hotkeyOf('m249', two), '2');
-  const full = createChord();
-  assert.equal(full.chords, true, 'hela raden har 12 kort');
-  assert.deepEqual(full.press(2, 0), { t: 'category', cat: 2 });
-});
-
-test('tvåstegsvalet (fler än 9 kort): kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0)', () => {
-  const c = createChord();
-  assert.deepEqual(c.press(2, 0), { t: 'category', cat: 2 });
-  assert.equal(c.open, 2);
-  assert.deepEqual(c.press(4, 0.5), { t: 'pick', id: 'm249' });
-  assert.equal(c.open, null, 'kategorin stängs när saken är vald');
-  c.press(1, 10); assert.deepEqual(c.press(1, 10.4), { t: 'pick', id: 'block' });
-  // en plats som inte finns gör ingenting, kategorin står kvar
-  c.press(1, 20); assert.deepEqual(c.press(4, 20.2), { t: 'none' }); assert.equal(c.open, 1);
-  // Esc stänger kategorin och säger att den gjorde det
-  assert.equal(c.escape(), true); assert.equal(c.open, null); assert.equal(c.escape(), false);
-  // speltestet av 0.11.0: efter tidsgränsen väljer andra siffran fortfarande en sak, samma siffra också
-  c.press(1, 30);
-  assert.equal(c.armed(30 + WINDOW + 0.1), false, 'lugnare bild efter tidsgränsen');
-  assert.equal(c.open, 1, 'men fortfarande öppen');
-  assert.deepEqual(c.press(1, 30 + WINDOW + 5), { t: 'pick', id: 'block' }, '1, paus, 1 = barrikaden');
-  c.press(2, 40);
-  assert.deepEqual(c.press(5, 40 + WINDOW + 3), { t: 'pick', id: 'm2' }, '2, paus, 5 = Ksp 88');
-  c.press(2, 60); assert.deepEqual(c.press(9, 60 + 30), { t: 'pick', id: 'psg90' });
-  // siffror utan kategori gör ingenting
-  assert.deepEqual(c.press(0, 50), { t: 'none' }); assert.deepEqual(c.press(3, 50), { t: 'none' }); assert.equal(c.open, null);
+test('snabbvalen är desamma varje dag på varje bana', () => {
+  for (const id of ['m249', 'civ', 'wire', 'block', 'ksp58']) {
+    const seen = new Set();
+    for (const m of Object.values(MAPS)) for (const d of m.days) {
+      const menu = dayMenu(x => inArsenal(x, m, d));
+      if (flatItems(menu).some(it => it.id === id)) { seen.add(hotkeyOf(id)); assert.equal(createChord({ menu: () => menu }).press(hotkeyOf(id), 0).id, id, `${m.id} dag ${d.n}: ${id}`); }
+    }
+    assert.ok(seen.size <= 1, `${id}: ${[...seen]}`);
+  }
+  assert.equal(createChord().chords, false, 'inget tvåstegsval');
 });
 
 test('för dyrt: gråat med hur mycket som saknas, går inte att ta upp', () => {
@@ -156,7 +133,7 @@ test('slutställda kort står kvar grå och siffrorna är stabila', async () => 
   const { opStartConfig, newCampaign } = await import('../src/meta/operation.js');
   const { inBar } = await import('../src/sim/buy.js');
   const sim = createSim(opStartConfig(newCampaign(), 1, 'riksvagen'));
-  const keys = () => { const m = dayMenu(id => inBar(sim, id)); return m.flatMap(c => c.items).map(it => it.id + hotkeyOf(it.id, m)).join(' '); };
+  const keys = () => { const m = dayMenu(id => inBar(sim, id)); return m.flatMap(c => c.items).map(it => it.id + hotkeyOf(it.id)).join(' '); };
   const before = keys();
   assert.match(before, /m249/);
   assert.equal(build(sim, [...sim.marked][0], 'm249').ok, true);

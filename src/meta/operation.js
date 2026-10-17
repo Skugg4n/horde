@@ -102,6 +102,14 @@ export function sectorStatus(p, id) {
   if (!poolOpen(p, s.id)) return 'locked';
   return (p.op.pressure[s.id] ?? 0) >= PRESSURE_THREAT ? 'threatened' : 'holding';
 }
+// 0.16.4 (Olas: "man kan rekvirera hur mycket som helst men bara ställa ut ett visst antal, det är oklart hur många"):
+// sektorns tak per strid är banans frontbredd (samma som src/sim/sim.js frontage i uppställningen), för banan sektorn
+// strider på härnäst. Rekvisition över taket är tillåten: de som inte får plats väntar i reserven och väljs bort
+// eller in vid uppställningen (byta mellan dagar, ersätta förluster). docs/superpowers/specs/2026-10-16-operation-design.md.
+export function deployCap(p, sector) {
+  const m = currentMap(p, sector) ?? SECTORS.find(s => s.id === poolOf(sector))?.maps?.[0];
+  return MAPS[m]?.frontage ?? Infinity;
+}
 export const pressureOf = (p, id) => p.op?.pressure[poolOf(id)] ?? 0;
 // 0.16.0: garnisonen. Tryckpunkter som en öppen sektor får för en vunnen dag någon annanstans: 1, eller
 // PRESSURE_UNDERMANNED om färre än GARRISON enheter står där. Förrådet visar samma regel (garrisonLine).
