@@ -8,8 +8,9 @@ import { buildWorld, updateWorld } from './render/world.js';
 import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
+import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { createRouteLines } from './render/route-lines.js';
-import { mountHud, waveText } from './ui/hud.js';
+import { mountHud, waveText, comingBySpawn } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -17,14 +18,20 @@ import { WEAPONS } from './data/weapons.js';
 import { OBSTACLES } from './data/obstacles.js';
 import { buyState, inBar } from './sim/buy.js';
 import { abandonDay, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
-import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitsIn, pressureOf, PRESSURE_HP, unitName } from './meta/operation.js';
-import { RELEASES, FROM_NAME } from './data/depot.js';
+import { metaFeatures, dayStage, STAGES, stageReached } from './meta/unlocks.js';
+import { isSeen, markSeen, shows, tipsMode, setMode as setTipsMode, resetTips, markAllSeen, manualUnlocked, manualNew, markRead as markManualRead, lessonsOf } from './meta/lessons.js';
+import { LESSONS, TIPS, ENEMIES, REVEALS, REPEAT_GAP, manualEntry } from './data/lessons.js';
+import { createCoach, enemyCard, manualSheet } from './ui/coach.js';
+import { portraitOf } from './render/portrait.js';
+import { VET_WINS } from './data/depot.js';
+import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap } from './meta/operation.js';
+import { FROM_NAME, sectorOf } from './data/depot.js';
 import { loadProgress, saveProgress, resetSave } from './meta/save.js';
 import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND, roofAt } from './sim/placement.js';
@@ -213,11 +220,16 @@ function startMove(id) {
 }
 function startPlacing(type) {
   if (!canPlaceNow()) return;
-  if (placing?.type === type) { stopPlacing(); return; }
-  if (buyState(sim, type).state !== 'ok') { bar.shake(type); audio.ui('deny'); return; }
+  // 0.16.2 (speltestet av 0.16.1: "mitt andra klick avmarkerade kortet"): samma kort igen släpper inte saken. I
+  // låg bildtakt syns inte att det första klicket tog, och ett andra klick lade förut tillbaka saken, så att nästa
+  // klick på kartan inte gjorde något. Esc eller högerklick lägger tillbaka.
+  if (placing?.type === type && !placing.move) { flashTip(reasonText('i handen')); return; }
+  const st = buyState(sim, type).state;
+  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText('ute')); return; }
   closePanel();
   audio.ui('pick');
   placing = { type, kind: shopItem(type).kind };
+  if (type === 'psg90') tip('tip.roof');
   spot = null;
   hovered = null;
 }
@@ -233,7 +245,8 @@ function stopPlacing() {
 function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   if (placing?.kind === 'obstacle') {
     if (x != null) { const sn = snapObstacle(sim, x, z, placing.type); key = sn.key; }
-    if (key == null || key < 0) return { key: -1, ok: false, reason: 'ingen gata' };
+    // 0.16.0 (textgenomgången, speltestet av 0.14.2): E4 har markerade rutor för hindren, inte gatan
+    if (key == null || key < 0) return { key: -1, ok: false, reason: sim.map.id === 'riksvagen' ? 'markerad-hinder' : 'ingen gata' };
     const c = sim.route.cellCenter(key), check = checkObstacle(sim, key, placing.type);
     return { key, x: c.x, z: c.z, ok: check.ok, reason: check.reason };
   }
@@ -251,19 +264,26 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   const from = x != null && !roofHit && !rt && key !== sim.place.keyAt(x, z) ? { fx: x, fz: z } : {};
   return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
 }
+// 0.16.2: varje försök att ställa ut med något i handen och hur det gick (__horde.placeLog med ?debug eller ?test)
+const placeLog = [];
+function logPlace(e) { placeLog.push({ t: Math.round(performance.now()), type: placing?.type ?? null, ...e }); if (placeLog.length > 200) placeLog.shift(); }
 function placeHere(p) {
   const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : spotFor(p);
   const key = sp.key;
-  if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
+  if (!sp.ok) { logPlace({ out: 'reason', key, reason: sp.reason }); flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
+  // 0.16.2: riktningen räknas från rutan som klicket gäller, inte från rutan som hovringen senast räknade
+  spot = sp;
   if (placing.move) {
     const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null, placing.via ?? []);
-    if (!r.ok) { flashTip(reasonText(r.reason)); return; }
+    if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
+    logPlace({ out: 'moved', key });
     stopPlacing(); placedAt = performance.now();
     return;
   }
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type, hasCone() ? aimFacing() : null);
-  if (!r.ok) { flashTip(reasonText(r.reason)); return; }
+  if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
+  logPlace({ out: 'placed', key });
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
@@ -310,7 +330,8 @@ renderer.domElement.addEventListener('pointerdown', e => {
   suppressClick = false;           // ett gammalt släpp utan klick ska inte äta nästa klick
   if (e.button !== 0 || mode !== 'play') return;
   if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
-  if (!hasCone() || (placing.move && e.shiftKey)) return;
+  // 0.16.0: sikta-dra är upplåst från E4 dag 3; före det ger ett klick riktningen mot vägen
+  if (!hasCone() || !feat('aim') || (placing.move && e.shiftKey)) return;
   const here = picker.pickAt(e.clientX, e.clientY);
   if (here?.kind === 'spot') spot = spotFor(here.id, here.x, here.z, here.roof, here.rt);
   if (!spot || spot.key < 0) return;
@@ -376,7 +397,7 @@ function commitRotate() {
 function guideMove(id) {
   const g = sim.guns.find(x => x.id === id);
   if (!g) return;
-  if (!canMoveType(g.weapon.type)) { flashTip(reasonText('fast')); audio.ui('deny'); return; }
+  if (!canMoveType(g.weapon.type)) { flashTip(reasonText('fast')); audio.ui('deny'); tip('tip.mounted'); return; }
   startMove(id);
 }
 // Flyttens väg i handen (H136): från pjäsen genom waypoints till rutan under pekaren.
@@ -600,15 +621,40 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ||
   }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
-}, { ignoreClick: () => rig.takeDrag() || takeSuppress() });
-picker.onPick(p => {
-  if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
+}, { ignoreClick: () => { const d = rig.takeDrag(), s0 = takeSuppress(); if ((d || s0) && placing) logPlace({ out: d ? 'ignored-pan' : 'ignored-aim' }); return d || s0; } });
+picker.onPick(p => mapPick(p));
+function mapPick(p) {
+  if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') { if (placing) logPlace({ out: 'ignored-phase' }); return; }
   if (rotating) { commitRotate(); return; }
   // 0.13.0 (H136): Shift-klick lägger en waypoint på flyttens väg
   if (placing?.move && shiftHeld && p?.kind === 'spot') { addWaypoint(p); return; }
-  if (placing) { if (p?.kind === 'spot') placeHere(p); return; }
+  // 0.16.1 (speltestet av 0.16.0: "flera klick med valt kort gjorde ingenting"): ett klick som inte träffar en
+  // ruta säger också varför, vid pekaren
+  if (placing) { if (p?.kind === 'spot') placeHere(p); else { logPlace({ out: 'reason', reason: 'utanför' }); flashTip(reasonText('utanför')); audio.ui('deny'); } return; }
   if (p) open(p); else closePanel();
-});
+}
+// 0.16.2 (speltestet av 0.16.1, tre speltester i rad: "ungefär var tredje placering gav ingenting"): ett klick
+// på kartan går aldrig förlorat. I låg bildtakt hinner en lektionsplåt (eller ett annat lager) komma upp mellan
+// två bilder, och klicket som spelaren menade för kartan eller köpraden landade på plåten. Plåten släpps och
+// klicket går vidare till det som ligger under (scripts/placement-harness.mjs).
+function forwardClick(x, y) {
+  const hid = coach.el.hidden;
+  coach.el.hidden = true;
+  const under = document.elementFromPoint(x, y);
+  coach.el.hidden = hid;
+  if (under === renderer.domElement) { mapPick(picker.pickAt(x, y)); return; }
+  const btn = under?.closest?.('button');
+  if (btn && !btn.closest('#coach')) btn.click();
+}
+// Med något i handen: ett klick på något i gränssnittet som inte gör något säger det vid pekaren
+const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual';
+addEventListener('click', e => {
+  if (!placing || mode !== 'play' || e.button !== 0) return;
+  const t = e.target;
+  if (t === renderer.domElement || !(t instanceof Element) || t.closest(CLICKABLE) || !t.closest('#ui')) return;
+  logPlace({ out: 'reason', reason: 'gränssnitt' });
+  flashTip(reasonText('gränssnitt')); audio.ui('deny');
+}, true);
 picker.onHover(p => {
   hovered = mode === 'play' ? p : null;
   // medan spelaren drar för att sikta står spöket kvar på sin ruta
@@ -669,18 +715,10 @@ function civilianLost(ev) {
   uiRoot.appendChild(el);
   setTimeout(() => el.remove(), 5000);
 }
+// 0.16.0 (textgenomgången): "Supplies to spare. Click a unit." när förnödenheterna på enheten är upplåsta (South
+// dag 5). Den gamla raden om U och forskningen är borta (uppgraderingarna köps i förrådet).
 function updateSpare() {
-  // 0.14.0: med kärntrupperna går överskottet till förnödenheter
-  if (mode === 'play' && sim.core && !spareTold && sim.phase === 'wave' && sim.cash >= 320) {
-    spareTold = true;
-    note(uiRoot, 'Supplies to spare: click a unit for an ammo crate, sandbags or a grenade kit, or lay more wire.');
-    return;
-  }
-  if (sim.core || mode !== 'play' || spareTold || sim.phase !== 'wave' || gunCount(sim) < sim.maxGuns) return;
-  const cheapest = Math.min(...sim.guns.map(g => upgradeCost(g.weapon.type, g.weapon.level) ?? Infinity));
-  if (sim.cash < cheapest) return;
-  spareTold = true;
-  note(uiRoot, 'Cash to spare: point at a gun and press U to upgrade it, or Move it where the horde is.');
+  if (mode === 'play' && sim.core && sim.phase === 'wave' && sim.cash >= 320) tip('tip.spare');
 }
 function updatePips() {
   const occ = mode === 'play' && !placing ? view.occluded : new Map();
@@ -698,12 +736,43 @@ function updatePips() {
   }
 }
 
+// ---------- gruppernas märken (0.16.1, H194) ----------
+// Speltesterna av 0.14.2 och 0.16.0: "frivilliga är små gula prickar som knappt syns, och jag ser inte om de skjuter",
+// "Hemvärnet kunde jag knappt se efteråt". Över varje grupp (de frivilliga och Hemvärnet) står ett litet märke i
+// gruppens färg med kortnamnet och hur många som står, som lyser upp när gruppen skjuter. Klick väljer gruppen.
+const squadTags = new Map();
+const SQUAD_TAG = { civ: { t: 'VOL', cls: 'civ' }, hv: { t: 'HV', cls: 'hv' } };
+const shotAt = new Map();
+function updateSquadTags() {
+  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.squad && SQUAD_TAG[g.weapon.type] && g.soldiers.length) : [];
+  const ids = new Set(want.map(g => g.id));
+  for (const [id, el] of squadTags) if (!ids.has(id)) { el.remove(); squadTags.delete(id); }
+  for (const g of want) {
+    let el = squadTags.get(g.id);
+    if (!el) {
+      const d = SQUAD_TAG[g.weapon.type], id = g.id;
+      el = document.createElement('button'); el.type = 'button'; el.className = 'sqtag ' + d.cls;
+      el.innerHTML = `<b>${d.t}</b><i></i>`;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
+      pips.appendChild(el); squadTags.set(id, el);
+    }
+    const up = g.soldiers.filter(q => !q.down);
+    const cx = up.reduce((a, q) => a + q.x, 0) / (up.length || 1), cz = up.reduce((a, q) => a + q.z, 0) / (up.length || 1);
+    tmpV.set(up.length ? cx : g.x, 2.4, up.length ? cz : g.z).project(camera);
+    el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
+    const n = String(up.length);
+    const ni = el.querySelector('i'); if (ni.textContent !== n) ni.textContent = n;
+    el.classList.toggle('fire', time - (shotAt.get(g.id) ?? -Infinity) < 0.35);
+    el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === g.id);
+  }
+}
+
 // ---------- mål utanför vinkeln (0.14.1, granskningen av 0.14, Important 5) ----------
 // En liten gul flagga "R" över en pjäs som stått sysslolös med zombier i sikte men utanför vinkeln
 // (simuleringens idleOutside), en ping på minikartan första gången och klick väljer pjäsen.
 const arcFlags = new Map(), arcPinged = new Map();
 function updateArcFlags() {
-  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.idleOutside && rotating?.id !== g.id) : [];
+  const want = mode === 'play' && !placing && feat('rotate') ? sim.guns.filter(g => g.idleOutside && rotating?.id !== g.id) : [];
   const ids = new Set(want.map(g => g.id));
   for (const [id, el] of arcFlags) if (!ids.has(id)) { el.remove(); arcFlags.delete(id); }
   for (const g of want) {
@@ -715,6 +784,7 @@ function updateArcFlags() {
       const id = g.id;
       el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (mode === 'play') open({ kind: 'gun', id }); });
       pips.appendChild(el); arcFlags.set(g.id, el);
+      tip('tip.arc');
       if (time - (arcPinged.get(g.id) ?? -Infinity) > 12) { arcPinged.set(g.id, time); alerts.push({ x: g.x, z: g.z, until: time + 4, kind: 'arc' }); }
     }
     tmpV.set(g.x, (g.y ?? 0) + 2.6, g.z).project(camera);
@@ -771,6 +841,29 @@ function updateBarricades(dt) {
   }
   for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].until < time) alerts.splice(i, 1);
 }
+// 0.16.1 (speltestet av 0.16.0: "andra infarten på E4 dag 2 kommer utan förvarning, basen 14 till 3"): en ingång som
+// inte använts tidigare (inte i en tidigare dag på banan, inte i en tidigare våg i dag) sägs före vågen: en rad,
+// minikartan pingar ingången och hordens väg därifrån blinkar. Etiketten vid infarten står där som vanligt.
+const toldSpawns = new Set();
+function spawnsOf(waves) { const first = sim.route.spawns[0]?.id; return new Set(waves.flatMap(w => w.groups.map(g => g.spawn ?? first))); }
+let newsUntil = -Infinity;
+function updateNewSpawn() {
+  if (mode !== 'play' || sim.route.kind !== 'grid' || sim.phase !== 'build') return;
+  const idx = sim.wavesStarted, waves = sim.dayCfg.waves;
+  if (!waves[idx] || (day === 1 && idx === 0)) return;
+  const known = spawnsOf([...sim.map.days.slice(0, day - 1).flatMap(d => d.waves), ...waves.slice(0, idx)]);
+  for (const id of spawnsOf([waves[idx]])) {
+    if (known.has(id) || toldSpawns.has(id)) continue;
+    toldSpawns.add(id);
+    const sp = sim.map.spawns?.find(q => q.id === id), at = sim.route.spawns.find(q => q.id === id);
+    // 0.16.2 (speltestet av 0.16.1: raden stod ca 5 s och krockade med fartknappens tips): 8 s, och inga andra
+    // tips eller bildtexter börjar medan den står (newsUntil)
+    note(uiRoot, sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true, ms: 8000 });
+    newsUntil = performance.now() + 8000;
+    routeFlash = 4;
+    if (at) alerts.push({ x: at.x, z: at.z, until: time + 10, kind: 'spawn' });
+  }
+}
 function barricadeBroken(ev) {
   // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
   const id = ev.line != null ? 'l' + ev.line : 'c' + ev.cell;
@@ -788,6 +881,7 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach();
+  for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
   const ovKey = 'overlap-' + map.id;
@@ -810,7 +904,7 @@ function handleEvents() {
     else if (ev.t === 'obstacleBroken' && OBSTACLES[ev.type]?.kind === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     // 0.13.0: de civila, pillboxen och lagen på väg
-    else if (ev.t === 'civilianDown') { if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } civilianLost(ev); }
+    else if (ev.t === 'civilianDown') { if (!isSeen(progress, 'tip.civ')) tip('tip.civ', [ev.x, ev.z]); else if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } civilianLost(ev); }
     else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first civilians are inside the ice rink.');
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
@@ -833,19 +927,37 @@ function handleEvents() {
 // nästa tryck startar ändå.
 let reserveWarned = false;
 function go({ stack = false } = {}) {
-  if (mode !== 'play') return;
+  if (mode !== 'play' || card || manual) return;
+  // 0.16.0: under ett lektionssteg startar mellanslaget inget, utom när steget är att starta vågen
+  if (lesson?.pause && lesson.step.target?.ui !== '#go') return;
   if (sim.phase === 'build' && sim.nextWaveIn == null) {
-    const left = sim.reserve?.length ?? 0;
+    const left = sim.reserve?.filter(u => canDeploy(sim, u)).length ?? 0;
     if (deployPhase(sim) && left && sim.guns.length < frontage(sim) && !reserveWarned) {
       reserveWarned = true;
-      note(uiRoot, `${left} unit${left > 1 ? 's' : ''} still in reserve. Deploy them (2), or press again to start.`, 'warn');
+      // 0.16.0 (textgenomgången): reserven och frontbredden finns från North dag 3
+      note(uiRoot, feat('frontage') ? 'Units left in reserve. Start anyway?' : 'Units not placed yet. Start anyway?', 'warn');
       return;
     }
     if (!startWave(sim)) return;
   } else {
-    if (!callNextWave(sim, { stack }).ok) return;
+    const r = callNextWave(sim, { stack });
+    if (!r.ok) { nextDenied(r); return; }
   }
   handleEvents();
+}
+// 0.16.2 (speltestet av 0.16.1: "NEXT WAVE IN-knappen ser klickbar ut men gör ingenting"): knappen och mellanslaget
+// säger varför nästa våg inte kommer nu, vid knappen
+function nextDenied(r) {
+  const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
+  const text = r.reason === 'låst' ? (secs != null ? `It comes by itself in ${secs}s` : 'It comes by itself')
+    : r.reason === 'kvar' ? `Clear this wave first: ${r.left} still out. Shift+Space calls it anyway`
+    : null;
+  if (!text) return;
+  const btn = document.getElementById('go');
+  const wb = document.getElementById('wavebar');
+  const at = [btn, wb].find(n => n && !n.hidden && n.getBoundingClientRect().width)?.getBoundingClientRect();
+  tipFlash = { text, until: performance.now() + 2200, x: at ? at.left + 4 : pointer.x, y: at ? at.top - 44 : pointer.y };
+  audio.ui('deny');
 }
 
 // ---------- ljud ----------
@@ -874,17 +986,20 @@ function setSpeed(n) {
   hud.setSpeed(speed);
   if (settings.speed !== n) { settings = normalizeSettings({ ...settings, speed: n }); saveSettings(settings); }
 }
+let speedShown = true;
 function toggleSpeed() {
-  if (menu.isOpen()) return;
+  if (menu.isOpen() || !speedShown) return;
   setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]);
 }
 
 // ---------- basen tar skada ----------
-let lastBaseToast = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
+let lastBaseToast = -Infinity, lastBreach = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
 function onBreach() {
   hud.baseHit();
+  lastBreach = time;
   shake(SHAKE_TIME, SHAKE_AMP);
   if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Base under attack!', 'warn'); }
+  tip('tip.base');
 }
 // Samma skak för basen och granaterna; en starkare pågående skakning skrivs inte över av en svagare.
 function shake(len, amp) {
@@ -898,6 +1013,39 @@ function shakeCamera(dt) {
   const a = shakeAmp * (shakeT / shakeLen);
   if (shakeT === 0) rig.setShake(0, 0);
   else rig.setShake((Math.random() - 0.5) * 2 * a, (Math.random() - 0.5) * 2 * a);
+}
+
+// ---------- basen utanför bild (0.16.1, H190) ----------
+// Speltestet av 0.14.2: "basen föll 20 till 9 medan jag tittade på ett tomt villakvarter". När basen tar skada och
+// inte syns står en pil vid skärmkanten som pekar dit, med basens hälsa som pulserar; klick på pilen eller B (Home)
+// flyttar kameran till basen.
+const baseArrow = document.createElement('button');
+baseArrow.type = 'button'; baseArrow.id = 'basearrow'; baseArrow.hidden = true;
+baseArrow.innerHTML = '<span class="chev"><i></i></span><span class="txt">Base <b></b></span><kbd>B</kbd>';
+baseArrow.addEventListener('click', () => goToBase());
+uiRoot.appendChild(baseArrow);
+const BASE_ARROW_S = 5, BASE_EDGE = 70;
+function baseCenter() {
+  const pts = baseShape();
+  return { x: pts.reduce((a, p) => a + p[0], 0) / pts.length, z: pts.reduce((a, p) => a + p[1], 0) / pts.length };
+}
+function updateBaseArrow() {
+  const show = mode === 'play' && !!sim && !menu.isOpen() && time - lastBreach < BASE_ARROW_S && sim.phase !== 'won' && sim.phase !== 'lost';
+  const c = show && baseCenter(), s = show && onScreen(c.x, c.z, 40);
+  if (!show || s.in) { baseArrow.hidden = true; return; }
+  const cx = innerWidth / 2, cy = innerHeight / 2, dx = s.sx - cx, dy = s.sy - cy;
+  const k = Math.min(Math.abs((cx - BASE_EDGE) / (dx || 1e-6)), Math.abs((cy - BASE_EDGE - 40) / (dy || 1e-6)));
+  baseArrow.hidden = false;
+  baseArrow.style.left = (cx + dx * k) + 'px'; baseArrow.style.top = (cy + dy * k) + 'px';
+  baseArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  const b = baseArrow.querySelector('b'), hp = String(Math.max(0, Math.ceil(sim.baseHp)));
+  if (b.textContent !== hp) { b.textContent = hp; baseArrow.classList.remove('pulse'); void baseArrow.offsetWidth; baseArrow.classList.add('pulse'); }
+}
+function goToBase() {
+  if (mode !== 'play' || !sim || !rig?.canPan) return;
+  const c = baseCenter();
+  rig.focus(c.x, c.z, Math.min(rig.view, sim.map.camera.zoom?.[1] ?? rig.view));
+  audio.ui('click');
 }
 
 // ---------- horden på väg in ----------
@@ -925,7 +1073,7 @@ function findEntry() {
 addEventListener('resize', () => { entryAt = null; });
 function updateEntry() {
   if (mode !== 'play') { hud.entry(null); return; }
-  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints()); return; }
+  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints(), { covers: coversGround, holding: !!placing || !!rotating }); return; }
   if (sim.phase !== 'wave') { hud.entry(null); return; }
   const alive = sim.zombies.filter(z => !z.dead);
   if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
@@ -933,6 +1081,18 @@ function updateEntry() {
   if (seen) { hud.entry(null); return; }
   entryAt = entryAt || findEntry();
   hud.entry(entryAt, unitPoints());
+}
+// 0.16.1 (H191, speltestet av 0.14.2: "etiketten lade sig över just den mark jag ville placera på"): ligger mer
+// än en av nio punkter i etikettens ruta på öppen mark där enheter får stå?
+function coversGround(r) {
+  const p = sim.place;
+  let n = 0;
+  for (const fx of [0.1, 0.5, 0.9]) for (const fy of [0.15, 0.5, 0.85]) {
+    const g = groundAt(r.x0 + (r.x1 - r.x0) * fx, r.y0 + (r.y1 - r.y0) * fy);
+    const k = g ? p.keyAt(g.x, g.z) : -1;
+    if (k >= 0 && p.kind[k] === KIND.open) n++;
+  }
+  return n > 1;
 }
 // 0.12.1 (speltestet: "HORDE INCOMING" låg ovanpå en Ksp 90): pjäsernas och soldaternas punkter på
 // skärmen, så att etiketterna undviker dem (och tonas ned om de ändå hamnar över en).
@@ -974,24 +1134,6 @@ const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
 // nästa vågs grupper. Map ingång -> [[typ, antal], ...] i gruppernas ordning.
 const PLURAL = { walker: 'walkers', runner: 'runners', brute: 'brutes' };
 const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`;
-function comingBySpawn() {
-  const first = sim.route.spawns[0]?.id, out = new Map();
-  const add = (id, type, n) => {
-    if (!out.has(id)) out.set(id, new Map());
-    const m = out.get(id); m.set(type, (m.get(type) ?? 0) + n);
-  };
-  const waves = sim.dayCfg.waves;
-  if (sim.phase === 'build') {
-    for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
-  } else if (sim.phase === 'wave') {
-    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
-    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
-    if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
-  }
-  // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
-  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
-  return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
-}
 // Gnesta: en etikett per ingång som används nu, på gatan (H091): på första punkten längs hordens väg
 // från ingången där etiketten ryms i bild utan att täcka gränssnittet (hud.js väljer bland
 // kandidaterna). Ingången själv om den syns, annars där vägen kommer in i bild. Syns vägen inte alls:
@@ -1001,7 +1143,7 @@ function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
   const { ids, next } = activeSpawns();
-  const coming = comingBySpawn();
+  const coming = comingBySpawn(sim);
   const cx = innerWidth / 2, cy = innerHeight / 2;
   for (const id of ids) {
     const isNext = id === next;
@@ -1014,6 +1156,8 @@ function gridEntries() {
     }
     const counts = coming.get(id) ?? [];
     const lines = counts.length ? counts.map(countText) : ['Horde incoming'];
+    // 0.16.2: under vågen är talen det som ännu inte kommit härifrån, och det står (vågens rad säger hela vågen)
+    if (wave && counts.length) lines[lines.length - 1] += ' to come';
     const cells = sim.route.paths([id])[0]?.cells ?? [];
     const cands = [];
     for (let i = 0; i < cells.length && cands.length < 48; i += 2) {
@@ -1042,7 +1186,7 @@ let nowPaths = null;
 let showRoute = true;
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
-  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); return null; }
+  if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); routeLines.set('danger', null); return null; }
   // 0.10.2: från varje ingång som används nu (activeSpawns), som pilarna
   const ids = activeSpawns().ids;
   const obsKey = Object.keys(sim.obstacles).join(',');
@@ -1052,9 +1196,11 @@ function updateRoutes() {
     const houses = [...new Set(ev.groups.map(g => g.house))], eKey = obsKey + '|' + houses.join(',');
     if (routeKeys.evac !== eKey) { routeKeys.evac = eKey; routeKeys.evacPaths = houses.map(h => { const d = houseDoor(sim.map, h, sim.route); return [[d.x, d.z], ...sim.route.pathFrom(d.cell).map(cellWorld)]; }); }
     routeLines.set('evac', routeKeys.evacPaths, eKey);
-  } else routeLines.set('evac', null);
+    // 0.16.1 (speltestet av 0.16.0): där de civila går in på hordens väg, röda fläckar på den gula linjen
+    routeLines.set('danger', evacHelp().zones.map(z => z.pts), 'd' + day);
+  } else { routeLines.set('evac', null); routeLines.set('danger', null); }
   const nowKey = obsKey + '|' + ids.join(',');
-  if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); }
+  if (routeKeys.now !== nowKey) { routeKeys.now = nowKey; nowPaths = sim.route.paths(ids); if (nowPaths.some(p => p.through != null)) tip('tip.shut'); }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
   // 0.12.0 (H114): när en barrikad går sönder blinkar den nya vägen några sekunder
@@ -1089,6 +1235,26 @@ function updateRoutes() {
 addEventListener('keydown', e => {
   // 0.12.2: det man skriver i debugmenyns fält styr inte spelet; Esc stänger menyn
   if (e.target?.closest?.('#debug')) { if (e.key === 'Escape') { e.preventDefault(); debugUi.close(); } return; }
+  // 0.16.0: fiendens presentationsruta (Continue), Field manual (J, Esc) och lektionsplåten (Esc hoppar över,
+  // Enter och Space släpper ett steg som bara visar något) går före allt annat
+  if (card) {
+    if ((e.key === 'Enter' || e.code === 'Space' || e.key === 'Escape') && !e.repeat) { e.preventDefault(); closeCard(); }
+    return;
+  }
+  if (manual) {
+    if ((e.key === 'Escape' || e.code === 'KeyJ') && !e.repeat) { e.preventDefault(); closeManual(); }
+    return;
+  }
+  if (e.code === 'KeyJ' && !e.repeat && !e.metaKey && !e.ctrlKey && !menu.isOpen() && meta('manual')) { e.preventDefault(); openManual(); return; }
+  if (lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption')) {
+    if (e.key === 'Escape' && !e.repeat) { e.preventDefault(); skipLesson(); return; }
+    if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); releaseLesson(); return; }
+    // ett 'show' under hård paus: inga andra tangenter; ett 'step': handlingen går, men Enter och Space startar
+    // inget annat än vad steget gäller (Start the wave)
+    // 0.16.2: en siffra (ta upp ett kort) släpper ett 'show' och tar upp kortet, som ett klick på plåten gör
+    if (lesson.pause && lesson.step.kind === 'show') { if (!/^(Digit|Numpad)[0-9]$/.test(e.code) || e.repeat) return; releaseLesson(); }
+    else if (lesson.pause && (e.key === 'Enter' || (e.code === 'Space' && lesson.step.target?.ui !== '#go'))) { e.preventDefault(); return; }
+  }
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
     e.preventDefault();
@@ -1121,6 +1287,8 @@ addEventListener('keydown', e => {
   // 0.12.0 (H108): Q och E vrider prickskyttens sektor i handen
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat && mode === 'play' && turnAim(e.code === 'KeyQ' ? -1 : 1)) e.preventDefault();
   if (e.code === 'KeyF' && !e.repeat && !e.metaKey && !e.ctrlKey) toggleSpeed();
+  // 0.16.1 (H190): B eller Home flyttar kameran till basen
+  if ((e.code === 'KeyB' || e.code === 'Home') && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play') { e.preventDefault(); goToBase(); }
   // 0.12.0 (H118): U uppgraderar den valda pjäsen (pengar mitt i vågen ska gå att använda snabbt).
   // 0.12.1 (speltestet: överskottet gick bara att lägga en pjäs i taget med klick och U): U tar pjäsen
   // under pekaren utan att panelen öppnas, annars den valda. Svaret står vid pekaren.
@@ -1135,18 +1303,19 @@ addEventListener('keydown', e => {
   // 0.13.0 (H136, H132): Tab minikartan (var M), M flyttar, R vrider, V visar hordens väg (var R).
   if (e.code === 'Tab' && mode === 'play' && !e.metaKey && !e.ctrlKey && !e.altKey) {
     e.preventDefault();
-    if (!e.repeat) { minimap.toggle(); try { localStorage.setItem(MM_KEY, minimap.visible ? 'on' : 'off'); } catch { /* ingen lagring */ } }
+    // 0.16.0: minikartan är upplåst från South dag 1
+    if (!e.repeat && feat('minimap')) { mmOn = !mmOn; minimap.toggle(mmOn); try { localStorage.setItem(MM_KEY, mmOn ? 'on' : 'off'); } catch { /* ingen lagring */ } }
   }
   const unitId = () => (hovered?.kind === 'gun' ? hovered.id : selected?.kind === 'gun' ? selected.id : null);
-  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow()) {
+  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow() && feat('move')) {
     const id = unitId();
     if (id != null) guideMove(id);
   }
-  if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing) {
+  if (e.code === 'KeyR' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && feat('rotate')) {
     const id = unitId();
     if (id != null) startRotate(id);
   }
-  if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid') {
+  if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && sim.route.kind === 'grid' && feat('route')) {
     showRoute = !showRoute;
     note(uiRoot, showRoute ? 'Horde route shown (V)' : 'Horde route hidden (V)');
     hud.routeKey(true, showRoute);
@@ -1155,12 +1324,326 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); if (e.key === 'Shift') { hud.shift(false); shiftHeld = false; } }, true);
 addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
 
+
+// ---------- inlärningen (0.16.0, docs/superpowers/specs/2026-10-16-onboarding-design.md) ----------
+// Ett begrepp per dag. Upplåsningen kommer från kampanjen (sim.allow i striden, metaFeatures mellan dagarna);
+// lektionerna, tipsen, fiendernas presentationsruta och HUD:ens första animation styrs härifrån och sparas i
+// progress.lessons (src/meta/lessons.js).
+const feat = f => !!sim && allowed(sim, f);
+const meta = f => metaFeatures(progress).has(f);
+const coach = createCoach(uiRoot, { onRelease: () => releaseLesson(), onClick: (e, step) => { if (step?.kind === 'show') releaseLesson(); forwardClick(e.clientX, e.clientY); }, onFewer: () => { progress = setTipsMode(progress, 'new'); save(); } });
+let lesson = null;             // { step, pause, missing }
+let lastEsc = -Infinity;
+let card = null;               // fiendens presentationsruta { type, el, close }
+let manual = null;             // Field manual
+const enemyWait = new Map();   // typ -> när den första sågs i vågen
+let wavePauses = { wave: -1, n: 0, at: -Infinity };
+const tipAt = new Map();
+let civDownAt = null;
+const HARD_GAP = 20, HARD_PER_WAVE = 2;
+const lessonPaused = () => !!lesson?.pause || !!card || !!manual;
+
+const countGuns = type => sim.guns.filter(g => g.weapon.type === type).length;
+function lessonTest(expr) {
+  if (!expr) return true;
+  return expr.split('|').some(alt => alt.split('&').every(c => lessonCond(c.trim())));
+}
+function lessonCond(c) {
+  const [k, a, b] = c.split(':');
+  const play = mode === 'play' && !!sim;
+  switch (k) {
+    case 'start': return play && sim.phase === 'build' && sim.wavesStarted === 0;
+    case 'afterWave1': return play && sim.waveIndex >= 1 && (sim.phase === 'build' || sim.phase === 'wave');
+    case 'waveStarted': return play && sim.wavesStarted > 0 && (sim.phase === 'wave' || sim.phase === 'build');
+    case 'arrived': return play && !!sim.reserve?.some(u => u.arrive && u.type === a && canDeploy(sim, u));
+    case 'placing': return play && placing?.type === a && !placing.move;
+    case 'placed': return play && countGuns(a) >= (Number(b) || 1);
+    case 'obstacle': return play && Object.values(sim.obstacles).some(o => o.type === a);
+    case 'moving': return play && !!placing?.move;
+    case 'ping': return play && alerts.length > 0;
+    case 'deployed': return play && sim.guns.length > 0 && (sim.reserve?.length ?? 0) > 0;
+    case 'chords': return play && chord.chords && canPlaceNow();
+    case 'opmap': case 'depot': case 'result': return mode === k;
+    default: return false;
+  }
+}
+// Lektionerna där spelaren är: dagens steg i striden; mellan dagarna stegen för den tid mellan dagarna som nåtts.
+function lessonList() {
+  if (mode === 'play') { const i = dayStage(map.id, day); return [...(i >= 0 ? LESSONS[STAGES[i].id] ?? [] : []), ...LESSONS.any]; }
+  if (mode === 'opmap' || mode === 'depot' || mode === 'result') return STAGES.filter(s => s.after && stageReached(progress, s)).flatMap(s => LESSONS[s.id] ?? []);
+  return [];
+}
+function uiRect(sel) {
+  const n = uiRoot.querySelector(sel);
+  if (!n || n.hidden || n.closest('[hidden]') || n.classList.contains('off') && n.id === 'minimap') return null;
+  const r = n.getBoundingClientRect();
+  return r.width && r.height ? { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null;
+}
+// 0.16.1: det lektionsplåten inte ska täcka (etiketterna, gränssnittet, kortets utfällda ruta, ledningens rad)
+const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
+  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note'];
+function coachAvoid() {
+  const out = [];
+  for (const sel of COACH_AVOID) for (const n of uiRoot.querySelectorAll(sel)) {
+    const r = n.getBoundingClientRect();
+    if (r.width && r.height) out.push({ x0: r.left - 6, y0: r.top - 6, x1: r.right + 6, y1: r.bottom + 6 });
+  }
+  return out;
+}
+// Ett världsmåls punkter ([x, z]) för lektionsplåten och Show me.
+function lessonWorldPts(t) {
+  const w = t.world, pts = [];
+  if (!w || w === 'pointer' || !sim) return pts;
+  if (w === 'marked') { for (const k of sim.marked ?? []) if (!sim.guns.some(g => g.cell === k)) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
+  else if (w === 'route') { for (const p of nowPaths ?? []) for (let i = Math.floor(p.cells.length * 0.55); i < p.cells.length; i += 2) pts.push(cellWorld(p.cells[i])); }
+  else if (w === 'danger') { for (const z of evacHelp().zones) for (const q of z.pts) pts.push(q); }
+  else if (w === 'suggest') { for (const k of suggestKeys()) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
+  else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
+  else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
+  else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
+  else if (w.startsWith('gun')) { const type = w.split(':')[1]; const g = sim.guns.find(x => (type ? x.weapon.type === type : !x.preset)) ?? sim.guns[0]; if (g) pts.push([g.x, g.z]); }
+  return pts;
+}
+// Målet på skärmen: { rect } för något som syns, { off: { x, y, angle } } vid kanten för något utanför bild.
+function lessonTarget(t) {
+  if (!t) return null;
+  if (t.ui) { const r = uiRect(t.ui); return r ? { rect: r } : null; }
+  if (mode !== 'play') return null;
+  const w = t.world;
+  if (w === 'pointer') return { rect: { x0: pointer.x - 16, y0: pointer.y - 16, x1: pointer.x + 16, y1: pointer.y + 16 }, light: true };
+  const pts = lessonWorldPts(t);
+  if (!pts.length) return null;
+  const sp = pts.map(([x, z]) => toScreen(x, z));
+  const inside = sp.filter(q => q.sx >= 20 && q.sx <= innerWidth - 20 && q.sy >= 20 && q.sy <= innerHeight - 20);
+  if (!inside.length) {
+    const cx = sp.reduce((a, q) => a + q.sx, 0) / sp.length, cy = sp.reduce((a, q) => a + q.sy, 0) / sp.length;
+    const mx = innerWidth / 2, my = innerHeight / 2, dx = cx - mx, dy = cy - my, k = Math.min((mx - 50) / Math.abs(dx || 1e-6), (my - 50) / Math.abs(dy || 1e-6));
+    return { off: { x: mx + dx * k, y: my + dy * k, angle: Math.atan2(dy, dx) } };
+  }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const q of inside) { x0 = Math.min(x0, q.sx); x1 = Math.max(x1, q.sx); y0 = Math.min(y0, q.sy); y1 = Math.max(y1, q.sy); }
+  const pad = 22, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = Math.max(30, (x1 - x0) / 2 + pad), hh = Math.max(30, (y1 - y0) / 2 + pad);
+  return { rect: { x0: Math.max(8, cx - hw), y0: Math.max(8, cy - hh), x1: Math.min(innerWidth - 8, cx + hw), y1: Math.min(innerHeight - 8, cy + hh) } };
+}
+const inWave = () => mode === 'play' && (sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null));
+// Högst två hårda pauser per våg och minst 20 s mellan dem (designen avsnitt 2.3); bygget före första vågen räknas inte.
+function hardPauseOk() {
+  if (!inWave()) return true;
+  if (wavePauses.wave !== sim.wavesStarted) wavePauses = { wave: sim.wavesStarted, n: 0, at: -Infinity };
+  return wavePauses.n < HARD_PER_WAVE && time - wavePauses.at >= HARD_GAP;
+}
+function countHardPause() { if (!inWave()) return; if (wavePauses.wave !== sim.wavesStarted) wavePauses = { wave: sim.wavesStarted, n: 0, at: -Infinity }; wavePauses.n++; wavePauses.at = time; }
+function fillText(t) {
+  return t.replace('{need}', sim?.evac?.need ?? '').replace('{total}', sim?.evac?.total ?? '').replace('{frontage}', Number.isFinite(frontage(sim)) ? frontage(sim) : '');
+}
+function startLesson(step) {
+  const pause = step.kind === 'step' || step.kind === 'show';
+  if (pause && !hardPauseOk()) return false;
+  if (pause) countHardPause();
+  lesson = { step, pause: pause && mode === 'play', missing: 0 };
+  const first = mode === 'play' && !lessonsOf(progress).seen.some(id => LESSONS[STAGES[0].id].some(l => l.id === id)) && tipsMode(progress) === 'on' && step.kind !== 'caption';
+  coach.show({ ...step, text: fillText(step.text), pause: lesson.pause, dim: pause, fewer: first });
+  if (lesson.pause && speed > 1) { speed = 1; hud.setSpeed(1); }
+  if (step.kind !== 'caption') audio.ui('click');
+  return true;
+}
+function finishLesson() {
+  if (!lesson) return;
+  progress = markSeen(progress, lesson.step.id); save();
+  coach.hide(); lesson = null;
+}
+function releaseLesson() { if (lesson?.step.kind === 'show') finishLesson(); }
+// Esc under ett steg hoppar över det; ett andra Esc inom 1 s hoppar över resten av dagens lektion (avsnitt 5.4).
+function skipLesson() {
+  const now = performance.now();
+  if (now - lastEsc < 1000) { progress = markSeen(progress, ...lessonList().map(l => l.id)); save(); }
+  lastEsc = now;
+  finishLesson();
+}
+// 0.16.2 (speltestet av 0.16.1): bildtexternas 4 s räknas i verklig tid (förut i bildrutornas tid, högst 0,1 s per
+// bild: i 1,5 bilder/s stod "Press, then drag toward the road to aim." i en halv minut och följde varje ny enhet).
+// En bildtext som gäller det man håller i (when: placing:X) går när man inte längre håller det.
+let lessonWall = performance.now();
+function updateLessons() {
+  const now = performance.now(), dt = Math.min(1, (now - lessonWall) / 1000);
+  lessonWall = now;
+  if (card || manual || menu.isOpen()) return;
+  if (lesson) {
+    const st = lesson.step;
+    if (st.kind === 'step' && lessonTest(st.done)) { finishLesson(); return; }
+    if (st.kind === 'caption' && (coach.tick(dt) || (st.when?.startsWith('placing:') && !lessonTest(st.when)))) { finishLesson(); return; }
+    const tg = lessonTarget(st.target);
+    if (!tg && st.target && !st.target.world) {
+      if ((lesson.missing += dt) > 1) { console.info('Lektionen hoppades över, målet finns inte:', st.id); finishLesson(); }
+      return;
+    }
+    lesson.missing = 0;
+    coach.el.classList.toggle('dimmed', lesson.pause && !placing && !tg?.light && !!tg?.rect);
+    coach.place(tg?.rect ?? null, { off: tg?.off ?? null, avoid: coachAvoid() });
+    // 0.16.2 (speltestet av 0.16.1: plåten och kortets utfällda ruta skrevs över varandra): finns ingen fri plats
+    // viker plåten för den utfällda rutan så länge pekaren står på kortet
+    const more = uiRoot.querySelector('#buildbar .card:hover .more');
+    const mr = more?.getBoundingClientRect(), pr = coach.plateRect();
+    coach.el.classList.toggle('yield', !!mr?.width && mr.left < pr.right && pr.left < mr.right && mr.top < pr.bottom && pr.top < mr.bottom);
+    return;
+  }
+  // en ny ingång har företräde: inga nya plåtar eller bildtexter medan raden står
+  if (performance.now() < newsUntil) return;
+  for (const l of lessonList()) {
+    if (isSeen(progress, l.id)) continue;
+    if (l.done && lessonTest(l.done)) { progress = markSeen(progress, l.id); save(); continue; }
+    if (!lessonTest(l.when)) { if (l.kind === 'caption') continue; break; }
+    if (!shows(progress, l.kind)) { progress = markSeen(progress, l.id); save(); continue; }
+    startLesson(l);
+    break;
+  }
+}
+// Fiendernas presentationsruta: hård paus första gången en typ syns (eller 8 s efter att den kom in).
+function updateEnemies() {
+  if (mode !== 'play' || card || manual || sim.phase !== 'wave') return;
+  for (const z of sim.zombies) {
+    if (z.dead || !ENEMIES[z.type]) continue;
+    const id = 'enemy:' + z.type;
+    if (isSeen(progress, id)) continue;
+    if (!shows(progress, 'enemy')) { progress = markSeen(progress, id); save(); continue; }
+    if (!enemyWait.has(z.type)) enemyWait.set(z.type, time);
+    const p = zombiePos(sim, z);
+    if (onScreen(p.x, p.z, 60).in || time - enemyWait.get(z.type) > 8) { openCard(z.type); return; }
+  }
+}
+function openCard(type) {
+  if (lesson) { if (lesson.step.kind === 'caption') finishLesson(); else { coach.hide(); lesson = null; } }
+  // 0.16.2: det som var i handen ligger kvar i handen när rutan stängs (förut tappades det tyst)
+  const held = placing && !placing.move ? { type: placing.type, kind: placing.kind } : null;
+  stopPlacing(); closePanel();
+  const e = ENEMIES[type];
+  countHardPause();
+  card = { type, held, ...enemyCard(uiRoot, { title: e.title, report: e.report, portrait: portraitOf(type), onContinue: () => closeCard() }) };
+  if (speed > 1) { speed = 1; hud.setSpeed(1); }
+  audio.ui('click');
+}
+function closeCard() {
+  if (!card) return;
+  progress = markSeen(progress, 'enemy:' + card.type); save();
+  const held = card.held;
+  card.close(); card = null;
+  if (held && canPlaceNow() && buyState(sim, held.type).state === 'ok') placing = { ...held };
+}
+// Tips i stunden (avsnitt 5.3): för det som är upplåst, en gång per kampanj (de med repeat högst var femte minut).
+function tip(id, at = null) {
+  const t = TIPS.find(x => x.id === id);
+  if (!t) return;
+  if (t.needs && !(mode === 'play' ? feat(t.needs) : meta(t.needs))) return;
+  const seen = isSeen(progress, id);
+  if (seen && !(t.repeat && tipsMode(progress) === 'on' && time - (tipAt.get(id) ?? -Infinity) >= REPEAT_GAP)) return;
+  if (!seen) { progress = markSeen(progress, id); save(); }
+  if (!shows(progress, t.kind === 'show' ? 'show' : 'tip') && !(t.kind === 'show' && shows(progress, 'show'))) return;
+  tipAt.set(id, time);
+  if (at) civDownAt = at;
+  if (t.kind === 'show' && mode === 'play' && !lesson && !card && startLesson({ ...t, kind: 'show' })) return;
+  note(uiRoot, t.text);
+}
+// HUD:ens delar dyker upp med en diskret animation första gången (designen avsnitt 4).
+function updateReveals() {
+  for (const r of REVEALS) {
+    if (isSeen(progress, r.id)) continue;
+    const ok = r.feature === 'manual' ? meta('manual') : mode === 'play' && feat(r.feature);
+    if (!ok) continue;
+    const n = uiRoot.querySelector(r.sel);
+    if (!n || n.hidden || n.closest('[hidden]') || !n.offsetWidth || n.classList.contains('off')) continue;
+    hud.reveal(n);
+    progress = markSeen(progress, r.id); save();
+  }
+}
+// Field manual: knappen nere till vänster (en liten bok) och J. Öppen manual pausar spelet.
+const manualBtn = document.createElement('button');
+manualBtn.type = 'button'; manualBtn.id = 'manualbtn'; manualBtn.className = 'plate'; manualBtn.hidden = true;
+manualBtn.title = 'Field manual (J)'; manualBtn.setAttribute('aria-label', 'Field manual');
+manualBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0Z M12 5.5V19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><i class="dot"></i><kbd>J</kbd>';
+manualBtn.addEventListener('pointerdown', e => e.preventDefault());
+manualBtn.addEventListener('click', () => (manual ? closeManual() : openManual()));
+uiRoot.appendChild(manualBtn);
+let manualDotT = 0;
+function updateManualBtn(dt) {
+  const show = meta('manual') && mode !== 'menu';
+  if (manualBtn.hidden === show) manualBtn.hidden = !show;
+  uiRoot.dataset.manual = show ? 'on' : 'off';
+  if ((manualDotT -= dt) <= 0) { manualDotT = 0.5; manualBtn.classList.toggle('fresh', show && manualNew(progress).length > 0); }
+}
+// 0.16.1 (H216, "Show me spelar bara om steg vars mål finns på skärmen"): målets punkter i världen, och kameran dit
+// när det ligger utanför bild (banor som går att panorera).
+function panToTarget(t) {
+  if (!t?.world || !rig?.canPan) return;
+  const tg = lessonTarget(t);
+  if (!tg?.off) return;
+  const pts = lessonWorldPts(t);
+  if (!pts.length) return;
+  const f = rig.fit(pts, 10);
+  rig.focus(f.x, f.z, Math.max(rig.view, f.view));
+}
+function showMeStep(id) {
+  if (mode !== 'play') return null;
+  for (const ls of Object.values(LESSONS)) for (const l of ls) if (l.manual === id && l.target && lessonTarget(l.target)) return l;
+  return null;
+}
+function openManual(focus = null) {
+  if (manual || !meta('manual')) return;
+  if (menu.isOpen()) menu.close();
+  stopPlacing();
+  // 0.16.1 (speltestet av 0.16.0: "Field manual: Evacuation" på förlustskylten öppnade "Start the wave"): uppslaget
+  // som länken gäller öppnas, också om lektionen inte hunnit låsa upp det
+  const entries = manualUnlocked(progress);
+  manual = manualSheet(uiRoot, {
+    entries: focus && !entries.includes(focus) ? [...entries, focus] : entries, fresh: manualNew(progress), portrait: portraitOf, focus,
+    onOpen: id => { progress = markManualRead(progress, id); save(); },
+    // 0.16.1 (H216): ett mål utanför bild flyttar kameran dit först
+    onShowMe: id => { const st = showMeStep(id); closeManual(); if (st && !lesson) { panToTarget(st.target); lesson = { step: { ...st, kind: 'show' }, pause: true, missing: 0 }; coach.show({ ...st, kind: 'show', text: fillText(st.text), pause: true, dim: true }); } },
+    onClose: () => closeManual(),
+    canShow: id => !!showMeStep(id),
+  });
+}
+function closeManual() { manual?.close(); manual = null; }
+// 0.16.1 (speltestet av 0.16.0: "civila dog innan mina frivilliga sköt, jag vet inte var de ska stå"): evakueringens
+// farozoner och de föreslagna platserna för de frivilliga (src/sim/evac-danger.js), räknade en gång per dag.
+let evacCache = { sim: null, zones: [], spots: [] };
+function evacHelp() {
+  if (evacCache.sim !== sim) {
+    const zones = sim.dayCfg.evac ? dangerZones(sim) : [];
+    evacCache = { sim, zones, spots: zones.length ? coverSpots(sim) : [] };
+  }
+  return evacCache;
+}
+// E4 dag 1: de markerade platserna pulserar medan det finns något att ställa ut (src/sim/sim.js marked).
+// 0.16.1: på en evakueringsdag pulserar de föreslagna platserna (gula hörn) medan de frivilliga står i reserven
+// eller hålls i handen, före första vågen; de är förslag, inte de enda platserna.
+const spotEls = new Map();
+function suggestKeys() {
+  if (mode !== 'play' || !sim.dayCfg.evac || sim.wavesStarted > 0) return [];
+  const civ = placing?.type === 'civ' || sim.reserve?.some(u => u.type === 'civ' && canDeploy(sim, u));
+  if (!civ) return [];
+  return evacHelp().spots.map(s => s.key).filter(k => !sim.guns.some(g => Math.hypot(g.x - sim.place.center(k).x, g.z - sim.place.center(k).z) < 4));
+}
+function updateSpotMarks() {
+  const marked = mode === 'play' && sim.marked && (placing || sim.reserve?.some(u => canDeploy(sim, u)));
+  const keys = marked ? [...sim.marked].filter(k => !sim.guns.some(g => g.cell === k)) : suggestKeys();
+  // 0.16.2 (speltestet av 0.16.1: "tre små gula hörnmarkeringar, tunna, smälter in mot husen"): en fylld mjuk
+  // fläck under hörnen och en etikett, så att platserna syns utan att zooma
+  const label = marked ? 'Here' : 'Volunteers here';
+  const want = new Set(keys);
+  for (const [k, el] of spotEls) if (!want.has(k)) { el.remove(); spotEls.delete(k); }
+  for (const k of keys) {
+    let el = spotEls.get(k);
+    if (!el) { el = document.createElement('div'); el.className = 'spotmark'; el.innerHTML = '<b></b><i></i><i></i><i></i><i></i><span></span>'; pips.appendChild(el); spotEls.set(k, el); }
+    const sp = el.querySelector('span'); if (sp.textContent !== label) sp.textContent = label;
+    const c = sim.place.center(k), p = toScreen(c.x, c.z);
+    el.style.left = p.sx + 'px'; el.style.top = p.sy + 'px';
+  }
+}
+
 // ---------- dagcykeln ----------
 let mode = 'menu';
 let sheet = null;            // skylten som visas (meny, intro, resultat, forskning)
 let lastResult = null;       // det som resultatskylten visar, för att komma tillbaka från forskning
-let hinting = false;         // stegen för första dagen visas
-let hintDone = 0;
 let warnedSave = false;
 
 function save() {
@@ -1170,6 +1653,9 @@ function save() {
 }
 function setMode(m, makeSheet) {
   if (sheet) sheet.close();
+  // 0.16.0: en lektionsplåt hör till skylten eller dagen den visades på (den kommer tillbaka om den inte setts)
+  if (lesson) { coach.hide(); lesson = null; }
+  closeManual();
   closePanel();
   stopPlacing();
   // Notiser från dagen (t.ex. "Basen tar skada!") ska inte ligga kvar över skyltarna. 0.14.0: utanför striden
@@ -1189,10 +1675,14 @@ function sheetAction(a) {
 
 function showMenu() {
   const started = Object.values(progress.maps).some(m => Object.keys(m.attempts).length || m.unlockedDay > 1);
+  // 0.16.3: statusraden under Continue säger var operationen står
+  const id = progress.mapId, d = MAPS[id] ? nextDay(progress, id) : null;
+  const status = MAPS[id] ? { place: MAPS[id].name, day: d } : null;
   setMode('menu', () => mainMenu(uiRoot, {
-    version: VERSION, started, rp: progress.rp,
-    onContinue: () => showOpMap(),
-    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); loadMap(progress.mapId).then(() => showOpMap()); },
+    version: VERSION, started, rp: progress.rp, status,
+    // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
+    onContinue: () => (meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
+    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
   }));
 }
 // ---------- operationskartan och förrådet (0.14.0) ----------
@@ -1207,23 +1697,30 @@ function showOpMap() {
 }
 // 0.14.1 (speltestet av 0.14.0: förrådet var ett sidospår man gick förbi, och två "To deployment" i rad):
 // kartan -> Requisition (förrådet för sektorn, steget i flödet) -> Deploy -> dagens intro -> linjen.
-function goSector(id) {
+function goSector(sectorId) {
+  // 0.16.0: kartan väljer en sektor; Hagstumosse strider på den fas som är öppen (Ishallen, sedan Vikingavägen)
+  const id = currentMap(progress, sectorId) ?? sectorId;
   const d = nextDay(progress, id);
   if (!d) return;
+  // 0.16.0: förrådet finns från South dag 3 (efter dag 2); före det går kartan direkt till dagen
+  if (!meta('depot')) { deploySector(id); return; }
   showDepot(id, 'opmap', { day: d });
 }
 function deploySector(id) {
-  const d = nextDay(progress, id);
+  const d = meta('opmap') ? nextDay(progress, id) : Math.min(mapState(progress, id).unlockedDay, MAPS[id].days.length);
   if (!d) { showOpMap(); return; }
   progress = selectMap(progress, id); save();
   loadMap(id).then(() => { hud.reset(); startDay(d); });
 }
 const DEPOT_ACTS = {
-  requisition: (p, type, sector) => { const r = requisition(p, type, sector); return { ...r, text: r.ok ? `${unitName({ type })} requisitioned for ${MAPS[sector].name}.` : null }; },
+  requisition: (p, type, sector) => { const r = requisition(p, type, sector); return { ...r, text: r.ok ? `${unitName({ type })} requisitioned for ${sectorOf(sector)?.name ?? sector}.` : null }; },
   level: (p, uid) => { const r = levelUp(p, uid); return { ...r, text: r.ok ? 'Level bought.' : null }; },
   refill: (p, uid) => { const r = refill(p, uid); return { ...r, text: r.ok ? 'Back at full strength.' : null }; },
   return: (p, uid) => { const r = returnUnit(p, uid); return { ...r, text: r.ok ? `Returned to the depot: +${r.refund} RP.` : null }; },
-  reassign: (p, uid, sector) => { const r = reassign(p, uid, sector); return { ...r, text: r.ok ? `Reassigned to ${MAPS[sector].name}.` : null }; },
+  reassign: (p, uid, sector) => { const r = reassign(p, uid, sector); return { ...r, text: r.ok ? `Reassigned to ${sectorOf(sector)?.name ?? sector}.` : null }; },
+  // 0.16.0: skicka och ta tillbaka (gratis tills Deploy, src/meta/operation.js sendUnit, bringBack)
+  send: (p, uid, sector, log) => sendUnit(p, log, uid, sector),
+  back: (p, uid, log) => bringBack(p, log, uid),
   upgrade: (p, id) => { const r = buyUpgrade(p, id); return { ...r, text: r.ok ? 'Upgrade bought.' : null }; },
 };
 function showDepot(sector, from = 'opmap', deploy = null) {
@@ -1238,50 +1735,57 @@ function showDepot(sector, from = 'opmap', deploy = null) {
     onDeploy: () => deploySector(sector),
   }, { deploy }));
 }
-// Leveransen som hör till dagen (meddelandet i introt), eller ingenting.
-function releaseLine(mapId, n) {
-  const r = RELEASES.find(x => x.map === mapId && x.day === n);
-  return r ? `<p class="lead arrived">${FROM_NAME[r.from]}: ${r.text}</p>` : '';
-}
 function startDay(n) {
   const cfg = opStartConfig(progress, n);
   if (!cfg) { showOpMap(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
+  failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
+  enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
   view.setSim(sim);
   minimap.reset(sim);
   hud.reset();
   hud.setSpeed(speed);
-  entryAt = null; shakeT = 0; rig.setShake(0, 0); rig.goHome();
+  entryAt = null; shakeT = 0; lastBreach = -Infinity; rig.setShake(0, 0); rig.goHome();
   const frame = dayFrame();
   if (frame) rig.focus(frame.x, frame.z, frame.view);
-  hinting = n === 1 && !hintSeen(progress, map.id) && !!map.days[0].hints; hintDone = 0;
-  const op = { units: cfg.core.length, pressure: Math.round(pressureOf(progress, map.id) * PRESSURE_HP * 100) };
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, { arrived: releaseLine(map.id, n), op }));
+  // 0.16.0: uppdragsrutan (#hint) är ersatt av lektionsplåten (src/ui/coach.js)
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
+// 0.16.1 (H190, speltestet av 0.14.2: "Gnesta dag 2 startar med ishallen utanför bild; basen faller osedd"):
+// hela basen (ishallens fyra hörn, på E4 vägspärren med marginal) är alltid med, med plats för HUD:en upptill
+// och köpraden nedtill. Vägen tas med så långt den ryms: 120 m, annars 90, 60, 30 eller ingen.
+function baseShape() {
+  const b = sim.route.base, hr = sim.map.iceRink, pts = [[b.x, b.z]];
+  if (hr?.at) for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pts.push(hr.at(sx * hr.len / 2, sz * hr.wid / 2));
+  else for (const [dx, dz] of [[-8, -8], [8, -8], [8, 8], [-8, 8]]) pts.push([b.x + dx, b.z + dz]);
+  return pts;
+}
+const FRAME_PAD = 10;
 function dayFrame() {
   if (sim.route.kind !== 'grid') return null;
+  const base = baseShape();
   // 0.14.1 (speltestet av 0.14.0: "familjerna dog utanför bild"): en evakueringsdag börjar med hela de
   // civilas väg i bild, från husen till ishallen.
-  // 0.14.2 (speltestet av 0.14.1: "ishallen syns inte vid start, jag fick dra kartan"): basen är entrén, så
-  // hallen själv (36 x 23 m) låg delvis utanför; nu är hallens hörn med i bilden.
   if (sim.dayCfg.evac) {
-    const b = sim.route.base, pts = [[b.x, b.z]];
+    const pts = [...base];
     for (const g of sim.dayCfg.evac.groups) { const d = houseDoor(sim.map, g.house, sim.route); pts.push([d.x, d.z]); }
-    const hr = sim.map.iceRink;
-    if (hr?.at) for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pts.push(hr.at(sx * hr.len / 2, sz * hr.wid / 2));
-    return rig.fit(pts, 6);
+    return rig.fit(pts, FRAME_PAD);
   }
+  // längst ut som banan själv tillåter med hjulet (map.camera.zoom), inte hela den skarpa ytan: pjäserna ska synas
+  const comfort = (sim.map.camera.zoom?.[1] ?? Infinity) * 1.15;
   const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
   const cells = sim.route.paths([first])[0]?.cells ?? [];
-  if (!cells.length) return null;
-  const k = Math.max(0, cells.length - 1 - Math.round(120 / sim.route.grid.size));
-  const p = sim.route.cellCenter(cells[k]), b = sim.route.base;
-  return rig.fit([[b.x, b.z], [p.x, p.z]]);
+  for (const m of [120, 90, 60, 30]) {
+    if (!cells.length) break;
+    const k = Math.max(0, cells.length - 1 - Math.round(m / sim.route.grid.size));
+    const p = sim.route.cellCenter(cells[k]), f = rig.fit([...base, [p.x, p.z]], FRAME_PAD);
+    if (f.fits && f.view <= comfort) return f;
+  }
+  return rig.fit(base, FRAME_PAD);
 }
 // Gnesta Norr (map.camera.intro): ett kort svep från ingången i norr ner till basen när spelaren
 // går till linjen. Klick, hjul eller tangent hoppar över.
@@ -1291,23 +1795,6 @@ function introPan(frame) {
   const sp = sim.route.spawns.find(q => q.id === first);
   if (!sp) return;
   rig.tour({ x: sp.x, z: sp.z, view: 40 }, frame, map.camera.intro);
-}
-// Första dagens steg: bockas av i tur och ordning (ett senare steg som är gjort bockar av de
-// före). När alla är gjorda försvinner rutan och banan minns att tipsen är visade.
-function hintStepDone(st) {
-  if (st.startsWith('pick:')) return placing?.type === st.slice(5);
-  if (st === 'gun') return sim.guns.length > 0;
-  if (st === 'block') return Object.values(sim.obstacles).some(o => o.type === 'block');
-  if (st === 'wave') return sim.wavesStarted > 0;
-  if (st === 'watch') return sim.waveIndex > 0;
-  return false;
-}
-function updateHint() {
-  const h = hinting && mode === 'play' ? map.days[day - 1]?.hints : null;
-  if (!h) { hud.hint(null); return; }
-  for (let i = h.steps.length - 1; i >= hintDone; i--) if (hintStepDone(h.steps[i])) { hintDone = i + 1; break; }
-  if (hintDone >= h.steps.length) { hinting = false; progress = markHintSeen(progress, map.id); save(); hud.hint(null); return; }
-  hud.hint(hintDone, h.lines, { compact: !!placing, pointer });
 }
 function finishDay() {
   const won = sim.phase === 'won';
@@ -1326,14 +1813,22 @@ function finishDay() {
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lastDay: day >= map.days.length, losses,
   };
   showResult();
+  // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången
+  if (won && (report?.units ?? []).some(u => !u.destroyed && before.op.units.find(x => x.uid === u.uid)?.wins === VET_WINS - 1)) tip('tip.star');
+  if (won && losses.some(l => l.men || l.destroyed) && meta('depot')) tip('tip.fallen');
 }
 function showResult() {
   const outro = map.outro ? { text: map.outro.text, withdraw: !!map.outro.withdraw, name: map.name, from: FROM_NAME[map.outro.from ?? 'FM'] } : null;
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro }, {
+  // 0.16.0: RP syns först när förrådet öppnar; före kartan går knappen direkt till nästa dag; efter en förlust
+  // föreslås dagens uppslag i Field manual (designen avsnitt 5.3)
+  const i = dayStage(map.id, day), entry = !lastResult.won && meta('manual') ? (LESSONS[STAGES[i]?.id] ?? []).map(l => manualEntry(l.manual)).find(Boolean) : null;
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: meta('opmap') ? 'Operations map' : 'Next day',
+    manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
-    onRetry: () => showDepot(map.id, 'result', { day }),
-    onOpMap: () => showOpMap(),
+    onRetry: () => (meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
+    onOpMap: () => (meta('opmap') ? showOpMap() : deploySector(map.id)),
     onMenu: showMenu,
+    onManual: id => openManual(id),
   }));
 }
 
@@ -1414,15 +1909,19 @@ function placePanel() {
 // 0.14.1 (speltestet av 0.14.0: utan ?debug gick klockan inte att driva): med ?test finns bara klockan och
 // läget, inget låses upp och inget ändras i framsteget. ?debug har allt nedan.
 function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } }
-if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; } };
+// 0.16.0: lektionen som visas (steget eller fiendens ruta) och att släppa den, för proven i webbläsaren
+const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.step.id ?? null; }, release: () => (card ? closeCard() : releaseLesson()), get manualOpen() { return !!manual; } };
+if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };
+if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
 if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
-  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; },
+  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
   showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
+if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 
 // Jump to i debugmenyn (och __horde.jump med ?debug): dagen med sektorerna före räknade som klara.
 async function debugJump(mapId, d, wave) {
@@ -1469,6 +1968,8 @@ const debugUi = mountDebug(uiRoot, {
     loadMap(progress.mapId).then(() => showMenu());
     return { ok };
   },
+  resetTips: () => { progress = resetTips(progress); save(); return { ok: true }; },
+  markAllSeen: () => { progress = markAllSeen(progress); save(); if (lesson) { coach.hide(); lesson = null; } return { ok: true }; },
   tweaks: () => dbg.tweaks,
   setTweaks: t => { dbg.tweaks = normalizeTweaks(t); saveDebug(dbg); if (sim) sim.tweaks = dbg.tweaks; },
   spawn: (type, n, spawnId) => (sim && mode === 'play' ? debugSpawn(sim, { type, count: n, spawn: spawnId || undefined }) : { ok: false }),
@@ -1524,6 +2025,9 @@ const menu = mountMenu(uiRoot, {
   },
   // Öppnandet avbryter placering och panel: inget ska hänga kvar när spelet fortsätter.
   onOpen: () => { stopPlacing(); closePanel(); hovered = null; },
+  tipsMode: () => tipsMode(progress), setTipsMode: m => { progress = setTipsMode(progress, m); save(); },
+  manualOk: () => meta('manual'), openManual: () => openManual(),
+  resetTips: () => { progress = resetTips(progress); save(); },
   onClose: () => {},
 });
 loadMap(progress.mapId).then(() => showMenu());
@@ -1537,25 +2041,40 @@ function tick(now) {
 
   // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
   const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
-  const paused = menu.isOpen();
+  const paused = menu.isOpen() || lessonPaused();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
-  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent'].includes(buyState(sim, placing.type).state)))) stopPlacing();
-  updateHint();
+  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
+  updateLessons();
+  updateBaseArrow();
+  if (sim) updateNewSpawn();
+  updateEnemies();
+  updateReveals();
+  updateManualBtn(frameDt);
+  if (mode === 'play') {
+    // 0.16.0: HUD:ens delar i inlärningens takt (designen avsnitt 4)
+    speedShown = feat('speed') && (isSeen(progress, 'hud:speed') || sim.waveIndex >= 1);
+    hud.features({ supplies: feat('supplies'), speed: speedShown, early: feat('early') });
+    const mmWant = mmOn && feat('minimap');
+    if (minimap.visible !== mmWant) minimap.toggle(mmWant);
+  }
+  updateSpotMarks();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
   updateGhostTip();
 
   if (panel) panel.update(sim);
   hud.update(sim);
-  hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
+  hud.routeKey(mode === 'play' && sim.route.kind === 'grid' && feat('route') && (sim.phase === 'build' || sim.phase === 'wave'), showRoute);
   updateEntry();
   updateBarricades(paused ? 0 : frameDt);
   updatePips();
+  updateSquadTags();
   updateArcFlags();
   updateSpare();
   if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
-  rig.active = mode === 'play' && !paused;
+  // 0.16.0: under en lektionspaus går kameran att flytta (målet kan ligga utanför bild), inte under menyn
+  rig.active = mode === 'play' && !menu.isOpen() && !card && !manual;
   const vdt = paused ? 0 : frameDt;   // pausad: zombier, effekter och skak står stilla
   rig.update(vdt);
   shakeCamera(vdt);

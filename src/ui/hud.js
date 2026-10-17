@@ -28,20 +28,48 @@ export function waveText(dayCfg, index) {
   return `Wave ${index + 1}: ${parts.join(', ')}`;
 }
 
+// 0.16.2 (speltestet av 0.16.1: "0 of 32 left" medan 31 zombier gick kvar, och tre olika tal för samma våg): EN
+// källa för vågens tal. Alla räknare (dagens plåt, vågens rad, ingångarnas etiketter) läser härifrån.
+//   total: zombierna i vågorna som är igång (eller nästa våg före start), left: de som ännu inte är döda av dem,
+//   alive: de som går på kartan, queued: de som ännu inte släppts. left = alive + queued, alltid, också när dagen
+//   är vunnen (evakueringen kan avsluta dagen mitt i en våg).
 // Under en våg: den senast startade vågen, och kvar/totalt för alla vågor som är igång
 // (flera när nästa kallats tidigt). Annars: nästa våg som startar.
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
   const size = k => waveSize(sim.dayCfg, k);
-  const running = sim.phase === 'wave' || sim.phase === 'lost';
-  const i = Math.min(running ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
+  const started = sim.phase === 'wave' || sim.phase === 'lost' || (sim.phase === 'won' && sim.wavesStarted > 0);
+  const i = Math.min(started ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
+  const alive = sim.zombies.filter(z => !z.dead).length, queued = sim.spawnQueue.length;
   let total = size(i), left = total;
-  if (running) {
+  if (started) {
     total = 0;
     for (let k = 0; k < sim.wavesStarted; k++) if (!sim.cleared[k]) total += size(k);
-    left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
-  } else if (sim.phase === 'won') left = 0;
-  return { wave: i + 1, of: waves.length, total, left };
+    left = queued + alive;
+    total = Math.max(total, left);
+  }
+  return { wave: i + 1, of: waves.length, total, left, alive, queued: started ? queued : left };
+}
+// Vad som ännu kommer från varje ingång: före en våg hela vågens grupper, under vågen de som inte släppts (och
+// med överlapp nästa vågs grupper). Summan över ingångarna plus de vilande i husen är waveCounts().queued.
+// Map ingång -> [[typ, antal], ...] i fast ordning per typ.
+export function comingBySpawn(sim) {
+  const first = sim.route.spawns?.[0]?.id, out = new Map();
+  const add = (id, type, n) => {
+    if (!out.has(id)) out.set(id, new Map());
+    const m = out.get(id); m.set(type, (m.get(type) ?? 0) + n);
+  };
+  const waves = sim.dayCfg.waves;
+  if (sim.phase === 'build') {
+    for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
+  } else if (sim.phase === 'wave') {
+    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
+    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
+    if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
+  }
+  // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
+  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
+  return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
 }
 
 export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
@@ -84,6 +112,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   const shift = on => { shiftDown = !!on; };
   const resPlate = root.querySelector('#res');
 
+  // 0.16.0 (inlärningen, designen avsnitt 4): HUD:ens delar syns när de är upplåsta. supplies: mätaren,
+  // speed: fartknappen, early: Next wave med bonus (före det går nedräkningen av sig själv).
+  let feat = { supplies: true, speed: true, early: true };
+  const features = f => { feat = { ...feat, ...f }; };
   let last = { cash: null, hp: null };
   let deltaTimer = 0;
   const set = (node, text) => { if (node.textContent !== text) node.textContent = text; };
@@ -124,11 +156,14 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(el.day, String(sim.day).padStart(2, '0'));
     set(el.wave, `Wave ${c.wave} of ${c.of}`);
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
-    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : `${c.left} of ${c.total} left`);
+    // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut
+    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : sim.phase === 'won' && sim.evac && c.left ? 'Civilians safe' : `${c.left} of ${c.total} left`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);
     if (cash !== last.cash) { set(el.cash, money(cash)); last.cash = cash; }
+    const cashBox = resPlate.querySelector('.cash-box');
+    if (cashBox.hidden === feat.supplies) cashBox.hidden = !feat.supplies;
 
     const hp = Math.max(0, sim.baseHp);
     if (hp !== last.hp) { set(el.hp, String(hp)); last.hp = hp; }
@@ -140,21 +175,26 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(wLeft, String(c.left));
     // Nedräkning till nästa våg: "Next wave (Space) 4s · +$ 20". Före våg 1: "Start wave".
     const counting = build && sim.nextWaveIn != null;
-    set(el.go, counting ? 'Next wave' : 'Start wave');
+    // 0.16.0: före Next wave med bonus (South dag 3) är nedräkningen bara en nedräkning, ingen knapp
+    const passive = counting && !feat.early;
+    set(el.go, counting ? (passive ? 'Next wave in' : 'Next wave') : 'Start wave');
     el.cd.hidden = !counting;
-    speedBtn2.hidden = !(build || wave);
+    el.key.hidden = passive;
+    speedBtn2.hidden = !(build || wave) || !feat.speed;
     goBtn.classList.toggle('counting', counting);
-    if (counting) set(el.cd, `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
+    goBtn.classList.toggle('auto', passive);
+    if (counting) set(el.cd, passive ? `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s` : `${Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6))}s · +${money(earlyBonus(sim))}`);
     // Mitt i en våg går nästa att kalla tidigt så länge det finns en, men bara uttryckligen:
     // klick på knappen eller Shift+Space. Knappen säger hur många som är kvar och är dämpad.
-    const canCall = wave && hasNextWave(sim);
+    const canCall = wave && hasNextWave(sim) && feat.early;
     el.next.hidden = !canCall;
     if (canCall) {
       const n = waveLeft(sim), still = n > 0;
       // Överlapp (Gnesta Norr): nästa våg kommer av sig själv medan den här fortfarande är på väg.
       const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
       // kort form när raden inte ryms (layoutBottom): antalet står redan i dagens plåt
-      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave: still ${n} left` : 'Next wave',
+      // 0.16.0 (textgenomgången, speltestet av 0.14.2: "NEXT WAVE: STILL 14 LEFT" lät konstigt)
+      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave · ${n} still out` : 'Next wave',
         short: secs != null ? `Next in ${secs}s` : 'Next wave' };
       set(el.nextLbl, waveBar.classList.contains('narrow') ? nextText.short : nextText.long);
       set(el.nextKey, still ? 'Shift+Space' : 'Space');
@@ -262,20 +302,36 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // Reserven vid kanten undviker också gränssnittet, inte bara de andra etiketterna.
   const UNIT_PAD = 16;
   const coversUnit = (r, units) => units.some(u => u.x > r.x0 - UNIT_PAD && u.x < r.x1 + UNIT_PAD && u.y > r.y0 - UNIT_PAD && u.y < r.y1 + UNIT_PAD);
-  function place(el, at, taken, ui, units = []) {
+  // 0.16.0 (textgenomgången, speltestet av 0.14.2: "etiketten följer markören och täcker mark jag vill
+  // placera på"): etiketten står kvar på sin plats vid infarten så länge platsen är fri, och gatunamnet syns
+  // bara när pekaren står på etiketten.
+  const stuck = new Map();
+  const NEAR_ENTRY = 10;
+  // 0.16.1 (H191): covers(rect) säger om rutan ligger över mark där enheter får stå; sådana platser tas bara om
+  // inget annat finns. Medan spelaren håller en enhet (holding) tonas etiketterna ned och släpper igenom klick.
+  function place(el, at, taken, ui, units = [], covers = null) {
     el.hidden = false;
     setText(el, at);
     el.classList.toggle('next', !!at.next);
     const w = el.offsetWidth, h = el.offsetHeight;
     const rectAt = c => ({ x0: c.x - w / 2, y0: c.y - h / 2, x1: c.x + w / 2, y1: c.y + h / 2 });
     const free = r => !(r.x0 < 12 || r.y0 < 12 || r.x1 > innerWidth - 12 || r.y1 > innerHeight - 12) && !ui.some(u => hits(r, u)) && !taken.some(u => hits(r, u));
-    for (const pass of [0, 1]) for (const c of at.cands ?? []) {
+    const key = at.sub ?? '', keep = stuck.get(key);
+    if (keep && (at.cands ?? []).some(c => Math.hypot(c.x - keep.x, c.y - keep.y) < 6) && free(rectAt(keep)) && !keep.ground) {
+      el.classList.remove('edge');
+      return placeAt(el, keep, w, h);
+    }
+    // pass 0 bara nära infarten (de första kandidaterna): hellre över mark vid kanten än långt inne vid basen
+    for (const pass of [0, 1, 2]) for (const [ci, c] of (at.cands ?? []).entries()) {
+      if (!pass && ci >= NEAR_ENTRY) break;
       const r = rectAt(c);
       if (!free(r)) continue;
       const over = coversUnit(r, units);
-      if (over && !pass) continue;
+      if (over && pass < 2) continue;
+      if (!pass && covers?.(r)) continue;
       el.classList.remove('edge');
       el.classList.toggle('over', over);
+      stuck.set(key, { ...c, ground: pass > 0 });
       return placeAt(el, c, w, h);
     }
     // Reserven: vid skärmkanten, inom gränssnittets ram (som före 0.11.0).
@@ -288,7 +344,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.classList.toggle('over', coversUnit(rectAt(p), units));
     return placeAt(el, p, w, h);
   }
-  function entry(at, units = []) {
+  function entry(at, units = [], { covers = null, holding = false } = {}) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];
     while (entries.length < list.length) {
       const el = entryEl.cloneNode(true);
@@ -298,8 +354,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const ui = list.length ? uiRects() : [], taken = [];
     // nästa grupp först, så att den får den bästa platsen
     const order = list.map((a, i) => i).sort((i, j) => (list[j].next ? 1 : 0) - (list[i].next ? 1 : 0));
-    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units));
-    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; });
+    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units, covers));
+    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; el.classList.toggle('holding', holding); });
   }
 
   // H092 (0.11.0, speltestet av 0.10.2: ingen ledtråd om R): en liten rad nere till höger, ovanför
@@ -345,12 +401,19 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   }
 
   // Nollställ så att en ny dag inte visar en stor minus-ruta.
+  // Första gången en del dyker upp (designen avsnitt 4): en diskret animation (styles.css .reveal).
+  function reveal(node) {
+    if (!node) return;
+    node.classList.remove('reveal'); void node.offsetWidth; node.classList.add('reveal');
+    setTimeout(() => node.classList.remove('reveal'), 1600);
+  }
   function reset() {
+    stuck.clear();
     last = { cash: null, hp: null }; el.delta.className = 'delta';
     clearTimeout(deltaTimer);
     clearFloats();
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift, features, reveal };
 }

@@ -214,8 +214,8 @@ test('uppgradering: nivå 2 ger en femte soldat och mer liv, sälj ger tillbaka 
 });
 
 test('köpkortet: Hemvärnet finns från början, kostar en position och kräver rum', () => {
-  // 0.13.0: Hemvärnet kommer till Gnesta dag 2 (E4 är arméns, Gnesta dag 1 de civilas)
-  const sim = createSim(startConfig(newProgress(), 2, 'gnesta'));
+  // 0.13.0: Hemvärnet kommer till Gnesta dag 2 (E4 är arméns, Gnesta dag 1 de civilas). 0.16.2: dag 3
+  const sim = createSim(startConfig(newProgress(), 3, 'gnesta'));
   assert.equal(buyState(sim, 'hv').state, 'ok');
   assert.ok(WEAPONS.hv.cost >= 200 && WEAPONS.hv.cost <= 300);
   // en ruta mitt i skogen eller inne bland husen utan sikt får ingen grupp
@@ -239,8 +239,9 @@ test('sparfiler från 0.8.0 läses in som v4 och raderas aldrig', () => {
   assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över');
   assert.equal(st.getItem('horde.save.v3'), raw, 'kopia av v3-sparfilen');
   assert.equal(st.getItem('horde.save.broken'), null);
-  // Hemvärnet står i sektorn dag 2 (MCF:s leverans)
-  assert.ok(p.op.units.some(u => u.type === 'hv' && u.sector === 'gnesta'));
+  // dag 2:s leverans (två Ksp 90) står i sektorn; 0.16.2: Hemvärnets grupp kommer med dag 3
+  assert.equal(p.op.units.filter(u => u.type === 'm249' && u.sector === 'gnesta').length, 2);
+  assert.ok(!p.op.units.some(u => u.type === 'hv'));
   saveProgress(p, st);
   assert.deepEqual(loadProgress(st), p);
 });

@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, callNextWave, waveLeft, earlyBonus, COUNTDOWN, EARLY_PER_SEC } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 const DT = 1 / 30;
 const run = (sim, secs, onStep) => { for (let i = 0; i < Math.round(secs * 30); i++) { step(sim, DT); if (onStep) onStep(sim.events); } };
 const mk = (o = {}) => createSim({ map, day: 1, cash: 500, research: [], seed: 1, ...o });

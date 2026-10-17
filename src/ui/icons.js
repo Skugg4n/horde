@@ -44,4 +44,13 @@ export const ICONS = {
   block: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
     <path d="M22 30 L30 8 H50 L58 30 Z"/><path d="M62 30 L70 8 H90 L98 30 Z"/><path d="M14 30 H106"/>
     <path d="M38 14 L42 20 L39 25"/></g></svg>`,
+  // 0.16.1 (H216): bilder till Field manual-uppslagen utan lektion. Tre vunna dagar ger en stjärna; förlust börjar
+  // om med samma styrka, vinst behåller förlusterna tills förrådet fyller på.
+  star: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <path d="M8 22 l5 5 l9 -11"/><path d="M28 22 l5 5 l9 -11"/><path d="M48 22 l5 5 l9 -11"/><path d="M68 18 H80 M76 14 L80 18 L76 22"/>
+    <path d="M100 5 L103.5 13 L112 13.6 L105.5 19 L107.6 27.5 L100 23 L92.4 27.5 L94.5 19 L88 13.6 L96.5 13 Z"/></g></svg>`,
+  losses: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <circle cx="14" cy="10" r="4"/><path d="M14 14 V24 M8 18 H20"/><circle cx="28" cy="10" r="4"/><path d="M28 14 V24 M22 18 H34"/>
+    <path d="M40 17 H52 M48 13 L52 17 L48 21"/><circle cx="64" cy="10" r="4"/><path d="M64 14 V24 M58 18 H70"/><path d="M74 8 L84 22 M84 8 L74 22"/>
+    <path d="M92 17 H100 M97 13 L100 17 L97 21"/><path d="M106 10 H116 V24 H106 Z M111 13 V21 M107 17 H115"/></g></svg>`,
 };

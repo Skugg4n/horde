@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 const run = (sim, secs) => { for (let i = 0; i < secs * 30; i++) step(sim, 1 / 30); };
 const mk = (o = {}) => createSim({ map, day: 1, cash: 500, research: [], seed: 1, ...o });
 

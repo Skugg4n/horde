@@ -17,19 +17,36 @@ test('köpraden: Defenses och Units; snabbvalen följer dagens förråd', () => 
   assert.deepEqual(BUY_MENU.map(c => c.name), ['Defenses', 'Units']);
   // 0.14.0: skrotbilarna (förnödenheter) sist i Defenses
   assert.deepEqual(SHOP.map(s => s.id), ['block', 'wire', 'car', 'civ', 'hv', 'inf', 'm249', 'm2', 'epa', 'ksp58', 'ak5', 'psg90']);
+  // 0.16.0: tvåstegsvalet bara med fler än 9 kort (hela raden har 12)
   assert.deepEqual(SHOP.map(s => hotkeyOf(s.id)), ['1-1', '1-2', '1-3', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '2-8', '2-9']);
   assert.equal(itemAt(2, 4), 'm249'); assert.equal(itemAt(1, 4), null); assert.equal(itemAt(3, 1), null);
   const e4 = dayMenu(id => inArsenal(id, MAPS.riksvagen, MAPS.riksvagen.days[0]));
   assert.deepEqual(e4[1].items.map(i => i.id), ['inf', 'm249', 'm2', 'epa'], 'E4: armén, inget Hemvärn');
-  assert.equal(hotkeyOf('m249', e4), '2-2');
+  assert.equal(hotkeyOf('m249', e4), '4', '0.16.0: en siffra per kort när raden har högst 9');
   const g1 = dayMenu(id => inArsenal(id, MAPS.gnesta, MAPS.gnesta.days[0]));
   assert.deepEqual(g1.map(c => c.items.map(i => i.id)), [['block', 'wire'], ['civ']], 'Gnesta dag 1: civila, barrikader och tråd');
   assert.equal(itemAt(2, 1, g1), 'civ');
   const c = createChord({ menu: () => e4 });
-  c.press(2, 0); assert.deepEqual(c.press(4, 0.1), { t: 'pick', id: 'epa' });
+  assert.equal(c.chords, false);
+  assert.deepEqual(c.press(6, 0), { t: 'pick', id: 'epa' }, 'block, wire, inf, m249, m2, epa: 6');
+  assert.deepEqual(c.press(9, 0), { t: 'none' });
+  assert.equal(c.open, null);
 });
 
-test('tvåstegsvalet: kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0)', () => {
+// 0.16.0 (Olas beslut 3): enkla siffror 1, 2, 3; ett tryck väljer kortet.
+test('köpradens siffror: ett tryck per kort, tvåstegsvalet först med fler än 9 kort', () => {
+  const two = [{ id: 'units', name: 'Units', items: [{ id: 'inf' }, { id: 'm249' }] }];
+  const c = createChord({ menu: () => two });
+  assert.deepEqual(c.press(2, 0), { t: 'pick', id: 'm249' });
+  assert.deepEqual(c.press(1, 0), { t: 'pick', id: 'inf' });
+  assert.deepEqual(c.press(3, 0), { t: 'none' });
+  assert.equal(hotkeyOf('m249', two), '2');
+  const full = createChord();
+  assert.equal(full.chords, true, 'hela raden har 12 kort');
+  assert.deepEqual(full.press(2, 0), { t: 'category', cat: 2 });
+});
+
+test('tvåstegsvalet (fler än 9 kort): kategori, sak, Esc, och tidsgränsen är bara bild (0.12.0)', () => {
   const c = createChord();
   assert.deepEqual(c.press(2, 0), { t: 'category', cat: 2 });
   assert.equal(c.open, 2);
@@ -76,7 +93,9 @@ test('förrådet per sektor och dag, och forskningen ovanpå', () => {
   assert.equal(buyState(g, 'civ').state, 'ok');
   for (const t of ['hv', 'm249', 'm2', 'inf', 'psg90']) assert.equal(buyState(g, t).state, 'absent', `Gnesta dag 1: ${t}`);
   const g2 = createSim({ map: MAPS.gnesta, day: 2, cash: 800, research: [], seed: 1 });
-  assert.equal(buyState(g2, 'hv').state, 'ok', 'Hemvärnet dag 2');
+  // 0.16.2: Hemvärnet dag 3 (dag 2 lär bara ut barrikaderna)
+  assert.equal(buyState(g2, 'hv').state, 'absent', 'inget Hemvärn dag 2');
+  assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'hv').state, 'ok', 'Hemvärnet dag 3');
   assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först dag 5');
   const g5 = createSim({ map: MAPS.gnesta, day: 5, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(g5, 'm2').state, 'ok');
@@ -127,4 +146,19 @@ test('Gnesta South och North: fem pjäser från början, More positions ger en t
     assert.equal(createSim({ map, day: 1, cash: 0, research: ['m2.1', 'positions.1'], seed: 1 }).maxGuns, 6, map.id);
   }
   assert.equal(createSim({ map: MAPS.riksvagen, day: 1, cash: 0, research: ['m2.1', 'positions.1'], seed: 1 }).maxGuns, 5);
+});
+
+// 0.16.2 (speltestet av 0.16.1: "kortraden hoppar", Ksp 90 gick från 5 till 4 när ett kort tog slut): en typ där
+// alla är utställda står kvar i köpraden som 'out', och siffrorna på korten flyttar inte.
+test('slutställda kort står kvar grå och siffrorna är stabila', async () => {
+  const { opStartConfig, newCampaign } = await import('../src/meta/operation.js');
+  const { inBar } = await import('../src/sim/buy.js');
+  const sim = createSim(opStartConfig(newCampaign(), 1, 'riksvagen'));
+  const keys = () => { const m = dayMenu(id => inBar(sim, id)); return m.flatMap(c => c.items).map(it => it.id + hotkeyOf(it.id, m)).join(' '); };
+  const before = keys();
+  assert.match(before, /m249/);
+  assert.equal(build(sim, [...sim.marked][0], 'm249').ok, true);
+  assert.equal(buyState(sim, 'm249').state, 'out', 'alla Ksp 90 ute: kortet står kvar');
+  assert.equal(canPickUp(sim, 'm249'), false);
+  assert.equal(keys(), before, 'samma kort, samma siffror');
 });

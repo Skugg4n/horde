@@ -10,6 +10,13 @@ export const MENU_ITEMS = [
     enabled: c => c.canSpeed(), value: c => c.speed(), set: (c, n) => c.setSpeed(n) },
   { id: 'sound', type: 'volume', label: 'Sound', channel: 'sound' },
   { id: 'music', type: 'volume', label: 'Music', channel: 'music' },
+  // 0.16.0 (inlärningen, designen avsnitt 5.4): tipsens läge, Field manual och Reset tips
+  { id: 'tips', type: 'choice', label: 'Tips', options: ['on', 'new', 'off'], format: o => ({ on: 'On', new: 'New only', off: 'Off' })[o],
+    value: c => c.tipsMode(), set: (c, o) => c.setTipsMode(o) },
+  { id: 'manual', type: 'button', label: 'Field manual', kbd: 'J', enabled: c => c.manualOk(), run: c => c.openManual() },
+  { id: 'resettips', type: 'button', label: 'Reset tips',
+    confirm: () => ({ title: 'Reset tips?', text: 'Every tip shows again. What you have unlocked stays.', ok: 'Reset' }),
+    run: c => c.resetTips() },
   { id: 'restart', type: 'button', label: 'Restart day',
     enabled: c => c.mode() === 'play',
     confirm: c => ({ title: 'Restart day?', text: `Day ${c.day()} starts over with the force you went in with. Your RP are kept.`, ok: 'Restart' }),
@@ -48,9 +55,9 @@ export function mountMenu(root, ctx, items = MENU_ITEMS) {
         row.innerHTML = `<button type="button" class="act${i.main ? ' main' : ''}${enabled(i) ? '' : ' off'}"><span class="a">${i.label}</span>${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</button>`;
         row.querySelector('button').addEventListener('click', () => { if (enabled(i)) choose(i); });
       } else if (i.type === 'choice') {
-        row.innerHTML = `<span class="lab">${i.label}${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</span><span class="seg">${i.options.map(o => `<button type="button" data-o="${o}">${i.format(o)}</button>`).join('')}</span>`;
-        const mark = () => { for (const b of row.querySelectorAll('[data-o]')) b.classList.toggle('on', Number(b.dataset.o) === i.value(ctx)); };
-        for (const b of row.querySelectorAll('[data-o]')) b.addEventListener('click', () => { if (enabled(i)) { i.set(ctx, Number(b.dataset.o)); mark(); } });
+        row.innerHTML = `<span class="lab">${i.label}${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</span><span class="seg">${i.options.map((o, k) => `<button type="button" data-o="${k}">${i.format(o)}</button>`).join('')}</span>`;
+        const mark = () => { for (const b of row.querySelectorAll('[data-o]')) b.classList.toggle('on', i.options[Number(b.dataset.o)] === i.value(ctx)); };
+        for (const b of row.querySelectorAll('[data-o]')) b.addEventListener('click', () => { if (enabled(i)) { i.set(ctx, i.options[Number(b.dataset.o)]); mark(); } });
         mark();
       } else if (i.type === 'volume') {
         const s = ctx.settings();

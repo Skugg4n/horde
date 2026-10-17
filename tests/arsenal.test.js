@@ -8,6 +8,7 @@ import { WEAPONS } from '../src/data/weapons.js';
 import { RESEARCH, researchNode } from '../src/data/research.js';
 import { SHOP } from '../src/data/shop.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { loadProgress } from '../src/meta/save.js';
 
@@ -67,9 +68,9 @@ test('Psg 90: långsam, dödlig, lång räckvidd, går igenom två', () => {
   assert.equal(weaponStats('psg90', 1, new Set(['psg90.1', 'psg90.2', 'psg90.3'])).pierce, 3);
 });
 
-// Två zombier i rad på E4:s väg framför en Psg 90: båda träffas av samma skott.
+// Två zombier i rad på den raka provvägen (E4 till 0.14.2) framför en Psg 90: båda träffas av samma skott.
 test('Psg 90 går igenom: två zombier i linje tar skada av ett skott', () => {
-  const map = MAPS.riksvagen;
+  const map = STRAIGHT;
   const sim = createSim({ map: free(map), day: 1, cash: 5000, research: ['m2.1', 'm2.2', 'psg90.1'], seed: 2 });
   // nästan i vägens linje (vid basen), så att kön av zombier står i skottlinjen
   const r = build(sim, spotAt(sim, -7, 5), 'psg90');
@@ -86,7 +87,7 @@ test('Psg 90 går igenom: två zombier i linje tar skada av ett skott', () => {
 });
 
 test('Ak 5: enstaka skott hela tiden plus en 40 mm-granat med ytskada', () => {
-  const map = MAPS.riksvagen;
+  const map = STRAIGHT;
   const sim = createSim({ map: free(map), day: 1, cash: 5000, research: ['grenade.1', 'ak5.1'], seed: 4 });
   assert.equal(build(sim, spotAt(sim, 2, 8), 'ak5').ok, true);
   startWave(sim);

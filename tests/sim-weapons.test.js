@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { createSim, startWave, step, build as buildAt, upgrade as upgradeAt, sell as sellAt, spotAt } from '../src/sim/sim.js';
 import { weaponStats } from '../src/sim/stats.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { ZOMBIES } from '../src/data/zombies.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 const run = (sim, secs) => { for (let i = 0; i < secs * 30; i++) step(sim, 1 / 30); };
 const mk = (o = {}) => createSim({ map, day: 1, cash: 2000, research: [], seed: 3, ...o });
 // Platser vid vägen (0.5.0: fri placering). Namnen som de gamla positionerna, för läsbarhetens skull.

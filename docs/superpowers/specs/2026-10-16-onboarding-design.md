@@ -329,3 +329,9 @@ Det ska INTE gå att rekvirera hur mycket som helst. Ola tyckte begränsningen v
 
 - Uppgraderingar i förrådet visas bara för det man faktiskt HAR (eller har fått släppt). Inga "Ksp 58 II" om man inte har någon Ksp 58. Uppgraderingarna släpps också pö om pö av ledningen, precis som trupperna.
 - Förrådets rullister ska vara i spelets stil: smala, mörka, plåtfärgade med rost/benvit tumme, inga vita systemlister. Hellre färre poster som får plats utan rullning än långa listor.
+
+## Genomfört i 0.16.0 (avvikelser)
+
+- Gnesta South och North är sektorn Hagstumosse (Olas beslut 2026-10-16, se operation-design.md). Steget "mellan South 5 och North: två sektorer, tryck, omplacering" blir "samma stadsdel, större karta, trupperna följer med" ("Same district, wider map. Your units carry over."). Omplaceringen och trycket är vilande tills två skilda platser är aktiva.
+- Return till förrådet kommer med uppgraderingarna efter South dag 4 (designen hade den med sektorerna).
+- Vandrarna får också presentationsrutan (Olas beslut 4 gäller varje ny fiendetyp); den ersätter steg 4 på E4 dag 1 och steget för löparna och bjässarna.

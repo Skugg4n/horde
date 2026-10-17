@@ -5,7 +5,7 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
+import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, roadblockModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { CELL_LEN, movePhase, gunPos } from '../sim/sim.js';
 import { WEAPONS } from '../data/weapons.js';
@@ -798,7 +798,7 @@ export function createView(scene, initialSim) {
   function buildBase() {
     if (base) disposeModel(base);
     const rink = sim.map.baseModel === 'rink' && sim.map.iceRink;
-    base = rink ? rinkEntranceModel(rink) : baseModel();
+    base = rink ? rinkEntranceModel(rink) : sim.map.baseModel === 'roadblock' ? roadblockModel() : baseModel();
     if (rink) {
       // Gnesta: överlevarna är inne i ishallen, basen är entrén (fasaden mot rondellen).
       const [x, z] = rink.at(rink.face, rink.main ?? 0);

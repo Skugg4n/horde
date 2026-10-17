@@ -5,6 +5,7 @@ import { buildPlace, placementFor, lineOfSight, sightFrom, KIND, MIN_SPACING } f
 import { createSim, startWave, step, build, checkSpot, spotAt, sell, upgrade } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
+import { road, PROPS, w } from '../src/data/e4-lastringe.js';
 
 // En rak gata (rad 0) från a i öster till basen B i väster. Ett hus (H) står mellan pjäsens
 // plats (P, rad 3) och gatans östra del.
@@ -78,19 +79,28 @@ test('platsen: gata, hus, för nära, fullt; fyra pjäser och avstånd', () => {
   assert.equal(checkSpot(sim, key(map, 3, 3)).ok, true, 'såld plats blir ledig');
 });
 
-test('E4: vägen är gata, och bredvid vägen går det att ställa en pjäs', () => {
+// 0.15.0: E4 är trafikplatsen vid Lästringe (src/data/e4-lastringe.js).
+test('E4: rampen är gata, vägrenen går att ställa en pjäs i, bilar och skogen står i vägen', () => {
   const map = MAPS.riksvagen, p = placementFor(map);
   const sim = createSim({ map, day: 1, cash: 500, seed: 1 });
-  assert.equal(checkSpot(sim, spotAt(sim, 5, 1)).reason, 'gata');
-  assert.equal(checkSpot(sim, spotAt(sim, 5, 6)).ok, true);
-  assert.equal(checkSpot(sim, spotAt(sim, -26, -15)).reason, 'hus', 'ruinen');
-  assert.equal(checkSpot(sim, spotAt(sim, 12, 7.5)).reason, 'hinder', 'bilen');
-  // vägen mellan spawn och bas är gångbar, asfalten bakom basen inte
-  assert.equal(p.walk[p.keyAt(0, 1)], 1);
-  assert.equal(p.walk[p.keyAt(-30, 1)], 0);
-  // ingen byggnad står mellan vägkanten och vägen: en pjäs bredvid vägen ser hela sin räckvidd av den
-  const g = build(sim, spotAt(sim, 5, 6), 'm249');
-  assert.equal(g.ok, true);
+  const ramp = road('rampA'), mid = ramp.pts[Math.floor(ramp.pts.length / 2)], nxt = ramp.pts[Math.floor(ramp.pts.length / 2) + 1];
+  const L = Math.hypot(nxt[0] - mid[0], nxt[1] - mid[1]), nx = -(nxt[1] - mid[1]) / L, nz = (nxt[0] - mid[0]) / L;
+  assert.equal(checkSpot(sim, spotAt(sim, mid[0], mid[1])).reason, 'gata');
+  // vägrenen på insidan av avfartens kurva, 6 m från mitten
+  const verge = [mid[0] + nx * 6, mid[1] + nz * 6];
+  assert.equal(checkSpot(sim, spotAt(sim, verge[0], verge[1])).ok, true);
+  const car = PROPS.find(q => q.kind === 'car' && q.x > map.surroundings.crisp.x0 && q.x < map.surroundings.crisp.x1 && q.z < map.surroundings.crisp.z1);
+  assert.equal(checkSpot(sim, spotAt(sim, car.x, car.z)).reason, 'hinder', 'bilen');
+  // tät skog finns inne på kartan, brynet närmast vägarna går att stå i
+  let forest = 0;
+  for (let k = 0; k < p.n; k++) if (p.kind[k] === KIND.forest) forest++;
+  assert.ok(forest > 100, `${forest} skogsrutor`);
+  // motorvägen mellan ramperna (långtradaren) är inte gångbar: dag 1 har en väg
+  const [tx, tz] = w(1700, 716);
+  assert.equal(p.walk[p.keyAt(tx, tz)], 0);
+  // en pjäs i vägrenen ser en bra bit av avfarten
+  const g = build(sim, spotAt(sim, verge[0], verge[1]), 'm249');
+  assert.equal(g.ok, true, g.reason);
   const seen = sim.guns[0].sight.keys.length;
   assert.ok(seen >= 40, `ser ${seen} vägrutor`);
 });

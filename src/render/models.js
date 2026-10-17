@@ -1277,6 +1277,98 @@ export function baseModel() {
   g.userData = { kind: 'base', mats, flag };
   return g;
 }
+// ---------- vägspärren vid Lästringe (E4:s bas, 0.15.0) ----------
+// Origo mitt i avfartens stam där bommen går, +x nedför stammen mot horden, z tvärs över vägen (stammen
+// är 9 m bred). Betongsuggor i sicksack framför bommen, sandsäckar på sidorna, vaktkur, en lastbil och
+// en pansarbandvagn bakom. Fotavtrycken står också i src/data/e4-lastringe.js ROADBLOCK_PARTS (där
+// går det inte att ställa ut något).
+const MIL = { green: '#4f5a3d', dark: '#38412c', canvas: '#5d6247', black: '#1e1f1c' };
+function jerseyMesh(len = 3) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.55, 0); shape.lineTo(0.55, 0); shape.lineTo(0.3, 0.35); shape.lineTo(0.18, 1.05);
+  shape.lineTo(-0.18, 1.05); shape.lineTo(-0.3, 0.35); shape.lineTo(-0.55, 0);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: len, bevelEnabled: false });
+  g.translate(0, 0, -len / 2);
+  return mesh(g, mat(P.concrete));
+}
+function milTruck() {
+  const g = new THREE.Group(), body = mat(MIL.green, { roughness: 0.85 }), dark = mat(MIL.dark), tire = mat(P.tire);
+  g.add(box(1.9, 1.7, 2.3, body, 2.3, 1.55, 0));
+  g.add(box(0.05, 0.6, 2.0, mat(P.carGlass, { roughness: 0.3, metalness: 0.4 }), 3.27, 1.95, 0));
+  g.add(box(6.6, 0.3, 2.3, dark, -0.4, 0.85, 0));
+  g.add(box(4.4, 1.9, 2.4, mat(MIL.canvas, { roughness: 1 }), -1.2, 2.05, 0));
+  for (const wx of [2.4, -0.8, -2.2]) for (const sz of [-1, 1]) {
+    const w = mesh(geo('cylinder', 0.55, 0.55, 0.4, 12), tire, wx, 0.55, sz * 1.0); w.rotation.x = Math.PI / 2; g.add(w);
+  }
+  return g;
+}
+function apc() {
+  const g = new THREE.Group(), body = mat(MIL.green, { roughness: 0.8, metalness: 0.15 }), dark = mat(MIL.dark), tire = mat(P.tire);
+  g.add(box(5.6, 1.2, 2.7, body, 0, 1.25, 0));
+  const nose = box(1.2, 1.0, 2.7, body, 3.1, 1.05, 0); nose.rotation.z = -0.45; g.add(nose);
+  g.add(box(4.6, 0.5, 2.3, body, -0.4, 2.05, 0));
+  g.add(box(1.3, 0.5, 1.2, dark, 0.3, 2.55, 0));
+  g.add(box(1.4, 0.12, 0.12, mat(P.gunMetal), 1.3, 2.62, 0));
+  for (const wx of [2.0, 0.7, -0.7, -2.0]) for (const sz of [-1, 1]) {
+    const w = mesh(geo('cylinder', 0.6, 0.6, 0.45, 12), tire, wx, 0.6, sz * 1.25); w.rotation.x = Math.PI / 2; g.add(w);
+  }
+  return g;
+}
+export function roadblockModel() {
+  const g = new THREE.Group();
+  // betongsuggor: en rad framför bommen med lucka i mitten, och längs sidorna
+  for (const [x, z, ry, len] of [[1.4, -3.0, 0, 3], [1.4, 3.0, 0, 3], [3.6, -1.2, 0.35, 2.4], [1.5, -6.6, 0, 3.2], [1.5, 6.6, 0, 3.2]]) {
+    const j = jerseyMesh(len); j.position.set(x, 0, z); j.rotation.y = ry; g.add(j);
+  }
+  sandbagWall(g, -0.6, -4.8, -7.6, 3);
+  sandbagWall(g, -0.6, 4.8, 7.6, 3);
+  sandbagWall(g, -1.2, -4.9, -7.3, 2);
+  // bommen tvärs över stammen
+  const postM = mat(P.gunMetal, { metalness: 0.4, roughness: 0.6 });
+  g.add(box(0.34, 1.25, 0.34, postM, 0.2, 0.62, -4.4));
+  g.add(box(0.5, 0.4, 0.5, mat(P.concreteDark), 0.2, 0.2, -4.4));
+  g.add(box(0.28, 0.28, 0.6, postM, 0.2, 1.12, -4.9));
+  const stripes = [mat(P.paper), mat(P.rust)];
+  for (let i = 0; i < 14; i++) g.add(box(0.12, 0.12, 0.6, stripes[i % 2], 0.2, 1.12, -4.0 + i * 0.6));
+  g.add(box(0.2, 0.9, 0.2, postM, 0.2, 0.45, 4.4));
+  // vaktkuren
+  const booth = new THREE.Group();
+  const wall = mat(P.wall), roof = mat(P.concreteDark), glass = mat(P.carGlass, { roughness: 0.3, metalness: 0.4 });
+  booth.add(box(2.0, 2.3, 2.0, wall, 0, 1.15, 0));
+  booth.add(box(2.4, 0.18, 2.4, roof, 0, 2.39, 0));
+  booth.add(box(1.5, 0.55, 0.04, glass, 0, 1.6, 1.01));
+  booth.add(box(0.04, 0.55, 1.3, glass, 1.01, 1.6, 0));
+  booth.add(box(0.7, 1.5, 0.04, mat(P.crateDark), -0.55, 0.75, -1.01));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.6), new THREE.MeshStandardMaterial({ map: signTexture('STOPP'), roughness: 0.9 }));
+  sign.material.map.repeat.set(1, 0.35); sign.material.map.offset.set(0, 0.325);
+  sign.position.set(1.03, 2.05, 0); sign.rotation.y = Math.PI / 2; booth.add(sign);
+  booth.position.set(-3.2, 0, -8.2);
+  g.add(booth);
+  g.add(mesh(geo('cylinder', 0.05, 0.06, 4.6, 6), postM, -1.6, 2.3, -9.4));
+  const flag = box(1.1, 0.7, 0.03, mat(P.soldierShirt), -1.02, 4.15, -9.4);
+  g.add(flag);
+  // fordonen bakom spärren, på väg 800
+  const truck = milTruck(); truck.position.set(-7.5, 0, 7.5); truck.rotation.y = 0.15; g.add(truck);
+  const pbv = apc(); pbv.position.set(-8.8, 0, -2); pbv.rotation.y = -0.2; g.add(pbv);
+  // lådor och tunnor innanför
+  for (const [x, z, ry] of [[-1.6, 3.8, 0.2], [-1.9, 4.6, -0.3], [-2.4, -4.2, 0.6]]) {
+    const c = new THREE.Group();
+    c.add(box(0.78, 0.36, 0.42, mat(P.crate), 0, 0.18, 0));
+    c.add(box(0.82, 0.07, 0.46, mat(P.crateDark), 0, 0.38, 0));
+    c.position.set(x, 0, z); c.rotation.y = ry; g.add(c);
+  }
+  for (const [x, z] of [[-3.0, 5.4], [-3.5, 5.9]]) g.add(mesh(geo('cylinder', 0.45, 0.45, 1.2, 12), mat(P.barrel, { roughness: 0.8, metalness: 0.2 }), x, 0.6, z));
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const mats = [];
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    o.material = o.material.clone();
+    o.material.userData.own = true;
+    if (o.material.emissive) mats.push(o.material);
+  });
+  g.userData = { kind: 'base', mats, flag };
+  return g;
+}
 // Rött sken över hela basen. k 0..1.
 export function setBaseGlow(group, k) {
   for (const m of group.userData.mats) { m.emissive.setRGB(0.9 * k, 0.08 * k, 0.04 * k); }

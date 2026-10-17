@@ -48,7 +48,20 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // kampanjen bär RP, enheter och erfarenhet vidare, så varje steg efter rör sig också. Att simuleringen
 // i övrigt är orörd visar tests/sim-receipt.test.js (Gnesta South dag 3 och North dag 2 oförändrade).
 // 0.14.2: alla steg nya, avsiktligt (E4:s spärr, dag 2 och 3, skogsbrynet på Gnesta; docs/balance-log.md 0.14.2).
-const BEFORE = {"riksvagen 1":"b64c5591","riksvagen 2":"1a7551e8","riksvagen 3":"12036276","gnesta 1":"913dc93a","gnesta 2":"05ea0306","gnesta 3":"d36e2139","gnesta 4":"3646d48d","gnesta 5":"7b4176c4","gnesta-norr 1":"f8f64159","gnesta-norr 2":"b648b764","gnesta-norr 3":"c5ef8579","gnesta-norr 4":"909ff715","gnesta-norr 5":"04d56f70"};
+// 0.15.0: alla steg nya, avsiktligt: E4 är trafikplatsen vid Lästringe (ett rutnät med avfarten, påfarten dag 2
+// och nya hp 3,2, 3,6 och 1,2); kampanjen bär det vidare in i Gnesta (docs/balance-log.md 0.15.0).
+// 0.16.0: alla steg nya, avsiktligt: inlärningen (E4 dag 1 utan förnödenheter med infanteriet vid bommen och den
+// andra Ksp 90 efter våg 1, pillboxen dag 3, barrikaderna från South dag 2, förrådet i steg från South dag 2,
+// knappheten i rekvisitionen och uppgraderingarna i ledningens takt, Hagstumosse som en sektor med en trupp;
+// docs/balance-log.md 0.16.0).
+// 0.16.1: alla steg nya, avsiktligt: E4 dag 1 till 3 med jämnare sista vågor (32, 60, och bjässarna delade mellan
+// våg 2 och 3, H192), överskottet på fler trådar (policyn), Ishallen dag 1 med våg 2:s löpare senare (speltestet av
+// 0.16.0), South dag 3 och 4 med mindre förnödenheter per dödad (H215). docs/balance-log.md 0.16.1.
+// 0.16.2: Ishallen dag 2 till North dag 5 nya, avsiktligt (speltestet av 0.16.1): dag 2 en ingång med 30 / 44 / 58 och
+// spärren vid första stickgatan, Hemvärnet och Norra vägen dag 3 (hp 3,5 till 4,0 när skogsvägen flyttade till dag
+// 4), North dag 3 hp 4,4 till 4,2 (mindre RP från en kortare dag 2). E4 och Ishallen dag 1 står kvar.
+// docs/balance-log.md 0.16.2.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"533d645b","gnesta 3":"4fe55936","gnesta 4":"79421bcc","gnesta 5":"96d43304","gnesta-norr 1":"33bb5c9c","gnesta-norr 2":"41c9d9a6","gnesta-norr 3":"c06cb0b1","gnesta-norr 4":"faae257e","gnesta-norr 5":"4e2d0f4d"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

@@ -669,3 +669,152 @@ Osäkert och värt ett speltest:
 - Spärren på E4 gör att horden står och slår vid basen en stund; det syns och känns annorlunda än förut (de sprang in och försvann).
 - South dag 2 och den skickliga: tas med i passet för North (granskningens rekommendation 1).
 - Överskottet sänktes i stället för att få ett nytt sätt att lägga pengar mitt i striden. En ny sak att köpa (reparera spärren eller liknande) behöver bestämmas med Ola först.
+
+## 0.15.0: E4 blir trafikplatsen vid Lästringe
+
+Olas önskan: "Bana 1 känns som amerikansk öken, inte Sörmland." E4 är nu trafikplats 137 Lästringe (src/data/e4-lastringe.js) i stället för en rak väg på 39 m. Banan är ett rutnät som Gnesta: horden kommer längs motorvägen ur diset från Nyköping och går upp för avfarten till spärren vid väg 800. Dag 2 kommer en andra grupp från Södertälje uppför påfarten, fel håll. Mellan ramperna står en knäckt långtradare tvärs över motorvägen och där är inte gångbart, så dag 1 har bara en väg. Vägen från spärren ut till dimkanten är 120 m från Nyköping (168 m med diset) och 110 m från Södertälje; förut var den 39 m.
+
+Skäl till omräkningen: med den längre vägen hinner pjäserna mer, så samma vågor blev lättare (den normala spelaren höll full bas dag 1, den skickliga tappade bara något dag 2 och 3). Vågorna står kvar som förut, gruppernas ingångar är nya.
+
+Balansskriptet (scripts/balance.mjs): E4 spelas av den giriga policyn som förut, men på rutnätet. Planen (e4Plan) täcker dagens vägar inne i den skarpa ytan. Betongen läggs tvärs över stammen 5 m nedanför spärren och taggtråden 9, 13 och 17 m ned längs vägen (förut rutorna 0, 1 och 2 på den raka vägen). Vilka banor som spelas som stad avgörs av TOWN-tabellen, inte av om banan har ett rutnät.
+
+Prövat (bas efter dagen, fem seeds; L = förlorad):
+
+```
+hp dag 1 / 2 / 3     normal dag 1   normal dag 2   normal dag 3   skilled dag 1   skilled dag 2   skilled dag 3
+3,0 / 4,0 / 1,2      20             5 till 16      4 till 6       20              17 till 19      14 till 16
+3,5 / 3,7 / 1,2      13 till 20     11 till 18     4 till 6       15 till 18      15 till 19      7 till 16
+3,4 / 3,6 / 1,2      18 till 20     13 till 20     4 till 13      16 till 18      15 till 18      14 till 16
+3,2 / 3,6 / 1,2      20             13 till 20     4 till 13      19 till 20      17 till 20      14 till 16
+```
+
+Med 3,4 dag 1 förlorade den skickliga Gnesta North dag 3 en gång (seed 2): E4 gav henne 50 RP mindre än i 0.14.2 (dag 1 utan full bas ger ingen basbonus), och North dag 3 är redan tät (4 till 15 kvar). 3,2 ger tillbaka bonusen, och dag 1 ska ändå vara den minsta dagen (onboardingen görs om separat). Dag 2 med 3,3 gjorde den svaga spelaren (inga köp efter dag 1) för stark (12 till 18); 3,6 ger 6 till 10, som 0.14.2:s 7 till 9. Dag 3 med 1,1 och 1,3 ändrade inte North, så 1,2 står kvar.
+
+Ändringar:
+- E4 dag 1 hp 3,0 till 3,2, dag 2 4,0 till 3,6, dag 3 1,2 (oförändrad). Förnödenheterna och vågornas storlek oförändrade.
+- Dag 2 och 3: varannan klunga löpare kommer från Södertälje (påfarten); dag 3:s bjässar växlar mellan ingångarna.
+
+Efter, E4 i kampanjen (bas efter dagen, fem seeds):
+
+```
+skilled   dag 1 19 till 20   dag 2 17 till 20   dag 3 14 till 16 ($ 96 till 201 kvar)
+normal    dag 1 20           dag 2 13 till 20   dag 3 4 till 13
+svag dag 2 (inga köp efter dag 1): vinst med 6 till 10, högst 4 förlorade på 10 s
+```
+
+Resultat, försök till vinst per kampanjsteg:
+
+```
+skilled  E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0-4  1  1  1  1  1  1  1  1  1  1  1  1  1   (alla fem seeds)
+
+normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+seed 0    1  1  1  1  1  3  1  2  1  2  1  2  1
+seed 1    1  1  1  1  1  3  1  2  1  1  1  1  1
+seed 2    1  1  1  1  1  3  1  2  1  2  1  2  1
+seed 3    1  1  1  1  1  3  2  1  1  3  3  1  1
+seed 4    1  1  1  1  1  3  1  2  1  1  1  2  1
+```
+
+Kampanjens mål håller: den normala klarar varje dag inom 1 till 4 försök (som mest 3), den skickliga allt på första försöket, första skottet inom 60 s, högst 250 levande. Fingeravtrycken per kampanjsteg (balance-op-skilled och balance-op-normal) är alla nya, avsiktligt: E4 ritades om och kampanjen bär RP:n vidare in i Gnesta. Simuleringens kvitto: E4 dag 2 e007577b till be6e026f (pjäsernas rutor är e4Plan(2) på den nya kartan; den fasta styrkan vinner med 13 kvar). Gnesta South dag 3 och North dag 2 står kvar.
+
+Proven: simuleringens prov av vägen, hindren, vapnen, granaterna och reglarna (sim-core, sim-waves, sim-weapons, sim-obstacles, sim-grenades, cells, route-e4, barricade-failing, tweaks och delar av arsenal, epa-evac och operation) mäter på den raka vägen som förut, nu en provbana i tests/fixtures/straight-road.js, så att de inte rör sig när banan ritas om. Placeringsprovet för E4 är nytt (rampen är gata, vägrenen går, bilen och skogen står i vägen, motorvägen mellan ramperna är inte gångbar), och dis-provet kollar att E4:s ingångar ligger i diset.
+
+## 0.16.0: inlärningen steg för steg, knappheten i förrådet och Hagstumosse som en sektor
+
+Underlag: docs/superpowers/specs/2026-10-16-onboarding-design.md (med Olas beslut och tilläggen) och Olas beslut samma dag att Gnesta South och North är samma plats (Hagstumosse). Policyerna i scripts/balance.mjs spelar nu det spel en ny spelare får, så att fingeravtrycken mäter det riktiga spelet.
+
+Vad policyerna följer (src/meta/unlocks.js, simuleringens sim.allow):
+- E4 dag 1 har inga förnödenheter (kassan 0, dödade ger inget), infanteriet står vid bommen (preset), första Ksp 90 ställs på en markerad plats och den andra först efter våg 1 (late). Policyn ställer ut den sena enheten när den kommit fram. De markerade platserna är e4Plan(1):s fyra första, så att policyn och spelaren ser samma platser.
+- Taggtråd från E4 dag 2, barrikader först från South dag 2 (smart spärrar inte dag 1, planen räknas utan spärr), skrotbilar efter South dag 2, Rotate och sikta-dra från E4 dag 3, Move från South dag 4, förnödenheter på enheten (ammunition, sandsäckar, granatlådor) från South dag 5, Next wave med bonus från South dag 3 (skilled kallar inte tidigt före det).
+- Förrådet: inget att köpa på E4 och South dag 1 och 2. Nivåer och påfyllnad efter South dag 2, rekvisition efter dag 3, uppgraderingar och Return efter dag 4. Rekvisitionen hoppar över mål som inte är släppta (lagret tomt, 'none') eller inte upplåsta ('locked') i stället för att spara RP till dem.
+- Knappheten: varje leverans har ett lager (stock) och uppgraderingarna släpps upp till en nivå (ups), North-uppgraderingarna fördelade över dag 1 till 5.
+- Hagstumosse: Vikingavägen (förut Gnesta North) öppnar efter Ishallen dag 5 (förut dag 4) och har samma trupp; trycket mellan dem är borta.
+
+Ändrade siffror och varför:
+- E4 dag 1 hp 3,2 till 2,8. Med en Ksp 90 i våg 1 och infanteriet vid bommen tappade båda policyerna 5 i bas; dagen ska vara den lättaste (nu 19 till 20).
+- E4 dag 2 hp 3,6 till 3,2, förnödenheter 350 till 250 och halva per dödad (bounty 0,6). Utan förrådets köp efter dag 1 föll basen till 9; överskottet (550 dollar) gick inte att lägga på något utom tråd.
+- E4 dag 3 hp 1,2 till 1,0, förnödenheter 400 till 200, bounty 0,5 till 0,4. Utan förrådet förlorade normal i en seed av fem (bas 3 i de andra); nu 7 till 11, överskottet under 500.
+- South dag 1 hp 2,8 till 1,9. Utan barrikaden vid rondellen (kommer dag 2) dog de civila på 44 s; nu 14 av 20 framme och 5 till 6 förlorade, båda policyerna, alla seeds.
+- South dag 2 hp 3,3 till 1,8 och våg 3 från 130 till 98 (40 + 24 vandrare, 34 löpare). Utan förrådet före dagen (förut en tredje Ksp 90 och nivå 2 på allt) var den en vägg: alla försök förlorade. Nu vinner normal på första försöket med 7 till 11 kvar, skilled med full bas.
+- De vilande husen flyttade från South dag 1 och 2 till dag 3 (designen); dag 3 har nu det förvarnade huset vid stickgatan i våg 1 och överraskningen i våg 2.
+
+Resultat (fem seeds, försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 2 1 2 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 1 3 1 2 1 1 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller: normal inom 1 till 4 försök (som mest 3, South dag 5), skilled allt på första försöket. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt. Simuleringens kvitto: E4 dag 2 be6e026f till cf609061 (infanteriet står vid bommen från början, hp 3,2), South dag 3 3b601645 till db5f4217 (de vilande husen); North dag 2 står kvar.
+
+Kvar att speltesta: överskottet av förnödenheter på South dag 3 och 4 för den skickliga (tidiga kall ger bonus, men förnödenheter på enheten kommer först dag 5); South dag 5 är nu den svåraste för normal (2 till 3 försök).
+
+## 0.16.1: E4:s sista vågor, Ishallen dag 1 och överskottet på Ishallen dag 3 och 4
+
+Underlag: speltesterna av 0.14.2 och 0.16.0 (docs/playtests/2026-10-17-0.16.0.md) och todo H192, H215. Uppmätt per våg med policyerna i scripts/balance.mjs, fem seeds.
+
+E4 före (normal och skilled spelar E4 lika):
+- Dag 1: 14 / 22 / 40 fiender, basen 19 till 20.
+- Dag 2: 20 / 40 / 68, basen 20, 20, 13 till 16 (all skada i våg 3), 283 till 289 dollar över.
+- Dag 3: 26 / 20 / 82 (36 bjässar), basen 20, 20, 7 till 11 (all skada i våg 3, 9 till 13 på en våg), 420 till 470 dollar över.
+
+Ändrat och varför:
+- Dag 1 våg 3: 22 + 18 till 20 + 12 vandrare (32). Sista vågen var nästan dubbla den näst sista, och tre minuter utan något att göra.
+- Dag 2: våg 2 löparna 13 till 15 per grupp (44), våg 3 sex klungor löpare till fem (60). Nu 20, 18, 16: skadan kommer i två vågor i stället för en.
+- Dag 3: våg 2 får två klungor bjässar (7 från Nyköping vid 10 s, 6 från Södertälje vid 28 s) och 16 löpare från påfarten; våg 3 26 bjässar i fyra klungor (7, 7, 6, 6) i stället för 36 i fem. Basen 20, 18 till 20, 10 till 13. Ingen våg tar mer än 10.
+- Dag 3 bounty 0,4 till 0,3, och policyn lägger pengarna på två trådar till längre ned i stammen (21 och 25 m) när det finns mer än tre trådars pengar (det en människa gör mitt i vågen). Kvar efter dagen 170 till 200 dollar. Trådarna är sänkan; de ger lite (basen ungefär densamma), men pengarna har något att gå till.
+
+Ishallen dag 1 (evakueringen):
+- Uppmätt: med de frivilliga utställda där tipset säger (de föreslagna platserna i src/sim/evac-danger.js, en per korsning och en på den långa biten mot ishallen) dog sista gruppen (B3-12) i våg 2 när löparna kom ikapp den vid ishallen: 13 till 14 av 20 framme, en seed av fem på gränsen.
+- Våg 2:s löpare kommer 22 s in i vågen i stället för 10. Den som följer tipset får in 17 till 18 av 20 i alla seeds; den som ställer alla frivilliga vid ishallen förlorar fortfarande (avsikten står kvar: de frivilliga ska täcka korsningen).
+
+Ishallen dag 3 och 4 (H215):
+- Förnödenheterna på enheten kommer först dag 5, så dag 3 och 4 har bara hindren att lägga pengar på. Skilled slutade med 1 185 till 1 265 och 2 225 dollar, normal med 750 till 830 och 1 335 till 1 395.
+- Bounty dag 3 0,5 och dag 4 0,3. Utfallen är oförändrade i alla seeds (försök, bas och förluster); överskottet skilled 478 till 558 och 702, normal 69 till 151 och 167 till 229.
+
+Resultat (fem seeds, försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 2 1 2 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 1 3 1 2 1 1 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt (E4 dag 1 till 3 och Ishallen dag 1 ändrade, resten bärs vidare via RP). Simuleringens kvitto: E4 dag 2 cf609061 till bfc5d385; South dag 3 och North dag 2 står kvar.
+
+## 0.16.2: Ishallen dag 2 en sak i taget
+
+Underlag: speltestet av 0.16.1 (docs/playtests/2026-10-17-0.16.1.md). Testaren förlorade dag 2 två gånger (45 / 70 / 98 fiender, basen 20) och förrådet öppnade aldrig. Dagen hade fem nyheter före första vågen: barrikaden, Hemvärnet, en ny ingång (Norra vägen), hordens väg och omdirigeringen.
+
+Uppmätt före (fem seeds, försök 1): normal 4 till 7 kvar efter dag 2; naive (ingen spärr, närmast en förstagångsspelare) förlorade alla fyra försök i alla seeds, basen 7 till 12 efter våg 1 och 0 i våg 2.
+
+Ändrat och varför:
+- Dag 2 lär ut barrikaderna och hordens väg (pilarna och omdirigeringen hör ihop). En ingång, Sigtunavägen öst. Vågorna 4 + 26 / 30 + 14 / 36 + 22 (30 / 44 / 58), samma trappa som dag 1 (19 / 32 / 60). hp 1,8 som förut.
+- Hemvärnets grupp (MCF:s leverans) och Norra vägen flyttar till dag 3; skogsvägen till dag 4, där den är nyheten tillsammans med bjässarna. Dag 2:s leverans: två Ksp 90 och granaterna.
+- Dag 3 hp 3,5 till 4,0: utan skogsvägen blev dagen lättare (normal 11 till 13 kvar mot 6 till 9 förut). Nu 6 till 9 igen.
+- North dag 3 hp 4,4 till 4,2: en kortare dag 2 ger mindre RP (skilled 160 i stället för 293), och skilled behövde två försök på North dag 3 i två seeds av fem. Nu första försöket i alla.
+- Balansskriptet: spärren dag 2 ligger vid första stickgatan (DAY2_BLOCKS, -25, 31). Vid rondellen (SMART_BLOCKS) har dag 2:s enda väg ingen omväg nära pjäserna. Ny policy hints: lägger spärren och ställer pjäserna längs den nya vägen som pilarna visar (förstagångsspelaren som följer tipsen).
+
+Resultat dag 2 (fem seeds, försök 1, basen efter våg 1 / 2 / 3):
+```
+hints   20/20/17  20/20/18  20/20/15  20/20/14  20/20/15
+naive   20/20/20  20/20/18  20/20/16  20/20/18  20/20/18
+normal  20/20/17  20/20/18  20/20/15  20/20/14  20/20/15
+```
+Kampanjen (försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 3 1 1 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 2 1 1 2 1 2 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken: E4 och Ishallen dag 1 står kvar, Ishallen dag 2 och allt efter är nya, avsiktligt. Simuleringens kvitto: South dag 3 db5f4217 till cab7334b (Norra vägen i stället för skogsvägen, hp 4,0); E4 dag 2 och North dag 2 står kvar.
+
+Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 till 18 kvar). Avsikten är att en ny spelare ska ta sig förbi dagen och se förrådet; ribban höjs igen dag 3.
+

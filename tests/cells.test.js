@@ -5,9 +5,10 @@ import { projectOnPath, pointAt, pathLength } from '../src/sim/path.js';
 import * as WEAPONS_MOD from '../src/data/weapons.js';
 import { CELL_LEN } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 // Riksvägen går rakt längs z 0 från spawn (x0) mot basen, så d = x0 - x.
 const X0 = map.path[0][0];
 const at = (d, z) => cellAt(map, X0 - d, z);

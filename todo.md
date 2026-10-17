@@ -216,3 +216,53 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H230 | e4 | Lästringe: bygg ut omgivningen så det "suddiga" utanför blir trovärdigt (mer skog, åkrar, vägar, gårdar som fortsätter ut i diset); dimma först långt ut.
 - [ ] H231 | e4 | Skyltarna står mitt i gatan: flytta till vägkanten på riktiga stolpar/portaler.
 - [ ] H232 | e4 | Ta bort gräs/tuvor som växer på vägbanan (tidigt i apokalypsen). Behåll bilkrocken (Ola: "NAJS!").
+- [x] H240 | ux | Gnesta dag 2 startar med ishallen utanför bild; basen faller osedd. Kameran ska visa basen vid dagstart på alla dagar, och basens hälsa ska synas när den tar skada utanför bild (kantpil). (0.16.1: hela basen i bild, kantpil med hälsan, B/Home)
+- [x] H241 | ux | Vägetiketter står vid ishallen i stället för vid infarten, följer markören och täcker placerbar mark. (0.16.0: står kvar på sin plats, gatunamnet vid hovring; 0.16.1: vid infarten i bildkanten, undviker placerbar mark, nedtonade med enhet i handen)
+- [x] H242 | balans | E4 dag 2 för lätt ($550 över), dag 3 våg 3 stup (82 fiender, 20 till 5). (0.16.1: bjässarna delade mellan våg 2 och 3, sista vågorna jämnare, överskottet till trådar)
+- [x] H243 | ux | VICTORY och "fallen silent" motsäger varandra fortfarande; felaktig text "Only on the road"; förrådets rullist klipper priser. (0.16.0: "Sector E4 is secure", "Only on the marked spots.", spelets rullister och fasta kort)
+- [x] H244 | grafik | Frivilliga och Hemvärnet fortfarande små och svåra att hitta. (0.16.1: märke VOL/HV över gruppen, lyser när den skjuter)
+
+## E4 vid Lästringe (0.15.0)
+- [x] H195 | banor | Bana 1 som trafikplats 137 Lästringe: E4, avfarten och påfarten, väg 800 och 224, hållplatsen, vägspärren vid korsningen. Sörmland i stället för öken.
+- [ ] H196 | balans | Speltesta E4 på den nya kartan: dag 1 håller full bas för båda policyerna (avsiktligt minst, onboardingen görs om), dag 3 4 till 13 för den normala.
+- [ ] H197 | ux | Dag 2:s andra grupp (Södertälje) syns först i våg 2; dagens startkamera visar bara avfarten. Pröva att visa båda vägarna när dagen börjar.
+- [ ] H198 | grafik | Skyltarnas text är svår att läsa längst ut; överväg större paneler eller en portal över motorvägen.
+
+
+## Onboarding (0.16.0, docs/superpowers/specs/2026-10-16-onboarding-design.md)
+- [x] H245 | onboarding | Upplåsningsschemat dag för dag som data (src/data/lessons.js): ett nytt begrepp per dag, resten dolt. E4 dag 1: en Ksp 90 på en markerad plats, starta vågen; ingen tråd, inga förnödenheter.
+- [x] H246 | onboarding | Gradvis HUD: varje del syns först när den är upplåst, med en diskret animation första gången.
+- [x] H247 | onboarding | Lektionsplåten: hård paus, en markering, högst ca 12 ord, Esc hoppar över, "fewer tips", Tips On / New only / Off och Reset tips i pausmenyn.
+- [x] H203 | onboarding | Field manual på J: uppslag som fylls på, prick på nya, Show me.
+- [x] H204 | onboarding | Sparfilen: allt fram till den längst spelade dagen räknas som sett och upplåst. Prov.
+- [x] H205 | onboarding | Ny fiendetyp: hård paus med presentationsruta, porträtt renderat ur 3D-modellen, rapporttext och Continue (vandrare, löpare, bjässe).
+- [x] H206 | ux | Köpraden: enkla siffror 1, 2, 3; tvåstegsval bara med fler än 9 kort (ersätter H097). Tips, intron, prov och chord.js.
+- [x] H207 | operation | Knapphet: ledningen släpper ett bestämt antal per leverans, "1 available" / "None released"; RP är priset, leveranserna taket.
+- [x] H208 | operation | Uppgraderingar bara för det man har eller fått släppt, och släpps pö om pö.
+- [x] H209 | ux | Förrådets rullister i spelets stil, färre poster, stabil kortlayout.
+- [x] H210 | text | Textgenomgången i designens avsnitt 6, med "(research More positions)" och "press U to upgrade".
+- [x] H211 | balans | Balansskriptets policyer följer upplåsningen och förrådets lager; nya fingeravtryck med skäl i docs/balance-log.md.
+- [x] H212 | operation | Gnesta South och North är sektorn Hagstumosse (Ishallen, Vikingavägen) med en trupp; sparfilen slås ihop med kopia; Gnesta Centrum som platshållare (Olas beslut 2026-10-16).
+- [x] H213 | ux | Förrådet: nästa strid står i rubriken och fliken, Deploy säger sektorn, skicka frågar och går att ta tillbaka till Deploy, varning under garnisonen (vilande tills två skilda platser är aktiva).
+- [ ] H214 | ux | Speltesta inlärningen i händerna med en ny spelare och en van tornförsvarsspelare (fewer tips): pausernas antal mitt i vågorna, plåtarnas placering, presentationsrutorna.
+- [x] H215 | balans | Den skickliga har stort överskott av förnödenheter på South dag 3 och 4 (tidiga kall, förnödenheter på enheten först dag 5). Speltesta om det stör. (0.16.1: bounty 0,5 och 0,3, samma utfall, överskottet ungefär halverat)
+- [x] H216 | ux | Show me i Field manual spelar bara om steg vars mål finns på skärmen; uppslag utan steg (Veterans, Losses) har ingen markering. (0.16.1: kameran flyttas till målet, bilder för Veterans och Losses)
+
+## Efter speltest 0.16.0 (2026-10-17, docs/playtests/2026-10-17-0.16.0.md)
+- [x] H217 | balans | Ishallen dag 1 gick inte att vinna för en ny spelare: farozoner (röda fläckar), föreslagna platser för de frivilliga, lektionen "Cover the crossing", våg 2:s löpare senare. (0.16.1)
+- [x] H218 | ux | Ny ingång utan förvarning (E4 dag 2, Södertälje): rad före vågen, vägen blinkar, ping. (0.16.1)
+- [x] H219 | ux | Förrådet hittades inte: grå rad på operationskartan om när det öppnar. (0.16.1)
+- [x] H220 | ux | Lektionsplåtar under/över andra rutor; evakueringsrutan över stridszonen. (0.16.1)
+- [x] H221 | ux | Tysta placeringsfel: varje nekat klick säger varför vid pekaren. (0.16.1)
+- [x] H222 | text | Köpradens rubrik bytte mellan DEPLOY och SUPPLIES: DEPLOY före första vågen, DEFENCES under dagen. (0.16.1)
+- [x] H223 | bugg | "Field manual: Evacuation" öppnade fel uppslag. (0.16.1)
+- [ ] H224 | ux | E4 dag 3: första klicket efter Ksp 88-placeringen tappade valet av Ksp 90 (inte återskapat headless).
+- [ ] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen.
+- [ ] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden).
+
+## E4-omgivningen och menyn (2026-10-17, Olas önskemål)
+- [x] H248 | grafik | E4 Lästringe: omgivningen långt utanför spelytan (224 norrut, E4 åt båda hållen, vallen med dike och kraftledning, plöjd åker, grusvägar och gårdar, skog med hyggen och hällar), diset längre ut och mjukare. (0.16.3)
+- [x] H249 | grafik | Skyltarna stod mitt i vägen: i vägrenen på stolpar, avfartsskylten på en portal. (0.16.3)
+- [x] H250 | grafik | Inget gräs på asfalten (tidigt i apokalypsen). (0.16.3)
+- [x] H233 | ux | Huvudmenyn trång och konstig: luftig plåt, Continue på en rad, statusrad, New operation som sekundär knapp, versionen i hörnet. (0.16.3)
+- [ ] H234 | grafik | Skyltarnas osynliga fotavtryck från 0.16.2 står kvar i placeringen (bl.a. på väg 800:s asfalt före korsningen). Flytta dem till de nya platserna när balansen ändå räknas om.

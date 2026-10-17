@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSim, startWave, step, placeObstacle, removeObstacle } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
+import { STRAIGHT } from './fixtures/straight-road.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 
-const map = MAPS.riksvagen;
+const map = STRAIGHT;
 const run = (sim, secs) => { for (let i = 0; i < secs * 30; i++) step(sim, 1 / 30); };
 const mk = (o = {}) => createSim({ map, day: 1, cash: 2000, research: [], seed: 5, ...o });
 const firstZ = s => s.zombies.find(z => z.id === 1);
@@ -130,13 +131,13 @@ test('banans upplåsningar: barrikaden finns på Gnesta dag 1 utan forskning, E4
   const { placeAcross, checkObstacle, placeObstacle } = await import('../src/sim/sim.js');
   const { obstacleUnlocked } = await import('../src/sim/stats.js');
   assert.equal(obstacleUnlocked('block', [], MAPS.gnesta), true);
-  assert.equal(obstacleUnlocked('block', [], MAPS.riksvagen), false);
-  assert.equal(obstacleUnlocked('block', ['wireTough.1', 'block.1'], MAPS.riksvagen), true);
+  assert.equal(obstacleUnlocked('block', [], STRAIGHT), false);
+  assert.equal(obstacleUnlocked('block', ['wireTough.1', 'block.1'], STRAIGHT), true);
   const g = createSim({ map: MAPS.gnesta, day: 1, cash: 2000, research: [], seed: 1 });
   const cell = g.route.cellAt(-3, 35);
   assert.deepEqual(checkObstacle(g, cell, 'block'), { ok: true });
   assert.equal(placeAcross(g, cell, 'block').ok, true);
-  const e4 = createSim({ map: MAPS.riksvagen, day: 1, cash: 2000, research: [], seed: 1 });
+  const e4 = createSim({ map: STRAIGHT, day: 1, cash: 2000, research: [], seed: 1 });
   assert.deepEqual(placeObstacle(e4, 0, 'block'), { ok: false, reason: 'ej upplåst' });
   assert.equal(e4.cash, 2000);
 });

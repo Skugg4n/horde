@@ -13,13 +13,15 @@ import { MAPS } from '../src/data/maps.js';
 
 const DT = 1 / 30;
 const unit = (uid, type, level = 1, men = null) => ({ uid, type, level, vet: 0, ...(men != null ? { men } : {}) });
-// Rutorna kommer från balansens planer i 0.14.0 (e4Plan, gnestaPlan smart) men står här som tal, så att
+// Rutorna kommer från balansens planer i 0.14.0 (e4Plan, gnestaPlan smart; E4:s från e4Plan(2) i 0.15.0,
+// trafikplatsen vid Lästringe) men står här som tal, så att
 // kvittot inte rör sig när planerna gör det.
 export const RECEIPT_DAYS = {
   'E4 day 2': {
     map: 'riksvagen', day: 2, cash: 350, research: ['block.1'],
     core: [unit(1, 'inf', 1, 4), unit(2, 'm249', 2), unit(3, 'm249', 1), unit(4, 'epa', 1)],
-    guns: [[566, 'epa'], [569, 'm249'], [836, 'm249'], [839, 'inf']], lines: [], wire: [],
+    // 0.16.0: infanteriet står vid bommen från början (dagens preset), så det ställs inte ut här
+    guns: [[1674, 'epa'], [2466, 'm249'], [2854, 'm249']], lines: [], wire: [],
   },
   'Gnesta South day 3': {
     map: 'gnesta', day: 3, cash: 500, research: ['block.1', 'grenade.1', 'ksp58.1', 'ak5.1'],
@@ -57,9 +59,18 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.14.2: E4 dag 2 a773fa93 till e007577b, avsiktligt: spärren släpper in en i taget (map.door), löparna i
 // fler och mindre klungor och hp 4,0 (docs/balance-log.md 0.14.2). Den fasta styrkan vinner nu med full bas.
 // South dag 3 och North dag 2 står kvar, också med skogsbrynet (placeringen rör inte de fasta rutorna).
+// 0.15.0: E4 dag 2 e007577b till be6e026f, avsiktligt: banan är trafikplatsen vid Lästringe (ett rutnät, två
+// ingångar dag 2, hp 3,6), och pjäsernas rutor är e4Plan(2) på den nya kartan. Den fasta styrkan vinner med 13
+// kvar (docs/balance-log.md 0.15.0). South dag 3 och North dag 2 står kvar.
+// 0.16.0: E4 dag 2 be6e026f till cf609061 och South dag 3 3b601645 till db5f4217, avsiktligt (inlärningen,
+// docs/balance-log.md 0.16.0): infanteriet står vid bommen från början, E4 dag 2 har hp 3,2 och färre
+// förnödenheter per dödad, och de vilande husen är South dag 3:s begrepp (förut dag 1 och 2). North dag 2 står kvar.
+// 0.16.1: E4 dag 2 cf609061 till bfc5d385, avsiktligt (våg 2 och 3 jämnare, 40 / 68 till 44 / 60; docs/balance-log.md 0.16.1).
+// 0.16.2: South dag 3 db5f4217 till cab7334b, avsiktligt (Norra vägen i stället för skogsvägen, hp 4,0; den fasta
+// styrkan förlorar nu i våg 3 utan Hemvärnet, docs/balance-log.md 0.16.2). E4 dag 2 och North dag 2 står kvar.
 const RECEIPTS = {
-  'E4 day 2': 'e007577b',
-  'Gnesta South day 3': '3b601645',
+  'E4 day 2': 'bfc5d385',
+  'Gnesta South day 3': 'cab7334b',
   'Gnesta North day 2': 'b50f3d9a',
 };
 

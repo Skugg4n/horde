@@ -17,17 +17,24 @@
 // pillboxen och Ksp 88), Gnesta South dag 1 de civila, Hemvärnet och Ksp 90 dag 2, Ksp 58 och Ak 5 dag 3,
 // Psg 90 och pillboxen dag 4, Ksp 88 dag 5, och infanteriet på Gnesta North från dag 3.
 
+// 0.16.0 (Olas beslut 2026-10-16, "Gnesta = en sektor"): Gnesta South och Gnesta North är samma plats, stadsdelen
+// Hagstumosse (ishallen, Sigtunavägen, Fornminnesvägen och Vikingavägen). En sektor med två faser och en gemensam
+// trupp: maps är banorna i ordning (id:na är oförändrade, så sparfilerna fungerar). Enheternas sector är sektorns
+// id ('gnesta'); en sparfil med enheter i 'gnesta-norr' flyttas hit (src/meta/operation.js poolOf).
+// Omplaceringen och garnisonen finns kvar i koden men visas bara när två skilda platser är aktiva samtidigt.
 export const SECTORS = [
   // x, y: platsen på operationskartan (0..1 över kartans yta, src/ui/operation.js)
-  { id: 'riksvagen', name: 'Sector E4', short: 'E4', x: 0.60, y: 0.50 },
-  { id: 'gnesta', name: 'Gnesta South', short: 'Gnesta S', x: 0.47, y: 0.33 },
-  { id: 'gnesta-norr', name: 'Gnesta North', short: 'Gnesta N', x: 0.45, y: 0.24 },
+  { id: 'riksvagen', name: 'Sector E4', short: 'E4', x: 0.60, y: 0.50, maps: ['riksvagen'] },
+  { id: 'gnesta', name: 'Hagstumosse', full: 'Hagstumosse · Gnesta', short: 'Hagstumosse', x: 0.46, y: 0.29, maps: ['gnesta', 'gnesta-norr'] },
   // senare sektorer, gråa platshållare
+  { id: 'centrum', name: 'Gnesta Centrum', short: 'Centrum', x: 0.49, y: 0.21, placeholder: true },
   { id: 'molnbo', name: 'Mölnbo', short: 'Mölnbo', x: 0.62, y: 0.15, placeholder: true },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
-export const sectorOf = id => SECTORS.find(s => s.id === id) ?? null;
+// Sektorn en bana hör till ('gnesta-norr' -> 'gnesta').
+export const poolOf = mapId => SECTORS.find(s => s.maps?.includes(mapId))?.id ?? mapId;
+export const sectorOf = id => SECTORS.find(s => s.id === id) ?? SECTORS.find(s => s.maps?.includes(id)) ?? null;
 
 // Rekvisition: pris i RP per enhet (ungefär halva det gamla priset i pengar). Kärntrupperna
 // följer med mellan dagarna, så styrkan växer av sig själv; priset håller tillväxten i takt med dagarna.
@@ -38,6 +45,10 @@ export const LEVEL_RP = { civ: [40, 60], hv: [80, 120], inf: [120, 160], m249: [
 export const REFILL_RP = { civ: 8, hv: 15, inf: 25 };
 // Tillbaka till förrådet: ungefär hälften av det som lagts på enheten.
 export const RETURN_RATE = 0.5;
+// 0.16.0 (Olas fråga om Reassign: "behöver jag ingen kvar i South?"): sektorns rekommenderade garnison. En öppen
+// sektor med färre enheter än så får trycket att stiga dubbelt så fort när man strider någon annanstans
+// (src/meta/operation.js pressureGain); en sektor faller aldrig (Olas beslut).
+export const GARRISON = 3;
 // Erfarenhet: en stjärna efter så många vunna dagar ute. Blygsamt (src/sim/sim.js gunStats).
 export const VET_WINS = 3;
 
@@ -67,40 +78,60 @@ export const RETIRED_NODES = ['positions', 'hvPlatoon'];
 export const UNLOCK_TIERS = ['m2.1', 'ksp58.1', 'psg90.1', 'ak5.1'];
 
 const NORTH_ALL = ['civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
+// 0.16.0 (Olas tillägg: knapphet i rekvisitionen): ledningen släpper ett bestämt antal per leverans. stock: så
+// många av typen som går att rekvirera i sektorn (RP är priset, leveranserna taket; sektorns frontbredd står
+// kvar). ups: förrådets uppgraderingar som släpps, upp till nivån (pö om pö, som trupperna). Rekvisitionen syns
+// först efter South dag 3 och uppgraderingarna efter South dag 4 (src/meta/unlocks.js), så lagret från de
+// tidigare leveranserna väntar där. Ledningens meddelanden är högst 20 ord (designen, avsnitt 2.2).
+// Inlärningen (designen avsnitt 3): E4 dag 1 har bara pjäsen och infanteriet, dag 2 taggtråden och dag 3 Ksp 88
+// och pillboxen, som står svetsad från början.
 export const RELEASES = [
   // ---------- E4: arméns vägspärr ----------
   { id: 'e4-1', map: 'riksvagen', day: 1, from: 'FM',
-    text: 'We hold the E4 roadblock south of Gnesta. You have an infantry squad and two Ksp 90 teams. Concrete and wire are on the trucks.',
+    text: 'Hold the E4 roadblock at Lästringe. You have an infantry squad and two Ksp 90 teams.',
     grant: [{ type: 'inf' }, { type: 'm249', count: 2 }], unlock: ['inf', 'm249'], tiers: ['block.1'] },
   { id: 'e4-2', map: 'riksvagen', day: 2, from: 'FM',
-    text: 'Engineers have welded an EPA pillbox at the roadblock. Runners reported on the E4.',
-    grant: [{ type: 'epa' }], unlock: ['epa'] },
+    text: 'Runners reported on the E4. The trucks brought barbed wire.' },
   { id: 'e4-3', map: 'riksvagen', day: 3, from: 'FM',
-    text: 'A mounted Ksp 88 has reached the roadblock. Brutes on the road tonight.',
-    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
+    text: 'A mounted Ksp 88 and a welded EPA pillbox reach the roadblock. Brutes tonight.',
+    grant: [{ type: 'm2' }, { type: 'epa' }], unlock: ['m2', 'epa'], tiers: ['m2.1'] },
   // ---------- Gnesta South ----------
   { id: 'gn-1', map: 'gnesta', day: 1, from: 'MCF',
-    text: 'Hunters and neighbours in Gnesta are organised into three groups of volunteers. Civilians are still in the houses east of the roundabout.',
+    text: 'Hunters and neighbours in Gnesta form three groups of volunteers. Civilians are still in their houses.',
     grant: [{ type: 'civ', count: 3 }], unlock: ['civ'] },
+  // 0.16.2 (speltestet av 0.16.1): Hemvärnets grupp kommer dag 3, så att dag 2 bara lär ut barrikaderna
   { id: 'gn-2', map: 'gnesta', day: 2, from: 'MCF',
-    text: 'Hemvärnet is released to Gnesta: one squad and two Ksp 90 teams. Crates of hand grenades came with them.',
-    grant: [{ type: 'hv' }, { type: 'm249', count: 2 }], unlock: ['hv', 'm249'], tiers: ['grenade.1'] },
+    text: 'Two Ksp 90 teams from Hemvärnet reach Gnesta, with hand grenades. Barricades are ready.',
+    grant: [{ type: 'm249', count: 2 }], unlock: ['m249'], tiers: ['grenade.1'] },
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'FM',
-    text: 'A Ksp 58 team and an Ak 5 grenadier are released for Gnesta. The forest road is open.',
-    grant: [{ type: 'ksp58' }, { type: 'ak5' }], unlock: ['ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'] },
+    text: 'Hemvärnet sends a rifle squad. A Ksp 58 team and an Ak 5 grenadier for Gnesta. One more Ksp 90 can be requisitioned.',
+    grant: [{ type: 'hv' }, { type: 'ksp58' }, { type: 'ak5' }], unlock: ['hv', 'ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'], stock: { m249: 1 } },
   { id: 'gn-4', map: 'gnesta', day: 4, from: 'MCF',
-    text: 'Fuel and an A-tractor are secured. Your engineers welded a pillbox, and Försvarsmakten sends a Psg 90 sniper.',
-    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'] },
+    text: 'A welded pillbox and a Psg 90 sniper for Gnesta. Försvarsmakten releases one Ksp 58 team.',
+    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'], stock: { ksp58: 1 },
+    ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
   { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
-    text: 'A mounted Ksp 88 is released for Gnesta. Everything we have is coming.',
-    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'] },
+    text: 'A mounted Ksp 88 for Gnesta. One more Ksp 58 team and a Ksp 90 team are released.',
+    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'], stock: { ksp58: 1, m249: 1 },
+    ups: { grenade: 2, ksp58: 2 } },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'They are circling north of the ice rink. Gnesta North is a sector now: reassign what you can spare from Gnesta South, or requisition.',
-    grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL },
+    text: 'The fog lifts. They are circling north of the ice rink, up Vikingavägen.',
+    grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL, stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
+    ups: { m2: 2, budget: 1 } },
+  { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',
+    text: 'New kit at the depot: faster Ksp 90 feeds, Psg 90 optics and better concrete.',
+    ups: { m249Rate: 2, psg90: 2, block: 2, hvSquad: 1 } },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, from: 'FM',
-    text: 'An infantry squad is released for Gnesta North. Regulars, Ak 5, body armour.',
-    grant: [{ type: 'inf' }], unlock: ['inf'] },
+    text: 'An infantry squad for Hagstumosse: regulars, Ak 5, body armour. One more Psg 90 is released.',
+    grant: [{ type: 'inf' }], unlock: ['inf'], stock: { inf: 1, psg90: 1, ksp58: 1 },
+    ups: { ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
+  { id: 'gnn-4', map: 'gnesta-norr', day: 4, from: 'FM',
+    text: 'The depot has the last Ksp 90 and Psg 90 upgrades, and heavier Ksp 88 rounds.',
+    ups: { m249Rate: 3, psg90: 3, m2: 3, wireTough: 2, hvVeterans: 1 } },
+  { id: 'gnn-5', map: 'gnesta-norr', day: 5, from: 'FM',
+    text: 'Everything we have left is at the depot. Hold the town.',
+    ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

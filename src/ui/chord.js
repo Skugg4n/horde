@@ -1,4 +1,7 @@
-// Köpradens tvåstegs snabbval (0.11.0, 0.12.0): ren tillståndsmaskin, ingen DOM, så att den går att testa.
+// Köpradens snabbval (0.11.0, 0.12.0, 0.16.0): ren tillståndsmaskin, ingen DOM, så att den går att testa.
+//
+// 0.16.0 (Olas beslut 3): med högst 9 kort i dagens köprad väljer en siffra kortet direkt (1 är första kortet).
+// Tvåstegsvalet nedan gäller bara när raden har fler än 9 kort.
 //
 //   första tangenten   väljer kategorin (1 Defenses, 2 Units); kategorin lyser, inget göms
 //   andra tangenten    väljer ALLTID saken i den öppna kategorin ("2" sedan "2" = Ksp 90), hur lång
@@ -7,7 +10,7 @@
 //   Esc                stänger en öppen kategori (main.js frågar escape() först); klick utanför likaså
 //
 // WINDOW är bara bild: så länge lyser kategorin starkare (armed), sedan lugnare men fortfarande öppen.
-import { BUY_MENU } from '../data/shop.js';
+import { BUY_MENU, usesChords, flatItems } from '../data/shop.js';
 
 export const WINDOW = 2;
 
@@ -19,7 +22,14 @@ export function createChord({ menu: m = BUY_MENU, window: win = WINDOW } = {}) {
   return {
     get open() { return cat; },
     // n: siffran (1-9), now: sekunder. Svar: { t: 'category', cat } | { t: 'pick', id } | { t: 'none' }.
+    // true när dagens köprad har fler än 9 kort och tvåstegsvalet gäller
+    get chords() { return usesChords(cur()); },
     press(n, now) {
+      if (!usesChords(cur())) {
+        cat = null;
+        const id = n >= 1 ? flatItems(cur())[n - 1]?.id ?? null : null;
+        return id ? { t: 'pick', id } : { t: 'none' };
+      }
       if (cat != null) {
         const id = cur()[cat - 1]?.items[n - 1]?.id ?? null;
         if (!id) return { t: 'none' };

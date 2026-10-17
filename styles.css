@@ -79,7 +79,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 
 /* ---------- spelets gränssnitt ---------- */
 #ui { position: fixed; inset: 0; pointer-events: none; }
-#ui .plate, #ui button { pointer-events: auto; }
+/* 0.16.2: utan specificitet för #ui, så att en plåt som själv säger pointer-events: none (skälet vid pekaren,
+   ROOF/GROUND, Unit here, evakueringsrutan, banderollen) släpper igenom klicket till kartan. Förut vann den här
+   regeln (#ui .plate) över #ghosttip, och skälet som stod kvar vid pekaren åt nästa klick. */
+:where(#ui) .plate, :where(#ui) button { pointer-events: auto; }
 #ui [hidden] { display: none !important; }
 #ui button { font: inherit; color: inherit; }
 
@@ -336,6 +339,19 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .menu { min-width: 420px; }
 .menu .logo { font-family: 'Saira Stencil One', sans-serif; font-size: 84px; line-height: 0.95; letter-spacing: 0.06em; color: var(--paper); }
 .menu .map { font-size: 15px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--paper-dim); margin: 6px 0 16px; }
+/* 0.16.3: huvudmenyn luftig och lugn: titel, undertitel, knappen med statusraden, den sekundära knappen, versionen i hörnet */
+.sheet.menu { width: min(520px, calc(100vw - 32px)); min-width: 0; padding: 52px 56px 40px; }
+.sheet.menu .logo { font-size: 96px; margin-bottom: 4px; }
+.sheet.menu .map { letter-spacing: 0.42em; margin: 14px 0 44px; padding-left: 0.42em; }
+.menu-main { display: flex; flex-direction: column; align-items: stretch; }
+.sheet.menu .act { flex: none; width: 100%; flex-direction: row; justify-content: center; gap: 14px; padding: 14px 18px; white-space: nowrap; }
+.sheet.menu .act .a { font-size: 17px; letter-spacing: 0.12em; }
+.menu-status { margin: 12px 0 0; font-size: 13px; letter-spacing: 0.06em; color: var(--paper-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sheet.menu .act.menu-new { margin-top: 32px; padding: 10px 18px; background: transparent; border-color: rgba(233,223,201,0.32); }
+.sheet.menu .act.menu-new .a { font-size: 13px; letter-spacing: 0.16em; color: var(--paper-dim); font-weight: 600; }
+.sheet.menu .act.menu-new:hover { background: rgba(233,223,201,0.08); }
+.sheet.menu .act.menu-new:hover .a { color: var(--paper); }
+.sheet.menu .v { position: absolute; right: 12px; bottom: 9px; margin: 0; font-size: 10px; opacity: 0.4; }
 .menu .days { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
 .day {
   width: 128px; padding: 10px 10px 11px; border: 1px solid var(--plate-edge); border-radius: 2px;
@@ -390,7 +406,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 
 @media (max-width: 760px) {
   .menu { min-width: 0; width: calc(100vw - 32px); }
-  .menu .logo { font-size: 60px; }
+  .menu .logo, .sheet.menu .logo { font-size: 60px; }
+  .sheet.menu { padding: 36px 24px 32px; }
   .menu .days { gap: 6px; }
   .day, .menu .days.five .day { width: auto; flex: 1; }
   .maptab { min-width: 0; flex: 1; }
@@ -601,14 +618,15 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #debug .dmsg.show { opacity: 1; }
 
 /* 0.13.0 (H105): uppdraget med de civila, nere i mitten ovanför vågens rad (notiserna ligger uppe) */
-#evac { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); padding: 8px 18px 9px; text-align: center; pointer-events: none; }
+/* 0.16.1 (speltestet av 0.16.0: "evakueringsrutan täcker stridszonen"): under DAY-rutan uppe till vänster, inte mitt nere */
+#evac { position: fixed; top: 150px; left: 18px; width: 210px; box-sizing: border-box; padding: 8px 14px 9px; text-align: left; pointer-events: none; }
 #evac[hidden] { display: none; }
 #evac .t { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-dim); }
 #evac .n { font-size: 16px; letter-spacing: 0.06em; margin-top: 3px; }
 #evac .n b { font: 600 20px 'IBM Plex Mono', monospace; color: #f2c46b; }
 #evac .n .lost { color: #e0866a; }
 /* 0.14.1: stapeln (framme gult, strecket vid så många som behövs, förlorade rött från höger) */
-#evac .evbar { position: relative; height: 6px; margin: 6px auto 0; width: 260px; max-width: 70vw; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
+#evac .evbar { position: relative; height: 6px; margin: 6px 0 0; width: 100%; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
 #evac .evbar .safe { position: absolute; left: 0; top: 0; bottom: 0; background: #f2c46b; }
 #evac .evbar .lostbar { position: absolute; right: 0; top: 0; bottom: 0; background: #c2321c; }
 #evac .evbar .need { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #e9dfc9; }
@@ -743,3 +761,175 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .result .radio .rh i { width: 7px; height: 7px; border-radius: 50%; background: #9fc46a; box-shadow: 0 0 6px #9fc46a; animation: arcflag 1.2s ease-in-out infinite alternate; }
 .result .radio p { font: 14px/1.5 'IBM Plex Mono', monospace; color: #d8e3c4; margin: 7px 0 4px; letter-spacing: 0.01em; }
 .result .radio .rf { font: 11px 'IBM Plex Mono', monospace; color: rgba(159,196,106,0.7); letter-spacing: 0.14em; text-transform: uppercase; text-align: right; }
+
+/* ---------- 0.16.0: inlärningen (docs/superpowers/specs/2026-10-16-onboarding-design.md avsnitt 5.2) ---------- */
+#coach { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+#coach[hidden] { display: none; }
+#coach .catch { position: fixed; inset: 0; pointer-events: auto; cursor: pointer; }
+#coach.yield .cplate, #coach.yield .lead { visibility: hidden; }
+#coach:not(.k-show) .catch { display: none; }
+#coach .hole { position: fixed; border-radius: 4px; transition: left .25s, top .25s, width .25s, height .25s; }
+#coach.dimmed .hole { box-shadow: 0 0 12px 9999px rgba(22, 18, 14, 0.55); }
+#coach.dimmed .hole[hidden] + .marks + .lead + .cplate { box-shadow: 0 0 0 9999px rgba(22, 18, 14, 0.45), 0 6px 18px rgba(0,0,0,.35); }
+#coach .marks { position: fixed; animation: coachPulse 1.2s ease-in-out infinite; transition: left .25s, top .25s, width .25s, height .25s; }
+#coach .marks[hidden], #coach .hole[hidden], #coach .edge[hidden], #coach .lead[hidden] { display: none; }
+#coach .marks i { position: absolute; width: 14px; height: 14px; border: 0 solid var(--rust); }
+#coach .marks i:nth-child(1) { left: -2px; top: -2px; border-left-width: 2px; border-top-width: 2px; }
+#coach .marks i:nth-child(2) { right: -2px; top: -2px; border-right-width: 2px; border-top-width: 2px; }
+#coach .marks i:nth-child(3) { right: -2px; bottom: -2px; border-right-width: 2px; border-bottom-width: 2px; }
+#coach .marks i:nth-child(4) { left: -2px; bottom: -2px; border-left-width: 2px; border-bottom-width: 2px; }
+@keyframes coachPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+#coach .lead { position: fixed; height: 2px; background: var(--rust); transform-origin: 0 50%; }
+#coach .cplate { position: fixed; max-width: 320px; padding: 9px 13px 10px; pointer-events: auto; font: 400 15px/1.35 Oswald, sans-serif; letter-spacing: 0.02em; color: var(--paper); }
+#coach.k-show .cplate { cursor: pointer; }
+#coach .cplate kbd { font: 600 12px 'IBM Plex Mono', monospace; padding: 0 5px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; margin-left: 2px; }
+#coach .fewer { display: block; margin-top: 6px; background: none; border: 0; padding: 0; color: var(--paper-dim); font: 400 12px Oswald, sans-serif; letter-spacing: 0.04em; text-decoration: underline; cursor: pointer; }
+#coach .fewer[hidden] { display: none; }
+#coach .edge { position: fixed; display: flex; gap: 2px; }
+#coach .edge i { width: 10px; height: 10px; border-right: 3px solid var(--rust); border-bottom: 3px solid var(--rust); transform: rotate(-45deg); }
+#coach .paused, #enemycard .paused { position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%); font: 11px 'Saira Stencil One', sans-serif; letter-spacing: 0.3em; color: rgba(233,223,201,0.55); }
+#coach .paused[hidden] { display: none; }
+#coach.in .cplate { animation: coachIn .22s ease-out; }
+@keyframes coachIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* fiendens presentationsruta */
+#enemycard { position: fixed; inset: 0; z-index: 70; background: rgba(16, 12, 8, 0.62); pointer-events: auto; }
+#enemycard .ecard { width: min(520px, calc(100vw - 32px)); padding: 16px 18px; text-align: left; }
+#enemycard .eh { font: 12px 'Saira Stencil One', sans-serif; letter-spacing: 0.25em; text-transform: uppercase; color: #e0603c; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+#enemycard .eh i { width: 8px; height: 8px; border-radius: 50%; background: #e0603c; animation: coachPulse 1s infinite; }
+#enemycard .eb { display: flex; gap: 16px; align-items: stretch; }
+#enemycard img, #enemycard .noimg { width: 160px; height: 200px; object-fit: cover; border: 1px solid var(--plate-edge); border-radius: 2px; filter: contrast(1.08) saturate(0.8) sepia(0.12); background: #2b241b; flex: none; }
+#enemycard .h { font-size: 30px; margin: 0 0 8px; }
+#enemycard .radio-l { font-size: 16px; line-height: 1.45; color: var(--paper); border-left: 0; }
+#enemycard .acts { margin-top: 14px; justify-content: flex-end; }
+@media (max-width: 520px) { #enemycard .eb { flex-direction: column; } #enemycard img { width: 100%; height: 180px; } }
+
+/* Field manual */
+#manualbtn { position: fixed; left: 14px; bottom: 14px; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; color: var(--paper); cursor: pointer; z-index: 20; }
+#manualbtn[hidden] { display: none; }
+#manualbtn svg { width: 24px; height: 24px; }
+#manualbtn kbd { position: absolute; right: -4px; bottom: -4px; font: 600 9px 'IBM Plex Mono', monospace; padding: 0 3px; background: var(--ink); border: 1px solid rgba(233,223,201,0.35); border-radius: 2px; }
+#manualbtn .dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--rust); display: none; }
+#manualbtn.fresh .dot { display: block; }
+#ui[data-mode="menu"] #manualbtn { display: none; }
+#ui[data-manual="on"] #buildbar { left: 66px; }
+#manual { position: fixed; inset: 0; z-index: 80; background: rgba(16, 12, 8, 0.62); }
+#manual .msheet { width: min(760px, calc(100vw - 32px)); text-align: left; padding: 16px 18px; }
+#manual .mh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+#manual .mh .h { margin: 0; font-size: 28px; }
+#manual .mb { display: grid; grid-template-columns: 200px 1fr; gap: 16px; height: min(56vh, 460px); }
+#manual nav { overflow-y: auto; padding-right: 6px; }
+#manual .mgh { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--paper-dim); margin: 8px 0 4px; }
+#manual .mi { display: block; width: 100%; text-align: left; background: none; border: 1px solid transparent; color: var(--paper); font: 400 14px Oswald, sans-serif; padding: 3px 6px; cursor: pointer; position: relative; }
+#manual .mi.on { border-color: rgba(181,83,42,0.9); background: rgba(181,83,42,0.18); }
+#manual .mi.fresh::after { content: ''; position: absolute; right: 6px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--rust); }
+#manual article { overflow-y: auto; }
+#manual article .h2 { font-size: 22px; margin: 6px 0; }
+#manual article p { font-size: 15px; line-height: 1.5; margin: 0 0 10px; }
+#manual .micon svg { width: 160px; height: 46px; }
+#manual .mimg { width: 120px; height: 150px; object-fit: cover; border: 1px solid var(--plate-edge); border-radius: 2px; filter: contrast(1.08) saturate(0.8) sepia(0.12); }
+#manual .mkeys kbd { font: 600 13px 'IBM Plex Mono', monospace; padding: 1px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; }
+@media (max-width: 600px) { #manual .mb { grid-template-columns: 1fr; height: auto; max-height: 70vh; } }
+.result .mhint { display: block; margin: 0 auto 10px; }
+
+/* HUD:ens delar första gången de dyker upp (designen avsnitt 4) */
+.reveal { animation: hudReveal 1.4s ease-out; }
+@keyframes hudReveal { 0% { opacity: 0; transform: translateY(6px); box-shadow: 0 0 0 2px rgba(181,83,42,0.9); } 30% { opacity: 1; transform: none; } 100% { box-shadow: 0 0 0 2px rgba(181,83,42,0); } }
+#res .cash-box[hidden] { display: none; }
+/* 0.16.2: nedräkningen före Next wave med bonus är ingen knapp: ingen rostfärg, ingen hovring; ett klick säger varför */
+#go.auto, #go.auto:hover { opacity: 0.9; background: var(--plate); color: var(--paper-dim); border-style: dashed; cursor: default; }
+#go kbd[hidden] { display: none; }
+
+/* E4 dag 1: de markerade platserna */
+.spotmark { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; pointer-events: none; animation: coachPulse 1.2s ease-in-out infinite; }
+.spotmark i { position: absolute; width: 10px; height: 10px; border: 0 solid #e9b04a; }
+/* 0.16.2: fylld mjuk fläck och etikett */
+.spotmark b { position: absolute; inset: 3px; border-radius: 50%; background: radial-gradient(circle, rgba(242,196,107,0.55) 0%, rgba(242,196,107,0.32) 55%, rgba(242,196,107,0) 72%); box-shadow: 0 0 0 1px rgba(242,196,107,0.35); }
+.spotmark span { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 3px); white-space: nowrap; padding: 1px 6px; border-radius: 2px;
+  font: 600 11px Oswald, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #1c1710; background: rgba(242,196,107,0.88); }
+.spotmark i:nth-of-type(1) { left: 0; top: 0; border-left-width: 2px; border-top-width: 2px; }
+.spotmark i:nth-of-type(2) { right: 0; top: 0; border-right-width: 2px; border-top-width: 2px; }
+.spotmark i:nth-of-type(3) { right: 0; bottom: 0; border-right-width: 2px; border-bottom-width: 2px; }
+.spotmark i:nth-of-type(4) { left: 0; bottom: 0; border-left-width: 2px; border-bottom-width: 2px; }
+
+/* köpraden utan kategorier (Olas beslut 3) */
+#buildbar.flat .groups { gap: 4px; }
+
+/* vägetiketterna: gatunamnet bara vid hovring (textgenomgången) */
+.entry .sub { display: none; }
+.entry:hover .sub { display: block; }
+.entry { pointer-events: auto; }
+
+/* operationskartan: enheterna som ikoner med antal */
+.opmap .uics { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.opmap .uic { display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px; border: 1px solid var(--plate-edge); border-radius: 2px; }
+.opmap .uic svg { width: 44px; height: 14px; }
+.opmap .uic b { font: 600 11px 'IBM Plex Mono', monospace; color: #d9a441; }
+.opmap .uic i { display: none; }
+.opmap .inbox { max-height: none; }
+
+/* förrådet: spelets rullister, fasta kort, lagret och garnisonen (Olas tillägg) */
+.depot .cols section, #manual nav, #manual article, .opmap .inbox { scrollbar-width: thin; scrollbar-color: #9a4a26 rgba(22,18,14,0.9); }
+.depot .cols section::-webkit-scrollbar, #manual nav::-webkit-scrollbar, #manual article::-webkit-scrollbar { width: 6px; }
+.depot .cols section::-webkit-scrollbar-track, #manual nav::-webkit-scrollbar-track, #manual article::-webkit-scrollbar-track { background: rgba(22,18,14,0.9); border-left: 1px solid var(--plate-edge); }
+.depot .cols section::-webkit-scrollbar-thumb, #manual nav::-webkit-scrollbar-thumb, #manual article::-webkit-scrollbar-thumb { background: #9a4a26; border-radius: 3px; }
+.depot .cols section::-webkit-scrollbar-thumb:hover { background: #d8cdb4; }
+.depot .cols { overflow: hidden; }
+.depot .cols section { overflow-y: auto; padding-right: 4px; }
+.depot .cols.n1 { grid-template-columns: minmax(290px, 520px); }
+.depot .req { grid-template-columns: 44px 1fr auto; min-height: 50px; align-items: center; }
+.depot .req .ri svg { width: 44px; height: 14px; }
+.depot .req .ri { grid-row: 1 / span 2; }
+.depot .req b { grid-column: 2; }
+.depot .req .rs { grid-column: 2; font-size: 12px; color: var(--paper-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.depot .req i { grid-column: 3; grid-row: 1 / span 2; min-width: 56px; text-align: right; }
+.depot .req.up { grid-template-columns: 1fr auto; }
+.depot .req.up b, .depot .req.up .rs { grid-column: 1; }
+.depot .req.up i { grid-column: 2; }
+.depot .req.none { border-style: dashed; cursor: default; }
+.depot .nextb { display: inline-flex; gap: 10px; align-items: baseline; padding: 4px 10px; border: 1px solid rgba(224,96,60,0.8); background: rgba(181,83,42,0.22); border-radius: 2px; margin-bottom: 6px; }
+.depot .nextb span, .depot .nbtag { font: 11px 'Saira Stencil One', sans-serif; letter-spacing: 0.25em; text-transform: uppercase; color: #e0603c; }
+.depot .nextb b { font-size: 16px; letter-spacing: 0.04em; }
+.depot .nbtag { margin-bottom: 4px; }
+.depot section.next { box-shadow: inset 0 0 0 1px rgba(224,96,60,0.5); padding: 6px; border-radius: 2px; }
+.depot .slines p { font-size: 13px; color: var(--paper-dim); margin: 0 0 4px; }
+.depot .slines p.under, .depot .gar.under, .depot .pv.under { color: #e0603c; }
+.depot .gar { font: 600 11px 'IBM Plex Mono', monospace; color: #9fc46a; margin-left: 6px; letter-spacing: 0; }
+.depot .tab em { font-style: normal; font: 9px 'Saira Stencil One', sans-serif; letter-spacing: 0.2em; color: #e0603c; margin-left: 6px; }
+.depot .send { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.depot .pv { font: 500 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); }
+.depot .sent { margin: 0 0 6px; }
+.depot .srow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--paper-dim); padding: 4px 8px; border: 1px dashed var(--plate-edge); border-radius: 2px; margin-bottom: 4px; }
+.depot .bulk { display: block; margin: 0 0 8px; }
+.depot .acts .act.main { white-space: nowrap; }
+#ui[data-manual="on"] + #ver { left: 66px; }
+
+/* 0.16.1 (H190): basen tar skada utanför bild: pil vid skärmkanten med basens hälsa, B går dit */
+#basearrow {
+  position: fixed; transform: translate(-50%, -50%); z-index: 40; pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 6px;
+  background: rgba(150, 26, 10, 0.92); border: 1px solid rgba(255, 140, 110, 0.7); border-radius: 2px;
+  color: #fff1e6; font: 600 14px Oswald, sans-serif; letter-spacing: 0.12em; text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+#basearrow[hidden] { display: none; }
+#basearrow .chev { display: flex; width: 22px; height: 22px; align-items: center; justify-content: center; }
+#basearrow .chev i { width: 12px; height: 12px; border-right: 4px solid #fff1e6; border-top: 4px solid #fff1e6; transform: rotate(45deg); margin-left: -4px; }
+#basearrow b { font: 600 15px 'IBM Plex Mono', monospace; }
+#basearrow kbd { font: 500 11px 'IBM Plex Mono', monospace; padding: 0 5px; border: 1px solid rgba(255,241,230,0.5); border-radius: 2px; }
+#basearrow.pulse b { animation: basepulse 0.9s ease-out; }
+@keyframes basepulse { 0% { color: #ffd2c0; text-shadow: 0 0 10px #ff6a40; } 100% { color: #fff1e6; text-shadow: none; } }
+#ui:not([data-mode="play"]) #basearrow { display: none; }
+/* 0.16.1 (H191): enhet i handen: etiketterna vid infarterna tonas ned och släpper igenom klick */
+.entry.holding { opacity: 0.18; pointer-events: none !important; }
+.depotlater { cursor: default; }
+#coach .cplate .cgo { display: block; margin-top: 4px; font-size: 12px; color: var(--paper-dim); letter-spacing: 0.04em; }
+/* 0.16.1 (H194): märket över de frivilliga (gult) och Hemvärnet (grönt), lyser när gruppen skjuter */
+.sqtag { position: absolute; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px; padding: 1px 5px; pointer-events: auto; cursor: pointer;
+  font: 600 10.5px 'IBM Plex Mono', monospace; letter-spacing: 0.08em; border-radius: 2px; border: 1.5px solid; background: rgba(20, 18, 14, 0.82); transition: box-shadow 0.12s, background 0.12s; }
+.sqtag::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1.5px; height: 6px; margin-left: -0.75px; background: currentColor; }
+.sqtag i { font-style: normal; opacity: 0.85; }
+.sqtag.civ { color: #ffd23a; border-color: #ffd23a; }
+.sqtag.hv { color: #9fd38a; border-color: #9fd38a; }
+.sqtag.fire { box-shadow: 0 0 10px 2px currentColor; background: rgba(60, 50, 20, 0.9); }
+.sqtag.sel, .sqtag:hover { background: rgba(60, 54, 40, 0.95); }

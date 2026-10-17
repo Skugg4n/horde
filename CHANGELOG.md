@@ -1,5 +1,109 @@
 # Ändringslogg
 
+## 0.16.3 (2026-10-17)
+
+E4 vid Lästringe: omgivningen, skyltarna och asfalten (Olas "absolut potential, men det får inte se så superkonstigt ut utanför"), todo H230 till H232, och en lugnare huvudmeny. Bara det som syns: simuleringen, rutnätet, placeringen och balansen är oförändrade (placeringens fingeravtryck och kampanjens kvitto är desamma som i 0.16.2).
+
+Omgivningen (H230):
+- Sörmland fortsätter in i diset i stället för en suddig vägg, efter översiktsbilden: väg 224 norrut genom skogen, E4 åt båda hållen (med mitträcke och några bilar till i kön mot Södertälje), väg 800 åt båda hållen, den stora vallen norr om korsningen med ett dike och en kraftledning snett över (portalstolpar av stål, linor, en gata genom skogen), plöjd åker i sydväst, betesmarker, grusvägar till tre gårdar (rött boningshus med vita knutar och farstukvist, ladugård med stenfot och logbro, uthus) och några hus längs vägarna, kuperad granskog med tall och björk, fyra hyggen (fröträd, unga björkar, en virkesvälta), hällar och rundbalar på vallen.
+- Billigt: marken är en canvas (4 px/m) med samma målning som spelytan under dess kanter, allt som står ligger i en egen batch med ett material per geometri, utan skuggor, och linorna är ett enda streck. Spelytans mark tonar nu ut genomskinligt i stället för mot en platt färg.
+- Diset börjar 20 m utanför den skarpa ytan och tätnar mjukt till 90 % 150 m ut, på marken och på allt som står (samma kurva). Panoreringens gränser är desamma; längst utzoomad i varje hörn syns skog och mark ut till kanten, inget tomrum.
+- Ritanrop (renderer.info, 1440 x 900): 170 till 177 före, 173 till 183 efter. Trianglar 117 000 till 481 000 (skogen).
+
+Skyltarna (H231):
+- Alla skyltar står i vägrenen på egna stolpar, minst 1,3 m från körbanan med stolparna och 0,7 m med panelens kanter. Avfartsskylten "137 S LÄSTRINGE / GNESTA" hänger på en portal över motorvägen före avfarten (ett ben i mittremsan), en skylt åt varje håll. Texterna är desamma.
+- Placeringens fotavtryck för skyltarna står kvar där skyltarna stod i 0.16.2, så att placeringen och balansen inte ändras.
+
+Asfalten (H232):
+- Inget högt gräs på asfalten, i rastfickan eller i spärrområdena där ramperna går ihop med motorvägen; tuvorna står minst 1,2 m från körbanans kant. Bilarna, krocken och den knäckta långtradaren står kvar.
+
+Huvudmenyn:
+- Luftigare och lugnare: HORDE med gott om luft, undertiteln spärrad, knappen "Continue" på en rad, under den en dämpad statusrad med var operationen står ("Hagstumosse · Ishallen, day 3 · 1 783 RP"), New operation som en riktig sekundär knapp (frågar fortfarande först) och versionen liten i plåtens hörn. Fungerar från 1024 till 1920 px.
+
+Lookbook: boningshuset, ladugården, uthuset, balarna, virkesvältan, kraftledningsstolpen och portalen.
+
+Bilder: docs/e4-env-default.png, docs/e4-env-max.png, docs/e4-env-max-nw.png, docs/e4-env-max-se.png, docs/menu-0.16.3.png.
+
+## 0.16.2 (2026-10-17)
+
+Speltestet av 0.16.1 (docs/playtests/2026-10-17-0.16.1.md, "SPELBART: NEJ"): de tysta placeringarna (tredje speltestet i rad), muren på Ishallen dag 2, köpraden som hoppar, Next wave, räknarna, krockarna och de föreslagna platserna.
+
+Placeringen i låg bildtakt (rotorsaken):
+- Testarnas panel gick i 1 till 1,5 bilder/s. Spelet bestämde vad ett klick betydde utifrån gränssnitt som spelaren ännu inte hade sett: (1) samma kort en gång till lade tillbaka saken i handen, så att nästa klick på kartan inte gjorde något; (2) en lektionsplåt (det dämpade lagret) som kommit upp mellan två bilder fångade klicket som var menat för kartan eller köpraden och släppte bara plåten; (3) skälet vid pekaren ("On the road") och andra plåtar som själva säger pointer-events: none fångade ändå klick, eftersom regeln #ui .plate vann på specificitet; (4) ett kort som tog slut försvann och flyttade de andra korten under pekaren.
+- Nu: samma kort igen behåller saken ("Already in hand. Esc puts it back"); ett klick på plåten släpper den och går vidare till det som ligger under (kartan eller kortet), och en siffertangent tar upp kortet under en plåt; plåtarna som inte ska ta klick släpper igenom dem; ett klick med något i handen på gränssnittet säger "Not on the map". Det som var i handen ligger kvar när fiendens presentationsruta stängs. Riktningen räknas från rutan som klicket gäller, inte från hovringens. En gammal panorering äter aldrig nästa klick.
+- Placeringsprovet scripts/placement-harness.mjs (npm run placement): huvudlös Chromium med requestAnimationFrame nedskruvat till 1,5 eller 1 bild/s, riktiga pekarhändelser i åtta följder (hovra och tryck direkt, tryck utan bildruta, efter ett köp, från ett utfällt kort, siffertangent, nära kanten, nytt klick där skälet står, liten knuff från en ruta som inte går). Varje försök loggas (__horde.placeLog med ?debug eller ?test). Före: 7 av 96 (1,5 bilder/s) och 4 av 64 (1 bild/s) klick utan vare sig enhet eller skäl; efter: 0 av 96 och 0 av 64.
+
+Ishallen dag 2 (en sak i taget):
+- Dagen lär ut barrikaderna och hordens väg, inget annat. En ingång (Sigtunavägen öst), vågorna 30 / 44 / 58 (var 45 / 70 / 98). Hemvärnets grupp och Norra vägen kommer dag 3, skogsvägen dag 4. Ledningens leveranser följer med (dag 2 två Ksp 90 och granaterna, dag 3 Hemvärnet, Ksp 58 och Ak 5). Tipset "Squads find their own cover." kommer med Hemvärnet dag 3. Introna: "Day 2: Barricades", "Day 3: The Home Guard".
+- Den som följer tipsen vinner dag 2 på första försöket i alla fem seeds (ny policy hints i balansskriptet, prov i tests/balance-op-normal.test.js), den som inte lägger någon spärr likaså. Se docs/balance-log.md 0.16.2.
+
+Gränssnittet:
+- Köpraden: ett kort där alla enheter står ute står kvar grått ("All out") med samma siffra; siffrorna flyttar aldrig.
+- Next wave: före Next wave med bonus är nedräkningen ingen knapp (ingen rostfärg, streckad kant). Ett klick eller mellanslag säger varför vid knappen: "It comes by itself in 12s", eller mitt i en våg "Clear this wave first: 14 still out. Shift+Space calls it anyway".
+- Räknarna: en källa (src/ui/hud.js waveCounts och comingBySpawn). Kvar är alltid de som går på kartan plus de som inte släppts; vinner evakueringen dagen mitt i en våg står "Civilians safe" i stället för "0 of 32 left". Ingångarnas etiketter säger under vågen "... to come", så att de inte tas för hela vågen. Prov i tests/wave-count.test.js.
+- Plåtarna: lektionsplåten viker för kortets utfällda ruta när den inte får plats bredvid. Bildtexterna (t.ex. "Press, then drag toward the road to aim.") står 4 s i verklig tid, inte i bildrutornas tid, och en bildtext om det man håller i går när man släpper det. En ny ingång har företräde: raden står 8 s och inga nya plåtar eller bildtexter börjar under tiden.
+- De föreslagna platserna är en fylld mjuk fläck med etikett ("Volunteers here", på E4 "Here").
+
+Balansen: nya fingeravtryck från Ishallen dag 2 och framåt, och nytt kvitto för South dag 3 (docs/balance-log.md 0.16.2). Kampanjens mål håller: normal inom 1 till 3 försök, skilled allt på första.
+
+## 0.16.1 (2026-10-17)
+
+Polish efter speltesterna av 0.14.2 och 0.16.0 (docs/playtests/2026-10-17-0.16.0.md, "SPELBART: NEJ"), todo H190 till H194 och H214 till H216.
+
+Speltestet av 0.16.0:
+- Hagstumosse · Ishallen dag 1 (evakueringen). Där varje hus väg går in på hordens väg ligger röda fläckar på den gula linjen, och de föreslagna platserna för de frivilliga pulserar (gula hörn) före första vågen (src/sim/evac-danger.js). Lektionen säger "Red: the horde meets their line here." och "Volunteers. Cover the crossing.", och pekar på platserna när de frivilliga hålls i handen. Våg 2:s löpare kommer 12 s senare (22 i stället för 10), så att sista gruppen hinner förbi korsningen. Den som följer tipset får in 17 till 18 av 20 (prov: tests/evac-danger.test.js); den som ställer alla vid ishallen förlorar fortfarande.
+- En ingång som inte använts tidigare sägs före vågen: "They're also coming from Södertälje." (eller "along Norra vägen"), hordens väg därifrån blinkar och minikartan pingar ingången. Raden tar plats direkt även när andra rader står.
+- E4:s sista vågor är jämnare: dag 1 14 / 22 / 32 (var 40), dag 2 20 / 44 / 60 (var 40 / 68), dag 3 se H192.
+- Operationskartan säger när förrådet öppnar ("Depot · Opens after Ishallen day 2", grå) i stället för att inte visa något.
+- Lektionsplåten ställs där den inte täcker målet, infarternas etiketter, evakueringsrutan, köpradens utfällda kort, ledningens rad, sektorskortet eller PAUSED. Ett 'show' säger "Click or Enter". Evakueringsrutan står under DAY uppe till vänster i stället för mitt i stridszonen.
+- Ett klick med en enhet i handen som inte träffar någon ruta säger varför vid pekaren ("Outside the map").
+- Köpradens rubrik är DEPLOY före första vågen och DEFENCES under dagen (bytte förut mellan DEPLOY och SUPPLIES när enheterna tog slut).
+- "Field manual: Evacuation" på förlustskylten öppnar uppslaget Evacuation (öppnade det första).
+- Manualen: Wire säger inte längre något om bjässarna två dagar före dem; Evacuation nämner de röda fläckarna.
+
+Todo:
+- H190: dagens kamera tar alltid med hela basen (ishallens fyra hörn, på E4 vägspärren) och vägen så långt den ryms (120, 90, 60 eller 30 m) med plats för HUD:en. När basen tar skada utanför bild står en röd pil vid skärmkanten mot basen med basens hälsa som pulserar; klick på pilen, B eller Home flyttar kameran till basen.
+- H191: infarternas etiketter står vid infarten i bildkanten och undviker öppen mark där enheter får stå (bara nära infarten; hellre över mark vid kanten än långt inne vid basen). Med en enhet i handen tonas de ned och släpper igenom klick.
+- H192: E4 dag 3 har två klungor bjässar i våg 2 och 26 i fyra klungor i våg 3 (var 4 och 36 i fem): basen 20 till 18 till 10 i stället för 20 till 20 till 7. Bounty 0,4 till 0,3. Balansskriptet lägger överskottet på fler trådar längre ned i stammen. Kvar efter dagen 170 till 200 dollar (var 420 till 470). Prov i tests/e4-tempo.test.js.
+- H193: redan löst i 0.16.0 ("Sector E4 is secure", "Only on the marked spots.", förrådets rullister); förrådets priser kontrollerade i 1100 x 720, inget klipps.
+- H194: över varje grupp frivilliga (gult, VOL) och Hemvärnet (grönt, HV) står ett märke med hur många som står, som lyser när gruppen skjuter. Klick väljer gruppen.
+- H215: Ishallen dag 3 och 4 ger halva respektive 0,3 förnödenheter per dödad: samma utfall i alla seeds, överskottet för den skickliga 480 till 560 och 700 (var 1 200 och 2 200).
+- H216: Show me flyttar kameran till målet när det ligger utanför bild; Veterans och Losses har bilder.
+- H214 (speltesta inlärningen med människor) kvar: kräver riktiga spelare.
+
+Balansen: nya fingeravtryck för hela kampanjen och nytt kvitto för E4 dag 2 (docs/balance-log.md, 0.16.1). Kampanjens mål håller: normal inom 1 till 3 försök, skilled allt på första.
+
+## 0.16.0 (2026-10-16)
+
+Inlärningen steg för steg (docs/superpowers/specs/2026-10-16-onboarding-design.md, Olas beslut och tilläggen), och Hagstumosse som en sektor (Olas beslut samma dag).
+
+- Ett nytt begrepp per dag (src/meta/unlocks.js). E4 dag 1: infanteriet står vid bommen, en Ksp 90 ställs på en av de markerade platserna och vågen startas; ingen tråd, inga förnödenheter. Den andra Ksp 90 kommer efter våg 1. Dag 2 förnödenheterna och taggtråden, fartknappen efter våg 1. Dag 3 sikta och Rotate, och pillboxen står svetsad från början. Kartan efter E4, minikartan och evakueringen South dag 1, barrikaderna och hordens väg (V) dag 2, vilande hus och Next wave med bonus dag 3, Move dag 4, förnödenheter på enheten dag 5, frontbredden och reserven Vikingavägen dag 3. Det som inte är upplåst finns inte: simuleringen nekar det också, så att balansens policyer spelar samma spel.
+- Gradvis HUD: förnödenhetsmätaren, fartknappen, minikartan, V-etiketten, Next wave, Field manual-knappen och enhetspanelens knappar kommer när de är upplåsta, med en diskret animation första gången. Före E4 dag 3 visar enhetspanelen bara namn och hälsa.
+- Lektionsplåten (src/ui/coach.js): hård paus, skärmen dämpas utom målet, rostfärgade hörnvinklar, en plåt med ledlinje, högst 12 ord, tangenter som tangentkåpor, PAUSED längst ned. Esc hoppar över steget, två Esc resten av dagen. "I know tower defence: fewer tips" på första plåten. Pausmenyn: Tips On / New only / Off, Field manual och Reset tips. Högst två hårda pauser per våg, 20 s emellan. Tips i stunden (basen tar skada, civil faller, mål utanför vinkeln, förnödenheter över, alla vägar stängda, prickskytten, monterad pjäs, stjärnan, de stupade).
+- Field manual på J: uppslag i fem grupper som fylls på när lektionerna körts, prick på nya, Show me, och ett förslag efter en förlust.
+- Ny fiendetyp: hård paus med en presentationsruta, porträttet renderat ur zombiens 3D-modell (src/render/portrait.js), en rapporttext och Continue. Vandrare, löpare och bjässar.
+- Köpraden: enkla siffror 1, 2, 3 ...; kategorierna och tvåstegsvalet bara med fler än 9 kort (ersätter H097).
+- Förrådet i steg: RP och nivåer efter South dag 2, rekvisitionen efter dag 3, uppgraderingarna och Return efter dag 4. Knappheten: ledningen släpper ett bestämt antal per leverans, korten visar "1 available" eller "None released", och det som inte är släppt går inte att rekvirera hur mycket RP man än har. Uppgraderingar bara för det man har eller fått släppt, släppta pö om pö. Spelets rullister (smala, mörka, rostfärgad tumme), korten med fast höjd och plats.
+- Nästa strid står i förrådet ("Next battle · Hagstumosse · Ishallen · Day 5"), förrådet öppnar på den sektorn och Deploy-knappen säger sektorn och dagen. Att skicka enheter till en annan sektor frågar först om de lämnar sektorn som strider härnäst, går att ta tillbaka gratis (Bring back) tills Deploy, och Deploy varnar när sektorn har färre än den rekommenderade garnisonen. Allt detta syns bara när två skilda platser är aktiva samtidigt.
+- Hagstumosse: Gnesta South och North är samma plats och en sektor, med faserna Hagstumosse · Ishallen och Hagstumosse · Vikingavägen och en gemensam trupp. Vikingavägen öppnar efter Ishallen dag 5. Omplaceringen, garnisonen och trycket mellan dem är borta (vilande i koden). Gnesta Centrum står som grå platshållare på kartan. Sparfilen slår ihop trupperna, lagret och trycket (inga enheter förloras) och sparar en kopia under horde.save.v4.
+- Textgenomgången: introna är en rubrik och en rad, ledningens meddelande bara på kartan, resultatskylten utan RP före förrådet, E4 "secure" i stället för "fallen silent" och utan kryss, "Frontage full." i stället för "(research More positions)", raden om U är borta, "Only on the marked spots." på E4, "Next wave · 14 still out", vägetiketterna står kvar vid infarten med gatunamnet vid hovring, Return frågar "Return it? No RP back.", kartan visar enheterna som ikoner med antal och bara senaste meddelandet.
+- Balansen följer upplåsningen och förrådets lager: nya siffror för E4 dag 1 till 3 och South dag 1 och 2, nya fingeravtryck och kvitton (docs/balance-log.md, 0.16.0). Prov: tests/onboarding.test.js (schemat, texterna, sparfilens migrering, E4 dag 1, sammanslagningen) och nya prov i tests/operation.test.js (lagret, uppgraderingarna, garnisonen, skicka och ta tillbaka, varningen).
+- Skärmbilder: docs/onboarding-*.png.
+
+## 0.15.0 (2026-10-16)
+
+Bana 1, Sector E4, är trafikplats 137 Lästringe i Södermanland (Olas önskan: "känns som amerikansk öken, inte Sörmland").
+
+- Kartan (src/data/e4-lastringe.js) är ritad ur karta, satellitbild och gatubilder: E4:s två körbanor diagonalt genom skogen, avfarten och påfarten som går ihop i en stam upp till T-korsningen med väg 800, väg 224 norrut, busshållplatsen med rastfickan och en skogsväg. Horden kommer längs motorvägen ur diset från Nyköping och går upp för avfarten. Vägspärren står där stammen möter väg 800.
+- Banan är ett rutnät som Gnesta. Dag 1 har en enda väg (en knäckt långtradare och en bilkö står tvärs över motorvägen mellan ramperna); dag 2 kommer en andra grupp från Södertälje uppför påfarten; dag 3 kommer bjässarna från båda hållen. Ingångarna ligger i diset längs E4. Kameran går att panorera och zooma, och längst ut ryms hela trafikplatsen i 1440 x 900.
+- Sörmland i stället för öken: samma sol, dis, gradering och spöklager som Gnesta. Tät gran- och tallskog med björk i brynet, åkern i väster, äng med högt gräs, stenblock, diken. Vägräcken, höga belysningsstolpar, vita kantlinjer, spärrområden i sicksack där ramperna går ihop, "800" och pilar på väg 800. Gröna skyltar för motorvägen (HELSINGBORG, NYKÖPING, SÖDERTÄLJE, 137 S LÄSTRINGE), blå för övriga vägar (GNESTA, S LÄSTRINGE, SÖDERTÄLJE 45, VÄSTERLJUNG, GRANLUND) och 110. Övergivna bilar, utbrända och en på taket, långtradaren och en buss vid hållplatsen.
+- Vägspärren (basen): betongsuggor, bom, sandsäckar, vaktkur, en lastbil och en pansarbandvagn (render/models.js roadblockModel).
+- Ställa ut: vägrenarna, skogsbrynet, åkern, ängen, rastfickan och asfalten på väg 800 och 224, runt korsningen och längs rampen. Rampen och stammen är där taggtråd och betong läggs. Infanteriet tar skydd i diket och bakom vägräcket.
+- Balansen räknad om för den längre vägen: hp dag 1 3,2 (var 3,0), dag 2 3,6 (var 4,0), dag 3 1,2. Nya fingeravtryck för hela kampanjen och nytt kvitto för E4 dag 2 (docs/balance-log.md, 0.15.0).
+- Visningssidan har vägspärren, vägräcket, belysningsstolpen, skyltarna, bilarna, långtradaren, bussen, granen, tallen, björken, stenblocket och det höga gräset, på gräs i stället för ökendamm. Den gamla öknens byggare (jord, döda träd, ruinen, telefonstolparna) är borta.
+- Proven för vägen, hindren och vapnen mäter på den gamla raka vägen, nu en provbana (tests/fixtures/straight-road.js).
+- Skärmbilder: docs/e4-lastringe-*.png.
+
 ## 0.14.2 (2026-10-16)
 
 Efter speltestet av 0.14.1 (docs/playtests/2026-10-16-0.14.1.md, "SPELBART: JA" med irritationer kvar), todo H174 till H181.

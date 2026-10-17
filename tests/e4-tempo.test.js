@@ -33,3 +33,21 @@ test('E4 dag 2 utan uppgraderingar: vinst med skada, och basen faller aldrig på
     for (let i = 10; i < hp.length; i++) assert.ok(hp[i - 10] - hp[i] <= 4, `seed ${s}: ${hp[i - 10]} till ${hp[i]} på 10 s`);
   }
 });
+
+// 0.16.1 (H192, speltestet av 0.14.2: "dag 3 våg 3 är ett stup, 20 till 5", och 420 till 470 dollar över): dag 3
+// spelad med styrkan efter dag 1 och 2 utan köp. Våg 3 tar inte hela skadan ensam, ingen våg tar mer än 10, och
+// förnödenheterna kvar när dagen är slut ryms i några trådar.
+test('E4 dag 3: inget stup i våg 3 och inget stort överskott', () => {
+  for (const s of SEEDS) {
+    let p = selectMap(newCampaign(), 'riksvagen');
+    for (const d of [1, 2]) {
+      const r = playOpDay(p, 'riksvagen', d, 'normal', { seedOffset: s });
+      p = finishDay(p, { mapId: 'riksvagen', day: d, won: r.won, intelEarned: r.intelEarned, report: r.report }).progress;
+    }
+    const r = playOpDay(p, 'riksvagen', 3, 'normal', { seedOffset: s });
+    assert.ok(r.won, `seed ${s}: dagen vanns`);
+    const hp = [20, ...r.waveLog.map(w => w.baseHp)];
+    for (let i = 1; i < hp.length; i++) assert.ok(hp[i - 1] - hp[i] <= 10, `seed ${s}: våg ${i} ${hp[i - 1]} till ${hp[i]}`);
+    assert.ok(r.cashEnd < 300, `seed ${s}: ${Math.round(r.cashEnd)} dollar över`);
+  }
+});

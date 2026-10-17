@@ -11,28 +11,32 @@ const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.ge
 
 test('menyn har tre banor i ordning: E4, Gnesta, Gnesta Norr med fem dagar', () => {
   // 0.11.0: sektornamnen (Olas önskan), id:na oförändrade
-  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Gnesta South', 'Gnesta North']);
+  // 0.16.0 (Olas beslut): Gnesta South och North är faserna Ishallen och Vikingavägen av sektorn Hagstumosse
+  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Hagstumosse · Ishallen', 'Hagstumosse · Vikingavägen']);
   assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr']);
   assert.equal(MAPS['gnesta-norr'].days.length, 5);
   for (const d of MAPS['gnesta-norr'].days) {
     assert.match(d.intro.title, /^Day \d: /);
-    assert.ok(d.intro.text.length > 40);
+    // 0.16.0 (inlärningen, designen avsnitt 2.2): en rad, högst 12 ord
+    assert.ok(d.intro.text.length > 10 && d.intro.text.split(/\s+/).length <= 12, d.intro.text);
     assert.doesNotMatch(d.intro.text + d.intro.title, /\u2014/, 'inget tankstreck');
   }
 });
 
-// 0.14.0: Gnesta North öppnar när Gnesta South dag 4 är klar (förut dag 5), så att två sektorer är öppna
-// samtidigt och trycket spelar roll (src/meta/operation.js).
-test('Gnesta Norr låses upp när Gnesta dag 4 är klar, eller med debug', () => {
+// 0.16.0 (Olas beslut, "Gnesta = en sektor"): Vikingavägen är fas två av Hagstumosse och öppnar när Ishallen dag 5
+// är klar. En sparfil som redan spelat Vikingavägen efter dag 4 (regeln före 0.16.0) behåller den.
+test('Hagstumosse · Vikingavägen låses upp när Ishallen dag 5 är klar, eller med debug', () => {
   let p = newProgress();
   assert.equal(mapUnlocked(p, 'gnesta-norr'), false);
   assert.equal(mapUnlocked(p, 'gnesta-norr', { debug: true }), true);
   p = selectMap(p, 'gnesta');
-  for (const day of [1, 2, 3]) p = dayResult(p, { day, won: true, rpEarned: 0 });
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'dag 3 räcker inte');
-  p = dayResult(p, { day: 4, won: false, rpEarned: 0 });
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'en förlorad dag 4 räcker inte');
-  p = dayResult(p, { day: 4, won: true, rpEarned: 0 });
+  for (const day of [1, 2, 3, 4]) p = dayResult(p, { day, won: true, rpEarned: 0 });
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'dag 4 räcker inte längre');
+  const legacy = { ...p, maps: { ...p.maps, 'gnesta-norr': { unlockedDay: 2, attempts: { 1: 1 } } } };
+  assert.equal(mapUnlocked(legacy, 'gnesta-norr'), true, 'redan spelad efter dag 4: står öppen');
+  p = dayResult(p, { day: 5, won: false, rpEarned: 0 });
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'en förlorad dag 5 räcker inte');
+  p = dayResult(p, { day: 5, won: true, rpEarned: 0 });
   assert.equal(mapUnlocked(p, 'gnesta-norr'), true);
 });
 
@@ -70,9 +74,9 @@ test('sparfil från 0.9.0: läses som v4, Gnesta Norr öppen, inget raderas elle
   assert.equal(p.rp, 310 + 180 + 80 + 100);
   assert.deepEqual(p.seenHints, ['riksvagen', 'gnesta']);
   assert.equal(mapUnlocked(p, 'gnesta-norr'), true, 'Gnesta dag 5 var klar i 0.9.0');
-  // Gnesta South håller: trupperna är otilldelade, Gnesta North har sina leveranser
-  assert.ok(p.op.units.some(u => u.sector === null));
-  assert.ok(p.op.units.some(u => u.sector === 'gnesta-norr'));
+  // 0.16.0: Hagstumosse är en sektor: Ishallen är klar och trupperna följer med till Vikingavägen
+  assert.ok(p.op.units.some(u => u.sector === 'gnesta'));
+  assert.ok(!p.op.units.some(u => u.sector === 'gnesta-norr' || u.sector === null));
   let q = selectMap(p, 'gnesta-norr');
   q = dayResult(q, { day: 1, won: true, rpEarned: 6 });
   assert.equal(saveProgress(q, st), true);
