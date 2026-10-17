@@ -103,6 +103,8 @@ export function createView(scene, initialSim) {
   let zoomBoost = 1;
   let viewH = 40;
   function setZoom(view) { viewH = view; zoomBoost = 1 + 0.3 * Math.min(1, Math.max(0, (view - 56) / 28)); }
+  // 0.17.0-molnbo: banans höjd under zombien (map.groundY: Mölnbos bro, ramper och perrong), bara bild
+  const liftAt = (x, z) => (sim.map.groundY ? sim.map.groundY(x, z) : 0);
   function syncZombies(dt) {
     const k = 1 - Math.exp(-dt * 22);
     rings.begin();
@@ -126,12 +128,12 @@ export function createView(scene, initialSim) {
         f.vy -= 22 * dt; f.oy = Math.max(0, f.oy + f.vy * dt);
         if (f.oy > 0 || f.vy > 0) { f.ox += f.vx * dt; f.oz += f.vz * dt; f.spin += dt * f.vr; }
         else { f.vy = 0; f.vx *= Math.exp(-dt * 8); f.vz *= Math.exp(-dt * 8); f.ox += f.vx * dt; f.oz += f.vz * dt; }
-        parts.root.position.set(e.x + f.ox, f.oy, e.z + f.oz);
+        parts.root.position.set(e.x + f.ox, f.oy + liftAt(e.x, e.z), e.z + f.oz);
         parts.root.rotation.y = e.ry + f.spin;
       } else {
         if (e.rise < 1) e.rise = Math.min(1, e.rise + dt / RISE_TIME);
         const r = 1 - e.rise;
-        parts.root.position.set(e.x, -RISE_DEPTH * r * r * (parts.scale ?? 1), e.z);
+        parts.root.position.set(e.x, -RISE_DEPTH * r * r * (parts.scale ?? 1) + liftAt(e.x, e.z), e.z);
       }
       // 0.11.0: utzoomad är de levande lite större (zoomBoost), så att horden går att läsa
       if (!z.dead) parts.root.scale.setScalar((parts.scale ?? 1) * zoomBoost);

@@ -2,6 +2,8 @@
 import { rnd, pick, canvasTex, speckle, PALETTE as P } from './kit.js';
 import { buildGnesta } from './gnesta-world.js';
 import { buildE4 } from './e4-world.js';
+// 0.17.0-molnbo
+import { buildMolnbo } from './molnbo-world.js';
 
 let updateFn = () => {};
 export function updateWorld(dt, time) { updateFn(dt, time); }
@@ -42,7 +44,7 @@ export function asphaltTexture() {
 
 // Banornas värld: Gnesta och Gnesta Norr (tomter och gator) och E4 vid Lästringe (0.15.0).
 export function buildWorld(scene, map) {
-  const w = map.lots ? buildGnesta(scene, map) : buildE4(scene, map);
+  const w = map.world === 'molnbo' ? buildMolnbo(scene, map) : map.lots ? buildGnesta(scene, map) : buildE4(scene, map);
   updateFn = w.update;
   return w;
 }

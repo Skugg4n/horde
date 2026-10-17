@@ -9,6 +9,7 @@ import { createView } from './render/view.js';
 import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
+import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
@@ -685,7 +686,10 @@ evacEl.id = 'evac'; evacEl.className = 'plate'; evacEl.hidden = true;
 evacEl.innerHTML = '<div class="t"></div><div class="n"></div><div class="evbar"><i class="safe"></i><i class="lostbar"></i><i class="need"></i></div>';
 uiRoot.appendChild(evacEl);
 let evacKey = '';
+// 0.17.0-molnbo: tågklockan (src/ui/train.js), samma plats som evakueringens ruta
+const trainUi = mountTrain(uiRoot);
 function updateEvac() {
+  trainUi.update(sim, mode);
   const ev = mode === 'play' ? sim.evac : null;
   evacEl.hidden = !ev;
   if (!ev) return;
@@ -908,6 +912,8 @@ function handleEvents() {
     else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first civilians are inside the ice rink.');
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
+    // 0.17.0-molnbo: tåget går (Mölnbo dag 3 till 5)
+    else if (ev.t === 'trainGone') { scene.userData.molnbo?.depart(); note(uiRoot, ev.last ? 'The last train north is away. Mölnbo held.' : 'The train is away with everyone on board.'); }
     else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
@@ -1743,6 +1749,7 @@ function startDay(n) {
   failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
+  scene.userData.molnbo?.reset(); trainUi.reset();
   view.setSim(sim);
   minimap.reset(sim);
   hud.reset();
@@ -2030,7 +2037,10 @@ const menu = mountMenu(uiRoot, {
   resetTips: () => { progress = resetTips(progress); save(); },
   onClose: () => {},
 });
-loadMap(progress.mapId).then(() => showMenu());
+// 0.17.0-molnbo: ?debug&jump=molnbo:2 hoppar direkt till en bana och dag (prov och speltest)
+{ const j = new URLSearchParams(location.search).get('jump');
+  if (DEBUG && j) { const [m, d] = j.split(':'); window.__hordeJump = loadMap(progress.mapId).then(() => debugJump(m, Number(d) || 1)); }
+  else loadMap(progress.mapId).then(() => showMenu()); }
 
 let last = performance.now(), time = 0;
 const clock = { acc: 0 };
