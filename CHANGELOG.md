@@ -1,5 +1,29 @@
 # Ändringslogg
 
+## 0.16.3 (2026-10-17)
+
+E4 vid Lästringe: omgivningen, skyltarna och asfalten (Olas "absolut potential, men det får inte se så superkonstigt ut utanför"), todo H230 till H232, och en lugnare huvudmeny. Bara det som syns: simuleringen, rutnätet, placeringen och balansen är oförändrade (placeringens fingeravtryck och kampanjens kvitto är desamma som i 0.16.2).
+
+Omgivningen (H230):
+- Sörmland fortsätter in i diset i stället för en suddig vägg, efter översiktsbilden: väg 224 norrut genom skogen, E4 åt båda hållen (med mitträcke och några bilar till i kön mot Södertälje), väg 800 åt båda hållen, den stora vallen norr om korsningen med ett dike och en kraftledning snett över (portalstolpar av stål, linor, en gata genom skogen), plöjd åker i sydväst, betesmarker, grusvägar till tre gårdar (rött boningshus med vita knutar och farstukvist, ladugård med stenfot och logbro, uthus) och några hus längs vägarna, kuperad granskog med tall och björk, fyra hyggen (fröträd, unga björkar, en virkesvälta), hällar och rundbalar på vallen.
+- Billigt: marken är en canvas (4 px/m) med samma målning som spelytan under dess kanter, allt som står ligger i en egen batch med ett material per geometri, utan skuggor, och linorna är ett enda streck. Spelytans mark tonar nu ut genomskinligt i stället för mot en platt färg.
+- Diset börjar 20 m utanför den skarpa ytan och tätnar mjukt till 90 % 150 m ut, på marken och på allt som står (samma kurva). Panoreringens gränser är desamma; längst utzoomad i varje hörn syns skog och mark ut till kanten, inget tomrum.
+- Ritanrop (renderer.info, 1440 x 900): 170 till 177 före, 173 till 183 efter. Trianglar 117 000 till 481 000 (skogen).
+
+Skyltarna (H231):
+- Alla skyltar står i vägrenen på egna stolpar, minst 1,3 m från körbanan med stolparna och 0,7 m med panelens kanter. Avfartsskylten "137 S LÄSTRINGE / GNESTA" hänger på en portal över motorvägen före avfarten (ett ben i mittremsan), en skylt åt varje håll. Texterna är desamma.
+- Placeringens fotavtryck för skyltarna står kvar där skyltarna stod i 0.16.2, så att placeringen och balansen inte ändras.
+
+Asfalten (H232):
+- Inget högt gräs på asfalten, i rastfickan eller i spärrområdena där ramperna går ihop med motorvägen; tuvorna står minst 1,2 m från körbanans kant. Bilarna, krocken och den knäckta långtradaren står kvar.
+
+Huvudmenyn:
+- Luftigare och lugnare: HORDE med gott om luft, undertiteln spärrad, knappen "Continue" på en rad, under den en dämpad statusrad med var operationen står ("Hagstumosse · Ishallen, day 3 · 1 783 RP"), New operation som en riktig sekundär knapp (frågar fortfarande först) och versionen liten i plåtens hörn. Fungerar från 1024 till 1920 px.
+
+Lookbook: boningshuset, ladugården, uthuset, balarna, virkesvältan, kraftledningsstolpen och portalen.
+
+Bilder: docs/e4-env-default.png, docs/e4-env-max.png, docs/e4-env-max-nw.png, docs/e4-env-max-se.png, docs/menu-0.16.3.png.
+
 ## 0.16.2 (2026-10-17)
 
 Speltestet av 0.16.1 (docs/playtests/2026-10-17-0.16.1.md, "SPELBART: NEJ"): de tysta placeringarna (tredje speltestet i rad), muren på Ishallen dag 2, köpraden som hoppar, Next wave, räknarna, krockarna och de föreslagna platserna.

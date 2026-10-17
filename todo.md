@@ -249,3 +249,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen.
 - [ ] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden).
 
+## E4-omgivningen och menyn (2026-10-17, Olas önskemål)
+- [x] H230 | grafik | E4 Lästringe: omgivningen långt utanför spelytan (224 norrut, E4 åt båda hållen, vallen med dike och kraftledning, plöjd åker, grusvägar och gårdar, skog med hyggen och hällar), diset längre ut och mjukare. (0.16.3)
+- [x] H231 | grafik | Skyltarna stod mitt i vägen: i vägrenen på stolpar, avfartsskylten på en portal. (0.16.3)
+- [x] H232 | grafik | Inget gräs på asfalten (tidigt i apokalypsen). (0.16.3)
+- [x] H233 | ux | Huvudmenyn trång och konstig: luftig plåt, Continue på en rad, statusrad, New operation som sekundär knapp, versionen i hörnet. (0.16.3)
+- [ ] H234 | grafik | Skyltarnas osynliga fotavtryck från 0.16.2 står kvar i placeringen (bl.a. på väg 800:s asfalt före korsningen). Flytta dem till de nya platserna när balansen ändå räknas om.
