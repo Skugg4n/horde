@@ -265,4 +265,27 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H249 | grafik | Skyltarna stod mitt i vägen: i vägrenen på stolpar, avfartsskylten på en portal. (0.16.3)
 - [x] H250 | grafik | Inget gräs på asfalten (tidigt i apokalypsen). (0.16.3)
 - [x] H233 | ux | Huvudmenyn trång och konstig: luftig plåt, Continue på en rad, statusrad, New operation som sekundär knapp, versionen i hörnet. (0.16.3)
-- [ ] H234 | grafik | Skyltarnas osynliga fotavtryck från 0.16.2 står kvar i placeringen (bl.a. på väg 800:s asfalt före korsningen). Flytta dem till de nya platserna när balansen ändå räknas om.
+- [x] H234 | grafik | Skyltarnas osynliga fotavtryck från 0.16.2 står kvar i placeringen (bl.a. på väg 800:s asfalt före korsningen). Flytta dem till de nya platserna när balansen ändå räknas om. (0.16.4)
+
+## 0.16.4 (Olas feedback och speltestet av 0.16.2)
+
+- [x] H251 | balans | E4 dag 2 orättvis: Södertälje förvarnad från början, Move (M) som dagens andra lektion, förstagångsspelaren som flyttar vinner första försöket.
+- [x] H252 | ljud | Taggtråden: rivning och slitning, spänning och knäpp med piska, i ljudbordet.
+- [x] H253 | balans | Ishallen dag 3 ett stup (49 / 94 / 190, sex-sju nyheter): 39 / 60 / 84, nyheterna spridda till dag 4, 5 och Vikingavägen.
+- [x] H254 | operation | Förrådet lovade en Ksp 90 som inte gick att få; prov för varje löfte.
+- [x] H255 | ux | Deploy-knappen klipptes; två rader. Layoutprov i tre bredder (npm run layout).
+- [x] H256 | ux | Snabbvalen bytte mellan dagar; ett snabbval per sak (1 till 9, Z X C).
+- [x] H257 | ux | NEXT WAVE före bonusen såg ut som en knapp; nu text.
+- [x] H258 | ux | Tips över innehåll (RP på resultatskylten, Civilian down över VOL, "Gnesta is next" tre gånger).
+- [x] H259 | ux | Tyst klick på gruppens etikett.
+- [x] H260 | ux | Ny väg efter ett hinder sägs ("Horde rerouted") och blinkar.
+- [x] H261 | grafik | Löparna snubblar (Olas bonus).
+- [x] H262 | ux | Segerpaus före VICTORY.
+- [x] H263 | text | Berättelsen: vinster är vinster, de civila ska in i ishallen.
+- [x] H264 | ux | Skyltarna centrerade, en regel.
+- [x] H265 | gnesta | Hagstumosse dag 1 med val: märkta hus, två omgångar, fyra korsningar, inga föreslagna platser.
+- [x] H266 | operation | Taket per strid synligt från förrådet till uppställningen; reserven behålls.
+- [ ] H267 | balans | Ishallen dag 4 kräver nu ett andra försök för normal i alla seeds (bjässarna och de vilande husen möts). Speltesta om det känns som en vägg.
+- [ ] H268 | ux | Speltesta Hagstumosse dag 1 med en ny spelare: förstår hon "East first, then west" och att flytta grupperna?
+- [ ] H269 | ux | Grå kort för saker som inte finns i dag (snabbvalets lucka syns inte än; bara siffran står still).
+- [ ] H270 | ljud | Ola lyssnar på taggtråden i ljudbordet.

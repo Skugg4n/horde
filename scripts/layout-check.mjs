@@ -80,8 +80,9 @@ async function run() {
     page.on('console', m => { if (m.type() === 'error') pageErrors.push(m.text()); });
     await page.addInitScript(() => { try { localStorage.clear(); } catch { /* ingen lagring */ } });
     await page.goto(`http://localhost:${PORT}/?mute&debug&test`);
-    await page.waitForFunction(() => window.__hordeReady && window.__horde?.jump, null, { timeout: 30000 });
-    await page.waitForTimeout(800);
+    // första banan ska ha laddat klart innan provet hoppar (annars kan två banor laddas samtidigt)
+    await page.waitForFunction(() => window.__hordeReady && window.__horde?.jump && window.__horde.mode === 'menu', null, { timeout: 30000 });
+    await page.waitForTimeout(2000);
     const check = async scope => {
       await page.waitForTimeout(600);
       const r = await page.evaluate(audit, `${scope} @${W}`);

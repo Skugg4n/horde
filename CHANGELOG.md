@@ -1,5 +1,46 @@
 # Ändringslogg
 
+## 0.16.4 (2026-10-18)
+
+Olas feedback (E4 dag 2 orättvis, taggtrådens ljud, Hagstumosse dag 1 utan agens, berättelsen, taket per strid, skyltarnas linjering) och speltestet av 0.16.2 (docs/playtests/2026-10-17-0.16.2.md: Ishallen dag 3 ett stup, förrådets tomma löfte, text på text). Balansen räknad om: docs/balance-log.md 0.16.4.
+
+E4 dag 2 "Two roads":
+- Båda ingångarna syns från början: Södertälje har etiketten "From wave 2" och sin väg utritad före första vågen, plåten "Two roads in. Södertälje joins from wave 2.", och raden före våg 2 säger "Next wave: they also come from Södertälje."
+- Move (M) är dagens andra lektion, efter våg 1: "Units can relocate. Click one, then press M." (förut Ishallen dag 4). Fartknappen kom till dag 3. Nedräkningen mellan vågorna räknas inte längre in i vågens högst två hårda pauser.
+- En förstagångsspelare som ställer allt mot Nyköping och flyttar en Ksp 90 vid varningen vinner dagen på första försöket med basen hel (prov). Utan flytten vinner hon med skada.
+
+Ishallen (Hagstumosse):
+- Dag 1: två omgångar hus på olika gator, fyra korsningar och tre grupper frivilliga. Husen är märkta "Evacuates · wave 1/2", de civilas vägar, hordens väg och korsningarna syns före första vågen, och inga platser föreslås längre: "Protect the routes. Place your volunteers." Den som läser kartan och flyttar när evakueringen byter gata vinner inom två försök; grupperna vid ishallen förlorar.
+- Dag 3 är Hemvärnet och Norra vägen, vågorna 39 / 60 / 84 (var 49 / 94 / 190). De vilande husen och Ksp 58 dag 4, Next wave med bonus, Ksp 88 och Ak 5 dag 5, Psg 90 och förnödenheterna på enheten Vikingavägen dag 1, skrotbilarna dag 2. Designen uppdaterad (docs/superpowers/specs/2026-10-16-onboarding-design.md).
+- Före Next wave med bonus är nedräkningen bara text på en svag platta, ingen knapp.
+
+Förrådet:
+- Den extra Ksp 90 släpps dag 4, när rekvisitionen öppnat (förut lovade dag 3:s meddelande något som inte gick att få). Prov: varje löfte i ledningens text motsvaras av lager som går att rekvirera när meddelandet kommer.
+- Taket per strid som en synlig regel: "Hagstumosse: 6 of 8 units deployed per battle." under enheterna, "→ 7 / 8" (över taket "· reserve") på varje rekvisitionskort, och "You have 10 units. Only 8 can fight. Choose at deployment" när styrkan är större. Rekvisition över taket går, resten väntar i reserven. Uppställningen visar "DEPLOYED 5 / 8" varje dag, och vid taket säger klicket varför.
+- Deploy-knappen på två rader ("Deploy" / "Hagstumosse · Ishallen · Day 3"), ingen text flyter ut.
+
+Skyltar och tips:
+- En regel för alla skyltar: rubrik, text och knappar centrerade, knappar i par centrerade som grupp (dagens intro hade knappen till vänster, förrådet och kartan sina knappar till vänster).
+- Tipsen mellan dagarna (RP på resultatskylten, kartan, förrådet) står som en rad i skyltens flöde och täcker aldrig innehållet. "Hagstumosse is next" kom tre gånger: ett tips som väntade på kartan stoppade resultatets, och ett klick på knappen räknades inte som sett. Båda rättade.
+- Lektionsplåten undviker gruppernas etiketter (VOL, HV) och de märkta husen.
+- Nytt layoutprov: `npm run layout` kör spelet huvudlöst i 1024, 1440 och 1920 px genom menyn, introt, resultatet, kartan och förrådet och säger till om någon text går utanför sin knapp eller skylt eller överlappar annan text. Det hittar både RP-tipset och Deploy-knappen i 0.16.3.
+
+Köpraden:
+- Varje sak har samma snabbval hela kampanjen: enheterna 1 till 9 (frivilliga 1, Hemvärnet 2, infanteriet 3, Ksp 90 4, Ksp 88 5, pillboxen 6, Ksp 58 7, Ak 5 8, Psg 90 9), hindren Z (barrikad), X (tråd) och C (skrotbil). Tvåstegsvalet behövs inte längre.
+- Ett klick på en grupps etikett ("VOL 3") väljer gruppen; med något i handen går klicket igenom till kartan.
+
+Hordens väg: när ett hinder (tråd på en omväg) får horden att byta väg blinkar den nya vägen och en rad säger "Horde rerouted".
+
+Taggtråden låter som rivning: krok med metalliskt skrap och slitande brus med snabba fall (tyg och kött), låg spänning när tråden tar emot, och när den brister ett vasst klang plus en piska. Inga tonande "boing". Samma tak och takt som förut. I ljudbordet: "Wire: snag (rip)", "Wire: snag x6", "Wire: strain", "Wire: snap".
+
+Löparna snubblar ibland (Olas bonus): faller framåt, kryper på alla fyra och reser sig, ungefär var 20:e till 40:e meter med en fröad chans, deterministiskt per zombie. Kostar cirka 1 s i simuleringen, samma som bilden. I lookbooken.
+
+Segern: efter den sista zombien går 2,6 s (i spelets fart, står still i paus) med en tyst rad "Sector quiet" innan VICTORY kommer.
+
+Berättelsen: en vunnen sektor är en vinst och befälhavaren skickas dit det behövs. E4: "E4 holds. Reports of a smaller outbreak in eastern Gnesta. Command is sending you to Hagstumosse. Get the civilians into the ice rink." De civila ska in i ishallen; de sitter inte fast där. Ishallens och Vikingavägens slut och kartans rad för E4 likadant (docs/superpowers/specs/2026-10-16-berattelse.md).
+
+H234: skyltarnas osynliga fotavtryck från 0.16.2 är borta (bland annat på väg 800:s asfalt); placeringen följer skyltarna.
+
 ## 0.16.3 (2026-10-17)
 
 E4 vid Lästringe: omgivningen, skyltarna och asfalten (Olas "absolut potential, men det får inte se så superkonstigt ut utanför"), todo H230 till H232, och en lugnare huvudmeny. Bara det som syns: simuleringen, rutnätet, placeringen och balansen är oförändrade (placeringens fingeravtryck och kampanjens kvitto är desamma som i 0.16.2).

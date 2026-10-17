@@ -1152,7 +1152,7 @@ function activeSpawns() {
   }
   // 0.16.4 (Olas feedback, E4 dag 2): dagens förvarnade ingångar (dayCfg.foretell) syns från början med sin väg,
   // tills vågen de kommer i har släppt allt
-  for (const id of foretold()) ids.add(id);
+  for (const id of foretold().keys()) ids.add(id);
   return { ids: sim.route.spawns.map(s => s.id).filter(id => ids.has(id)), next };
 }
 // Förvarnade ingångar vars första våg inte har börjat än. Map id -> vågens nummer (1-baserat).
@@ -1487,8 +1487,10 @@ function lessonTarget(t) {
   const pad = 22, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = Math.max(30, (x1 - x0) / 2 + pad), hh = Math.max(30, (y1 - y0) / 2 + pad);
   return { rect: { x0: Math.max(8, cx - hw), y0: Math.max(8, cy - hh), x1: Math.min(innerWidth - 8, cx + hw), y1: Math.min(innerHeight - 8, cy + hh) } };
 }
-const inWave = () => mode === 'play' && (sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null));
 // Högst två hårda pauser per våg och minst 20 s mellan dem (designen avsnitt 2.3); bygget före första vågen räknas inte.
+// 0.16.4: nedräkningen mellan vågorna räknas inte heller (där kommer E4 dag 2:s Move, efter att löparnas
+// presentationsruta redan tagit vågens pauser); ingen zombie går då.
+const inWave = () => mode === 'play' && sim.phase === 'wave';
 function hardPauseOk() {
   if (!inWave()) return true;
   if (wavePauses.wave !== sim.wavesStarted) wavePauses = { wave: sim.wavesStarted, n: 0, at: -Infinity };
