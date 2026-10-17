@@ -213,3 +213,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H200 | banor | Mölnbo: bas = Folkets hus (Olas beslut 2026-10-16). Bron över spåren som flaskhals, övergivet X60 vid perrongen. Referenser lokalt i ~/Projects/horde-refs/molnbo/ (beskrivning.md + bilder). Skiss först, sedan förhandsvisning.
 - [ ] H201 | meta | Gnesta = EN sektor (South + North är samma stad, North vidgar kartan). En gemensam trupp-pool, ingen omplacering mellan dem. Omplacering bara mellan verkligt olika platser (E4, Gnesta, senare Mölnbo). Olas påpekande 2026-10-16. Pågår i onboarding-passet.
 - [ ] H202 | kampanj | Sektorn heter Hagstumosse (Ishallen + Vikingavägen = samma sektor). Framtida sektorer: Gnesta Centrum, sedan längre norrut; Mölnbo. Olas besked 2026-10-16.
+- [ ] H230 | e4 | Lästringe: bygg ut omgivningen så det "suddiga" utanför blir trovärdigt (mer skog, åkrar, vägar, gårdar som fortsätter ut i diset); dimma först långt ut.
+- [ ] H231 | e4 | Skyltarna står mitt i gatan: flytta till vägkanten på riktiga stolpar/portaler.
+- [ ] H232 | e4 | Ta bort gräs/tuvor som växer på vägbanan (tidigt i apokalypsen). Behåll bilkrocken (Ola: "NAJS!").
