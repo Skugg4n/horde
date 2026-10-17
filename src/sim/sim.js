@@ -70,7 +70,7 @@ export function createSim({ map, day, cash, research = [], seed = 1, tweaks = nu
     // waveIndex: antal klarade vågor. wavesStarted: antal startade (vågor kan gå samtidigt
     // när nästa kallas tidigt). nextWaveIn: sekunder kvar av nedräkningen, null = väntar på spelaren.
     map, day, dayCfg, phase: 'build', waveIndex: 0, wavesStarted: 0, cleared: [], nextWaveIn: null, cash, intelEarned: 0, kills: 0,
-    baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed),
+    baseHp: map.baseHp, zombies: [], events: [], time: 0, rng: makeRng(seed), seed,
     research: res, nextId: 1, spawnQueue: [], route, len: route.len,
     // Utställda vapen: { id, x, z, cell, weapon, sight }. sight: synliga gångbara rutor (mask och lista).
     place: placementFor(map), guns: [], nextGun: 1, maxGuns: coreMode ? Infinity : maxGuns(res, map), maxSquads: coreMode ? Infinity : maxSquads(res, dayCfg),
@@ -446,8 +446,11 @@ function moveZombies(sim, dt) {
       }
     }
     // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
-    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * (sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1);
+    const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
+    if (def.stumble && mul > 0) mul *= stumble(sim, z, def.stumble, dt, fog);
+    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed;
+    z.run = (z.run ?? 0) + speed * dt;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
     if (sim.route.arrived(z)) {
@@ -458,6 +461,35 @@ function moveZombies(sim, dt) {
     }
   }
   if (sim.map.door) doorBreak(sim, dt);
+}
+// 0.16.4 (Olas bonus): löparna snubblar ibland. Var every[0] till every[1] meter (ur zombiens id och simuleringens
+// frö, inte ur sim.rng, så att inget annat slumpas om) provas ett snubbel med chansen chance. Snubblet tar time
+// sekunder i tre steg (faller, kryper, reser sig) med farten slow[i]; vyn ritar samma steg (stumbleOf). Inte i
+// diset, där ingen ser det, och inte när zombien står still (slår eller väntar).
+const mix32 = (a, b) => { let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35); h ^= h >>> 15; h = Math.imul(h, 0x27d4eb2f); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+const stumbleRoll = (sim, z, n, k) => mix32(mix32((sim.seed ?? 1) | 0, z.id * 131 + k), n);
+function stumble(sim, z, st, dt, fog) {
+  if (z.stumbleT > 0) {
+    z.stumbleT = Math.max(0, z.stumbleT - dt);
+    const e = st.time - z.stumbleT, u = e / st.time;
+    return u < st.steps[0] ? st.slow[0] : u < st.steps[1] ? st.slow[1] : st.slow[2];
+  }
+  const n = z.tripN ?? 0;
+  z.trip ??= (z.run ?? 0) + st.every[0] + (st.every[1] - st.every[0]) * stumbleRoll(sim, z, n, 1);
+  if ((z.run ?? 0) < z.trip) return 1;
+  z.tripN = n + 1;
+  z.trip = z.run + st.every[0] + (st.every[1] - st.every[0]) * stumbleRoll(sim, z, n + 1, 1);
+  if (fog > 1 + 1e-9 || stumbleRoll(sim, z, n, 2) >= st.chance) return 1;
+  z.stumbleT = st.time;
+  sim.events.push({ t: 'stumble', id: z.id });
+  return st.slow[0];
+}
+// Snubblets läge för vyn: null, eller { step: 0 faller | 1 kryper | 2 reser sig, u: 0..1 genom hela snubblet }.
+export function stumbleOf(z) {
+  const st = ZOMBIES[z.type]?.stumble;
+  if (!st || !(z.stumbleT > 0)) return null;
+  const u = 1 - z.stumbleT / st.time;
+  return { step: u < st.steps[0] ? 0 : u < st.steps[1] ? 1 : 2, u };
 }
 function breach(sim, z) {
   const def = ZOMBIES[z.type];

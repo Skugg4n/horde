@@ -842,6 +842,25 @@ export function zombieAttack(z, chop, t = 0) {
   z.body.position.z = 0;
 }
 
+// 0.16.4 (Olas bonus): löparen snubblar. u 0..1 genom snubblet (src/sim/sim.js stumbleOf): faller framåt med armarna
+// ut (till 0,3), kryper på alla fyra med armarna som paddlar (till 0,7) och reser sig in i löpsteget igen.
+export function zombieStumble(z, u, phase, t = 0) {
+  zombieWalk(z, phase, t);
+  const r = Math.min(1, Math.max(0, (u - 0.7) / 0.3));
+  const k = u < 0.3 ? Math.sin(u / 0.3 * Math.PI / 2) : u < 0.7 ? 1 : 1 - r * r * (3 - 2 * r);
+  const crawl = u >= 0.3 && u < 0.7 ? Math.sin((u - 0.3) / 0.4 * Math.PI * 4) : 0;
+  const mix = (a, b) => a + (b - a) * k;
+  z.body.rotation.x = mix(z.body.rotation.x, 1.15);
+  z.body.position.y = mix(z.body.position.y, 0.08);
+  z.body.position.z = mix(z.body.position.z, 0.15);
+  z.spine.rotation.x = mix(z.spine.rotation.x, 0.25);
+  z.head.rotation.x = mix(z.head.rotation.x, -0.9);
+  z.hipL.rotation.x = mix(z.hipL.rotation.x, -1.5 + crawl * 0.3); z.kneeL.rotation.x = mix(z.kneeL.rotation.x, 1.7);
+  z.hipR.rotation.x = mix(z.hipR.rotation.x, -1.5 - crawl * 0.3); z.kneeR.rotation.x = mix(z.kneeR.rotation.x, 1.7);
+  z.shL.rotation.x = mix(z.shL.rotation.x, -1.25 - crawl * 0.45); z.elL.rotation.x = mix(z.elL.rotation.x, -0.25);
+  z.shR.rotation.x = mix(z.shR.rotation.x, -1.25 + crawl * 0.45); z.elR.rotation.x = mix(z.elR.rotation.x, -0.25);
+}
+
 // Faller bakåt. t 0..1 (redan kvadrerad av vyn). Knäna viker sig, ryggen rätas ut och armarna
 // slängs upp och ut. Ligger på rygg vid t = 1, lyft så att kroppen inte sjunker genom marken.
 export function zombieFall(z, t) {
