@@ -7,7 +7,7 @@
 // Varje försök loggas med utfallet: placed (enheten står), reason (ett skäl visades vid pekaren),
 // silent (enheten i handen, inget hände, inget skäl). Invarianten: silent ska vara 0.
 //
-//   node scripts/placement-harness.mjs [--port 8144] [--fps 1.5] [--n 60] [--seed 1] [--verbose]
+//   node scripts/placement-harness.mjs [--port 8144] [--fps 1.5] [--n 60] [--seed 1] [--verbose] [--map molnbo --day 1]
 //
 // Kräver en server som serverar repot (python3 -m http.server 8144) och playwright (PW_PATH eller
 // ~/Projects/zombie-high-rise/node_modules/playwright).
@@ -33,6 +33,8 @@ const SCENES = [
   { map: 'gnesta', day: 1 },
   { map: 'gnesta', day: 2 },
 ];
+// 0.17.0-molnbo: --map molnbo --day 1 provar en enda bana och dag i stället för listan ovan
+if (arg('map', null)) SCENES.splice(0, SCENES.length, { map: arg('map'), day: Number(arg('day', '1')) });
 const SEQS = ['hover-press', 'press-now', 'after-buy', 'card-hover', 'hotkey', 'near-edge', 'retry-near', 'nudge'];
 
 async function run() {
@@ -109,7 +111,8 @@ async function run() {
     const before = await page.evaluate(() => { const s = window.__horde.sim; return s.guns.length + Object.keys(s.obstacles).filter(k => s.obstacles[k]).length; });
     // ta upp kortet (vad låg under pekaren, och vad hölls efteråt)
     await page.evaluate(() => { window.__pl.cur = { tips: [] }; });
-    if (seq === 'hotkey') await page.keyboard.press(setup.kbd);
+    // 0.17.0-molnbo: med fler än 9 kort är tangenten ett ackord ('2-8': först gruppen, sedan saken)
+    if (seq === 'hotkey') for (const k of setup.kbd.split('-')) await page.keyboard.press(k);
     else await page.mouse.click(setup.cx, setup.cy);
     if (seq === 'after-buy') {
       // ett köp först, sedan samma kort igen och ett klick direkt

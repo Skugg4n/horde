@@ -933,3 +933,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sqtag.hv { color: #9fd38a; border-color: #9fd38a; }
 .sqtag.fire { box-shadow: 0 0 10px 2px currentColor; background: rgba(60, 50, 20, 0.9); }
 .sqtag.sel, .sqtag:hover { background: rgba(60, 54, 40, 0.95); }
+
+/* 0.17.0-molnbo: ingångens etikett ligger ofta mitt i spelytan på Mölnbo; den tar aldrig klick (placeringsprovet:
+   klick på etiketten var tysta, npm run placement -- --map molnbo) */
+.entry, .entry * { pointer-events: none !important; }
