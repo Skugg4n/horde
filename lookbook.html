@@ -38,7 +38,7 @@ import { createScene } from './src/render/scene.js';
 import { grassTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, weaponGhost, setGhostTone, baseModel, roadblockModel, grenadeModel } from './src/render/models.js';
-import { guardRail, highwayLamp, wreck, semiTruck, bus, boulder, grassTuft, roadSign } from './src/render/e4-kit.js';
+import { guardRail, highwayLamp, wreck, semiTruck, bus, boulder, grassTuft, roadSign, farmhouse, barn, shed, hayBale, timberStack, pylon, gantryFrame } from './src/render/e4-kit.js';
 import { createFx } from './src/render/fx.js';
 import { createHealthRings } from './src/render/rings.js';
 import { WEAPONS } from './src/data/weapons.js';
@@ -474,6 +474,17 @@ const campMen = [];
   });
   { const p = at(-6, LV + 40); boulder(b, p.x, p.z, 1.8, r); label(-6, LV + 40, 'Rock outcrop', 'grey with moss', 2.4); }
   { const p = at(4, LV + 40); for (let i = 0; i < 40; i++) grassTuft(b, p.x + r.range(-2.5, 2.5), p.z + r.range(-2.5, 2.5), r.range(0.5, 1.1), r); label(4, LV + 40, 'Tall grass', 'verges and meadow', 2.4); }
+  // 0.16.3 (H230, H231): omgivningen (gården, ladugården, uthuset, balar, virke, kraftledningen) och portalen
+  { const p = at(-24, LV + 60); farmhouse(b, frame(null, p.x, 0, p.z, -Math.PI / 4), { w: 11, d: 7 }); label(-24, LV + 60, 'Farmhouse', 'falu red, white corners, porch', 8); }
+  { const p = at(-6, LV + 62); barn(b, frame(null, p.x, 0, p.z, -Math.PI / 4), { w: 18, d: 9 }); label(-6, LV + 62, 'Barn', 'stone foot, barn bridge at the back', 10); }
+  { const p = at(9, LV + 58); shed(b, frame(null, p.x, 0, p.z, -Math.PI / 4), { w: 5, d: 3.5 }); label(9, LV + 58, 'Outbuilding', '', 4); }
+  { const p = at(17, LV + 58); hayBale(b, p.x, p.z, 0.3); hayBale(b, p.x + 1.6, p.z - 0.4, 1.2); label(17, LV + 58, 'Bales', 'wrapped, on the ley', 2.4); }
+  { const p = at(17, LV + 66); timberStack(b, frame(null, p.x, 0, p.z, -Math.PI / 4)); label(17, LV + 66, 'Timber stack', 'at the clear-cut', 2.4); }
+  { const p = at(-40, LV + 70); pylon(b, frame(null, p.x, 0, p.z, Math.PI / 4)); label(-40, LV + 70, 'Power line pylon', 'steel portal, 15 m', 16); }
+  strip(4, LV + 82, 30, 12);
+  { const p = at(4, LV + 82); gantryFrame(b, frame(null, p.x, 0, p.z, Math.PI / 4), [-6, 6], 6.6);
+    scene.add(roadSign({ x: p.x, z: p.z, ry: Math.PI / 4, kind: 'green', lines: ['137 S LÄSTRINGE', 'GNESTA'], exit: true, mount: 'gantry', scale: 1.35, y0: 6.85 - 1.9 * 1.35 })); }
+  label(4, LV + 82, 'Gantry', 'exit sign over the E4', 8);
   b.flush(scene);
 }
 
