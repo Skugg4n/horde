@@ -289,3 +289,13 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H268 | ux | Speltesta Hagstumosse dag 1 med en ny spelare: förstår hon "East first, then west" och att flytta grupperna?
 - [ ] H269 | ux | Grå kort för saker som inte finns i dag (snabbvalets lucka syns inte än; bara siffran står still).
 - [ ] H270 | ljud | Ola lyssnar på taggtråden i ljudbordet.
+
+## Efter speltest 0.16.4 (2026-10-18)
+- [ ] H250 | balans | Ishallen dag 2: lektionens barriär leder horden in på villagatorna; taggtråd där får horden att byta tillbaka till huvudvägen förbi enheterna utan varning (bas 20 till 1). Lektionen ska leda till en bra spärr, och vägbyten ska alltid förvarnas.
+- [ ] H251 | balans | Ishallen dag 3: vågor 39/60/84, vann med bas 4, för liten marginal.
+- [ ] H252 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1).
+- [ ] H253 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6".
+- [ ] H254 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen.
+- [ ] H255 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6.
+- [ ] H256 | ux | Pengar som blir över försvinner tyst; säg det.
+- [ ] H257 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag.
