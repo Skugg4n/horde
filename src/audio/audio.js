@@ -240,14 +240,17 @@ export function createAudio({ settings, muted = false } = {}) {
       alarmT += dt;
       if (alarmT >= ALARM_GAP) { alarmT = 0; play('alarm', {}); }
     } else alarmT = ALARM_GAP * 0.8;
-    // Taggtråden knarrar när något sliter i den.
+    // Taggtråden när något sliter i den. 0.16.4 (Olas feedback: riva och slita, inte klinga): oftast
+    // rivljudet (snag), ibland ett lågt knarr när tråden spänns (strain). Taken i mix.js gäller båda.
     for (const [k, ob] of Object.entries(sim.obstacles ?? {})) {
       if (ob.type !== 'wire' || ob.durability == null) continue;
       const prev = wear.get(k);
       wear.set(k, ob.durability);
-      if (prev != null && ob.durability < prev && Math.random() < 0.08) {
+      if (prev != null && ob.durability < prev) {
+        const r = Math.random();
+        if (r >= 0.08) continue;
         const c = sim.route?.cellCenter?.(Number(k));
-        play('strain', c ? { x: c.x, z: c.z } : {}, o.toScreen);
+        play(r < 0.02 ? 'strain' : 'snag', c ? { x: c.x, z: c.z } : {}, o.toScreen);
       }
     }
   }
