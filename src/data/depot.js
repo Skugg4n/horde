@@ -104,11 +104,13 @@ export const RELEASES = [
     text: 'Two Ksp 90 teams from Hemvärnet reach Gnesta, with hand grenades. Barricades are ready.',
     grant: [{ type: 'm249', count: 2 }], unlock: ['m249'], tiers: ['grenade.1'] },
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'FM',
-    text: 'Hemvärnet sends a rifle squad. A Ksp 58 team and an Ak 5 grenadier for Gnesta. One more Ksp 90 can be requisitioned.',
-    grant: [{ type: 'hv' }, { type: 'ksp58' }, { type: 'ak5' }], unlock: ['hv', 'ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'], stock: { m249: 1 } },
+    // 0.16.4 (speltestet av 0.16.2: "förrådet lovar en Ksp 90 som inte går att få"): rekvisitionen öppnar först efter
+    // dag 3, så den extra Ksp 90 släpps med nästa leverans (gn-4), där den också går att rekvirera
+    text: 'Hemvärnet sends a rifle squad. A Ksp 58 team and an Ak 5 grenadier for Gnesta.',
+    grant: [{ type: 'hv' }, { type: 'ksp58' }, { type: 'ak5' }], unlock: ['hv', 'ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'] },
   { id: 'gn-4', map: 'gnesta', day: 4, from: 'MCF',
-    text: 'A welded pillbox and a Psg 90 sniper for Gnesta. Försvarsmakten releases one Ksp 58 team.',
-    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'], stock: { ksp58: 1 },
+    text: 'For Gnesta: a welded pillbox and a Psg 90 sniper. One Ksp 58 and one Ksp 90 team released.',
+    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'], stock: { ksp58: 1, m249: 1 },
     ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
   { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
     text: 'A mounted Ksp 88 for Gnesta. One more Ksp 58 team and a Ksp 90 team are released.',

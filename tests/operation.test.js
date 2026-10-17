@@ -332,3 +332,30 @@ test('skicka och ta tillbaka gratis före Deploy; varningen när nästa strid ha
   const a = sendUnit(q, [], kspa[0].uid, 'riksvagen'), b = sendUnit(a.progress, a.log, kspa[0].uid, 'gnesta');
   assert.deepEqual(b.log, []);
 });
+
+// 0.16.4 (speltestet av 0.16.2: "kommandotexten lovar en Ksp 90 som inte går att rekvirera"): varje leverans som
+// säger att något släpps eller kan rekvireras har det i lagret, och när meddelandet kommer går det att rekvirera.
+// Omvänt: lager som en leverans ger går att rekvirera när leveransen kommer.
+import { RELEASES } from '../src/data/depot.js';
+import { WEAPONS as W_ALL } from '../src/data/weapons.js';
+test('leveranserna: varje löfte om rekvisition motsvaras av lager som går att få när meddelandet kommer', () => {
+  const nameOf = t => W_ALL[t]?.short ?? W_ALL[t]?.name ?? t;
+  const typesIn = text => Object.keys(UNIT_RP).filter(t => new RegExp(`\\b${nameOf(t).replace(/ /g, '\\s')}\\b`, 'i').test(text));
+  for (const r of RELEASES) {
+    const promises = /requisition|releas/i.test(r.text);
+    const stock = Object.keys(r.stock ?? {});
+    if (!promises && !stock.length) continue;
+    if (promises) {
+      // meningen som lovar: typerna i den finns i leveransens lager
+      const sentence = r.text.split(/(?<=\.)\s+/).filter(s => /requisition|releas/i.test(s)).join(' ');
+      for (const t of typesIn(sentence)) assert.ok(stock.includes(t), `${r.id}: "${sentence}" lovar ${t} men lagret har ${JSON.stringify(r.stock)}`);
+    }
+    // när leveransen har kommit (dagen går att spela) går lagret att rekvirera
+    let p = { ...debugReach(newCampaign(), r.map, r.day), rp: 100000 };
+    assert.ok(p.op.released.includes(r.id), `${r.id} har kommit`);
+    for (const t of stock) {
+      const c = canRequisition(p, t, r.map);
+      assert.equal(c.ok, true, `${r.id}: ${t} går inte att rekvirera (${c.reason})`);
+    }
+  }
+});
