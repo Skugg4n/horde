@@ -103,7 +103,9 @@ test('Gnesta dag 1 är evakueringen och E4 har inget Hemvärn', () => {
   assert.ok(!MAPS.riksvagen.arsenal.includes('hv'));
   for (const t of ['inf', 'm249', 'm2', 'epa']) assert.ok(MAPS.riksvagen.arsenal.includes(t), t);
   // 0.16.0 (textgenomgången och Olas namn): säkrad, inte tystnad; Hagstumosse är nästa sektor
-  assert.match(MAPS.riksvagen.outro.text, /^Sector E4 is secure\..*Hagstumosse/);
+  // 0.16.4 (Olas rättelse): vi vann vid E4, och de civila ska in i ishallen (de sitter inte fast där)
+  assert.match(MAPS.riksvagen.outro.text, /^E4 holds\..*Hagstumosse.*into the ice rink/);
+  for (const m of Object.values(MAPS)) assert.doesNotMatch(m.outro?.text ?? '', /trapped|fallen|silent|retreat|falls back/i, m.id);
   void gnestaPlan; void daySpawns;
 });
 

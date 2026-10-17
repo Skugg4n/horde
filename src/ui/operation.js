@@ -121,7 +121,7 @@ function sectorCard(p, id, meta) {
   const lines = [];
   if (st === 'placeholder') lines.push('No reports yet.');
   else if (st === 'locked') lines.push(`Opens when ${MAPS[map.unlock.map].name} day ${map.unlock.day} is held.`);
-  else if (st === 'silent') lines.push('Secure. The army has moved on.');
+  else if (st === 'silent') lines.push('Secure. The army holds the roadblock.');
   else if (st === 'held') lines.push('Every day here is held.');
   else {
     lines.push(`${esc(map.name)}, day ${day} of ${map.days.length}: ${esc(map.days[day - 1].intro.title.split(':').slice(1).join(':').trim())}.`);

@@ -596,7 +596,8 @@ export const NORR_TOWN = {
 
 export const gnestaNorr = {
   id: 'gnesta-norr', name: 'Hagstumosse · Vikingavägen', version: NORR_VERSION,
-  outro: { text: 'Hagstumosse holds, for now. Gnesta Centrum is next.' },
+  // 0.16.4 (Olas rättelse): en vinst läses som en vinst, befälhavaren skickas vidare
+  outro: { text: 'Hagstumosse holds and the ice rink is safe. Command is sending you on to Gnesta Centrum.' },
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
