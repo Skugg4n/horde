@@ -1675,8 +1675,11 @@ function sheetAction(a) {
 
 function showMenu() {
   const started = Object.values(progress.maps).some(m => Object.keys(m.attempts).length || m.unlockedDay > 1);
+  // 0.16.3: statusraden under Continue säger var operationen står
+  const id = progress.mapId, d = MAPS[id] ? nextDay(progress, id) : null;
+  const status = MAPS[id] ? { place: MAPS[id].name, day: d } : null;
   setMode('menu', () => mainMenu(uiRoot, {
-    version: VERSION, started, rp: progress.rp,
+    version: VERSION, started, rp: progress.rp, status,
     // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
     onContinue: () => (meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
     onNew: () => { resetSave(newCampaign()); progress = loadProgress(); loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },

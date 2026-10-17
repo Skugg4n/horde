@@ -573,12 +573,21 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
 }
 
 // Menyn (0.14.0): operationen fortsätter på operationskartan; dagarna och banorna väljs där.
-export function mainMenu(root, { started, rp, onContinue, onNew, version }) {
+// 0.16.3 (Olas "trångt och konstigt"): luftig skylt, knappen på en rad ("Continue"), statusraden under den
+// (var operationen står: plats, dag och RP), New operation som en riktig sekundär knapp, versionen i hörnet.
+// status: { place, day } eller null.
+export function mainMenu(root, { started, rp, status, onContinue, onNew, version }) {
+  const rpText = `${String(Math.round(rp)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f')} RP`;
+  const where = status?.place ? status.place + (status.day ? `, day ${status.day}` : '') : null;
+  const line = [where, rpText].filter(Boolean).join(' · ');
   const p = plate(root, 'menu', `
     <div class="logo">HORDE</div>
     <div class="map">Operation Södermanland</div>
-    <div class="acts"><button type="button" class="act main" data-a="continue"><span class="a">${started ? 'Continue the operation' : 'Start the operation'}</span><kbd>Enter</kbd></button></div>
-    ${started ? `<p class="note-line">${rp} RP in the depot.</p><button type="button" class="link" data-a="new">New operation</button>` : ''}
+    <div class="menu-main">
+      <button type="button" class="act main" data-a="continue"><span class="a">${started ? 'Continue' : 'Start the operation'}</span><kbd>Enter</kbd></button>
+      ${started ? `<p class="menu-status">${line}</p>` : ''}
+    </div>
+    ${started ? '<button type="button" class="act menu-new" data-a="new"><span class="a">New operation</span></button>' : ''}
     <div class="v">v${version}</div>`);
   on(p.el, '[data-a="continue"]', onContinue);
   on(p.el, '[data-a="new"]', () => { if (confirm('Start a new operation? Your current one is kept as a backup copy.')) onNew(); });
