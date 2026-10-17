@@ -252,8 +252,8 @@ test('v2-sparfil flyttas till v4: More positions och Ksp 88 I blir RP, allt anna
   assert.deepEqual(p.maps.riksvagen, { unlockedDay: 4, attempts: { 3: 2 } });
   assert.deepEqual(p.maps.gnesta, { unlockedDay: 2, attempts: { 1: 1 } });
   assert.equal(p.seenHint, true);
-  // Gnesta dag 2 är spelbar: de civila och Hemvärnet med två Ksp 90 står i sektorn
-  assert.deepEqual(p.op.units.filter(u => u.sector === 'gnesta').map(u => u.type).sort(), ['civ', 'civ', 'civ', 'hv', 'm249', 'm249']);
+  // Gnesta dag 2 är spelbar: de civila och två Ksp 90 står i sektorn (0.16.2: Hemvärnets grupp kommer dag 3)
+  assert.deepEqual(p.op.units.filter(u => u.sector === 'gnesta').map(u => u.type).sort(), ['civ', 'civ', 'civ', 'm249', 'm249']);
   assert.equal(st.getItem('horde.save'), raw, 'läsningen skriver inte över sparfilen');
   assert.equal(st.getItem('horde.save.v2'), raw, 'kopia av den gamla sparfilen');
   assert.equal(st.getItem('horde.save.broken'), null);

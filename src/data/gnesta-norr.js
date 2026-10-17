@@ -556,7 +556,7 @@ export const DAYS = [
              say('Two columns at once!', { groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 0, 'vikN')] }),
              say('Runners!', { groups: [g('runner', 60, 0.2, 0, 'vikN'), g('walker', 30, 0.35, 6, 'dansW')] }),
              { groups: [g('walker', 60, 0.25, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), tell('Runners on both roads!', g('runner', 25, 0.3, 8, 'dansW')), g('runner', 25, 0.3, 8, 'vikN')] } ] },
-  { n: 3, supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2250, hp: 4.4, overlap: 60, intro: { title: 'Day 3: Brutes in front', text: 'Infantry has arrived. Not everyone fits on the line.' },
+  { n: 3, supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2250, hp: 4.2, overlap: 60, intro: { title: 'Day 3: Brutes in front', text: 'Infantry has arrived. Not everyone fits on the line.' },
     dormant: [{ house: 'N-26', street: 'Valsvägen', count: 4, type: 'walker', wave: 0 }, { house: 'N-28', street: 'Valsvägen', count: 4, type: 'walker', wave: 0 },
       { house: 'B0-00', street: 'Cykelvägen', count: 5, type: 'walker', wave: 0 }, { house: 'N-17', street: 'Fornminnesvägen', count: 3, type: 'walker', wave: 0 },
       { house: 'N-19', count: 2, type: 'brute', wave: 3, delay: 40, intel: false }],

@@ -93,7 +93,9 @@ test('förrådet per sektor och dag, och forskningen ovanpå', () => {
   assert.equal(buyState(g, 'civ').state, 'ok');
   for (const t of ['hv', 'm249', 'm2', 'inf', 'psg90']) assert.equal(buyState(g, t).state, 'absent', `Gnesta dag 1: ${t}`);
   const g2 = createSim({ map: MAPS.gnesta, day: 2, cash: 800, research: [], seed: 1 });
-  assert.equal(buyState(g2, 'hv').state, 'ok', 'Hemvärnet dag 2');
+  // 0.16.2: Hemvärnet dag 3 (dag 2 lär bara ut barrikaderna)
+  assert.equal(buyState(g2, 'hv').state, 'absent', 'inget Hemvärn dag 2');
+  assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'hv').state, 'ok', 'Hemvärnet dag 3');
   assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först dag 5');
   const g5 = createSim({ map: MAPS.gnesta, day: 5, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(g5, 'm2').state, 'ok');

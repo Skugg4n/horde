@@ -62,8 +62,26 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // 0.16.1: alla steg nya, avsiktligt: E4 dag 1 till 3 med jämnare sista vågor (32, 60, och bjässarna delade mellan
 // våg 2 och 3, H192), överskottet på fler trådar (policyn), Ishallen dag 1 med våg 2:s löpare senare (speltestet av
 // 0.16.0), South dag 3 och 4 med mindre förnödenheter per dödad (H215). docs/balance-log.md 0.16.1.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"fe84f3cb","gnesta 3":"b0bc6596","gnesta 4":"93911c1f","gnesta 5":"092479af","gnesta-norr 1":"a0865ae3","gnesta-norr 2":"afdb51ab","gnesta-norr 3":"540b4180","gnesta-norr 4":"4c2223ea","gnesta-norr 5":"58ae7dca"};
+// 0.16.2: Ishallen dag 2 till North dag 5 nya, avsiktligt (speltestet av 0.16.1): dag 2 en ingång med 30 / 44 / 58 och
+// spärren vid första stickgatan, Hemvärnet och Norra vägen dag 3 (hp 3,5 till 4,0 när skogsvägen flyttade till dag
+// 4), North dag 3 hp 4,4 till 4,2 (mindre RP från en kortare dag 2). E4 och Ishallen dag 1 står kvar.
+// docs/balance-log.md 0.16.2.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"533d645b","gnesta 3":"0af8b2e5","gnesta 4":"aa960bfe","gnesta 5":"4c28d95a","gnesta-norr 1":"9925db7b","gnesta-norr 2":"0e072c56","gnesta-norr 3":"a431bdee","gnesta-norr 4":"7e1af42f","gnesta-norr 5":"be8f6156"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));
+});
+
+// 0.16.2 (speltestet av 0.16.1: Ishallen dag 2 förlorad två gånger, förrådet öppnade aldrig): förstagångsspelaren
+// som följer tipsen (lägger spärren och ställer pjäserna längs den nya vägen, scripts/balance.mjs POLICIES.hints)
+// klarar dag 2 inom två försök i alla fem seeds, och den som inte lägger någon spärr alls (naive) också.
+import { opCampaign } from '../scripts/balance.mjs';
+import { SEEDS } from './op-logs.js';
+test('Ishallen dag 2: förstagångsspelaren som följer tipsen vinner inom två försök', () => {
+  for (const policy of ['hints', 'naive']) for (const [i, seedOffset] of SEEDS.entries()) {
+    const e4 = opCampaign('normal', { seedOffset, sectors: ['riksvagen'] });
+    const r = opCampaign(policy, { seedOffset, sectors: ['gnesta'], start: e4.progress, maxAttempts: 2 });
+    const d2 = r.log.filter(x => x.mapId === 'gnesta' && x.day === 2);
+    assert.ok(d2.some(x => x.won), `${policy} seed ${i}: ${JSON.stringify(d2.map(x => [x.won, x.waveBase]))}`);
+  }
 });

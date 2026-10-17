@@ -288,6 +288,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
 // pjäserna ser 40 rutor av vägen i stället för 30. Det är kartläsningen spelet vill lära ut:
 // stäng gatan så att de måste gå där du ser dem.
 const SMART_BLOCKS = [[-45, 24]];  // Sigtunavägen strax öster om rondellen (x, z i meter)
+const DAY2_BLOCKS = [[-25, 31]];   // 0.16.2: Sigtunavägen vid första stickgatan, dag 2 (en ingång)
 const PLAN_RANGE = 22;      // M2, pjäsen policyn helst bygger: täckning räknas för dess räckvidd
 const PLAN_GUNS = 4;        // taggtråden läggs där flest av de fyra första pjäserna ser
 const PLAN_WIRE = 3;        // taggtrådsspärrar på hordens väg
@@ -571,7 +572,9 @@ const NORR_ROW_ROOFS = (() => {
 // Ingången för dagens första grupp på Gnesta Norr (öppningen), sigW om våg 1 bara är hus.
 const norrOpener = day => gnestaNorr.days[day - 1].waves[0].groups[0]?.spawn ?? 'sigW';
 export const TOWN = {
-  gnesta: { blocks: () => SMART_BLOCKS, planOpts: () => ({}), kits: GN_KITS, roofsDay: GN_ROOFS_DAY, maxTicks: MAX_TICKS },
+  // 0.16.2: dag 2 har en enda ingång (Sigtunavägen öst); spärren där läggs så att horden går runt kvarteret
+  // (DAY2_BLOCKS), inte vid rondellen där vägen inte har någon omväg
+  gnesta: { blocks: day => (day === 2 ? DAY2_BLOCKS : SMART_BLOCKS), planOpts: () => ({}), kits: GN_KITS, roofsDay: GN_ROOFS_DAY, maxTicks: MAX_TICKS },
   'gnesta-norr': {
     blocks: day => (day >= 5 ? [...NORR_BLOCKS, ...SMART_BLOCKS] : NORR_BLOCKS),
     // smart läser kartan (dödszonen, radhustaken, tegelmurarna); naive ställer allt efter sin egen väg
@@ -670,6 +673,10 @@ export const POLICIES = {
   skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true },
   normal: { plan: 'naive', blocks: true, early: false, supplies: false },
   naive: { plan: 'naive', blocks: false, early: false, supplies: false },
+  // 0.16.2 (speltestet av 0.16.1, Ishallen dag 2): förstagångsspelaren som följer tipsen. Lägger spärren som
+  // lektionen säger och ställer sedan pjäserna längs den nya vägen som pilarna visar (followRoute), men läser inte
+  // kartan mer än så och köper inget extra.
+  hints: { plan: 'naive', blocks: true, followRoute: true, early: false, supplies: false },
 };
 // En dag i operationen. policy: namnet i POLICIES. Returnerar runDay:s resultat med dagens rapport.
 export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset = 0, onSecond = null } = {}) {
@@ -683,7 +690,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const canBlock = !cfg.allow || cfg.allow.includes('block');
   let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
-  if (isTown && P.blocks && canBlock && P.plan !== 'smart') {
+  if (isTown && P.blocks && canBlock && P.plan !== 'smart' && !P.followRoute) {
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
     plan = { ...own, lines: plan.lines, wire: plan.wire };
   }

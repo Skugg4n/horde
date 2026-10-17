@@ -423,8 +423,8 @@ export const SPAWNS = [
   // overkligt ut"). Tiden till första skottet hålls kort av att horden går fortare i diset
   // (src/sim/sim.js fogFactor). east1 ligger utanför Gnesta Norrs skarpa yta också.
   { id: 'east1', name: 'Sigtunavägen öst', day: 1, at: w(2360, 1129) },
-  { id: 'east2', name: 'Norra vägen', day: 2, at: w(1969, -260) },
-  { id: 'forest', name: 'Skogsvägen', day: 3, at: w(1135, 1342) },
+  { id: 'east2', name: 'Norra vägen', day: 3, at: w(1969, -260) },
+  { id: 'forest', name: 'Skogsvägen', day: 4, at: w(1135, 1342) },
 ];
 // Basen är ishallens entré (0.6.0): horden ska fram till dörrarna, inte till rondellen.
 // Rondellen blir sista försvarslinjen framför porten.
@@ -854,9 +854,10 @@ const LEAD_RUN = 20, LEAD_WALK = 62;
 // Hemvärnet kommer dag 2 med Ksp 90, sedan kommer armén pö om pö: Ksp 58 och Ak 5 dag 3, Psg 90 och
 // pillboxen dag 4, Ksp 88 dag 5 (arsenal: köpradens id som finns i förrådet den dagen; forskningen
 // gäller ovanpå, src/sim/stats.js inArsenal). Infanteriet kommer först på Gnesta North.
+// 0.16.2 (speltestet av 0.16.1: dag 2 hade fem nyheter på en gång): Hemvärnet kommer dag 3
 const ARSENAL = [
   ['block', 'wire', 'civ'],
-  ['block', 'wire', 'civ', 'hv', 'm249'],
+  ['block', 'wire', 'civ', 'm249'],
   ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5'],
   ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa'],
   ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'],
@@ -881,22 +882,26 @@ export const DAYS = [
   // 0.10.2 (speltestet av 0.10.1: basen 20 till 2 i våg 1, dag 2 förlorad på två minuter): hp 5,8 till
   // 5,0, våg 1 46 i stället för 60 och norra gruppen först efter 10 s, våg 2 30 löpare (var 40), våg 3
   // 130 (var 160). Naive klarar nu våg 1 utan skada och vinner dagen med 2 till 5 kvar i fyra seeds av fem.
-  { n: 2, supplies: 450, startCash: 1300, hp: 1.8, arsenal: ARSENAL[1], intro: { title: 'Day 2: The Home Guard', text: 'Block a street and they walk around.' },
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 24, 0.45, 3, 'east1'), g('walker', 16, 0.5, 10, 'east2')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east1'), g('runner', 30, 0.35, 6, 'east2')] },
-             { groups: [g('walker', 40, 0.32, 0, 'east1'), g('walker', 24, 0.4, 0, 'east2'), g('runner', 34, 0.3, 10, 'east1')] } ] },
+  // 0.16.2 (speltestet av 0.16.1: "en mur", 45 / 70 / 98 och två förluster, och fem nyheter före första vågen):
+  // ett begrepp, barrikaderna och hordens väg. En ingång (Sigtunavägen öst); Norra vägen kommer dag 3 och
+  // Hemvärnet med den. Vågorna DAYS2_WAVES (se balansloggen 0.16.2).
+  { n: 2, supplies: 450, startCash: 1300, hp: 1.8, arsenal: ARSENAL[1], intro: { title: 'Day 2: Barricades', text: 'Block a street and they walk around.' },
+    waves: [ { groups: [g('runner', 4, 1.2, 0, 'east1', LEAD_RUN), g('walker', 26, 0.5, 3, 'east1')] },
+             { groups: [g('walker', 30, 0.45, 0, 'east1'), g('runner', 14, 0.5, 12, 'east1')] },
+             { groups: [g('walker', 36, 0.4, 0, 'east1'), g('runner', 22, 0.4, 14, 'east1')] } ] },
   // 0.16.1 (H215): förnödenheterna på enheten kommer först dag 5, så dag 3 och 4 hade inget att lägga pengarna på
   // utom hindren; den skickliga slutade med 1 200 och 2 200 dollar över, den normala med 800 och 1 300. Halva och
   // knappt en tredjedel per dödad: samma utfall i alla seeds, överskottet 480 till 560 och 700 (normal 70 till 230).
-  { n: 3, supplies: 500, startCash: 1300, hp: 3.5, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The forest road', text: 'Intel: infected hiding in a house.' },
+  // 0.16.2: Hemvärnet och Norra vägen flyttade hit från dag 2; skogsvägen kommer dag 4 (förut här)
+  { n: 3, supplies: 500, startCash: 1300, hp: 4.0, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. They also come along Norra vägen.' },
     // 0.16.0: de vilande husen är dagens begrepp: ett förvarnat vid stickgatan i våg 1 (förut dag 1 och 2), och
     // överraskningen från 0.12.0 (ingen förvarning, ett hus vid fältet när våg 2 börjar).
     dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'forest')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'forest')] },
-             { groups: [g('walker', 70, 0.25, 0, 'forest'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes. Move your guns to where they come.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'east2')] },
+             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'east1')] },
+             { groups: [g('walker', 70, 0.25, 0, 'east2'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
+  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and the forest road. Move your guns to where they come.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
