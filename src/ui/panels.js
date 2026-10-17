@@ -596,28 +596,28 @@ function noteStack(root) {
   if (!st) { st = document.createElement('div'); st.id = 'notes'; root.appendChild(st); }
   return st;
 }
-function showNote(root, text, cls) {
+function showNote(root, text, cls, ms = NOTE_MS) {
   const st = noteStack(root);
   const el = document.createElement('div');
   el.className = 'note plate ' + cls;
   el.textContent = text;
   st.appendChild(el);
-  el._t = setTimeout(() => dropNote(root, el), NOTE_MS);
+  el._t = setTimeout(() => dropNote(root, el), ms);
 }
 function dropNote(root, el) {
   el.remove();
   const st = noteStack(root);
-  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls); }
+  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms); }
 }
-// 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå
-export function note(root, text, cls = '', { prio = false } = {}) {
+// 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå. 0.16.2: ms, hur länge raden står
+export function note(root, text, cls = '', { prio = false, ms = NOTE_MS } = {}) {
   const st = noteStack(root);
   if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) { const old = st.querySelector('.note'); if (old) { clearTimeout(old._t); old.remove(); } }
   const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
-  if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), NOTE_MS); return; }
+  if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
   if (noteQueue.some(q => q.text === text)) return;
-  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls }); if (noteQueue.length > 6) noteQueue.shift(); return; }
-  showNote(root, text, cls);
+  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls, ms }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  showNote(root, text, cls, ms);
 }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

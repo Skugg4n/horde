@@ -752,6 +752,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #coach { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 #coach[hidden] { display: none; }
 #coach .catch { position: fixed; inset: 0; pointer-events: auto; cursor: pointer; }
+#coach.yield .cplate, #coach.yield .lead { visibility: hidden; }
 #coach:not(.k-show) .catch { display: none; }
 #coach .hole { position: fixed; border-radius: 4px; transition: left .25s, top .25s, width .25s, height .25s; }
 #coach.dimmed .hole { box-shadow: 0 0 12px 9999px rgba(22, 18, 14, 0.55); }
@@ -821,16 +822,21 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .reveal { animation: hudReveal 1.4s ease-out; }
 @keyframes hudReveal { 0% { opacity: 0; transform: translateY(6px); box-shadow: 0 0 0 2px rgba(181,83,42,0.9); } 30% { opacity: 1; transform: none; } 100% { box-shadow: 0 0 0 2px rgba(181,83,42,0); } }
 #res .cash-box[hidden] { display: none; }
-#go.auto { pointer-events: none; opacity: 0.85; }
+/* 0.16.2: nedräkningen före Next wave med bonus är ingen knapp: ingen rostfärg, ingen hovring; ett klick säger varför */
+#go.auto, #go.auto:hover { opacity: 0.9; background: var(--plate); color: var(--paper-dim); border-style: dashed; cursor: default; }
 #go kbd[hidden] { display: none; }
 
 /* E4 dag 1: de markerade platserna */
 .spotmark { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; pointer-events: none; animation: coachPulse 1.2s ease-in-out infinite; }
 .spotmark i { position: absolute; width: 10px; height: 10px; border: 0 solid #e9b04a; }
-.spotmark i:nth-child(1) { left: 0; top: 0; border-left-width: 2px; border-top-width: 2px; }
-.spotmark i:nth-child(2) { right: 0; top: 0; border-right-width: 2px; border-top-width: 2px; }
-.spotmark i:nth-child(3) { right: 0; bottom: 0; border-right-width: 2px; border-bottom-width: 2px; }
-.spotmark i:nth-child(4) { left: 0; bottom: 0; border-left-width: 2px; border-bottom-width: 2px; }
+/* 0.16.2: fylld mjuk fläck och etikett */
+.spotmark b { position: absolute; inset: 3px; border-radius: 50%; background: radial-gradient(circle, rgba(242,196,107,0.55) 0%, rgba(242,196,107,0.32) 55%, rgba(242,196,107,0) 72%); box-shadow: 0 0 0 1px rgba(242,196,107,0.35); }
+.spotmark span { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 3px); white-space: nowrap; padding: 1px 6px; border-radius: 2px;
+  font: 600 11px Oswald, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #1c1710; background: rgba(242,196,107,0.88); }
+.spotmark i:nth-of-type(1) { left: 0; top: 0; border-left-width: 2px; border-top-width: 2px; }
+.spotmark i:nth-of-type(2) { right: 0; top: 0; border-right-width: 2px; border-top-width: 2px; }
+.spotmark i:nth-of-type(3) { right: 0; bottom: 0; border-right-width: 2px; border-bottom-width: 2px; }
+.spotmark i:nth-of-type(4) { left: 0; bottom: 0; border-left-width: 2px; border-bottom-width: 2px; }
 
 /* köpraden utan kategorier (Olas beslut 3) */
 #buildbar.flat .groups { gap: 4px; }

@@ -28,20 +28,48 @@ export function waveText(dayCfg, index) {
   return `Wave ${index + 1}: ${parts.join(', ')}`;
 }
 
+// 0.16.2 (speltestet av 0.16.1: "0 of 32 left" medan 31 zombier gick kvar, och tre olika tal för samma våg): EN
+// källa för vågens tal. Alla räknare (dagens plåt, vågens rad, ingångarnas etiketter) läser härifrån.
+//   total: zombierna i vågorna som är igång (eller nästa våg före start), left: de som ännu inte är döda av dem,
+//   alive: de som går på kartan, queued: de som ännu inte släppts. left = alive + queued, alltid, också när dagen
+//   är vunnen (evakueringen kan avsluta dagen mitt i en våg).
 // Under en våg: den senast startade vågen, och kvar/totalt för alla vågor som är igång
 // (flera när nästa kallats tidigt). Annars: nästa våg som startar.
 export function waveCounts(sim) {
   const waves = sim.dayCfg.waves;
   const size = k => waveSize(sim.dayCfg, k);
-  const running = sim.phase === 'wave' || sim.phase === 'lost';
-  const i = Math.min(running ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
+  const started = sim.phase === 'wave' || sim.phase === 'lost' || (sim.phase === 'won' && sim.wavesStarted > 0);
+  const i = Math.min(started ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
+  const alive = sim.zombies.filter(z => !z.dead).length, queued = sim.spawnQueue.length;
   let total = size(i), left = total;
-  if (running) {
+  if (started) {
     total = 0;
     for (let k = 0; k < sim.wavesStarted; k++) if (!sim.cleared[k]) total += size(k);
-    left = sim.spawnQueue.length + sim.zombies.filter(z => !z.dead).length;
-  } else if (sim.phase === 'won') left = 0;
-  return { wave: i + 1, of: waves.length, total, left };
+    left = queued + alive;
+    total = Math.max(total, left);
+  }
+  return { wave: i + 1, of: waves.length, total, left, alive, queued: started ? queued : left };
+}
+// Vad som ännu kommer från varje ingång: före en våg hela vågens grupper, under vågen de som inte släppts (och
+// med överlapp nästa vågs grupper). Summan över ingångarna plus de vilande i husen är waveCounts().queued.
+// Map ingång -> [[typ, antal], ...] i fast ordning per typ.
+export function comingBySpawn(sim) {
+  const first = sim.route.spawns?.[0]?.id, out = new Map();
+  const add = (id, type, n) => {
+    if (!out.has(id)) out.set(id, new Map());
+    const m = out.get(id); m.set(type, (m.get(type) ?? 0) + n);
+  };
+  const waves = sim.dayCfg.waves;
+  if (sim.phase === 'build') {
+    for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
+  } else if (sim.phase === 'wave') {
+    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
+    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
+    if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
+  }
+  // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
+  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
+  return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
 }
 
 export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
@@ -128,7 +156,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(el.day, String(sim.day).padStart(2, '0'));
     set(el.wave, `Wave ${c.wave} of ${c.of}`);
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
-    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : `${c.left} of ${c.total} left`);
+    // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut
+    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : sim.phase === 'won' && sim.evac && c.left ? 'Civilians safe' : `${c.left} of ${c.total} left`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);

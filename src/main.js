@@ -10,7 +10,7 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { createRouteLines } from './render/route-lines.js';
-import { mountHud, waveText } from './ui/hud.js';
+import { mountHud, waveText, comingBySpawn } from './ui/hud.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -846,6 +846,7 @@ function updateBarricades(dt) {
 // minikartan pingar ingången och hordens väg därifrån blinkar. Etiketten vid infarten står där som vanligt.
 const toldSpawns = new Set();
 function spawnsOf(waves) { const first = sim.route.spawns[0]?.id; return new Set(waves.flatMap(w => w.groups.map(g => g.spawn ?? first))); }
+let newsUntil = -Infinity;
 function updateNewSpawn() {
   if (mode !== 'play' || sim.route.kind !== 'grid' || sim.phase !== 'build') return;
   const idx = sim.wavesStarted, waves = sim.dayCfg.waves;
@@ -855,7 +856,10 @@ function updateNewSpawn() {
     if (known.has(id) || toldSpawns.has(id)) continue;
     toldSpawns.add(id);
     const sp = sim.map.spawns?.find(q => q.id === id), at = sim.route.spawns.find(q => q.id === id);
-    note(uiRoot, sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true });
+    // 0.16.2 (speltestet av 0.16.1: raden stod ca 5 s och krockade med fartknappens tips): 8 s, och inga andra
+    // tips eller bildtexter börjar medan den står (newsUntil)
+    note(uiRoot, sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true, ms: 8000 });
+    newsUntil = performance.now() + 8000;
     routeFlash = 4;
     if (at) alerts.push({ x: at.x, z: at.z, until: time + 10, kind: 'spawn' });
   }
@@ -936,9 +940,24 @@ function go({ stack = false } = {}) {
     }
     if (!startWave(sim)) return;
   } else {
-    if (!callNextWave(sim, { stack }).ok) return;
+    const r = callNextWave(sim, { stack });
+    if (!r.ok) { nextDenied(r); return; }
   }
   handleEvents();
+}
+// 0.16.2 (speltestet av 0.16.1: "NEXT WAVE IN-knappen ser klickbar ut men gör ingenting"): knappen och mellanslaget
+// säger varför nästa våg inte kommer nu, vid knappen
+function nextDenied(r) {
+  const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
+  const text = r.reason === 'låst' ? (secs != null ? `It comes by itself in ${secs}s` : 'It comes by itself')
+    : r.reason === 'kvar' ? `Clear this wave first: ${r.left} still out. Shift+Space calls it anyway`
+    : null;
+  if (!text) return;
+  const btn = document.getElementById('go');
+  const wb = document.getElementById('wavebar');
+  const at = [btn, wb].find(n => n && !n.hidden && n.getBoundingClientRect().width)?.getBoundingClientRect();
+  tipFlash = { text, until: performance.now() + 2200, x: at ? at.left + 4 : pointer.x, y: at ? at.top - 44 : pointer.y };
+  audio.ui('deny');
 }
 
 // ---------- ljud ----------
@@ -1115,24 +1134,6 @@ const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
 // nästa vågs grupper. Map ingång -> [[typ, antal], ...] i gruppernas ordning.
 const PLURAL = { walker: 'walkers', runner: 'runners', brute: 'brutes' };
 const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`;
-function comingBySpawn() {
-  const first = sim.route.spawns[0]?.id, out = new Map();
-  const add = (id, type, n) => {
-    if (!out.has(id)) out.set(id, new Map());
-    const m = out.get(id); m.set(type, (m.get(type) ?? 0) + n);
-  };
-  const waves = sim.dayCfg.waves;
-  if (sim.phase === 'build') {
-    for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
-  } else if (sim.phase === 'wave') {
-    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
-    const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
-    if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
-  }
-  // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
-  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
-  return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
-}
 // Gnesta: en etikett per ingång som används nu, på gatan (H091): på första punkten längs hordens väg
 // från ingången där etiketten ryms i bild utan att täcka gränssnittet (hud.js väljer bland
 // kandidaterna). Ingången själv om den syns, annars där vägen kommer in i bild. Syns vägen inte alls:
@@ -1142,7 +1143,7 @@ function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
   const { ids, next } = activeSpawns();
-  const coming = comingBySpawn();
+  const coming = comingBySpawn(sim);
   const cx = innerWidth / 2, cy = innerHeight / 2;
   for (const id of ids) {
     const isNext = id === next;
@@ -1155,6 +1156,8 @@ function gridEntries() {
     }
     const counts = coming.get(id) ?? [];
     const lines = counts.length ? counts.map(countText) : ['Horde incoming'];
+    // 0.16.2: under vågen är talen det som ännu inte kommit härifrån, och det står (vågens rad säger hela vågen)
+    if (wave && counts.length) lines[lines.length - 1] += ' to come';
     const cells = sim.route.paths([id])[0]?.cells ?? [];
     const cands = [];
     for (let i = 0; i < cells.length && cands.length < 48; i += 2) {
@@ -1457,12 +1460,18 @@ function skipLesson() {
   lastEsc = now;
   finishLesson();
 }
-function updateLessons(dt) {
+// 0.16.2 (speltestet av 0.16.1): bildtexternas 4 s räknas i verklig tid (förut i bildrutornas tid, högst 0,1 s per
+// bild: i 1,5 bilder/s stod "Press, then drag toward the road to aim." i en halv minut och följde varje ny enhet).
+// En bildtext som gäller det man håller i (when: placing:X) går när man inte längre håller det.
+let lessonWall = performance.now();
+function updateLessons() {
+  const now = performance.now(), dt = Math.min(1, (now - lessonWall) / 1000);
+  lessonWall = now;
   if (card || manual || menu.isOpen()) return;
   if (lesson) {
     const st = lesson.step;
     if (st.kind === 'step' && lessonTest(st.done)) { finishLesson(); return; }
-    if (st.kind === 'caption' && coach.tick(dt)) { finishLesson(); return; }
+    if (st.kind === 'caption' && (coach.tick(dt) || (st.when?.startsWith('placing:') && !lessonTest(st.when)))) { finishLesson(); return; }
     const tg = lessonTarget(st.target);
     if (!tg && st.target && !st.target.world) {
       if ((lesson.missing += dt) > 1) { console.info('Lektionen hoppades över, målet finns inte:', st.id); finishLesson(); }
@@ -1471,8 +1480,15 @@ function updateLessons(dt) {
     lesson.missing = 0;
     coach.el.classList.toggle('dimmed', lesson.pause && !placing && !tg?.light && !!tg?.rect);
     coach.place(tg?.rect ?? null, { off: tg?.off ?? null, avoid: coachAvoid() });
+    // 0.16.2 (speltestet av 0.16.1: plåten och kortets utfällda ruta skrevs över varandra): finns ingen fri plats
+    // viker plåten för den utfällda rutan så länge pekaren står på kortet
+    const more = uiRoot.querySelector('#buildbar .card:hover .more');
+    const mr = more?.getBoundingClientRect(), pr = coach.plateRect();
+    coach.el.classList.toggle('yield', !!mr?.width && mr.left < pr.right && pr.left < mr.right && mr.top < pr.bottom && pr.top < mr.bottom);
     return;
   }
+  // en ny ingång har företräde: inga nya plåtar eller bildtexter medan raden står
+  if (performance.now() < newsUntil) return;
   for (const l of lessonList()) {
     if (isSeen(progress, l.id)) continue;
     if (l.done && lessonTest(l.done)) { progress = markSeen(progress, l.id); save(); continue; }
@@ -1608,12 +1624,17 @@ function suggestKeys() {
   return evacHelp().spots.map(s => s.key).filter(k => !sim.guns.some(g => Math.hypot(g.x - sim.place.center(k).x, g.z - sim.place.center(k).z) < 4));
 }
 function updateSpotMarks() {
-  const keys = mode === 'play' && sim.marked && (placing || sim.reserve?.some(u => canDeploy(sim, u))) ? [...sim.marked].filter(k => !sim.guns.some(g => g.cell === k)) : suggestKeys();
+  const marked = mode === 'play' && sim.marked && (placing || sim.reserve?.some(u => canDeploy(sim, u)));
+  const keys = marked ? [...sim.marked].filter(k => !sim.guns.some(g => g.cell === k)) : suggestKeys();
+  // 0.16.2 (speltestet av 0.16.1: "tre små gula hörnmarkeringar, tunna, smälter in mot husen"): en fylld mjuk
+  // fläck under hörnen och en etikett, så att platserna syns utan att zooma
+  const label = marked ? 'Here' : 'Volunteers here';
   const want = new Set(keys);
   for (const [k, el] of spotEls) if (!want.has(k)) { el.remove(); spotEls.delete(k); }
   for (const k of keys) {
     let el = spotEls.get(k);
-    if (!el) { el = document.createElement('div'); el.className = 'spotmark'; el.innerHTML = '<i></i><i></i><i></i><i></i>'; pips.appendChild(el); spotEls.set(k, el); }
+    if (!el) { el = document.createElement('div'); el.className = 'spotmark'; el.innerHTML = '<b></b><i></i><i></i><i></i><i></i><span></span>'; pips.appendChild(el); spotEls.set(k, el); }
+    const sp = el.querySelector('span'); if (sp.textContent !== label) sp.textContent = label;
     const c = sim.place.center(k), p = toScreen(c.x, c.z);
     el.style.left = p.sx + 'px'; el.style.top = p.sy + 'px';
   }
@@ -2021,7 +2042,7 @@ function tick(now) {
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
-  updateLessons(frameDt);
+  updateLessons();
   updateBaseArrow();
   if (sim) updateNewSpawn();
   updateEnemies();
