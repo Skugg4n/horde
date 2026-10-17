@@ -47,6 +47,13 @@ export const STAGES = [
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },
   { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: [] },
   { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: [] },
+  // 0.17.0-molnbo: Mölnbo. Inget nytt i gränssnittet; det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
+  { id: 'after-gnn-5', after: ['gnesta-norr', 5], adds: [] },
+  { id: 'mb-1', map: 'molnbo', day: 1, adds: [] },
+  { id: 'mb-2', map: 'molnbo', day: 2, adds: [] },
+  { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train'] },
+  { id: 'mb-4', map: 'molnbo', day: 4, adds: [] },
+  { id: 'mb-5', map: 'molnbo', day: 5, adds: [] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];
 export const stageIndex = id => STAGES.findIndex(s => s.id === id);

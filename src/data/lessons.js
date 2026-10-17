@@ -90,6 +90,23 @@ export const LESSONS = {
     { id: 'gnn-3.front', kind: 'show', when: 'start', target: { ui: '#buildbar .guns' }, text: 'Frontage: only {frontage} units fit here. Choose who goes.', manual: 'frontage' },
     { id: 'gnn-3.reserve', kind: 'caption', when: 'deployed', target: { ui: '#buildbar' }, text: 'The rest wait in reserve until tomorrow.' },
   ],
+  // 0.17.0-molnbo: Mölnbo, en ny idé per dag (platsen: tornen, tåget, tågklockan, bron, spåret)
+  'mb-1': [
+    { id: 'mb-1.tower', kind: 'step', when: 'start', done: 'placing:psg90|placed:psg90', target: { ui: '#buildbar .card[data-id="psg90"]' }, text: 'High ground. Put a Psg 90 on a stair tower.', manual: 'roofs' },
+    { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Towers, station roof, train roof.' },
+  ],
+  'mb-2': [
+    { id: 'mb-2.train', kind: 'show', when: 'start', target: { world: 'route' }, text: 'The train is cover. Put a squad on the platform behind it.', manual: 'squads' },
+  ],
+  'mb-3': [
+    { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'The train leaves when the clock runs out. Hold until then.', manual: 'train' },
+  ],
+  'mb-4': [
+    { id: 'mb-4.bridge', kind: 'show', when: 'start', target: { world: 'route' }, text: 'One road bridge, one footbridge. Close both and they must break through.', manual: 'barricades' },
+  ],
+  'mb-5': [
+    { id: 'mb-5.last', kind: 'caption', when: 'start', target: { ui: '#train' }, text: 'The last train north. Hold until it leaves.' },
+  ],
   // Tvåstegsvalet kommer bara när köpraden har fler än 9 kort (Olas beslut 3); steget följer det, inte dagen.
   any: [
     { id: 'any.chords', kind: 'show', when: 'chords', target: { ui: '#buildbar' }, text: 'Keys: first the group, then the item. Try', keys: ['1', '2'] },
@@ -137,6 +154,7 @@ export const MANUAL_GROUPS = ['Basics', 'Defences', 'Units', 'Operation', 'Enemi
 export const MANUAL = [
   { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its number. Click the ground to place it. Light ground shows where it may stand.', keys: ['1', '2', '3'] },
   { id: 'start', group: 'Basics', title: 'Start the wave', text: 'Build first: nothing moves until you start. After a wave the next one counts down by itself.', keys: ['Space'] },
+  { id: 'train', group: 'Basics', title: 'The last train', text: 'At Mölnbo a train waits at the platform. It leaves when the clock runs out. Hold the base until then and the day is won, even with infected still on the streets.' },
   { id: 'base', group: 'Basics', title: 'The base', text: 'Every infected that reaches the base takes a point. At zero the day is lost and starts over with the force you went in with.' },
   { id: 'speed', group: 'Basics', title: 'Speed', text: 'Run the day at 1x, 2x or 3x. The world pauses whenever a tip or the menu is open.', keys: ['F'] },
   { id: 'supplies', group: 'Defences', title: 'Supplies', text: 'Each day brings supplies, and every kill adds a little. Spend them during the day on defences. They do not carry over.' },

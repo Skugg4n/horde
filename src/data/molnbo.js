@@ -1,0 +1,565 @@
+// Sektor Mölnbo (0.17.0-molnbo): stationen, bron och Folkets hus. Kartan som data, utan three.js (testbar i node).
+// Design: docs/superpowers/specs/2026-10-17-molnbo-design.md. Byggnoteringar och antagna svar på Olas öppna
+// frågor: docs/superpowers/specs/2026-10-18-molnbo-build-notes.md.
+//
+// Ritad ur referenserna i ~/Projects/horde-refs/molnbo (kulturmiljökartan, satellitbilden, Street View och
+// Commons-fotona; inget av det ligger i repot). Avstånden är ungefär halv verklig skala som Gnesta, men
+// järnvägens tvärsnitt (spår, perronger, tåget) och husen är nära verklig storlek så att de läses bredvid
+// zombierna. Kartan är ritad i järnvägens ram: u längs spåret (österut, mot Järna) och v tvärs över det
+// (söderut), med origo där väg 57 går över spåret. Spåret ligger 21 grader mot öster-nordost i världen.
+// x = öster, z = söder som på de andra banorna.
+//
+// Antaganden (Olas frågor är obesvarade, se byggnoteringarna):
+//   - gångbron är en egen bro väster om vägbron, med ett trapptorn vid varje perrong
+//   - ingen annan passage över eller under spåret; ån har ingen gångbar väg under banan
+//   - Trollvägen når Fagernäsvägen, och vägen förbi hyreshusen vid Kvarnen går igenom till Gnestavägen
+//   - basen är Folkets hus (Olas beslut), målet "håll tills sista tåget norrut gått" (dag 3 till 5)
+//   - Mölnbo är inte kampanjens final
+import { makeRng } from '../sim/rng.js';
+import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
+import { smooth, distPolyline, inPoly } from './gnesta.js';
+
+export const MOLNBO_VERSION = '0.1.0';
+
+// ---------- järnvägens ram ----------
+const TH = 21 * Math.PI / 180;
+const A = [Math.cos(TH), -Math.sin(TH)], B = [Math.sin(TH), Math.cos(TH)];
+// (u, v) i järnvägens ram till världen (x, z), och tillbaka.
+export const R = (u, v) => [u * A[0] + v * B[0], u * A[1] + v * B[1]];
+export const toRail = (x, z) => [x * A[0] + z * A[1], x * B[0] + z * B[1]];
+const RS = pts => pts.map(([u, v]) => R(u, v));
+// rotation.y (three.js) för en byggnad vars lokala +x pekar längs (du, dv) i järnvägens ram
+export const ryAlong = (du, dv) => { const [dx, dz] = [du * A[0] + dv * B[0], du * A[1] + dv * B[1]]; return Math.atan2(-dz, dx); };
+export const RAIL_RY = ryAlong(1, 0);
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+// ---------- spelytan ----------
+// Den skarpa ytan (världens axlar). Utanför den tonar allt mot diset, och där ligger ingångarna.
+export const CRISP = { x0: -100, x1: 108, z0: -66, z1: 126 };
+const outside = (x, z, c = CRISP) => Math.max(c.x0 - x, x - c.x1, c.z0 - z, z - c.z1);
+
+// ---------- järnvägen ----------
+// Tre spår, två perronger, staket. Stängd mark för horden, utom norra perrongen och banvallen väster om den
+// (dag 5:s överraskning, S5) som bara når gångbron via norra trapptornet. Södra perrongen går att stå på
+// (bakom tåget) men inte att gå på.
+export const RAIL = {
+  corridor: [-15, 12],                 // v-intervallet som är järnväg
+  tracks: [-5.5, -1, 3.8],             // spårens mitt (v)
+  gauge: 1.435,
+  platformN: { u0: -84, u1: -12, v0: -13, v1: -8, h: 0.9 },
+  platformS: { u0: -84, u1: -14, v0: 6, v1: 10.5, h: 0.9 },
+  fences: [-14.6, 1.4, 11.6],          // staket mot tomterna i norr, mellan spår 2 och 3, mot slänten i söder
+  bank: { v: -10.5, u1: -84, h: 0.5 }, // banvallen (S5) längs norra perrongens förlängning västerut
+  masts: { step: 24, v: [-14, 1.4, 11.2] },
+};
+export const inRail = (x, z) => { const [, v] = toRail(x, z); return v >= RAIL.corridor[0] && v <= RAIL.corridor[1]; };
+const inPlat = (P, u, v, pad = 0) => u >= P.u0 - pad && u <= P.u1 + pad && v >= P.v0 - pad && v <= P.v1 + pad;
+
+// ---------- broarna ----------
+// Vägbron (väg 57): korsningen vid caféet (J) i söder, norra brofästet (N) i norr. Däcket ligger DECK_H
+// meter över spåren, ramperna går ner till marken mellan |v| = 15 och 30. Gångbron väster om den: landar på
+// Gnestavägens trottoar i söder och på stationsparkeringen i norr; trapptornen står vid perrongerna.
+export const DECK_H = 4.4;
+export const BRIDGE = { a: [-6, 34], b: [16, -34], width: 9, deck: 15, ramp: 30 };
+export const FOOT = { a: [-20, 30], b: [2, -30], width: 3.2, deck: 13, ramp: 28 };
+const uOn = (br, v) => br.a[0] + (br.a[1] - v) * (br.b[0] - br.a[0]) / (br.a[1] - br.b[1]);
+// Trapptornen: en betongkub vid gångbron, platt tak (prickskytt). link: trappan ner till norra perrongen.
+export const TOWERS = [
+  { id: 'towerN', at: [-9.5, -12.4], size: 3.6, h: 5.6 },
+  { id: 'towerS', at: [-16.4, 8.4], size: 3.6, h: 5.6 },
+];
+const LINK = { v: -9.4, u0: -13, w: 2.4 };
+// Höjden över marken i en punkt (bara bilden: zombierna på bron och perrongen). Ren funktion av läget.
+export function groundY(x, z) {
+  const [u, v] = toRail(x, z), av = Math.abs(v);
+  if (av <= FOOT.ramp + 2 && Math.abs(u - uOn(FOOT, v)) <= FOOT.width / 2 + 0.9) return DECK_H * (1 - smoothstep(FOOT.deck, FOOT.ramp, av));
+  const fu = uOn(FOOT, LINK.v);
+  if (Math.abs(v - LINK.v) <= LINK.w / 2 + 0.6 && u >= LINK.u0 && u <= fu) return RAIL.platformN.h + (DECK_H - RAIL.platformN.h) * smoothstep(LINK.u0 + 1, fu - 1.5, u);
+  if (av <= BRIDGE.ramp + 2 && Math.abs(u - uOn(BRIDGE, v)) <= BRIDGE.width / 2 + 0.9) return DECK_H * (1 - smoothstep(BRIDGE.deck, BRIDGE.ramp, av));
+  if (inPlat(RAIL.platformN, u, v, 0.5)) return RAIL.platformN.h;
+  if (u < RAIL.platformN.u0 && Math.abs(v - RAIL.bank.v) < 2.5) return RAIL.bank.h;
+  return 0;
+}
+
+// ---------- vägar ----------
+// I järnvägens ram. surface: asphalt | gravel | dirt. walk: false = ritas men ingår inte i rutnätet.
+// fog: vägen ut i dimkanten till en ingång. bridge: ritas av byggsatsen (bron och ramperna), inte på marken.
+const ROADS_RAIL = [
+  { id: 'gnestavagen', name: 'Gnestavägen', surface: 'asphalt', width: 7, curbs: true, center: true, lamps: { side: 1, step: 22 },
+    pts: [[-6, 34], [-28, 30], [-60, 27.5], [-100, 26.5], [-140, 26.5], [-200, 27], [-260, 28]] },
+  { id: 'v57', name: 'Väg 57', surface: 'asphalt', width: 7, center: true, bridge: true,
+    pts: [BRIDGE.a, BRIDGE.b] },
+  { id: 'v57n', name: 'Väg 57', surface: 'asphalt', width: 7, curbs: true, center: true, lamps: { side: -1, step: 22 },
+    pts: [BRIDGE.b, [19, -46], [24, -66], [30, -96], [36, -130], [42, -170], [48, -210]] },
+  { id: 'foot', name: 'Gångbron', surface: 'asphalt', width: FOOT.width, bridge: true, pts: [FOOT.a, FOOT.b] },
+  { id: 'stenby', name: 'Stenbyvägen', surface: 'asphalt', width: 6, curbs: true, center: true, lamps: { side: 1, step: 22 },
+    pts: [[-6, 34], [-3, 48], [0, 64], [2, 82], [3, 100], [4, 118], [0, 134], [-8, 150], [-14, 168], [-18, 190], [-20, 230]] },
+  { id: 'fagernas', name: 'Fagernäsvägen', surface: 'asphalt', width: 5, curbs: false,
+    pts: [[-6, 34], [8, 32], [30, 29], [60, 27.5], [90, 28], [112, 29], [124, 34], [132, 48], [138, 70], [148, 100], [162, 135], [176, 170]] },
+  { id: 'troll', name: 'Trollvägen', surface: 'asphalt', width: 5, curbs: true,
+    pts: [[0, 64], [25, 62], [50, 58.5], [75, 53], [96, 44], [106, 34], [110, 29]] },
+  { id: 'genvagen', name: 'Genvägen', surface: 'asphalt', width: 4.5, curbs: true,
+    pts: [[46, 28], [47, 45], [48, 58.5], [49, 80], [50, 100], [50, 113]] },
+  { id: 'inner', name: 'Skolvägen', surface: 'asphalt', width: 4.5, curbs: true,
+    pts: [[2, 82], [25, 81], [49, 80], [72, 76], [94, 70]] },
+  { id: 'folkets', name: 'Folkets hus', surface: 'gravel', width: 6, paint: false,
+    pts: [[3, 104], [12, 104], [18.5, 104]] },
+  { id: 'folkbak', surface: 'gravel', width: 3.4, pts: [[50, 113], [30, 116], [12, 114], [10, 108]] },
+  { id: 'fagpath', name: 'Fagernäs', surface: 'gravel', width: 3.4, pts: [[50, 100], [75, 97], [104, 90], [128, 78], [138, 70]] },
+  { id: 'kvarn', name: 'Kvarnvägen', surface: 'asphalt', width: 4.5, curbs: false,
+    pts: [[4, 124], [-25, 128], [-58, 116], [-82, 84], [-98, 50], [-104, 27]] },
+  { id: 'parkin', name: 'Mölnbo station', surface: 'asphalt', width: 5, curbs: true, pts: [[-2, -32], [8, -42], [19, -46]] },
+  { id: 'krok', name: 'Krokvägen', surface: 'asphalt', width: 4.5, curbs: false,
+    pts: [[-42, -30], [-70, -28], [-96, -32], [-126, -40], [-160, -46], [-200, -50], [-240, -54]] },
+  { id: 'petter', name: 'Petterslundsvägen', surface: 'asphalt', width: 4.5, curbs: false,
+    pts: [[-26, -40], [-34, -62], [-42, -90], [-70, -96], [-96, -86], [-110, -60], [-114, -43]] },
+  { id: 'bank', surface: 'gravel', width: 2.6, paint: false, pts: [[RAIL.platformN.u0 + 1, RAIL.bank.v], [-120, RAIL.bank.v], [-180, RAIL.bank.v], [-240, RAIL.bank.v]] },
+  // gångväg upp till gula huset på norra sidan (ritas, ingår inte i rutnätet)
+  { id: 'yellowIn', surface: 'gravel', width: 2.4, walk: false, pts: [[24, -58], [30, -56]] },
+  { id: 'norrback', name: 'Norrbacken', surface: 'asphalt', width: 4.5, curbs: false, pts: [[21, -54], [48, -44], [80, -34], [112, -30], [140, -32]] },
+];
+export const ROADS = ROADS_RAIL.map(r => {
+  const raw = RS(r.pts);
+  return { ...r, walk: r.walk !== false, rail: r.pts, ptsRaw: raw, pts: r.bridge || r.pts.length < 3 ? raw : smooth(raw) };
+});
+export const road = id => ROADS.find(r => r.id === id);
+
+// Ytor som är gångbara utöver vägarna (polygoner i järnvägens ram).
+const AREAS_RAIL = {
+  parking: [[-46, -18], [4, -18], [4, -40], [-46, -40]],
+  plaza: [[5, 95], [19, 95], [19, 114], [5, 114]],       // Folkets hus grusplan
+  cafePark: [[-3, 36], [6, 36], [6, 46], [-3, 46]],       // caféets parkering mot korsningen
+  stationYard: [[80, 21], [104, 21], [104, 25], [80, 25]], // grusplanen framför stationshuset
+};
+export const AREAS = Object.fromEntries(Object.entries(AREAS_RAIL).map(([k, p]) => [k, RS(p)]));
+const PLAT_N = RS([[RAIL.platformN.u0, RAIL.platformN.v0], [RAIL.platformN.u1, RAIL.platformN.v0], [RAIL.platformN.u1, RAIL.platformN.v1], [RAIL.platformN.u0, RAIL.platformN.v1]]);
+const PLAT_S = RS([[RAIL.platformS.u0, RAIL.platformS.v0], [RAIL.platformS.u1, RAIL.platformS.v0], [RAIL.platformS.u1, RAIL.platformS.v1], [RAIL.platformS.u0, RAIL.platformS.v1]]);
+export const PLATFORMS = { N: PLAT_N, S: PLAT_S };
+
+// ---------- byggnaderna ----------
+// Lokal +z är framsidan (dörren, mot gatan), lokal +x längs fasaden. w längs x, d längs z.
+// eave: takfotens höjd, ridge: nockens höjd, ridgeX: nocken längs x. perch: prickskytt på taket.
+const B0 = (id, kind, [u, v], w, d, front, o = {}) => {
+  const [x, z] = R(u, v);
+  // front: åt vilket håll framsidan vetter i järnvägens ram ([du, dv])
+  const [fu, fv] = front, ry = ryAlong(fv, -fu);   // lokal +z = front
+  return { id, kind, x, z, ry, w, d, eave: 3.0, ridge: 5.5, ridgeX: true, u, v, ...o };
+};
+export const FOLKETS = (() => {
+  // Folkets hus: stort rött trähus, gaveln med skylten mot Stenbyvägen (västerut i järnvägens ram).
+  const [u, v] = [30, 104], len = 20, wid = 13;
+  const [x, z] = R(u, v);
+  const ry = ryAlong(-1, 0);           // lokal +x mot gatan (horden kommer dit)
+  const at = (lx, lz) => [x + lx * Math.cos(ry) + lz * Math.sin(ry), z - lx * Math.sin(ry) + lz * Math.cos(ry)];
+  const face = len / 2;
+  return { id: 'folkets', x, z, ry, len, wid, wallH: 6.2, face, main: 0, doors: [-3.6, -0.8, 0.8, 3.6], at, entrance: at(face + 1.4, 0), u, v };
+})();
+const STATION = B0('station', 'station', [92, 16.5], 15, 8, [0, 1], { eave: 3.6, ridge: 6.4, perch: true });
+export const X60 = (() => {
+  // Det övergivna X60 vid södra perrongen (dag 3 till 5 väntar det på att gå). Fyra vagnar.
+  const u0 = -80, u1 = -22, v = RAIL.tracks[2];
+  const [x, z] = R((u0 + u1) / 2, v);
+  return { id: 'x60', kind: 'x60', x, z, ry: RAIL_RY, w: u1 - u0, d: 3.3, eave: 4.1, ridge: 4.1, perch: true, u0, u1, v, cars: 4 };
+})();
+const HOUSES = [
+  STATION,
+  B0('cafe', 'cafe', [12, 41], 14, 9, [-1, 0], { eave: 5.4, ridge: 7.9 }),
+  B0('mission', 'mission', [16, 74], 13, 9, [-1, 0], { eave: 4.2, ridge: 8.2, ridgeX: false }),
+  B0('white', 'white', [-42, 41], 11, 9, [0, -1], { eave: 5.6, ridge: 8.4 }),
+  B0('yellow', 'yellow', [36, -55], 11, 9, [-1, 0], { eave: 4.9, ridge: 7.6 }),
+  B0('hembygd', 'hembygd', [-104, 40], 12, 7, [0, -1], { eave: 3.0, ridge: 5.6 }),
+  B0('kvarn', 'kvarn', [-24, 150], 12, 10, [1, 0], { eave: 6.0, ridge: 9.2 }),
+  B0('chain1', 'chain', [66, 69], 30, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 4 }),
+  B0('chain2', 'chain', [72, 89], 26, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 3 }),
+  B0('apt1', 'apartment', [-38, 108], 26, 11, [0, 1], { eave: 6.2, ridge: 8.8 }),
+  B0('apt2', 'apartment', [-64, 96], 24, 11, [1, 0], { eave: 6.2, ridge: 8.8 }),
+];
+// Villorna: generiska hus längs gatorna (fritt utplacerade med marginal, deterministiskt).
+const FACADES = ['white', 'white', 'yellow', 'red', 'red', 'grey', 'beige', 'brown', 'blueGrey'];
+const ROOFS = ['black', 'charcoal', 'tile', 'tile', 'slate'];
+const VILLA_ROADS = ['norrback', 'gnestavagen', 'stenby', 'troll', 'genvagen', 'inner', 'krok', 'petter', 'v57n', 'kvarn', 'fagpath'];
+function placeVillas() {
+  const rng = makeRng(20261018), r = () => rng();
+  const out = [];
+  const fixed = [...HOUSES.map(h => rect(h.x, h.z, h.ry, h.w + 4, h.d + 4)), rect(FOLKETS.x, FOLKETS.z, FOLKETS.ry, FOLKETS.len + 6, FOLKETS.wid + 6)];
+  const free = q => !fixed.some(f => rectHit(f, q)) && !out.some(o => rectHit(o.r, q));
+  const walkRoads = ROADS.filter(rd => rd.walk);
+  for (const id of VILLA_ROADS) {
+    const rd = road(id);
+    const P = rd.rail;
+    for (let i = 1; i < P.length; i++) {
+      const [au, av] = P[i - 1], [bu, bv] = P[i], L = Math.hypot(bu - au, bv - av);
+      const du = (bu - au) / L, dv = (bv - av) / L;
+      for (let s = 8; s < L - 4; s += 17) {
+        for (const side of [-1, 1]) {
+          const nu = -dv * side, nv = du * side;
+          const w = 9 + r() * 3, d = 7.5 + r() * 2;
+          const off = rd.width / 2 + 4.5 + d / 2;
+          const cu = au + du * s + nu * off, cv = av + dv * s + nv * off;
+          const [x, z] = R(cu, cv);
+          // inte i järnvägen, inte på en annan väg, inom räckhåll för kameran
+          if (cv > RAIL.corridor[0] - 6 && cv < RAIL.corridor[1] + 5 && cu < 150) continue;
+          if (outside(x, z) > 40) continue;
+          const ry = ryAlong(-nv, nu);   // framsidan (lokal +z) mot vägen (-nu, -nv)
+          const q = rect(x, z, ry, w + 3, d + 3);
+          if (walkRoads.some(o => o !== rd && distPolyline(x, z, o.pts) < o.width / 2 + Math.max(w, d) / 2 + 3)) continue;
+          if (distPolyline(x, z, rd.pts) < rd.width / 2 + d / 2 + 2) continue;
+          if (Object.values(AREAS).some(a => inPoly(x, z, a)) || inRect(rect(X60.x, X60.z, X60.ry, X60.w + 20, 40), x, z)) continue;
+          if (!free(q)) continue;
+          const storeys = r() < 0.4 ? 1.5 : 1;
+          out.push({ r: q, h: { id: `V-${out.length + 1}`, kind: 'villa', x, z, ry, w, d, storeys, roof: r() < 0.25 ? 'hip' : 'gable',
+            facade: FACADES[(r() * FACADES.length) | 0], roofColor: ROOFS[(r() * ROOFS.length) | 0], chimney: r() < 0.6, veranda: r() < 0.3,
+            solar: r() < 0.1, seed: (r() * 1e9) | 0, garage: 0, road: id } });
+        }
+      }
+    }
+  }
+  return out.map(o => o.h);
+}
+function rectHit(p, q) {
+  // separerande axlar för två rektanglar (placement.js rect)
+  const cs = c => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [c.x + a * c.hw * c.c + b * c.hd * c.s, c.z - a * c.hw * c.s + b * c.hd * c.c]);
+  const axes = [[p.c, -p.s], [p.s, p.c], [q.c, -q.s], [q.s, q.c]];
+  const P = cs(p), Q = cs(q);
+  return axes.every(([ax, az]) => {
+    const pp = P.map(([x, z]) => x * ax + z * az), qq = Q.map(([x, z]) => x * ax + z * az);
+    return Math.max(...pp) >= Math.min(...qq) && Math.max(...qq) >= Math.min(...pp);
+  });
+}
+export const VILLAS = placeVillas();
+// Villornas tak: som villan i gnesta-kit.js (sockel 0,32 m, vägg 2,75 eller 3,3 m, lutning per typ).
+for (const h of VILLAS) {
+  const top = 0.32 + (h.storeys === 1.5 ? 3.3 : 2.75), pitch = h.storeys === 1.5 ? 0.74 : h.roof === 'hip' ? 0.4 : 0.47;
+  h.eave = top; h.ridge = top + (h.d / 2) * Math.tan(pitch); h.ridgeX = true;
+}
+export const BUILDINGS = [...HOUSES, ...VILLAS];
+// Tomterna (för de vilande smittade, src/sim/sim.js houseDoor, och debugmenyn): varje hus med en dörr.
+export const LOTS = { plots: BUILDINGS.filter(h => h.kind !== 'x60').map(h => ({ id: h.id, house: h, extras: [] })), edges: [], blocks: [] };
+
+// ---------- bergskärningen, staket, saker ----------
+// Bergskärningen i granit längs Fagernäsvägens södra sida (Street View 6).
+export const ROCK = { u0: 18, u1: 100, v: 33.8, depth: 2.6, h: 3.2 };
+// Trafikljusen vid caféets korsning (J).
+export const LIGHTS = [[-0.5, 29], [-11.5, 31], [4, 39.5], [-10, 39]].map(([u, v]) => R(u, v));
+// Parkerade bilar: stationsparkeringen och caféet.
+export const CARS = (() => {
+  const r = makeRng(5711), out = [];
+  for (let u = -40; u <= -6; u += 2.8) for (const v of [-21.5, -36.5]) if (r() < 0.45) { const [x, z] = R(u + (r() - 0.5) * 0.3, v); out.push({ x, z, ry: ryAlong(0, 1) + (r() < 0.5 ? 0 : Math.PI), color: (r() * 8) | 0 }); }
+  for (const [u, v] of [[0, 38.5], [0, 43.5]]) { const [x, z] = R(u, v); out.push({ x, z, ry: ryAlong(1, 0), color: (r() * 8) | 0 }); }
+  return out;
+})();
+// Väntkurer i glas på perrongerna, avgångsskylten (blå LED) och kontaktledningsstolparna.
+export const SHELTERS = [[-60, -11.6], [-36, -11.6], [-56, 9.6], [-30, 9.6]].map(([u, v]) => ({ x: R(u, v)[0], z: R(u, v)[1], u, v }));
+export const DEPARTURE_SIGN = { at: R(-20, -10.4), u: -20, v: -10.4 };
+// Skog, åkrar och sjön (polygoner i världen). Skogen och sjön ligger mest i dimkanten.
+export const GROUND = {
+  bounds: { x0: CRISP.x0 - 24, x1: CRISP.x1 + 24, z0: CRISP.z0 - 24, z1: CRISP.z1 + 24 },
+  ppm: 10,
+  forest: [
+    RS([[-150, -60], [-60, -110], [-30, -160], [-140, -170], [-230, -100]]),
+    RS([[40, -80], [110, -60], [170, -20], [180, -120], [60, -150]]),
+    RS([[104, 38], [124, 40], [128, 62], [112, 64], [100, 52]]),
+    RS([[140, 20], [220, 0], [240, 90], [160, 80]]),
+  ],
+  field: RS([[-260, 40], [-120, 40], [-110, 70], [-150, 110], [-260, 120]]),
+  field2: RS([[30, 150], [120, 130], [130, 200], [20, 220]]),
+  lake: RS([[150, 150], [190, 120], [230, 140], [240, 200], [190, 230], [150, 210]]),
+};
+// Bara bild utanför kartan (den som läser dimkanten ser byn fortsätta): villor norr om spåret, gårdar
+// vid åkrarna, Fagernäs vid sjön och hyreshusen. [u, v, bredd, djup, grader, höjd, tak]
+const FAR_RAIL = [
+  [-60, -130, 11, 9, 5, 4.6], [-30, -140, 10, 8, -10, 4.6], [-90, -120, 12, 9, 0, 4.6], [-120, -110, 11, 9, 20, 4.6],
+  [0, -110, 10, 9, 0, 4.6], [10, -150, 12, 10, 10, 5], [60, -110, 10, 9, -15, 4.6], [70, -140, 26, 12, 0, 7, 'flat'], [100, -100, 11, 9, 0, 4.6],
+  [-150, -70, 11, 9, 0, 4.6], [-170, -40, 12, 9, 10, 4.6], [-150, 50, 14, 8, 0, 5.4], [-160, 70, 20, 10, 90, 6.5],
+  [-200, 10, 12, 8, 0, 4.6], [150, 95, 30, 16, 10, 7.5], [162, 112, 12, 8, 0, 4.6], [120, 140, 11, 9, 0, 4.6], [60, 150, 11, 9, 10, 4.6],
+  [20, 160, 12, 8, 0, 4.6], [-60, 140, 26, 11, 5, 8, 'flat'], [-90, 130, 11, 9, 0, 4.6], [140, -30, 11, 9, 10, 4.6], [160, 40, 11, 9, 0, 4.6],
+];
+export const FAR = FAR_RAIL.map(([u, v, w, d, deg = 0, h = 4.6, roof = 'gable']) => {
+  const [x, z] = R(u, v);
+  return { x, z, w, d, ry: RAIL_RY - deg * Math.PI / 180, h, roof };
+});
+
+// ---------- ingångarna ----------
+// Varje ingång ligger där dess dimväg är SPAWN_OUT meter utanför den skarpa ytan. Dagarna i DAYS.
+const SPAWN_OUT = 14;
+function fogPoint(id, out = SPAWN_OUT) {
+  const P = road(id).pts;
+  for (let i = 1; i < P.length; i++) {
+    const [ax, az] = P[i - 1], [bx, bz] = P[i];
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.25);
+    for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; if (outside(x, z) >= out) return [x, z]; }
+  }
+  throw new Error('ingen dimkant på ' + id);
+}
+export const SPAWNS = [
+  { id: 's1', name: 'Gnestavägen', day: 1, at: fogPoint('gnestavagen') },
+  { id: 's2', name: 'Stenbyvägen', day: 2, at: fogPoint('stenby') },
+  { id: 's3', name: 'Fagernäs', day: 3, at: fogPoint('fagernas') },
+  { id: 's4', name: 'Krokvägen', day: 4, at: fogPoint('krok') },
+  { id: 's4n', name: 'Väg 57 north', day: 5, at: fogPoint('v57n') },
+  { id: 's5', name: 'The tracks', day: 5, at: fogPoint('bank') },
+];
+export const BASE = { at: FOLKETS.entrance };
+
+// ---------- rutnätet ----------
+// 2 m-rutor, samma regler som Gnesta (src/data/gnesta.js townGrid): gångbart där en gångbar väg eller yta
+// ligger, en sammanhängande kedja längs varje väglinje. Järnvägen är stängd; broarna och gångbron är vanliga
+// rutor (horden ser inte höjden, bara bilden lyfter dem). Norra perrongen och banvallen är gångbara men når
+// resten bara genom trappan till gångbron.
+export const GRID_BOUNDS = { x0: -130, z0: -94, x1: 136, z1: 156 };
+export function molnboGrid(cellSize = 2) {
+  const { x0, z0, x1, z1 } = GRID_BOUNDS;
+  const gw = Math.round((x1 - x0) / cellSize), gh = Math.round((z1 - z0) / cellSize);
+  const walk = new Uint8Array(gw * gh), terrain = new Uint8Array(gw * gh);
+  const walkRoads = ROADS.filter(r => r.walk);
+  const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
+  const areas = Object.values(AREAS);
+  const linkPoly = RS([[LINK.u0, LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v + LINK.w / 2], [LINK.u0, LINK.v + LINK.w / 2]]);
+  // Rutor som aldrig är gångbara: tornen och tåget (även om en väglinje passerar nära).
+  const solid = (x, z) => TOWERS.some(t => { const [u, v] = toRail(x, z); return Math.abs(u - t.at[0]) <= t.size / 2 && Math.abs(v - t.at[1]) <= t.size / 2; });
+  const open = (x, z) => walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25) || areas.some(a => inPoly(x, z, a))
+    || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const x = cx(i), z = cz(j);
+    if (!open(x, z) || solid(x, z)) continue;
+    // i järnvägen: bara broarna, perrongen, trappan och banvallen
+    if (inRail(x, z)) {
+      const [u, v] = toRail(x, z);
+      const onBridge = [BRIDGE, FOOT].some(br => Math.abs(u - uOn(br, v)) <= br.width / 2 + 0.25);
+      if (!onBridge && !inPoly(x, z, PLAT_N) && !inPoly(x, z, linkPoly) && !(u < RAIL.platformN.u0 + 2 && Math.abs(v - RAIL.bank.v) <= 1.6)) continue;
+    }
+    walk[j * gw + i] = 1;
+  }
+  const mark = (x, z) => {
+    const i = Math.floor((x - x0) / cellSize), j = Math.floor((z - z0) / cellSize);
+    if (i < 0 || j < 0 || i >= gw || j >= gh || solid(cx(i), cz(j))) return;
+    walk[j * gw + i] = 1;
+  };
+  for (const r of walkRoads) for (let k = 1; k < r.pts.length; k++) {
+    const [ax, az] = r.pts[k - 1], [bx, bz] = r.pts[k];
+    const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.25);
+    for (let t = 0; t <= n; t++) mark(ax + (bx - ax) * t / n, az + (bz - az) * t / n);
+  }
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const k = j * gw + i;
+    if (!walk[k]) continue;
+    let near = null, nd = Infinity;
+    for (const r of walkRoads) { const d = distPolyline(cx(i), cz(j), r.pts) - r.width / 2; if (d < nd) { nd = d; near = r; } }
+    terrain[k] = near?.surface === 'gravel' && nd < 0.5 ? 2 : 1;
+  }
+  const cellOf = ([x, z]) => [Math.min(gw - 1, Math.max(0, Math.floor((x - x0) / cellSize))), Math.min(gh - 1, Math.max(0, Math.floor((z - z0) / cellSize)))];
+  let best = null, bd = Infinity;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (walk[j * gw + i]) {
+    const d = Math.hypot(cx(i) - BASE.at[0], cz(j) - BASE.at[1]);
+    if (d < bd) { bd = d; best = [i, j]; }
+  }
+  return {
+    w: gw, h: gh, cellSize, origin: [x0, z0], walk, terrain,
+    spawns: SPAWNS.map(s => ({ id: s.id, cell: cellOf(s.at) })),
+    base: best, cellOf, center: (i, j) => [cx(i), cz(j)],
+  };
+}
+
+// ---------- placeringen ----------
+// Gator, broar och perrongen är gata. Husen (med en meters marginal), tornen, tåget och bergskärningen är hus
+// och skymmer efter sin höjd. Järnvägen i övrigt är hinder (spåren), utom södra perrongen: där går det att stå
+// bakom tåget (tåget är skydd för grupperna, 'brick'). Prickskyttelägen (perch): trapptornens tak,
+// stationshusets tak och tågets tak.
+const HOUSE_PAD = 1;
+function buildingShapes() {
+  const out = [];
+  const gable = (o, top, rh, half, ridgeX) => (x, z) => {
+    const r = rect(o.x, o.z, o.ry, o.w, o.d);
+    if (!inRect(r, x, z)) return 0;
+    const dx = x - o.x, dz = z - o.z, c = Math.cos(o.ry), s = Math.sin(o.ry);
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;
+    const across = ridgeX ? Math.abs(lz) : Math.abs(lx);
+    return top + rh * Math.max(0, 1 - across / half);
+  };
+  for (const h of BUILDINGS) {
+    const half = (h.ridgeX ?? true) ? h.d / 2 : h.w / 2;
+    out.push({ id: h.id, kind: h.kind, rects: [rect(h.x, h.z, h.ry, h.w, h.d)], eave: h.eave, pad: h.kind === 'x60' ? 0.4 : HOUSE_PAD,
+      height: gable(h, h.eave, h.ridge - h.eave, half, h.ridgeX ?? true), perch: h.perch ? (x, z) => (inRect(rect(h.x, h.z, h.ry, h.w, h.d), x, z, -0.3) ? 1 : 0) : null });
+  }
+  {
+    const F = FOLKETS, o = { x: F.x, z: F.z, ry: F.ry, w: F.len, d: F.wid };
+    out.push({ id: 'folkets', kind: 'folkets', rects: [rect(F.x, F.z, F.ry, F.len, F.wid)], eave: F.wallH, pad: HOUSE_PAD, height: gable(o, F.wallH, 3.6, F.wid / 2, true), perch: null });
+  }
+  {
+    const o = X60;
+    out.push({ id: 'x60', kind: 'x60', rects: [rect(o.x, o.z, o.ry, o.w, o.d)], eave: o.eave, pad: 0.3, height: (x, z) => (inRect(rect(o.x, o.z, o.ry, o.w, o.d), x, z) ? o.eave : 0),
+      perch: (x, z) => (inRect(rect(o.x, o.z, o.ry, o.w, o.d), x, z, 0.4) ? 1 : 0) });
+  }
+  for (const t of TOWERS) {
+    const [x, z] = R(...t.at), r0 = rect(x, z, RAIL_RY, t.size, t.size);
+    out.push({ id: t.id, kind: 'tower', rects: [r0], eave: t.h, pad: 0.2, height: (px, pz) => (inRect(r0, px, pz) ? t.h : 0), perch: (px, pz) => (inRect(r0, px, pz, 0.6) ? 1 : 0) });
+  }
+  {
+    const [x, z] = R((ROCK.u0 + ROCK.u1) / 2, ROCK.v), r0 = rect(x, z, RAIL_RY, ROCK.u1 - ROCK.u0, ROCK.depth);
+    out.push({ id: 'rock', kind: 'rock', rects: [r0], eave: ROCK.h, pad: 0, height: (px, pz) => (inRect(r0, px, pz) ? ROCK.h : 0), perch: null });
+  }
+  return out;
+}
+export const SHAPES = buildingShapes();
+const THING_PAD = 0.8;
+function thingRects() {
+  const out = CARS.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
+  for (const [x, z] of LIGHTS) out.push(rect(x, z, 0, 0.6, 0.6));
+  for (const s of SHELTERS) out.push(rect(s.x, s.z, RAIL_RY, 4, 1.8));
+  return out;
+}
+// Skog där den är tät: inne i en skogspolygon och minst 7 m från gator och hus.
+function denseForest(x, z) {
+  if (!GROUND.forest.some(p => p.length && inPoly(x, z, p))) return false;
+  if (ROADS.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 7)) return false;
+  return !SHAPES.some(b => b.rects.some(r => distRect(r, x, z) < 6));
+}
+const CELL_SAMPLES = [[0, 0], [-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9], [0, -0.9], [0, 0.9], [-0.9, 0], [0.9, 0]];
+const ROOF_SAMPLES = [[0, 0], ...Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * 0.8, Math.sin(i * Math.PI / 4) * 0.8])];
+export function molnboPlacement(grid) {
+  const things = thingRects();
+  const inS = (x, z) => { const [u, v] = toRail(x, z); return inPlat(RAIL.platformS, u, v, -0.4); };
+  const place = buildPlace({
+    w: grid.w, h: grid.h, cellSize: grid.cellSize, origin: grid.origin,
+    walk: (x, z, k) => grid.walk[k] === 1,
+    classify(x, z) {
+      const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
+      if (grid.walk[k]) return KIND.road;
+      if (outside(x, z) > 0) return KIND.thing;
+      if (inPoly(x, z, GROUND.lake)) return KIND.water;
+      if (SHAPES.some(b => b.rects.some(r => inRect(r, x, z)))) return KIND.house;
+      if (SHAPES.some(b => b.rects.some(r => inRect(r, x, z, b.pad)))) return KIND.house;
+      if (inRail(x, z) && !inS(x, z)) return KIND.thing;
+      if (things.some(r => inRect(r, x, z, THING_PAD))) return KIND.thing;
+      if (denseForest(x, z)) return KIND.forest;
+      return KIND.open;
+    },
+  });
+  const n = grid.w * grid.h;
+  const roof = new Float32Array(n), bldg = new Int32Array(n), height = new Float32Array(n), perch = new Uint8Array(n);
+  const ctr = k => [grid.origin[0] + ((k % grid.w) + 0.5) * grid.cellSize, grid.origin[1] + (Math.floor(k / grid.w) + 0.5) * grid.cellSize];
+  for (let k = 0; k < n; k++) {
+    if (place.kind[k] !== KIND.house) continue;
+    const [x, z] = ctr(k);
+    let hMax = 0;
+    for (let i = 0; i < SHAPES.length; i++) {
+      const b = SHAPES[i];
+      let hi = 0;
+      for (const [dx, dz] of CELL_SAMPLES) hi = Math.max(hi, b.height(x + dx, z + dz));
+      hMax = Math.max(hMax, hi);
+      if (bldg[k] || !(b.height(x, z) > 0)) continue;
+      bldg[k] = i + 1;
+      const kp = b.perch ? b.perch(x, z) : 0;
+      if (!kp) continue;
+      let y = 0;
+      for (const [dx, dz] of ROOF_SAMPLES) y = Math.max(y, b.height(x + dx, z + dz));
+      roof[k] = Math.round(y * 100) / 100; perch[k] = kp;
+    }
+    if (!hMax) {
+      let best = Infinity;
+      for (const b of SHAPES) for (const r of b.rects) { const d = distRect(r, x, z); if (d < best && d < 1.6) { best = d; hMax = b.eave ?? 3; } }
+      if (!hMax) hMax = 3;
+    }
+    height[k] = Math.round(hMax * 100) / 100;
+  }
+  // Skydd för grupperna: staketen längs järnvägen och gärdsgården vid Hembygdsgården (häck), tåget (mur).
+  const hedge = new Uint8Array(n), brick = new Uint8Array(n), ditch = new Uint8Array(n);
+  const fenceSegs = RAIL.fences.filter(v => v !== RAIL.fences[1]).map(v => RS([[-300, v], [300, v]]));
+  const hb = HOUSES.find(h => h.id === 'hembygd');
+  const logFence = RS([[hb.u - 11, hb.v - 8], [hb.u + 11, hb.v - 8], [hb.u + 11, hb.v + 8], [hb.u - 11, hb.v + 8], [hb.u - 11, hb.v - 8]]);
+  const trainSide = RS([[X60.u0, X60.v + X60.d / 2], [X60.u1, X60.v + X60.d / 2]]);
+  for (let k = 0; k < n; k++) {
+    if (place.kind[k] !== KIND.open || place.walk[k]) continue;
+    const [x, z] = ctr(k);
+    if (distPolyline(x, z, trainSide) < 2.4) brick[k] = 1;
+    else if (fenceSegs.some(s => distPolyline(x, z, s) < 1.3) || distPolyline(x, z, logFence) < 1.3) hedge[k] = 1;
+    else if (ROADS.some(rd => rd.id === 'fagpath' && distPolyline(x, z, rd.pts) - rd.width / 2 < 2.2)) ditch[k] = 1;
+  }
+  return { ...place, roof, bldg, buildings: SHAPES.map(b => b.rects), hedge, ditch, brick, height, perch,
+    perchAt: (x, z) => {
+      for (const b of SHAPES) {
+        const h = b.height(x, z);
+        if (!(h > 0)) continue;
+        return { y: h, kind: b.perch?.(x, z) ?? 0, chimney: null, roofKind: b.kind, height: b.height };
+      }
+      return null;
+    } };
+}
+
+// ---------- dagarna ----------
+// En ny idé per dag (docs/superpowers/specs/2026-10-16-onboarding-design.md). Spelaren kommer från
+// Hagstumosse med hela truppen och allt förrådet har; det nya här är det som platsen själv ger.
+//  1 Mölnbo station   höjden: trapptornen och stationstaket för Psg 90 (S1)
+//  2 Stenbyvägen      det övergivna X60: skydd bakom tåget och taket att ligga på (S1, S2)
+//  3 Sista tåget      tågklockan: håll tills tåget går (S1 till S3)
+//  4 Norra sidan      bron som flaskhals: horden norr om spåret (S1 till S4)
+//  5 Längs spåret     horden på banvallen och upp på perrongen (S5), sista tåget norrut (alla)
+// train: { at } sekunder efter första vågens start går tåget, och dagen är vunnen om basen står (src/sim/sim.js).
+// Balansen: docs/balance-log.md, Mölnbo.
+const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
+const say = (toast, w) => ({ ...w, toast });
+const tell = (toast, grp) => ({ ...grp, toast });
+const ALL = ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2', 'inf'];
+export const DAYS = [
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 4.6, overlap: 60, intro: { title: 'Day 1: Mölnbo station', text: 'High ground. Snipers on the stair towers see the whole road.' },
+    waves: [ say('Along Gnestavägen, from Gnesta.', { groups: [g('walker', 10, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
+             { groups: [g('walker', 40, 0.4, 0, 's1'), g('runner', 16, 0.5, 10, 's1')] },
+             { groups: [g('walker', 56, 0.32, 0, 's1'), tell('Runners behind them!', g('runner', 30, 0.35, 16, 's1')), g('brute', 2, 4, 24, 's1')] } ] },
+  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 4.8, overlap: 60, intro: { title: 'Day 2: Stenbyvägen', text: 'The abandoned train is cover. Squads behind it, a sniper on top.' },
+    waves: [ say('Gnestavägen again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
+             say('From the south, up Stenbyvägen!', { groups: [g('walker', 36, 0.45, 0, 's2'), g('walker', 30, 0.45, 4, 's1')] }),
+             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's2'), g('brute', 3, 3.5, 20, 's2')] },
+             { groups: [g('walker', 50, 0.3, 0, 's2'), g('walker', 46, 0.3, 0, 's1'), tell('Brutes on Gnestavägen!', g('brute', 4, 3, 18, 's1')), g('runner', 30, 0.35, 26, 's2')] } ] },
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 5.2, overlap: 50, train: { at: 330 },
+    intro: { title: 'Day 3: The last train', text: 'Hold until the train leaves. It will not wait.' },
+    objective: 'Hold Folkets hus until the train leaves.',
+    waves: [ say('Gnestavägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
+             say('From Fagernäs, through the ravine!', { groups: [g('walker', 40, 0.4, 0, 's3'), g('walker', 30, 0.45, 6, 's2')] }),
+             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('brute', 3, 3, 16, 's2')] },
+             { groups: [g('walker', 60, 0.28, 0, 's2'), g('walker', 50, 0.3, 4, 's1'), tell('Runners from the ravine!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
+             { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('brute', 5, 2.5, 10, 's2')] } ] },
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 5.4, overlap: 50, train: { at: 340 },
+    intro: { title: 'Day 4: North side', text: 'They are north of the tracks. Close the bridges.' },
+    objective: 'Hold Folkets hus until the train leaves.',
+    waves: [ say('Gnestavägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
+             say('North of the tracks, along Krokvägen!', { groups: [g('walker', 50, 0.35, 0, 's4'), g('runner', 16, 0.5, 12, 's4')] }),
+             { groups: [g('walker', 50, 0.3, 0, 's4'), g('walker', 40, 0.35, 4, 's2'), g('brute', 4, 3, 14, 's4')] },
+             { groups: [g('runner', 50, 0.25, 0, 's4'), g('walker', 50, 0.3, 4, 's1'), g('walker', 40, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
+             { groups: [g('walker', 80, 0.22, 0, 's4'), g('runner', 40, 0.3, 8, 's2'), g('brute', 4, 3, 14, 's4')] } ] },
+  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 5.6, overlap: 50, train: { at: 360, last: true },
+    intro: { title: 'Day 5: Along the tracks', text: 'The last train north. Everyone who can, gets on.' },
+    objective: 'Hold Folkets hus until the last train leaves.',
+    waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('walker', 10, 0.7, 4, 's2')] }),
+             say('North of the tracks!', { groups: [g('walker', 50, 0.3, 0, 's4'), g('walker', 30, 0.4, 4, 's4n'), g('runner', 20, 0.4, 12, 's1')] }),
+             say('On the tracks! Up onto the platform!', { groups: [g('walker', 40, 0.35, 0, 's5'), g('runner', 30, 0.3, 8, 's5'), g('walker', 40, 0.35, 4, 's3')] }),
+             { groups: [g('walker', 60, 0.25, 0, 's4'), g('runner', 40, 0.3, 4, 's2'), g('brute', 4, 3, 10, 's4n'), g('walker', 40, 0.3, 10, 's5')] },
+             { groups: [g('walker', 60, 0.25, 0, 's1'), g('walker', 50, 0.3, 0, 's5'), g('runner', 40, 0.3, 10, 's4'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
+];
+
+export const MOLNBO_SURROUNDINGS = {
+  crisp: CRISP, fade: 38,
+  haze: { start: 18, end: 140, max: 0.9 },
+  extent: { x0: -300, x1: 320, z0: -260, z1: 290 },
+};
+
+export const molnbo = {
+  id: 'molnbo', name: 'Mölnbo · Stationen', version: MOLNBO_VERSION, world: 'molnbo',
+  outro: { text: 'The last train is through. Mölnbo station held long enough.' },
+  camera: { target: R(-6, 20), view: 56, zoom: [24, 84], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
+  shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
+  roads: ROADS, ground: GROUND, rail: RAIL, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
+  buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,
+  spawns: SPAWNS, base: BASE, surroundings: MOLNBO_SURROUNDINGS,
+  // Basen: Folkets hus igenspikade dörrar (render/models.js rinkEntranceModel), samma som ishallens entré.
+  iceRink: FOLKETS, baseModel: 'rink',
+  grid: molnboGrid(),
+  // Bilden lyfter zombierna på bron och perrongen (render/view.js). Simuleringen är platt.
+  groundY,
+  guns: 5, frontage: 10, baseHp: 20, days: DAYS,
+  door: { gap: 3.2 },
+  pace: 1.15,
+  unlocks: ['block', 'm2', 'epa', 'inf', 'ksp58', 'ak5', 'psg90'],
+  // Öppnar när Hagstumosse · Vikingavägen dag 5 är vunnen.
+  unlock: { map: 'gnesta-norr', day: 5 },
+};
+molnbo.place = molnboPlacement(molnbo.grid);

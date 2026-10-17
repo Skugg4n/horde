@@ -80,6 +80,8 @@ export function createSim({ map, day, cash, research = [], seed = 1, tweaks = nu
     tweaks: normalizeTweaks(tweaks),
     // 0.13.0 (H105): evakueringen (dayCfg.evac): de civila på väg till ishallen
     civilians: [], evac: dayCfg.evac ? { total: evacTotal(dayCfg.evac), safe: 0, lost: 0, need: dayCfg.evac.need, out: 0 } : null,
+    // 0.17.0-molnbo: tågklockan (dayCfg.train), se runTrain
+    train: dayCfg.train ? { at: dayCfg.train.at, left: dayCfg.train.at, gone: false, last: !!dayCfg.train.last } : null,
   };
   if (coreMode) setupCore(sim);
   return sim;
@@ -191,6 +193,20 @@ function checkEvac(sim) {
   if (!o || sim.phase === 'won' || sim.phase === 'lost') return;
   if (o === 'won') { sim.phase = 'won'; sim.events.push({ t: 'evacDone', safe: sim.evac.safe }); sim.events.push({ t: 'won' }); return; }
   lose(sim, 'civilians');
+}
+
+// ---------- tågklockan (0.17.0-molnbo) ----------
+// Mölnbo dag 3 till 5: "Hold until the train leaves." dayCfg.train = { at, last }. Klockan går från första
+// vågens start; när den når noll går tåget och dagen är vunnen om basen står, också mitt i en våg (zombierna som
+// är kvar spelar ingen roll). Klaras alla vågor före avgången väntar dagen på tåget.
+function runTrain(sim, dt) {
+  const tr = sim.train;
+  if (!tr || tr.gone || sim.wavesStarted === 0) return;
+  tr.left = Math.max(0, tr.left - dt);
+  if (tr.left > 1e-9 || sim.phase === 'lost' || sim.phase === 'won') return;
+  tr.gone = true;
+  sim.events.push({ t: 'trainGone', last: tr.last });
+  sim.phase = 'won'; sim.events.push({ t: 'won' });
 }
 
 function launch(sim) {
@@ -352,6 +368,7 @@ export function step(sim, dt) {
     landGrenades(sim, dt);
     ageCorpses(sim, dt);
     checkEvac(sim);
+    runTrain(sim, dt);
     if (sim.phase !== 'build') return;
     if (sim.nextWaveIn <= 1e-6) launch(sim);
     return;
@@ -378,6 +395,7 @@ export function step(sim, dt) {
   ageCorpses(sim, dt);
   if (sim.baseHp <= 0) { lose(sim, 'base'); return; }
   checkEvac(sim);
+  runTrain(sim, dt);
   if (sim.phase !== 'wave') return;
   checkCleared(sim);
 }
@@ -404,7 +422,7 @@ function checkCleared(sim) {
     for (const u of sim.reserve ?? []) if (u.arrive === sim.waveIndex) sim.events.push({ t: 'arrived', type: u.type, uid: u.uid });
   }
   // 0.13.0: en evakueringsdag vinns bara när de civila är framme (checkEvac); vågorna fortsätter tills dess
-  if (sim.waveIndex >= sim.dayCfg.waves.length) { if (sim.evac) sim.phase = 'wave'; else { sim.phase = 'won'; sim.events.push({ t: 'won' }); } }
+  if (sim.waveIndex >= sim.dayCfg.waves.length) { if (sim.evac || sim.train) sim.phase = 'wave'; else { sim.phase = 'won'; sim.events.push({ t: 'won' }); } }
   else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, countdownOf(sim)); }
 }
 

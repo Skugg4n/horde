@@ -28,7 +28,8 @@ export const SECTORS = [
   { id: 'gnesta', name: 'Hagstumosse', full: 'Hagstumosse · Gnesta', short: 'Hagstumosse', x: 0.46, y: 0.29, maps: ['gnesta', 'gnesta-norr'] },
   // senare sektorer, gråa platshållare
   { id: 'centrum', name: 'Gnesta Centrum', short: 'Centrum', x: 0.49, y: 0.21, placeholder: true },
-  { id: 'molnbo', name: 'Mölnbo', short: 'Mölnbo', x: 0.62, y: 0.15, placeholder: true },
+  // 0.17.0-molnbo: Mölnbo är en riktig sektor (src/data/molnbo.js), öppnar efter Hagstumosse · Vikingavägen dag 5
+  { id: 'molnbo', name: 'Mölnbo', full: 'Mölnbo · Stationen', short: 'Mölnbo', x: 0.62, y: 0.15, maps: ['molnbo'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
@@ -132,6 +133,24 @@ export const RELEASES = [
   { id: 'gnn-5', map: 'gnesta-norr', day: 5, from: 'FM',
     text: 'Everything we have left is at the depot. Hold the town.',
     ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
+  // ---------- Mölnbo (0.17.0-molnbo) ----------
+  // adopt: enheterna som står utan sektor (Hagstumosse är klar) följer med hit. Spelaren är befälhavaren som
+  // skickas dit det behövs; truppen följer med.
+  { id: 'mb-1', map: 'molnbo', day: 1, from: 'FM', adopt: true,
+    text: 'Your units are at Mölnbo station. A Psg 90 team waits on the stair towers.',
+    grant: [{ type: 'psg90' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
+  { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
+    text: 'An empty X60 stands at the south platform. Use it as cover.',
+    stock: { inf: 1, ak5: 1 } },
+  { id: 'mb-3', map: 'molnbo', day: 3, from: 'MCF',
+    text: 'One train north tonight. It leaves on time, with or without you holding.',
+    grant: [{ type: 'hv' }], stock: { ksp58: 1, m249: 1 } },
+  { id: 'mb-4', map: 'molnbo', day: 4, from: 'FM',
+    text: 'They have crossed north of the tracks. The bridge is the only way over.',
+    grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1 } },
+  { id: 'mb-5', map: 'molnbo', day: 5, from: 'FM',
+    text: 'The last train north. Everything we have left is at Mölnbo.',
+    stock: { ksp58: 1, inf: 1, ak5: 1 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

@@ -3,6 +3,8 @@
 import { gnesta } from './gnesta.js';
 import { gnestaNorr } from './gnesta-norr.js';
 import * as E4 from './e4-lastringe.js';
+// 0.17.0-molnbo: sektorn Mölnbo (src/data/molnbo.js), efter Hagstumosse
+import { molnbo } from './molnbo.js';
 
 export const MAPS = {
   riksvagen: {
@@ -41,5 +43,6 @@ export const MAPS = {
   },
   gnesta,
   'gnesta-norr': gnestaNorr,
+  molnbo,
 };
 MAPS.riksvagen.place = E4.e4Placement(MAPS.riksvagen.grid);

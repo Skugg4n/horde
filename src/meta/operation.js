@@ -120,6 +120,8 @@ function applyRelease(p, r) {
   const sector = op.closed.includes(r.map) ? null : poolOf(r.map);
   for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) op.units.push(newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true }));
   if (sector && r.stock) { const st = op.stock[sector] ??= {}; for (const [t, n] of Object.entries(r.stock)) st[t] = (st[t] ?? 0) + n; }
+  // 0.17.0-molnbo: adopt, enheterna utan sektor följer med till den nya sektorn
+  if (sector && r.adopt) for (const u of op.units) if (u.sector == null) u.sector = sector;
   op.released.push(r.id);
   op.inbox.push({ id: r.id, from: r.from, text: r.text, seq: op.seq++, unread: true });
   return { ...p, research, op };
@@ -437,7 +439,7 @@ export function debugDepot(p, preset, list = []) {
 // Hoppa till en sektor och dag (debugmenyn): banorna före räknas som klara och sektorns dagar före
 // som vunna, så att leveranserna och trupperna är där en spelare som kommit dit har dem.
 export function debugReach(p, mapId, day) {
-  const order = ['riksvagen', 'gnesta', 'gnesta-norr'];
+  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];
   const maps = { ...p.maps };
   for (const id of order) {
     if (id === mapId) break;
