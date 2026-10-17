@@ -127,7 +127,7 @@ test('E4 dag 1: infanteriet vid bommen, en Ksp 90 på en markerad plats, den and
   const off = sim.place.keyAt(-20, 30);
   assert.equal(checkSpot(sim, off, 'm249').reason, 'markerad');
   assert.equal(build(sim, marked[0], 'm249').ok, true);
-  assert.equal(buyState(sim, 'm249').state, 'absent', 'den andra har inte kommit');
+  assert.equal(buyState(sim, 'm249').state, 'out', 'den andra har inte kommit: kortet står kvar grått');
   assert.equal(placeAcross(sim, sim.route.cellAt(9, -10) ?? 0, 'wire').ok, false);
   assert.equal(rotateGun(sim, sim.guns[1].id, 0).reason, 'låst', 'Rotate kommer dag 3');
   startWave(sim);

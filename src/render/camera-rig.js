@@ -50,7 +50,8 @@ export function createRig({ camera, map, fill, dom }) {
   // panLock (0.13.0, H132): medan spelaren drar för att sikta panorerar kameran inte
   let drag = null, dragged = false, active = true, panLock = false;
   const keys = new Set();
-  const onDown = e => { if (!canPan || !active || panLock || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; dragged = false; };
+  // 0.16.2: en gammal panorering (släppt utanför scenen, så att inget klick tog den) äter aldrig nästa klick
+  const onDown = e => { dragged = false; if (!canPan || !active || panLock || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; };
   const onUp = () => { if (drag?.moved) dom.style.cursor = ''; drag = null; };
   const onMove = e => {
     if (!drag) return;

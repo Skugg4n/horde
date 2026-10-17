@@ -12,7 +12,9 @@ import { ICONS } from './icons.js';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const keysHtml = keys => (keys ?? []).map(k => `<kbd>${esc(k)}</kbd>`).join(' ');
 
-export function createCoach(root, { onRelease, onFewer }) {
+// onClick(e, step) (0.16.2): ett klick på plåten eller det dämpade lagret; main.js släpper ett 'show' och skickar
+// klicket vidare till det som ligger under (kartan eller ett kort), så att inget klick går förlorat
+export function createCoach(root, { onRelease, onClick, onFewer }) {
   const el = document.createElement('div');
   el.id = 'coach'; el.hidden = true;
   el.innerHTML = `<div class="catch"></div><div class="hole"></div><div class="marks"><i></i><i></i><i></i><i></i></div><div class="lead"></div>
@@ -24,8 +26,12 @@ export function createCoach(root, { onRelease, onFewer }) {
   plate.addEventListener('pointerdown', e => e.preventDefault());
   fewer.addEventListener('click', e => { e.stopPropagation(); onFewer?.(); fewer.hidden = true; });
   // Ett 'show'-steg släpps med ett klick var som helst (hålet fångar inte klicket: det dämpade lagret gör det)
-  el.querySelector('.catch').addEventListener('click', () => { if (cur?.kind === 'show') onRelease?.(); });
-  plate.addEventListener('click', () => { if (cur?.kind === 'show') onRelease?.(); });
+  const clicked = e => {
+    if (e.target.closest('.fewer')) return;
+    if (onClick) onClick(e, cur); else if (cur?.kind === 'show') onRelease?.();
+  };
+  el.querySelector('.catch').addEventListener('click', clicked);
+  plate.addEventListener('click', clicked);
   let cur = null, fadeT = 0;
 
   // step: { id, kind, text, keys, dim, pause, fewer }. rect: målets ruta på skärmen eller null (utanför bild: off).

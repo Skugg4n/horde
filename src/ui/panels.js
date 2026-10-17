@@ -56,6 +56,10 @@ const REASONS = {
   'flexibel': 'Turns by itself, no arc to rotate',
   // 0.14.0 (Operation Södermanland)
   'reserv': 'None of those left in reserve',
+  // 0.16.2: kortet för en typ där alla är utställda, och ett klick med något i handen på gränssnittet
+  'ute': 'All of these are on the map',
+  'gränssnitt': 'Not on the map',
+  'i handen': 'Already in hand. Esc puts it back',
   'uppställd': 'Units deploy before the first wave',
   'front': 'Frontage full.',
   // 0.16.0 (inlärningen)
@@ -188,7 +192,7 @@ export function buildBar(root, actions) {
   function update(sim, holding, show, openCat = null, armed = false) {
     el.hidden = !show;
     if (!show) return;
-    const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day + '|' + (sim.core ? sim.wavesStarted > 0 : '') + '|' + (sim.reserve ? [...new Set(sim.reserve.map(u => u.type))].sort().join(',') : '') + '|' + dayMenu(id => inBar(sim, id)).flatMap(c => c.items.map(i => i.id)).join(',');
+    const k = [...sim.research].join(',') + '|' + sim.map.id + '|' + sim.day + '|' + (sim.core ? sim.wavesStarted > 0 : '') + '|' + dayMenu(id => inBar(sim, id)).flatMap(c => c.items.map(i => i.id)).join(',');
     if (k !== key || barR < 0) { key = k; render(sim); catKey = ''; measure(); }
     // 0.16.0: en tom köprad (E4 dag 1 efter uppställningen) syns inte
     if (!cards.size) { el.hidden = true; return; }
@@ -210,6 +214,7 @@ export function buildBar(root, actions) {
       b.classList.toggle('poor', st.state === 'poor');
       b.classList.toggle('locked', st.state === 'locked');
       b.classList.toggle('full', st.state === 'full');
+      b.classList.toggle('out', st.state === 'out');
       b.classList.toggle('off', st.state !== 'ok');
       if (st.state === 'locked') {
         c.price.innerHTML = LOCK + ' Locked';
@@ -218,8 +223,9 @@ export function buildBar(root, actions) {
         // för dyrt: beloppet som fattas syns på det lilla kortet också
         // 0.14.0: en kärntrupp kostar inget; kortet säger hur många som väntar i reserven
         const unit = st.count != null;
-        set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : unit ? `×${st.count} ready` : money(st.cost));
-        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? REASONS.front : unit ? 'Your unit. Place it on the map.' : '');
+        // 0.16.2: alla utställda: kortet står kvar grått med samma siffra
+        set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : st.state === 'out' ? 'All out' : unit ? `×${st.count} ready` : money(st.cost));
+        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? REASONS.front : st.state === 'out' ? REASONS.ute : unit ? 'Your unit. Place it on the map.' : '');
       }
     }
   }

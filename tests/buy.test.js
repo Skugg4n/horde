@@ -145,3 +145,18 @@ test('Gnesta South och North: fem pjäser från början, More positions ger en t
   }
   assert.equal(createSim({ map: MAPS.riksvagen, day: 1, cash: 0, research: ['m2.1', 'positions.1'], seed: 1 }).maxGuns, 5);
 });
+
+// 0.16.2 (speltestet av 0.16.1: "kortraden hoppar", Ksp 90 gick från 5 till 4 när ett kort tog slut): en typ där
+// alla är utställda står kvar i köpraden som 'out', och siffrorna på korten flyttar inte.
+test('slutställda kort står kvar grå och siffrorna är stabila', async () => {
+  const { opStartConfig, newCampaign } = await import('../src/meta/operation.js');
+  const { inBar } = await import('../src/sim/buy.js');
+  const sim = createSim(opStartConfig(newCampaign(), 1, 'riksvagen'));
+  const keys = () => { const m = dayMenu(id => inBar(sim, id)); return m.flatMap(c => c.items).map(it => it.id + hotkeyOf(it.id, m)).join(' '); };
+  const before = keys();
+  assert.match(before, /m249/);
+  assert.equal(build(sim, [...sim.marked][0], 'm249').ok, true);
+  assert.equal(buyState(sim, 'm249').state, 'out', 'alla Ksp 90 ute: kortet står kvar');
+  assert.equal(canPickUp(sim, 'm249'), false);
+  assert.equal(keys(), before, 'samma kort, samma siffror');
+});

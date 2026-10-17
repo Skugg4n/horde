@@ -220,8 +220,12 @@ function startMove(id) {
 }
 function startPlacing(type) {
   if (!canPlaceNow()) return;
-  if (placing?.type === type) { stopPlacing(); return; }
-  if (buyState(sim, type).state !== 'ok') { bar.shake(type); audio.ui('deny'); return; }
+  // 0.16.2 (speltestet av 0.16.1: "mitt andra klick avmarkerade kortet"): samma kort igen släpper inte saken. I
+  // låg bildtakt syns inte att det första klicket tog, och ett andra klick lade förut tillbaka saken, så att nästa
+  // klick på kartan inte gjorde något. Esc eller högerklick lägger tillbaka.
+  if (placing?.type === type && !placing.move) { flashTip(reasonText('i handen')); return; }
+  const st = buyState(sim, type).state;
+  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText('ute')); return; }
   closePanel();
   audio.ui('pick');
   placing = { type, kind: shopItem(type).kind };
@@ -260,19 +264,26 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   const from = x != null && !roofHit && !rt && key !== sim.place.keyAt(x, z) ? { fx: x, fz: z } : {};
   return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
 }
+// 0.16.2: varje försök att ställa ut med något i handen och hur det gick (__horde.placeLog med ?debug eller ?test)
+const placeLog = [];
+function logPlace(e) { placeLog.push({ t: Math.round(performance.now()), type: placing?.type ?? null, ...e }); if (placeLog.length > 200) placeLog.shift(); }
 function placeHere(p) {
   const sp = typeof p === 'object' ? spotFor(p.id, p.x, p.z, p.roof, p.rt) : spotFor(p);
   const key = sp.key;
-  if (!sp.ok) { flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
+  if (!sp.ok) { logPlace({ out: 'reason', key, reason: sp.reason }); flashTip(reasonText(sp.reason)); audio.ui('deny'); return; }
   const type = placing.type;
+  // 0.16.2: riktningen räknas från rutan som klicket gäller, inte från rutan som hovringen senast räknade
+  spot = sp;
   if (placing.move) {
     const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null, placing.via ?? []);
-    if (!r.ok) { flashTip(reasonText(r.reason)); return; }
+    if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
+    logPlace({ out: 'moved', key });
     stopPlacing(); placedAt = performance.now();
     return;
   }
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type, hasCone() ? aimFacing() : null);
-  if (!r.ok) { flashTip(reasonText(r.reason)); return; }
+  if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
+  logPlace({ out: 'placed', key });
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
@@ -610,17 +621,40 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ||
   }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
-}, { ignoreClick: () => rig.takeDrag() || takeSuppress() });
-picker.onPick(p => {
-  if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') return;
+}, { ignoreClick: () => { const d = rig.takeDrag(), s0 = takeSuppress(); if ((d || s0) && placing) logPlace({ out: d ? 'ignored-pan' : 'ignored-aim' }); return d || s0; } });
+picker.onPick(p => mapPick(p));
+function mapPick(p) {
+  if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') { if (placing) logPlace({ out: 'ignored-phase' }); return; }
   if (rotating) { commitRotate(); return; }
   // 0.13.0 (H136): Shift-klick lägger en waypoint på flyttens väg
   if (placing?.move && shiftHeld && p?.kind === 'spot') { addWaypoint(p); return; }
   // 0.16.1 (speltestet av 0.16.0: "flera klick med valt kort gjorde ingenting"): ett klick som inte träffar en
   // ruta säger också varför, vid pekaren
-  if (placing) { if (p?.kind === 'spot') placeHere(p); else { flashTip(reasonText('utanför')); audio.ui('deny'); } return; }
+  if (placing) { if (p?.kind === 'spot') placeHere(p); else { logPlace({ out: 'reason', reason: 'utanför' }); flashTip(reasonText('utanför')); audio.ui('deny'); } return; }
   if (p) open(p); else closePanel();
-});
+}
+// 0.16.2 (speltestet av 0.16.1, tre speltester i rad: "ungefär var tredje placering gav ingenting"): ett klick
+// på kartan går aldrig förlorat. I låg bildtakt hinner en lektionsplåt (eller ett annat lager) komma upp mellan
+// två bilder, och klicket som spelaren menade för kartan eller köpraden landade på plåten. Plåten släpps och
+// klicket går vidare till det som ligger under (scripts/placement-harness.mjs).
+function forwardClick(x, y) {
+  const hid = coach.el.hidden;
+  coach.el.hidden = true;
+  const under = document.elementFromPoint(x, y);
+  coach.el.hidden = hid;
+  if (under === renderer.domElement) { mapPick(picker.pickAt(x, y)); return; }
+  const btn = under?.closest?.('button');
+  if (btn && !btn.closest('#coach')) btn.click();
+}
+// Med något i handen: ett klick på något i gränssnittet som inte gör något säger det vid pekaren
+const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual';
+addEventListener('click', e => {
+  if (!placing || mode !== 'play' || e.button !== 0) return;
+  const t = e.target;
+  if (t === renderer.domElement || !(t instanceof Element) || t.closest(CLICKABLE) || !t.closest('#ui')) return;
+  logPlace({ out: 'reason', reason: 'gränssnitt' });
+  flashTip(reasonText('gränssnitt')); audio.ui('deny');
+}, true);
 picker.onHover(p => {
   hovered = mode === 'play' ? p : null;
   // medan spelaren drar för att sikta står spöket kvar på sin ruta
@@ -1214,8 +1248,9 @@ addEventListener('keydown', e => {
     if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); releaseLesson(); return; }
     // ett 'show' under hård paus: inga andra tangenter; ett 'step': handlingen går, men Enter och Space startar
     // inget annat än vad steget gäller (Start the wave)
-    if (lesson.pause && lesson.step.kind === 'show') return;
-    if (lesson.pause && (e.key === 'Enter' || (e.code === 'Space' && lesson.step.target?.ui !== '#go'))) { e.preventDefault(); return; }
+    // 0.16.2: en siffra (ta upp ett kort) släpper ett 'show' och tar upp kortet, som ett klick på plåten gör
+    if (lesson.pause && lesson.step.kind === 'show') { if (!/^(Digit|Numpad)[0-9]$/.test(e.code) || e.repeat) return; releaseLesson(); }
+    else if (lesson.pause && (e.key === 'Enter' || (e.code === 'Space' && lesson.step.target?.ui !== '#go'))) { e.preventDefault(); return; }
   }
   if (e.key === 'Escape') {
     // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
@@ -1293,7 +1328,7 @@ addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
 // progress.lessons (src/meta/lessons.js).
 const feat = f => !!sim && allowed(sim, f);
 const meta = f => metaFeatures(progress).has(f);
-const coach = createCoach(uiRoot, { onRelease: () => releaseLesson(), onFewer: () => { progress = setTipsMode(progress, 'new'); save(); } });
+const coach = createCoach(uiRoot, { onRelease: () => releaseLesson(), onClick: (e, step) => { if (step?.kind === 'show') releaseLesson(); forwardClick(e.clientX, e.clientY); }, onFewer: () => { progress = setTipsMode(progress, 'new'); save(); } });
 let lesson = null;             // { step, pause, missing }
 let lastEsc = -Infinity;
 let card = null;               // fiendens presentationsruta { type, el, close }
@@ -1462,17 +1497,21 @@ function updateEnemies() {
 }
 function openCard(type) {
   if (lesson) { if (lesson.step.kind === 'caption') finishLesson(); else { coach.hide(); lesson = null; } }
+  // 0.16.2: det som var i handen ligger kvar i handen när rutan stängs (förut tappades det tyst)
+  const held = placing && !placing.move ? { type: placing.type, kind: placing.kind } : null;
   stopPlacing(); closePanel();
   const e = ENEMIES[type];
   countHardPause();
-  card = { type, ...enemyCard(uiRoot, { title: e.title, report: e.report, portrait: portraitOf(type), onContinue: () => closeCard() }) };
+  card = { type, held, ...enemyCard(uiRoot, { title: e.title, report: e.report, portrait: portraitOf(type), onContinue: () => closeCard() }) };
   if (speed > 1) { speed = 1; hud.setSpeed(1); }
   audio.ui('click');
 }
 function closeCard() {
   if (!card) return;
   progress = markSeen(progress, 'enemy:' + card.type); save();
+  const held = card.held;
   card.close(); card = null;
+  if (held && canPlaceNow() && buyState(sim, held.type).state === 'ok') placing = { ...held };
 }
 // Tips i stunden (avsnitt 5.3): för det som är upplåst, en gång per kampanj (de med repeat högst var femte minut).
 function tip(id, at = null) {
@@ -1848,13 +1887,13 @@ function placePanel() {
 function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } }
 // 0.16.0: lektionen som visas (steget eller fiendens ruta) och att släppa den, för proven i webbläsaren
 const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.step.id ?? null; }, release: () => (card ? closeCard() : releaseLesson()), get manualOpen() { return !!manual; } };
-if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; } };
+if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
 if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
-  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; },
+  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
   showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
@@ -1981,7 +2020,7 @@ function tick(now) {
   const paused = menu.isOpen() || lessonPaused();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
-  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent'].includes(buyState(sim, placing.type).state)))) stopPlacing();
+  if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons(frameDt);
   updateBaseArrow();
   if (sim) updateNewSpawn();

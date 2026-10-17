@@ -9,6 +9,8 @@ import { canAct, capFull, readyCount, allowed } from './sim.js';
 
 // { state: 'ok' | 'poor' | 'locked' | 'full' | 'closed' | 'absent', cost, need, research }
 //   absent (0.13.0): sektorn har inte saken i förrådet i dag; kortet syns inte i köpraden
+//   out (0.16.2): alla enheter av typen är utställda i dag; kortet står kvar grått på sin plats (speltestet av
+//          0.16.1: "kortraden hoppar", Ksp 90 gick från 5 till 4 när ett annat kort tog slut)
 //   need: pengar som saknas (poor), research: forskningsnoden som låser upp (locked)
 export function buyState(sim, id) {
   const item = shopItem(id);
@@ -19,7 +21,7 @@ export function buyState(sim, id) {
   if (sim.core && gun) {
     // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) syns när den kommit fram
     const count = readyCount(sim, id);
-    if (!count) return { state: 'absent', cost: 0, need: 0 };
+    if (!count) return sim.deployed?.some(d => d.type === id) ? { state: 'out', cost: 0, need: 0, count: 0 } : { state: 'absent', cost: 0, need: 0 };
     if (capFull(sim, id)) return { state: 'full', cost: 0, need: 0, count };
     return { state: 'ok', cost: 0, need: 0, count };
   }

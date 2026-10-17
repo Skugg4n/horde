@@ -79,7 +79,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 
 /* ---------- spelets gränssnitt ---------- */
 #ui { position: fixed; inset: 0; pointer-events: none; }
-#ui .plate, #ui button { pointer-events: auto; }
+/* 0.16.2: utan specificitet för #ui, så att en plåt som själv säger pointer-events: none (skälet vid pekaren,
+   ROOF/GROUND, Unit here, evakueringsrutan, banderollen) släpper igenom klicket till kartan. Förut vann den här
+   regeln (#ui .plate) över #ghosttip, och skälet som stod kvar vid pekaren åt nästa klick. */
+:where(#ui) .plate, :where(#ui) button { pointer-events: auto; }
 #ui [hidden] { display: none !important; }
 #ui button { font: inherit; color: inherit; }
 
