@@ -20,7 +20,7 @@ export const MAPS = {
     camera: { target: [-4, 4], view: 50, zoom: [24, 80], pan: { x0: -60, x1: 66, z0: -31, z1: 38 } },
     shadowBounds: { x0: -64, x1: 70, z0: -36, z1: 46 },
     roads: E4.ROADS, ground: E4.GROUND, spawns: E4.SPAWNS, base: E4.BASE, surroundings: E4.SURROUNDINGS,
-    props: E4.PROPS, signs: E4.SIGNS, lamps: E4.LAMPS, rocks: E4.ROCKS, rails: E4.RAILS, junction: E4.JUNCTION,
+    props: E4.PROPS, signs: E4.SIGNS, gantries: E4.GANTRIES, lamps: E4.LAMPS, rocks: E4.ROCKS, rails: E4.RAILS, junction: E4.JUNCTION,
     grid: E4.e4Grid(),
     // Vägspärren vid stammens ände (render/models.js roadblockModel), vänd nedför stammen.
     basePlace: E4.BASE.place, baseModel: 'roadblock',

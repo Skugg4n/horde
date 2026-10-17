@@ -134,20 +134,53 @@ export const PROPS = [
 ];
 // Vägskyltar. green: motorvägens (grön botten), blue: övriga vägar. speed: 110. Pilarna i texten (< >).
 // ry: skyltarna vänds mot kameran (sydost) så att texten går att läsa, inte exakt mot trafiken.
-const S = (px, py, ry, kind, lines, extra = {}) => { const [x, z] = w(px, py); return { x, z, ry, kind, lines, ...extra }; };
+// 0.16.3 (H231, Olas "skyltarna står mitt i vägen"): alla står i vägrenen, minst 1,3 m från körbanan med
+// stolparna och 0,7 m med panelens kanter (prov: tests/e4-env.test.js). Positionerna i meter.
+const S = (x, z, ry, kind, lines, extra = {}) => ({ x, z, ry, kind, lines, ...extra });
 export const SIGNS = [
-  // på väg 800 före korsningen, från sydväst: mot motorvägen (som gatubilden)
-  S(1290, 458, 0.55, 'green', ['HELSINGBORG >', 'NYKÖPING >'], { motorway: true }),
-  // vid korsningen, mitt emot stammen (som gatubilden mot Gnesta och Södertälje)
-  S(1345, 368, 0.75, 'blue', ['< GNESTA', '< S LÄSTRINGE']),
-  S(1440, 352, 0.75, 'blue', ['SÖDERTÄLJE 45 >', 'VÄSTERLJUNG >', 'GRANLUND >']),
-  // vid stammen: tillbaka ner mot E4 mot Södertälje
-  S(1500, 470, 0.9, 'green', ['SÖDERTÄLJE >'], { motorway: true }),
-  // på motorvägen före avfarten, från sydväst
-  S(980, 868, 0.5, 'green', ['137 S LÄSTRINGE', 'GNESTA'], { exit: true }),
+  // på väg 800 före korsningen, från sydväst: mot motorvägen (som gatubilden), i norra vägrenen
+  S(-6.9, -16.8, 0.55, 'green', ['HELSINGBORG >', 'NYKÖPING >'], { motorway: true }),
+  // vid korsningen, mitt emot stammen på andra sidan väg 800 (som gatubilden mot Gnesta och Södertälje)
+  S(11, -31.5, 0.75, 'blue', ['< GNESTA', '< S LÄSTRINGE']),
+  S(18, -37, 0.75, 'blue', ['SÖDERTÄLJE 45 >', 'VÄSTERLJUNG >', 'GRANLUND >']),
+  // vid stammen: tillbaka ner mot E4 mot Södertälje, mellan stammen och påfarten
+  S(19.5, -16.95, 0.9, 'green', ['SÖDERTÄLJE >'], { motorway: true }),
   // 110 vid påfarten och på motorvägen
-  S(1700, 632, 0.8, 'speed', ['110']),
-  S(700, 1002, 0.6, 'speed', ['110']),
+  S(36.5, -4.1, 0.8, 'speed', ['110']),
+  S(-53.25, 34.7, 0.6, 'speed', ['110']),
+];
+// Skyltens bredd i meter (render/e4-kit.js roadSign: panelen 0,8 m per rad + 0,3, bildformatet ur texturen).
+export function signWidth(s) {
+  if (s.kind === 'speed') return 0.84;
+  const n = s.lines.length;
+  return (0.8 * n + 0.3) * 512 / (n * 96 + 40);
+}
+// Portalen över motorvägen före avfarten (H231): avfartsskylten hänger över körbanan, inte på den. Den
+// spänner över båda körbanorna med ett ben i mittremsan; skylten mot sydväst gäller avfarten upp mot
+// korsningen, den mot nordost samma avfart för andra hållet (den syns från kameran).
+export const GANTRIES = (() => {
+  // punkten på E4 en bit före avfarten (925, 895 i bilden), och riktningen där
+  const n = road('e4n'), [ox, oz] = w(925, 895);
+  let best = null;
+  for (let i = 1; i < n.pts.length; i++) {
+    const [ax, az] = n.pts[i - 1], [bx, bz] = n.pts[i], L = Math.hypot(bx - ax, bz - az) || 1;
+    const t = Math.max(0, Math.min(1, ((ox - ax) * (bx - ax) + (oz - az) * (bz - az)) / (L * L)));
+    const x = ax + (bx - ax) * t, z = az + (bz - az) * t, d = Math.hypot(ox - x, oz - z);
+    if (!best || d < best.d) best = { d, x, z, dx: (bx - ax) / L, dz: (bz - az) / L };
+  }
+  const sign = { kind: 'green', lines: ['137 S LÄSTRINGE', 'GNESTA'], exit: true };
+  // across: tvärs över vägen, åt höger i färdriktningen österut (söderut, mot södra körbanan).
+  // legs och off: meter längs across från norra körbanans mitt. face 0: skylten vänd mot trafiken
+  // från sydväst, face 1: mot nordost.
+  return [{ x: best.x, z: best.z, across: [-best.dz, best.dx], legs: [-6.2, 7.5, 21.2], height: 6.6,
+    panels: [{ ...sign, off: -0.6, face: 0 }, { ...sign, off: 15.6, face: 1 }] }];
+})();
+// Placeringens fotavtryck för skyltarna, fryst från 0.16.2 (där de stod före H231), så att placeringen
+// och balansen inte ändras av att de ritade skyltarna flyttats. Byts när balansen ändå räknas om.
+const SB = (px, py, ry, kind) => { const [x, z] = w(px, py); return { x, z, ry, kind }; };
+const SIGN_BLOCKS_0162 = [
+  SB(1290, 458, 0.55, 'green'), SB(1345, 368, 0.75, 'blue'), SB(1440, 352, 0.75, 'blue'), SB(1500, 470, 0.9, 'green'),
+  SB(980, 868, 0.5, 'green'), SB(1700, 632, 0.8, 'speed'), SB(700, 1002, 0.6, 'speed'),
 ];
 // Höga belysningsstolpar runt korsningen (gatubilden), utöver rampernas och väg 800:s.
 export const LAMPS = [w(1340, 392), w(1430, 420), w(1405, 470)];
@@ -158,31 +191,79 @@ export const ROCKS = [
 ].map(([px, py, s]) => { const [x, z] = w(px, py); return { x, z, s }; });
 
 // ---------- omgivningen utanför spelytan ----------
-const ghostRoad = (name, width, pts) => ({ name, width, pts: smooth(W(pts), 3) });
-const ghostBuilding = (px, py, len, wid, ang = 0, h = 4.6, roof = 'gable') => { const [x, z] = w(px, py); return { x, z, w: len, d: wid, ry: -ang * Math.PI / 180, h, roof }; };
+// 0.16.3 (H230, Olas "för mycket suddigt utanför, det får inte se så superkonstigt ut"): Sörmland fortsätter
+// in i diset, efter översiktsbilden oversikt-vid.jpg (lokalt, inte i repot). Väg 224 norrut genom skogen,
+// E4 åt båda hållen, den stora vallen norr om korsningen med ett dike och en kraftledning rakt igenom,
+// plöjd åker i sydväst, grusvägar till tre gårdar (rött hus, ladugård, uthus) och några hus, kuperad
+// granskog med hyggen och hällar. Bara att se på: inget här går att gå på eller bygga på. Meter, x öster,
+// z söder. Ritas av src/render/e4-far.js.
+const far = (pts, step = 3) => smooth(pts, step);
+// E4:s norra körbana förlängd åt båda hållen (södra körbanan är den förskjuten 15 m, som på spelytan)
+const E4_FAR = far([[-262, 94], [-205, 76], [-150, 60], [...ROADS.find(r => r.id === 'e4n').ptsRaw[0]],
+  ...ROADS.find(r => r.id === 'e4n').ptsRaw.slice(1), [150, -7], [205, -13], [265, -19]], 4);
+export const FAR = {
+  e4: E4_FAR,
+  roads: [
+    { id: 'e4n', surface: 'asphalt', width: 8, lines: 'motorway', pts: E4_FAR },
+    { id: 'e4s', surface: 'asphalt', width: 8, lines: 'motorway', pts: offsetLine(E4_FAR, 15) },
+    { id: 'r800w', surface: 'asphalt', width: 7, lines: 'road', pts: far([[-79, 25], [-95, 30], [-118, 36], [-146, 39], [-182, 37], [-245, 31]]) },
+    { id: 'r800ne', surface: 'asphalt', width: 7, lines: 'road', pts: far([[50, -51], [63, -61], [85, -77], [110, -95], [140, -119], [178, -152]]) },
+    { id: 'r224n', surface: 'asphalt', width: 6.5, lines: 'road', pts: far([[-16, -50], [-13, -60], [-9, -80], [-4, -105], [3, -135], [13, -185]]) },
+    // grusvägarna: skogsvägen norrut längs vallen till Norrgården, västerut till gården vid åkern, från
+    // väg 800 österut till Österby, och en skogsväg söder om E4 till ett hygge med en virkesvälta, och en i sydväst
+    { id: 'gravelA', surface: 'gravel', width: 3.4, pts: far([[-45, -28], [-50, -40], [-57, -56], [-64, -78], [-70, -95], [-76, -103]]) },
+    { id: 'gravelB', surface: 'gravel', width: 3.4, pts: far([[-45, -28], [-61, -33], [-82, -34], [-104, -29], [-118, -21], [-124, -15]]) },
+    { id: 'gravelC', surface: 'gravel', width: 3.4, pts: far([[86, -78], [98, -72], [110, -67], [117, -64]]) },
+    { id: 'gravelD', surface: 'gravel', width: 3.2, pts: far([[215, 58], [170, 66], [130, 78], [104, 84], [92, 86]]) },
+    { id: 'gravelE', surface: 'gravel', width: 3, pts: far([[-232, 124], [-180, 116], [-140, 106], [-108, 99]]) },
+  ],
+  // markslag: ley (vall, slagen), plough (plöjd åker), pasture (betesmark), clearcut (hygge), yard (gårdsplan)
+  land: [
+    // den stora vallen mellan skogsvägen och väg 224
+    { kind: 'ley', pts: [[-47, -35], [-34, -37], [-27, -48], [-21, -64], [-15, -84], [-11, -104], [-8, -126], [-6, -160], [-55, -165], [-62, -136], [-66, -112], [-61, -94], [-55, -76], [-49, -57], [-44, -44]] },
+    // betesmarken väster om skogsvägen vid Norrgården
+    { kind: 'pasture', pts: [[-84, -86], [-72, -80], [-78, -112], [-92, -128], [-112, -122], [-108, -96]] },
+    // plöjd åker i sydväst, mellan gården och väg 800
+    { kind: 'plough', pts: [[-108, -8], [-128, -4], [-162, -6], [-200, -2], [-212, 26], [-176, 30], [-140, 31], [-112, 24]] },
+    // Österbys hagar
+    { kind: 'pasture', pts: [[112, -48], [138, -40], [166, -46], [168, -80], [140, -88], [120, -76]] },
+    // hyggen: söder om E4 i öster (virkesvältan), i nordväst, nordost om väg 800 och söder om E4 i väster
+    { kind: 'clearcut', pts: [[40, 66], [72, 58], [102, 66], [106, 98], [74, 112], [44, 100]] },
+    { kind: 'clearcut', pts: [[-122, -48], [-98, -54], [-94, -80], [-116, -90], [-134, -70]] },
+    { kind: 'clearcut', pts: [[58, -92], [86, -100], [98, -124], [72, -138], [52, -116]] },
+    { kind: 'clearcut', pts: [[-126, 84], [-84, 76], [-72, 104], [-110, 118]] },
+    // gårdsplanerna
+    { kind: 'yard', pts: [[-84, -96], [-68, -98], [-66, -114], [-86, -116]] },
+    { kind: 'yard', pts: [[-136, -24], [-122, -24], [-120, -6], [-138, -6]] },
+    { kind: 'yard', pts: [[114, -70], [130, -70], [130, -54], [114, -54]] },
+  ],
+  // diket genom vallen med videbuskar, och kraftledningen snett över den (stolpar var ~50 m, gata i skogen)
+  ditch: far([[-38, -40], [-36, -60], [-35, -82], [-33, -104], [-30, -128], [-28, -162]]),
+  power: { from: [-210, -8], to: [120, -168], step: 50, corridor: 9 },
+  // gårdarna: { x, z, ry, house: [w, d], barn: [w, d], sheds: [[x, z, w, d, ry]] } i gårdens ram
+  farms: [
+    { id: 'norrgarden', x: -76, z: -106, ry: 0.25, house: [11, 7], barn: [20, 10], sheds: [[-12, 9, 6, 4, 0.1], [9, -10, 5, 3.5, 1.57]] },
+    { id: 'akern', x: -129, z: -15, ry: -0.3, house: [10, 6.5], barn: [16, 9], sheds: [[10, 8, 5, 3.5, 0]] },
+    { id: 'osterby', x: 122, z: -62, ry: 0.6, house: [10, 7], barn: [18, 9], sheds: [[-10, 9, 6, 4, 0.2], [11, 9, 4, 3, 0]] },
+  ],
+  // lösa hus längs vägarna: [x, z, ry, färg]
+  houses: [[-24, -118, 0.4, 'red'], [14, -122, -0.2, 'yellow'], [-162, 26, 0.1, 'red'], [150, -102, 0.7, 'white']],
+  // hällar på höjderna: [x, z, storlek]
+  outcrops: [[86, 46, 3.2], [132, 28, 4], [-72, 70, 3.4], [28, 74, 2.8], [-122, 70, 3], [60, -76, 3.6], [150, -18, 3.4],
+    [-104, -66, 3.2], [-150, -44, 3], [30, -108, 3.8], [152, -108, 3.6], [-40, 88, 3], [110, 118, 3.4], [-88, -148, 3]],
+  // virkesvältan vid skogsvägens slut och rundbalarna på vallen
+  timber: [[96, 90, 0.2]],
+  bales: [[-40, -70], [-36, -73], [-44, -92], [-26, -86], [-31, -118], [-48, -122], [-22, -66]],
+};
 export const SURROUNDINGS = {
   // Spelytan som är skarp. Utanför tonar allt mot diset.
   crisp: { x0: -60, x1: 66, z0: -31, z1: 38 },
   fade: 34,
-  extent: { x0: -230, x1: 240, z0: -170, z1: 180 },
-  districts: [
-    { id: 'lastringe', name: 'Lästringe',
-      roads: [
-        ghostRoad('E4', 9, [[150, 1153], [-400, 1330], [-900, 1500]]),
-        ghostRoad('E4', 9, [[2450, 623], [2900, 565], [3400, 500]]),
-        ghostRoad('Väg 800', 7, [[2000, -30], [2250, -200], [2500, -400]]),
-        ghostRoad('Väg 800', 7, [[250, 985], [0, 1080], [-300, 1200]]),
-        ghostRoad('Väg 224', 6.5, [[1160, -20], [1200, -250], [1260, -500]]),
-        ghostRoad('', 3.4, [[800, 338], [790, 200], [800, 0], [780, -250]]),
-        ghostRoad('', 3.4, [[800, 338], [650, 420], [500, 470], [200, 520]]),
-      ],
-      buildings: [
-        // gårdarna vid åkern (röda trähus, ritade som spöken)
-        ghostBuilding(260, 330, 14, 8, 10, 5), ghostBuilding(330, 280, 18, 9, 10, 6, 'gable'), ghostBuilding(270, 250, 9, 6, 80, 4),
-        ghostBuilding(60, 640, 12, 7, -15, 5), ghostBuilding(-40, 590, 16, 8, -15, 5.5),
-        ghostBuilding(1000, -260, 12, 8, 60, 5), ghostBuilding(1060, -310, 9, 6, 60, 4),
-      ] },
-  ],
+  // 0.16.3: diset börjar 20 m utanför den skarpa ytan och är som tätast (90 %) 150 m ut
+  haze: { start: 20, end: 150, max: 0.9 },
+  extent: { x0: -270, x1: 270, z0: -200, z1: 190 },
+  districts: [],
+  far: FAR,
 };
 
 // ---------- rutnätet för horden ----------
@@ -236,7 +317,7 @@ export function thingRects() {
       out.push(rect(tx, tz, p.ry + p.jack, 13.5, 2.6));
     }
   }
-  for (const s of SIGNS) out.push(rect(s.x, s.z, s.ry, s.kind === 'speed' ? 0.8 : 4.4, 0.6));
+  for (const s of SIGN_BLOCKS_0162) out.push(rect(s.x, s.z, s.ry, s.kind === 'speed' ? 0.8 : 4.4, 0.6));
   for (const r of ROCKS) out.push(rect(r.x, r.z, 0, r.s * 1.6, r.s * 1.6));
   for (const [x, z] of LAMPS) out.push(rect(x, z, 0, 0.5, 0.5));
   // vägspärren: kuren, fordonen och betongsuggorna kring stammens ände (render/models.js roadblockModel)

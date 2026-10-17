@@ -86,16 +86,18 @@ function paintGhostGround(sur) {
 }
 
 // Dimskivan: genomskinlig inne i den skarpa ytan, tätnar utåt till nästan helt dis.
-function fogSheet(crisp, fade, EXTENT) {
+// haze (0.16.3, E4): { start, end, max } i meter utanför den skarpa ytan, i stället för fade-kurvan.
+export function fogSheet(crisp, fade, EXTENT, haze = null) {
   const m = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, fog: false,
-    uniforms: { uHaze: { value: HAZE }, uCrisp: { value: new THREE.Vector4(crisp.x0, crisp.z0, crisp.x1, crisp.z1) }, uFade: { value: fade } },
+    uniforms: { uHaze: { value: HAZE }, uCrisp: { value: new THREE.Vector4(crisp.x0, crisp.z0, crisp.x1, crisp.z1) }, uFade: { value: fade },
+      uCurve: { value: new THREE.Vector3(haze?.start ?? 0, haze?.end ?? 1, haze?.max ?? 0) } },
     vertexShader: `varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform vec3 uHaze; uniform vec4 uCrisp; uniform float uFade; varying vec3 vW;
+    fragmentShader: `uniform vec3 uHaze; uniform vec4 uCrisp; uniform float uFade; uniform vec3 uCurve; varying vec3 vW;
       void main() {
         vec2 o = max(max(uCrisp.xy - vW.xz, vW.xz - uCrisp.zw), vec2(0.0));
         float d = length(o);
-        float a = smoothstep(-4.0, uFade, d) * 0.62 + smoothstep(uFade, uFade * 2.6, d) * 0.33;
+        float a = ${haze ? 'smoothstep(uCurve.x, uCurve.y, d) * uCurve.z' : 'smoothstep(-4.0, uFade, d) * 0.62 + smoothstep(uFade, uFade * 2.6, d) * 0.33'};
         gl_FragColor = vec4(uHaze, a);
         #include <colorspace_fragment>
       }`,
