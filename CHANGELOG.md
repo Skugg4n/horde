@@ -1,5 +1,27 @@
 # Ändringslogg
 
+## 0.16.2 (2026-10-17)
+
+Speltestet av 0.16.1 (docs/playtests/2026-10-17-0.16.1.md, "SPELBART: NEJ"): de tysta placeringarna (tredje speltestet i rad), muren på Ishallen dag 2, köpraden som hoppar, Next wave, räknarna, krockarna och de föreslagna platserna.
+
+Placeringen i låg bildtakt (rotorsaken):
+- Testarnas panel gick i 1 till 1,5 bilder/s. Spelet bestämde vad ett klick betydde utifrån gränssnitt som spelaren ännu inte hade sett: (1) samma kort en gång till lade tillbaka saken i handen, så att nästa klick på kartan inte gjorde något; (2) en lektionsplåt (det dämpade lagret) som kommit upp mellan två bilder fångade klicket som var menat för kartan eller köpraden och släppte bara plåten; (3) skälet vid pekaren ("On the road") och andra plåtar som själva säger pointer-events: none fångade ändå klick, eftersom regeln #ui .plate vann på specificitet; (4) ett kort som tog slut försvann och flyttade de andra korten under pekaren.
+- Nu: samma kort igen behåller saken ("Already in hand. Esc puts it back"); ett klick på plåten släpper den och går vidare till det som ligger under (kartan eller kortet), och en siffertangent tar upp kortet under en plåt; plåtarna som inte ska ta klick släpper igenom dem; ett klick med något i handen på gränssnittet säger "Not on the map". Det som var i handen ligger kvar när fiendens presentationsruta stängs. Riktningen räknas från rutan som klicket gäller, inte från hovringens. En gammal panorering äter aldrig nästa klick.
+- Placeringsprovet scripts/placement-harness.mjs (npm run placement): huvudlös Chromium med requestAnimationFrame nedskruvat till 1,5 eller 1 bild/s, riktiga pekarhändelser i åtta följder (hovra och tryck direkt, tryck utan bildruta, efter ett köp, från ett utfällt kort, siffertangent, nära kanten, nytt klick där skälet står, liten knuff från en ruta som inte går). Varje försök loggas (__horde.placeLog med ?debug eller ?test). Före: 7 av 96 (1,5 bilder/s) och 4 av 64 (1 bild/s) klick utan vare sig enhet eller skäl; efter: 0 av 96 och 0 av 64.
+
+Ishallen dag 2 (en sak i taget):
+- Dagen lär ut barrikaderna och hordens väg, inget annat. En ingång (Sigtunavägen öst), vågorna 30 / 44 / 58 (var 45 / 70 / 98). Hemvärnets grupp och Norra vägen kommer dag 3, skogsvägen dag 4. Ledningens leveranser följer med (dag 2 två Ksp 90 och granaterna, dag 3 Hemvärnet, Ksp 58 och Ak 5). Tipset "Squads find their own cover." kommer med Hemvärnet dag 3. Introna: "Day 2: Barricades", "Day 3: The Home Guard".
+- Den som följer tipsen vinner dag 2 på första försöket i alla fem seeds (ny policy hints i balansskriptet, prov i tests/balance-op-normal.test.js), den som inte lägger någon spärr likaså. Se docs/balance-log.md 0.16.2.
+
+Gränssnittet:
+- Köpraden: ett kort där alla enheter står ute står kvar grått ("All out") med samma siffra; siffrorna flyttar aldrig.
+- Next wave: före Next wave med bonus är nedräkningen ingen knapp (ingen rostfärg, streckad kant). Ett klick eller mellanslag säger varför vid knappen: "It comes by itself in 12s", eller mitt i en våg "Clear this wave first: 14 still out. Shift+Space calls it anyway".
+- Räknarna: en källa (src/ui/hud.js waveCounts och comingBySpawn). Kvar är alltid de som går på kartan plus de som inte släppts; vinner evakueringen dagen mitt i en våg står "Civilians safe" i stället för "0 of 32 left". Ingångarnas etiketter säger under vågen "... to come", så att de inte tas för hela vågen. Prov i tests/wave-count.test.js.
+- Plåtarna: lektionsplåten viker för kortets utfällda ruta när den inte får plats bredvid. Bildtexterna (t.ex. "Press, then drag toward the road to aim.") står 4 s i verklig tid, inte i bildrutornas tid, och en bildtext om det man håller i går när man släpper det. En ny ingång har företräde: raden står 8 s och inga nya plåtar eller bildtexter börjar under tiden.
+- De föreslagna platserna är en fylld mjuk fläck med etikett ("Volunteers here", på E4 "Here").
+
+Balansen: nya fingeravtryck från Ishallen dag 2 och framåt, och nytt kvitto för South dag 3 (docs/balance-log.md 0.16.2). Kampanjens mål håller: normal inom 1 till 3 försök, skilled allt på första.
+
 ## 0.16.1 (2026-10-17)
 
 Polish efter speltesterna av 0.14.2 och 0.16.0 (docs/playtests/2026-10-17-0.16.0.md, "SPELBART: NEJ"), todo H190 till H194 och H214 till H216.

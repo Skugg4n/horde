@@ -786,3 +786,35 @@ skilled alla seeds 1 på varje dag
 ```
 Kampanjens mål håller. Fingeravtrycken per kampanjsteg är alla nya, avsiktligt (E4 dag 1 till 3 och Ishallen dag 1 ändrade, resten bärs vidare via RP). Simuleringens kvitto: E4 dag 2 cf609061 till bfc5d385; South dag 3 och North dag 2 står kvar.
 
+## 0.16.2: Ishallen dag 2 en sak i taget
+
+Underlag: speltestet av 0.16.1 (docs/playtests/2026-10-17-0.16.1.md). Testaren förlorade dag 2 två gånger (45 / 70 / 98 fiender, basen 20) och förrådet öppnade aldrig. Dagen hade fem nyheter före första vågen: barrikaden, Hemvärnet, en ny ingång (Norra vägen), hordens väg och omdirigeringen.
+
+Uppmätt före (fem seeds, försök 1): normal 4 till 7 kvar efter dag 2; naive (ingen spärr, närmast en förstagångsspelare) förlorade alla fyra försök i alla seeds, basen 7 till 12 efter våg 1 och 0 i våg 2.
+
+Ändrat och varför:
+- Dag 2 lär ut barrikaderna och hordens väg (pilarna och omdirigeringen hör ihop). En ingång, Sigtunavägen öst. Vågorna 4 + 26 / 30 + 14 / 36 + 22 (30 / 44 / 58), samma trappa som dag 1 (19 / 32 / 60). hp 1,8 som förut.
+- Hemvärnets grupp (MCF:s leverans) och Norra vägen flyttar till dag 3; skogsvägen till dag 4, där den är nyheten tillsammans med bjässarna. Dag 2:s leverans: två Ksp 90 och granaterna.
+- Dag 3 hp 3,5 till 4,0: utan skogsvägen blev dagen lättare (normal 11 till 13 kvar mot 6 till 9 förut). Nu 6 till 9 igen.
+- North dag 3 hp 4,4 till 4,2: en kortare dag 2 ger mindre RP (skilled 160 i stället för 293), och skilled behövde två försök på North dag 3 i två seeds av fem. Nu första försöket i alla.
+- Balansskriptet: spärren dag 2 ligger vid första stickgatan (DAY2_BLOCKS, -25, 31). Vid rondellen (SMART_BLOCKS) har dag 2:s enda väg ingen omväg nära pjäserna. Ny policy hints: lägger spärren och ställer pjäserna längs den nya vägen som pilarna visar (förstagångsspelaren som följer tipsen).
+
+Resultat dag 2 (fem seeds, försök 1, basen efter våg 1 / 2 / 3):
+```
+hints   20/20/17  20/20/18  20/20/15  20/20/14  20/20/15
+naive   20/20/20  20/20/18  20/20/16  20/20/18  20/20/18
+normal  20/20/17  20/20/18  20/20/15  20/20/14  20/20/15
+```
+Kampanjen (försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 1  1 1 1 1 1 1 1 3 1 1 1 1 1
+        seed 2  1 1 1 1 1 1 1 3 1 1 2 1 1
+        seed 3  1 1 1 1 1 1 2 1 1 2 1 2 1
+        seed 4  1 1 1 1 1 1 1 3 1 1 1 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken: E4 och Ishallen dag 1 står kvar, Ishallen dag 2 och allt efter är nya, avsiktligt. Simuleringens kvitto: South dag 3 db5f4217 till cab7334b (Norra vägen i stället för skogsvägen, hp 4,0); E4 dag 2 och North dag 2 står kvar.
+
+Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 till 18 kvar). Avsikten är att en ny spelare ska ta sig förbi dagen och se förrådet; ribban höjs igen dag 3.
+
