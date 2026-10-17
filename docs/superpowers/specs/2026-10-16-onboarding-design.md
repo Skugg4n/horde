@@ -335,3 +335,27 @@ Det ska INTE gå att rekvirera hur mycket som helst. Ola tyckte begränsningen v
 - Gnesta South och North är sektorn Hagstumosse (Olas beslut 2026-10-16, se operation-design.md). Steget "mellan South 5 och North: två sektorer, tryck, omplacering" blir "samma stadsdel, större karta, trupperna följer med" ("Same district, wider map. Your units carry over."). Omplaceringen och trycket är vilande tills två skilda platser är aktiva.
 - Return till förrådet kommer med uppgraderingarna efter South dag 4 (designen hade den med sektorerna).
 - Vandrarna får också presentationsrutan (Olas beslut 4 gäller varje ny fiendetyp); den ersätter steg 4 på E4 dag 1 och steget för löparna och bjässarna.
+
+## Ändrat i 0.16.4 (Olas feedback och speltestet av 0.16.2)
+
+- **E4 dag 2 "Two roads":** båda ingångarna sägs före första vågen (Södertälje med etiketten "From wave 2" och vägen därifrån, plåten **"Two roads in. Södertälje joins from wave 2."**). Raden före våg 2 varnar igen, och **Move (M)** kommer här som dagens andra lektion: efter våg 1, hård paus, **"Units can relocate. Click one, then press M."** Skälet: den som ställt allt mot Nyköping ska kunna rätta sig, och att flytta är det intressantare begreppet (Ola valde mellan en tredje pjäs, förnödenheter och Move). Fartknappen (`F`) flyttar till E4 dag 3 (tyst efter våg 1), så att dag 2 inte får tre saker.
+- **Ishallen dag 1:** inga föreslagna platser längre. Husen som utryms är märkta ("Evacuates · wave 1/2"), de civilas vägar, hordens väg och korsningarna syns före första vågen. Steget är ett mål: **"Protect the routes. Place your volunteers."** Två omgångar hus på olika gator och fler korsningar än grupper: ett riktigt val, och Move (från E4 dag 2) när evakueringen byter gata.
+- **Ishallen dag 3 "The Home Guard":** Hemvärnet och Norra vägen (en andra väg in, känd från E4 dag 2). Inget annat nytt.
+- **Ishallen dag 4:** de vilande husen (förut dag 3) och Ksp 58. Move-lektionen är borta härifrån (den kom på E4 dag 2); waypoints (Shift-klick) står kvar som bildtext.
+- **Ishallen dag 5:** Next wave med bonus (förut dag 3), Ksp 88 och Ak 5.
+- **Vikingavägen dag 1:** förnödenheterna på enheten (förut Ishallen dag 5) och Psg 90. **Dag 2:** skrotbilarna (förut efter Ishallen dag 2) med pingarna.
+- Före Next wave med bonus är nedräkningen bara text, ingen knapp.
+
+| Dag | Begrepp |
+|---|---|
+| E4 dag 1 | Ställ ut en pjäs, starta vågen |
+| E4 dag 2 | Förnödenheter och taggtråd; två vägar in och Move (M) |
+| E4 dag 3 | Sikta, `R`; tyst: fart (`F`) |
+| Ishallen dag 1 | Evakueringen, välj korsningar |
+| Ishallen dag 2 | Barrikader och hordens väg |
+| Ishallen dag 3 | Hemvärnet, Norra vägen |
+| Ishallen dag 4 | Vilande hus, Ksp 58 |
+| Ishallen dag 5 | Next wave med bonus, Ksp 88, Ak 5 |
+| Vikingavägen dag 1 | Förnödenheter på enheten, Psg 90 |
+| Vikingavägen dag 2 | Pingar, skrotbilar |
+| Vikingavägen dag 3 | Frontbredd och reserv |

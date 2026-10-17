@@ -68,10 +68,13 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.16.1: E4 dag 2 cf609061 till bfc5d385, avsiktligt (våg 2 och 3 jämnare, 40 / 68 till 44 / 60; docs/balance-log.md 0.16.1).
 // 0.16.2: South dag 3 db5f4217 till cab7334b, avsiktligt (Norra vägen i stället för skogsvägen, hp 4,0; den fasta
 // styrkan förlorar nu i våg 3 utan Hemvärnet, docs/balance-log.md 0.16.2). E4 dag 2 och North dag 2 står kvar.
+// 0.16.4: alla tre nya, avsiktligt: löparna snubblar ibland (src/sim/sim.js stumble, cirka 1 s per snubbel; utan
+// snubblet står E4 dag 2 och North dag 2 kvar på bfc5d385 och b50f3d9a), och South dag 3 har nya vågor (39 / 60 / 84,
+// hp 2,7, inga vilande hus). docs/balance-log.md 0.16.4.
 const RECEIPTS = {
-  'E4 day 2': 'bfc5d385',
-  'Gnesta South day 3': 'cab7334b',
-  'Gnesta North day 2': 'b50f3d9a',
+  'E4 day 2': 'c6ff18ea',
+  'Gnesta South day 3': '1b4eff89',
+  'Gnesta North day 2': 'd4dc66ed',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

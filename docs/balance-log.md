@@ -818,3 +818,29 @@ Kampanjens mål håller. Fingeravtrycken: E4 och Ishallen dag 1 står kvar, Isha
 
 Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 till 18 kvar). Avsikten är att en ny spelare ska ta sig förbi dagen och se förrådet; ribban höjs igen dag 3.
 
+
+## 0.16.4: E4 dag 2 rättvis, Ishallen dag 1 med val, dag 3 utan stup, löparna snubblar
+
+Underlag: Olas feedback (E4 dag 2 orättvis, Hagstumosse dag 1 utan agens) och speltestet av 0.16.2 (docs/playtests/2026-10-17-0.16.2.md: Ishallen dag 3 med 49 / 94 / 190 och sex-sju nyheter på en gång, förrådet lovade en Ksp 90 som inte gick att få).
+
+Ändrat och varför:
+- E4 dag 2: båda ingångarna syns från början (Södertälje förvarnad, etiketten "From wave 2" och vägen därifrån), raden före våg 2 varnar, och Move (M) är dagens andra lektion (förut Ishallen dag 4). Fartknappen flyttade till dag 3. Vågorna och hp är oförändrade. Ny policy firstTimer: ställer båda Ksp 90 mot Nyköping och flyttar en mot Södertälje vid varningen. Den vinner dag 2 på första försöket i alla fem seeds med basen hel (20/20/20). Samma spelare utan flytt (firstStatic) vinner med 15 till 16 kvar. Skälet till att välja Move i stället för en tredje pjäs: det är det intressantare begreppet, och det behövs igen på Ishallen dag 1.
+- Ishallen dag 1: två omgångar hus på olika gator (våg 1 i öster, våg 2 i väster), fyra korsningar och tre grupper frivilliga, need 18 av 24 (var 13 av 20). Inga föreslagna platser i spelet längre. Policyn hints (och skilled) läser farokartan (evacDeploy, evacReposition: grupperna vid korsningarna i tur och ordning, flyttar när omgången byter gata): vinner på första försöket med 20 till 23 framme. Tre grupper vid ishallen förlorar.
+- Ishallen dag 3: Hemvärnet och Norra vägen är dagens två saker. De vilande husen flyttade till dag 4, Next wave med bonus till dag 5, Ksp 58 och pillboxen till dag 4, Ak 5 och Ksp 88 dag 5, Psg 90 till Vikingavägen dag 1, förnödenheterna på enheten till Vikingavägen dag 1 och skrotbilarna till Vikingavägen dag 2. Vågorna 39 / 60 / 84 (var 49 / 94 / 190), hp 4,0 till 2,7: utan Ksp 58 och Ak 5 är styrkan svagare. hints vinner på första försöket i alla seeds (8 till 9 kvar), normal 9 till 13, skilled 8 till 9.
+- Ishallen dag 4 hp 2,2 till 1,3 och dag 5 hp 2,4 till 2,1: utan Psg 90 och Ak 5 föll normal i våg 2 i alla försök (bas 14 till 0) vid 2,2. Nu vinner normal dag 4 på andra försöket (6 till 8 kvar) och dag 5 på 2 till 3; skilled vinner båda på första.
+- Förrådet: den extra Ksp 90 släpps med leveransen dag 4 (förut dag 3, där rekvisitionen inte hade öppnat). Nytt prov: varje löfte i ledningens text motsvaras av lager som går att rekvirera när meddelandet kommer.
+- H234: skyltarnas fotavtryck i placeringen står där skyltarna står (förut frysta där de stod i 0.16.2, bland annat på väg 800:s asfalt). Placeringens fingeravtryck 92004483 till 3790515640. Simuleringens kvitto för E4 dag 2 rörs inte av det (samma rutor).
+- Löparna snubblar (Olas bonus): var 20 till 40 m ett försök, chansen 0,6, ur zombiens id och simuleringens frö (inte sim.rng). Snubblet tar 1,2 s (faller 0,45, kryper 0,1, reser sig 0,55 av farten), cirka 0,8 s förlorad gångtid. Inte i diset. Mätbart men litet: normal snitt bas kvar 11,78 till 11,95 och 88 till 83 försök totalt, skilled 13,42 till 14,00. Ingen omtrimning för det.
+
+Kampanjen (försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 2 2 1 2 1 1 1
+        seed 1  1 1 1 1 1 1 2 3 1 1 1 1 1
+        seed 2  1 1 1 1 1 1 2 3 1 1 2 1 1
+        seed 3  1 1 1 2 1 1 2 1 1 2 2 1 1
+        seed 4  1 1 1 1 1 1 2 3 1 1 2 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken: alla steg utom E4 dag 1 nya, avsiktligt (ovan). Simuleringens kvitto: E4 dag 2 bfc5d385 till c6ff18ea och North dag 2 b50f3d9a till d4dc66ed (snubblet; utan det står båda kvar), South dag 3 cab7334b till 1b4eff89 (nya vågor, inga vilande hus).
+
+Kvar att se: dag 4 kräver nu ett andra försök för normal i alla seeds (förut första). Speltesta om det känns som en vägg; det är där bjässarna och de vilande husen möts.

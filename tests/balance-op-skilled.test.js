@@ -61,7 +61,12 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // spärren vid första stickgatan, Hemvärnet och Norra vägen dag 3 (hp 3,5 till 4,0 när skogsvägen flyttade till dag
 // 4), North dag 3 hp 4,4 till 4,2 (mindre RP från en kortare dag 2). E4 och Ishallen dag 1 står kvar.
 // docs/balance-log.md 0.16.2.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"533d645b","gnesta 3":"4fe55936","gnesta 4":"79421bcc","gnesta 5":"96d43304","gnesta-norr 1":"33bb5c9c","gnesta-norr 2":"41c9d9a6","gnesta-norr 3":"c06cb0b1","gnesta-norr 4":"faae257e","gnesta-norr 5":"4e2d0f4d"};
+// 0.16.4: alla steg utom E4 dag 1 nya, avsiktligt (Olas feedback och speltestet av 0.16.2): löparna snubblar ibland
+// (kostar cirka 1 s), skyltarnas fotavtryck där skyltarna står (H234), E4 dag 2 med Move och Södertälje förvarnad,
+// Ishallen dag 1 med två omgångar hus och fyra korsningar (need 18 av 24), dag 3 Hemvärnet och Norra vägen (39 / 60 / 84,
+// hp 2,7), de vilande husen och Ksp 58 dag 4 (hp 1,3), Ak 5 och Ksp 88 dag 5 (hp 2,1), Psg 90 på Vikingavägen.
+// docs/balance-log.md 0.16.4.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"e9d708ad","gnesta 2":"20874c9c","gnesta 3":"ab318690","gnesta 4":"4b615993","gnesta 5":"ce887d5a","gnesta-norr 1":"564cfbcd","gnesta-norr 2":"8b0f08f8","gnesta-norr 3":"0877099a","gnesta-norr 4":"93ba1fda","gnesta-norr 5":"a3c9dddd"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

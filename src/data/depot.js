@@ -97,29 +97,30 @@ export const RELEASES = [
     grant: [{ type: 'm2' }, { type: 'epa' }], unlock: ['m2', 'epa'], tiers: ['m2.1'] },
   // ---------- Gnesta South ----------
   { id: 'gn-1', map: 'gnesta', day: 1, from: 'MCF',
-    text: 'Hunters and neighbours in Gnesta form three groups of volunteers. Civilians are still in their houses.',
+    text: 'You take command in Hagstumosse. Hunters and neighbours form three volunteer groups. Get the civilians into the ice rink.',
     grant: [{ type: 'civ', count: 3 }], unlock: ['civ'] },
   // 0.16.2 (speltestet av 0.16.1): Hemvärnets grupp kommer dag 3, så att dag 2 bara lär ut barrikaderna
   { id: 'gn-2', map: 'gnesta', day: 2, from: 'MCF',
     text: 'Two Ksp 90 teams from Hemvärnet reach Gnesta, with hand grenades. Barricades are ready.',
     grant: [{ type: 'm249', count: 2 }], unlock: ['m249'], tiers: ['grenade.1'] },
-  { id: 'gn-3', map: 'gnesta', day: 3, from: 'FM',
-    // 0.16.4 (speltestet av 0.16.2: "förrådet lovar en Ksp 90 som inte går att få"): rekvisitionen öppnar först efter
-    // dag 3, så den extra Ksp 90 släpps med nästa leverans (gn-4), där den också går att rekvirera
-    text: 'Hemvärnet sends a rifle squad. A Ksp 58 team and an Ak 5 grenadier for Gnesta.',
-    grant: [{ type: 'hv' }, { type: 'ksp58' }, { type: 'ak5' }], unlock: ['hv', 'ksp58', 'ak5'], tiers: ['ksp58.1', 'ak5.1'] },
-  { id: 'gn-4', map: 'gnesta', day: 4, from: 'MCF',
-    text: 'For Gnesta: a welded pillbox and a Psg 90 sniper. One Ksp 58 and one Ksp 90 team released.',
-    grant: [{ type: 'epa' }, { type: 'psg90' }], unlock: ['epa', 'psg90'], tiers: ['psg90.1'], stock: { ksp58: 1, m249: 1 },
+  // 0.16.4 (speltestet av 0.16.2: Ishallen dag 3 hade sex-sju nyheter): en ny enhet per dag. Hemvärnet dag 3, Ksp 58
+  // och pillboxen dag 4, Ksp 88 och Ak 5 dag 5, Psg 90 på Vikingavägen dag 1. Den extra Ksp 90 släpps dag 4, när
+  // rekvisitionen har öppnat (förut lovade dag 3:s meddelande en Ksp 90 som inte gick att få).
+  { id: 'gn-3', map: 'gnesta', day: 3, from: 'MCF',
+    text: 'Hemvärnet sends a rifle squad to Gnesta. They also come along Norra vägen.',
+    grant: [{ type: 'hv' }], unlock: ['hv'] },
+  { id: 'gn-4', map: 'gnesta', day: 4, from: 'FM',
+    text: 'A Ksp 58 team and a welded pillbox for Gnesta. One more Ksp 58 and one Ksp 90 released.',
+    grant: [{ type: 'ksp58' }, { type: 'epa' }], unlock: ['ksp58', 'epa'], tiers: ['ksp58.1'], stock: { ksp58: 1, m249: 1 },
     ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
   { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
-    text: 'A mounted Ksp 88 for Gnesta. One more Ksp 58 team and a Ksp 90 team are released.',
-    grant: [{ type: 'm2' }], unlock: ['m2'], tiers: ['m2.1'], stock: { ksp58: 1, m249: 1 },
+    text: 'A mounted Ksp 88 and an Ak 5 grenadier for Gnesta. One more Ksp 58 and one Ksp 90 released.',
+    grant: [{ type: 'm2' }, { type: 'ak5' }], unlock: ['m2', 'ak5'], tiers: ['m2.1', 'ak5.1'], stock: { ksp58: 1, m249: 1 },
     ups: { grenade: 2, ksp58: 2 } },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'The fog lifts. They are circling north of the ice rink, up Vikingavägen.',
-    grant: [{ type: 'm249' }, { type: 'ksp58' }], unlock: NORTH_ALL, stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
+    text: 'The fog lifts. They are circling north, up Vikingavägen. A Psg 90 sniper joins you.',
+    grant: [{ type: 'm249' }, { type: 'ksp58' }, { type: 'psg90' }], unlock: NORTH_ALL, tiers: ['psg90.1'], stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
     ups: { m2: 2, budget: 1 } },
   { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',
     text: 'New kit at the depot: faster Ksp 90 feeds, Psg 90 optics and better concrete.',

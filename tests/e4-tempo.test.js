@@ -28,7 +28,13 @@ test('E4 dag 2 utan uppgraderingar: vinst med skada, och basen faller aldrig på
   for (const s of SEEDS) {
     const { r, hp } = weakDay2(s);
     assert.ok(r.won, `seed ${s}: dagen vanns (bas ${r.baseHp})`);
-    assert.ok(r.baseHp < 20, `seed ${s}: basen tog skada (${r.baseHp})`);
+    // 0.16.4 (Olas feedback: "dag 2 är orättvis"): Södertälje sägs från början, så den som ställer pjäserna efter båda
+    // vägarna kan hålla basen hel; den som ställer allt mot Nyköping och inte flyttar tar skada
+    let q = selectMap(newCampaign(), 'riksvagen');
+    const r1 = playOpDay(q, 'riksvagen', 1, 'firstStatic', { seedOffset: s });
+    q = finishDay(q, { mapId: 'riksvagen', day: 1, won: r1.won, intelEarned: r1.intelEarned, report: r1.report }).progress;
+    const st = playOpDay(q, 'riksvagen', 2, 'firstStatic', { seedOffset: s });
+    assert.ok(st.won && st.baseHp < 20, `seed ${s}: utan flytt ${st.won ? 'vinst' : 'förlust'} med ${st.baseHp}`);
     // högst 4 förlorade på 10 s (en var 3,2 s vid spärren)
     for (let i = 10; i < hp.length; i++) assert.ok(hp[i - 10] - hp[i] <= 4, `seed ${s}: ${hp[i - 10]} till ${hp[i]} på 10 s`);
   }

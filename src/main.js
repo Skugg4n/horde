@@ -858,8 +858,10 @@ function updateNewSpawn() {
     const sp = sim.map.spawns?.find(q => q.id === id), at = sim.route.spawns.find(q => q.id === id);
     // 0.16.2 (speltestet av 0.16.1: raden stod ca 5 s och krockade med fartknappens tips): 8 s, och inga andra
     // tips eller bildtexter börjar medan den står (newsUntil)
-    note(uiRoot, sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true, ms: 8000 });
-    newsUntil = performance.now() + 8000;
+    // 0.16.4: en förvarnad ingång (E4 dag 2) säger att det är nu; lektionen om Move får komma samtidigt
+    const told = (sim.dayCfg.foretell ?? []).includes(id);
+    note(uiRoot, told ? `Next wave: they also come from ${sp?.from ?? sp?.name ?? id}.` : sp?.from ? `They're also coming from ${sp.from}.` : `They're also coming along ${sp?.name ?? id}.`, 'warn', { prio: true, ms: 8000 });
+    if (!told) newsUntil = performance.now() + 8000;
     routeFlash = 4;
     if (at) alerts.push({ x: at.x, z: at.z, until: time + 10, kind: 'spawn' });
   }
@@ -1126,7 +1128,19 @@ function activeSpawns() {
     const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
     if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next ??= firstOf(w).spawn ?? first; }
   }
+  // 0.16.4 (Olas feedback, E4 dag 2): dagens förvarnade ingångar (dayCfg.foretell) syns från början med sin väg,
+  // tills vågen de kommer i har släppt allt
+  for (const id of foretold()) ids.add(id);
   return { ids: sim.route.spawns.map(s => s.id).filter(id => ids.has(id)), next };
+}
+// Förvarnade ingångar vars första våg inte har börjat än. Map id -> vågens nummer (1-baserat).
+function foretold() {
+  const out = new Map(), first = sim.route.spawns[0]?.id;
+  for (const id of sim.dayCfg.foretell ?? []) {
+    const w = sim.dayCfg.waves.findIndex(w => w.groups.some(g => (g.spawn ?? first) === id));
+    if (w >= sim.wavesStarted) out.set(id, w + 1);
+  }
+  return out;
 }
 const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
 // Vad som kommer från varje ingång (0.11.0, H090): "30 walkers", "50 runners". Före en våg (bygget
@@ -1145,8 +1159,23 @@ function gridEntries() {
   const { ids, next } = activeSpawns();
   const coming = comingBySpawn(sim);
   const cx = innerWidth / 2, cy = innerHeight / 2;
+  const later = foretold();
   for (const id of ids) {
     const isNext = id === next;
+    // 0.16.4: en förvarnad ingång säger när den kommer ("From wave 2"), före och under vågorna innan dess
+    if (later.has(id) && !(sim.phase === 'build' && later.get(id) === sim.wavesStarted + 1)) {
+      const cellsF = sim.route.paths([id])[0]?.cells ?? [], candsF = [];
+      for (let i = 0; i < cellsF.length && candsF.length < 48; i += 2) {
+        const c = sim.route.cellCenter(cellsF[i]), q = onScreen(c.x, c.z, 0);
+        if (!q.in) continue;
+        const t = sim.route.cellCenter(cellsF[Math.min(i + 3, cellsF.length - 1)]), u = onScreen(t.x, t.z);
+        candsF.push({ x: q.sx, y: q.sy, angle: Math.atan2(u.sy - q.sy, u.sx - q.sx) + Math.PI });
+      }
+      const spF = sim.route.spawns.find(q => q.id === id), sF = onScreen(spF.x, spF.z, EDGE);
+      const dxF = sF.sx - cx, dyF = sF.sy - cy, kF = Math.min(Math.abs((cx - EDGE) / (dxF || 1e-6)), Math.abs((dyF < 0 ? cy - 110 : cy - 120) / (dyF || 1e-6)));
+      out.push({ cands: candsF, fallback: { x: cx + dxF * kF, y: cy + dyF * kF, angle: Math.atan2(-dyF, -dxF) + Math.PI }, lines: [`From wave ${later.get(id)}`], sub: spawnName(id), next: false });
+      continue;
+    }
     if (wave) {
       const pending = sim.spawnQueue.some(q => !q.door && (q.spawn ?? sim.route.spawns[0].id) === id);
       const alive = sim.zombies.filter(z => !z.dead && z.spawn === id);
@@ -1401,6 +1430,8 @@ function lessonWorldPts(t) {
   else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
+  // 0.16.4: en ingång och vägen därifrån till spärren (E4 dag 2: Södertälje)
+  else if (w.startsWith('entry:')) { const id = w.slice(6), cells = sim.route.paths([id])[0]?.cells ?? []; for (let i = 0; i < cells.length * 0.6; i += 3) pts.push(cellWorld(cells[i])); }
   else if (w.startsWith('gun')) { const type = w.split(':')[1]; const g = sim.guns.find(x => (type ? x.weapon.type === type : !x.preset)) ?? sim.guns[0]; if (g) pts.push([g.x, g.z]); }
   return pts;
 }
@@ -1617,8 +1648,11 @@ function evacHelp() {
 // 0.16.1: på en evakueringsdag pulserar de föreslagna platserna (gula hörn) medan de frivilliga står i reserven
 // eller hålls i handen, före första vågen; de är förslag, inte de enda platserna.
 const spotEls = new Map();
+const SUGGEST = false;
+// 0.16.4 (Olas feedback: "dag 1 har ingen agens"): inga föreslagna platser; spelaren läser kartan själv. Husen som
+// ska utrymmas märks i stället (updateEvacMarks).
 function suggestKeys() {
-  if (mode !== 'play' || !sim.dayCfg.evac || sim.wavesStarted > 0) return [];
+  if (!SUGGEST || mode !== 'play' || !sim.dayCfg.evac || sim.wavesStarted > 0) return [];
   const civ = placing?.type === 'civ' || sim.reserve?.some(u => u.type === 'civ' && canDeploy(sim, u));
   if (!civ) return [];
   return evacHelp().spots.map(s => s.key).filter(k => !sim.guns.some(g => Math.hypot(g.x - sim.place.center(k).x, g.z - sim.place.center(k).z) < 4));
@@ -1636,6 +1670,25 @@ function updateSpotMarks() {
     if (!el) { el = document.createElement('div'); el.className = 'spotmark'; el.innerHTML = '<b></b><i></i><i></i><i></i><i></i><span></span>'; pips.appendChild(el); spotEls.set(k, el); }
     const sp = el.querySelector('span'); if (sp.textContent !== label) sp.textContent = label;
     const c = sim.place.center(k), p = toScreen(c.x, c.z);
+    el.style.left = p.sx + 'px'; el.style.top = p.sy + 'px';
+  }
+}
+
+// 0.16.4: husen som utryms märks med vågen de går i ("Evacuates · wave 2") tills den vågen startar.
+const evacEls = new Map();
+function updateEvacMarks() {
+  const ev = mode === 'play' && sim.dayCfg.evac && sim.evac && !evacOutcome(sim.evac) ? sim.dayCfg.evac : null;
+  const want = new Map();
+  if (ev) for (const g of ev.groups) {
+    if (sim.wavesStarted <= g.wave) want.set(g.house, g.wave);
+  }
+  for (const [h, el] of evacEls) if (!want.has(h)) { el.remove(); evacEls.delete(h); }
+  for (const [h, w] of want) {
+    let el = evacEls.get(h);
+    if (!el) { el = document.createElement('div'); el.className = 'evacmark'; el.innerHTML = '<span></span>'; pips.appendChild(el); evacEls.set(h, el); }
+    const t = `Evacuates · wave ${w + 1}`;
+    const sp = el.querySelector('span'); if (sp.textContent !== t) sp.textContent = t;
+    const d = houseDoor(sim.map, h, sim.route), p = toScreen(d.x, d.z);
     el.style.left = p.sx + 'px'; el.style.top = p.sy + 'px';
   }
 }
@@ -1736,6 +1789,7 @@ function showDepot(sector, from = 'opmap', deploy = null) {
   }, { deploy }));
 }
 function startDay(n) {
+  victoryWait = null;
   const cfg = opStartConfig(progress, n);
   if (!cfg) { showOpMap(); return; }
   day = n;
@@ -2033,6 +2087,8 @@ const menu = mountMenu(uiRoot, {
 loadMap(progress.mapId).then(() => showMenu());
 
 let last = performance.now(), time = 0;
+const VICTORY_PAUSE = 2.6, VICTORY_LINE_AT = 0.7;
+let victoryWait = null;
 const clock = { acc: 0 };
 function tick(now) {
   const frameDt = Math.min((now - last) / 1000, 0.1);
@@ -2043,7 +2099,14 @@ function tick(now) {
   const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
   const paused = menu.isOpen() || lessonPaused();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
-  if (mode === 'play' && (sim.phase === 'won' || sim.phase === 'lost')) finishDay();
+  // 0.16.4 (Olas önskan): efter den sista zombien en stund av lugn innan VICTORY, så att man ser det. Tiden går i
+  // spelets fart och står still när spelet pausas; musiken har redan gått ner (phase 'won').
+  if (mode === 'play' && sim.phase === 'won') {
+    if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
+    if (!paused) victoryWait.t += frameDt * speed;
+    if (!victoryWait.told && victoryWait.t >= VICTORY_LINE_AT) { victoryWait.told = true; hud.banner('Sector quiet', VICTORY_PAUSE - VICTORY_LINE_AT + 0.4); }
+    if (victoryWait.t >= VICTORY_PAUSE) { victoryWait = null; finishDay(); }
+  } else if (mode === 'play' && sim.phase === 'lost') finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons();
   updateBaseArrow();
@@ -2059,6 +2122,7 @@ function tick(now) {
     if (minimap.visible !== mmWant) minimap.toggle(mmWant);
   }
   updateSpotMarks();
+  updateEvacMarks();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
   updateGhostTip();

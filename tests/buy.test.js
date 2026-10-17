@@ -99,8 +99,10 @@ test('förrådet per sektor och dag, och forskningen ovanpå', () => {
   assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först dag 5');
   const g5 = createSim({ map: MAPS.gnesta, day: 5, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(g5, 'm2').state, 'ok');
-  assert.equal(buyState(g5, 'psg90').state, 'ok', 'banan lånar ut Psg 90 från dag 4');
-  assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'psg90').state, 'absent', 'men inte före');
+  // 0.16.4 (speltestet av 0.16.2: en ny enhet per dag): Ksp 58 dag 4, Ak 5 dag 5, Psg 90 först på Vikingavägen
+  assert.equal(buyState(g5, 'psg90').state, 'absent', 'Psg 90 kommer på Vikingavägen');
+  assert.equal(buyState(g5, 'ak5').state, 'ok', 'Ak 5 dag 5');
+  assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'ksp58').state, 'absent', 'Ksp 58 först dag 4');
   const n3 = createSim({ map: MAPS['gnesta-norr'], day: 3, cash: 800, research: [], seed: 1 });
   assert.equal(buyState(n3, 'inf').state, 'ok', 'infanteriet på North från dag 3');
   assert.equal(buyState(createSim({ map: MAPS['gnesta-norr'], day: 1, cash: 800, research: [], seed: 1 }), 'inf').state, 'absent');

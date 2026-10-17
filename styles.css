@@ -841,6 +841,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #go kbd[hidden] { display: none; }
 
 /* E4 dag 1: de markerade platserna */
+.evacmark { position: fixed; pointer-events: none; transform: translate(-50%, -150%); }
+.evacmark span { display: block; white-space: nowrap; font: 600 12px/1 Oswald, sans-serif; letter-spacing: 0.04em; color: #1b1a16; background: #f2c46b; padding: 4px 7px; border-radius: 2px; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.evacmark span::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-bottom: 0; border-top-color: #f2c46b; }
 .spotmark { position: fixed; width: 34px; height: 34px; margin: -17px 0 0 -17px; pointer-events: none; animation: coachPulse 1.2s ease-in-out infinite; }
 .spotmark i { position: absolute; width: 10px; height: 10px; border: 0 solid #e9b04a; }
 /* 0.16.2: fylld mjuk fläck och etikett */

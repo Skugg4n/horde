@@ -24,6 +24,7 @@ import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
 import { planSquad } from '../src/sim/squad.js';
 import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
+import { dangerZones, coverSpots } from '../src/sim/evac-danger.js';
 
 const DT = 1 / 30;
 const THINK_EVERY = 30;          // steg mellan policyns beslut under en våg (1 s simtid)
@@ -670,14 +671,60 @@ function opPlan(map, day, town) {
 // 0.14.0: på Gnesta North är spärren på Vikingavägen med pjäserna där de ser hordens väg bättre än 0.13:s
 // smarta plan (dödszonen, radhustaken) när styrkan är kärntrupper; skilled spelar så där (planBy).
 export const POLICIES = {
-  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true },
+  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true, evacMap: true },
   normal: { plan: 'naive', blocks: true, early: false, supplies: false },
   naive: { plan: 'naive', blocks: false, early: false, supplies: false },
   // 0.16.2 (speltestet av 0.16.1, Ishallen dag 2): förstagångsspelaren som följer tipsen. Lägger spärren som
   // lektionen säger och ställer sedan pjäserna längs den nya vägen som pilarna visar (followRoute), men läser inte
   // kartan mer än så och köper inget extra.
-  hints: { plan: 'naive', blocks: true, followRoute: true, early: false, supplies: false },
+  // 0.16.4: på evakueringsdagen läser den kartan (evacMap): korsningarna i tur och ordning, och flyttar dit nästa hus går
+  hints: { plan: 'naive', blocks: true, followRoute: true, early: false, supplies: false, evacMap: true },
+  // 0.16.4 (Olas feedback, E4 dag 2): förstagångsspelaren som ställer allt mot första ingången (Nyköping) och reagerar
+  // på varningen före våg 2: flyttar en Ksp 90 dit den ser vägen från den förvarnade ingången (Move, M).
+  firstTimer: { plan: 'naive', blocks: true, followRoute: true, early: false, supplies: false, e4FirstOnly: true, react: true },
+  // samma spelare som inte reagerar (mäter hur mycket flytten betyder)
+  firstStatic: { plan: 'naive', blocks: true, followRoute: true, early: false, supplies: false, e4FirstOnly: true, react: false },
 };
+// Evakueringsdagen (0.16.4, Olas feedback: "dag 1 har ingen agens"): spelaren som läser farokartan. Korsningarna
+// (src/sim/evac-danger.js dangerZones) i den ordning husen går ut; grupperna ställs vid de första, och när en
+// omgång är förbi flyttas den grupp som står vid en korsning som inte behövs längre till nästa obevakade.
+function evacZonesFrom(sim, wave) {
+  const ev = sim.dayCfg.evac, zones = dangerZones(sim);
+  const waveOf = h => Math.min(...ev.groups.filter(g => g.house === h).map(g => g.wave));
+  return zones.filter(z => waveOf(z.house) >= wave).sort((a, b) => waveOf(a.house) - waveOf(b.house) || (ev.groups.findIndex(g => g.house === a.house) - ev.groups.findIndex(g => g.house === b.house)));
+}
+function evacDeploy(sim) {
+  const zones = evacZonesFrom(sim, 0);
+  for (const s of coverSpots(sim, zones, { max: 8 })) {
+    if (!reserveCount(sim, 'civ')) break;
+    if (sim.guns.some(g => Math.hypot(g.x - s.x, g.z - s.z) < 6)) continue;
+    build(sim, s.key, 'civ');
+  }
+}
+function evacReposition(sim) {
+  if (sim.phase !== 'build' || sim.nextWaveIn == null || sim._evacMoved === sim.wavesStarted) return;
+  sim._evacMoved = sim.wavesStarted;
+  const need = evacZonesFrom(sim, sim.wavesStarted), squads = sim.guns.filter(g => g.squad);
+  const near = (g, z) => Math.hypot(g.x - z.x, g.z - z.z) < 12;
+  const free = squads.filter(g => !need.some(z => near(g, z)));
+  const spots = coverSpots(sim, need.filter(z => !squads.some(g => near(g, z))), { max: 8 });
+  for (const s of spots) { const g = free.shift(); if (!g) break; moveGun(sim, g.id, s.key); }
+}
+
+// E4 (0.16.4): platserna som ser vägen från en ingång, och flytten när den förvarnade ingången kommer.
+function e4SpawnPlan(id) {
+  const map = MAPS.riksvagen, route = routeFor(map), c = map.surroundings.crisp, p = placementFor(map);
+  const cells = route.paths([id]).flatMap(q => q.cells).filter(k => { const q = p.center(k); return q.x >= c.x0 && q.x <= c.x1 && q.z >= c.z0 && q.z <= c.z1; });
+  return coveragePlan(map, cells, { range: E4_RANGE, cacheKey: 'e4only:' + id });
+}
+function reactToForetold(sim) {
+  const ids = sim.dayCfg.foretell ?? [];
+  if (!ids.length || sim.waveIndex < 1 || sim._reacted) return;
+  sim._reacted = true;
+  const gun = [...sim.guns].reverse().find(g => g.weapon.type === 'm249' && !g.move);
+  if (!gun) return;
+  for (const k of e4SpawnPlan(ids[0]).spots) if (moveGun(sim, gun.id, k).ok) return;
+}
 // En dag i operationen. policy: namnet i POLICIES. Returnerar runDay:s resultat med dagens rapport.
 export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset = 0, onSecond = null } = {}) {
   const P0 = typeof policy === 'string' ? POLICIES[policy] : policy;
@@ -688,7 +735,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
   // 0.16.0: barrikaderna är upplåsta från South dag 2 (src/meta/unlocks.js); före det spärrar ingen
   const canBlock = !cfg.allow || cfg.allow.includes('block');
-  let plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
+  let plan = !isTown ? (P.e4FirstOnly ? (() => { const sp = e4SpawnPlan(daySpawns(map, day)[0]).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; })() : opPlan(map, day, null)) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
   if (isTown && P.blocks && canBlock && P.plan !== 'smart' && !P.followRoute) {
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
@@ -698,10 +745,14 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
     : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
   // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) ställs ut när den kommit fram
   const lateReady = () => sim.reserve?.some(u => u.arrive && canDeploy(sim, u));
+  const evacMap = P.evacMap && sim.dayCfg.evac;
   const think = () => {
+    if (evacMap && deployPhase(sim)) evacDeploy(sim);
+    if (evacMap) evacReposition(sim);
     if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); deployAll(sim, plan); }
     else if (lateReady()) deployAll(sim, plan);
     builder();
+    if (P.react && !isTown) reactToForetold(sim);
     if (P.supplies) spendSupplies(sim);
   };
   const r = runDay(sim, think, P.early, onSecond, T?.maxTicks ?? MAX_TICKS, isTown);
