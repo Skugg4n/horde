@@ -372,7 +372,8 @@ export function cafeHarmoni(b, M, o) {
   }
   const cafe = signMesh('CAFÉ', 1.6, 0.5, { bg: '#f2f0ea', fg: '#b3261e' });
   const name = signMesh('HARMONI', 3.2, 0.7, { bg: '#f2f0ea', fg: '#b3261e', sub: 'restaurang café pizzeria' });
-  return [placeIn(cafe, M, vx, vy + 3.1, D / 2 + vd + 0.25), placeIn(name, M, W * 0.3, PL + 2.75, D / 2 + 0.1)];
+  const cafe2 = signMesh('CAFÉ', 2.2, 0.7, { bg: '#f2f0ea', fg: '#b3261e' });
+  return [placeIn(cafe, M, vx, vy + 3.1, D / 2 + vd + 0.25), placeIn(name, M, W * 0.3, PL + 2.75, D / 2 + 0.1), placeIn(cafe2, M, W / 2 + 0.1, PL + 3.6, 0, Math.PI / 2)];
 }
 // Missionshuset: vitt trähus med brant tak, höga fönster och en liten takryttare med spira. Nocken längs z.
 export function missionHouse(b, M, o) {

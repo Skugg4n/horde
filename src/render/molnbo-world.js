@@ -116,7 +116,6 @@ function paintLand(map, { bounds, ppm, fadeEdges = false }) {
     const rd = map.roads.find(x => x.id === id), [a, b] = rd.rail;
     for (const [s, e] of [[a, [a[0] + (b[0] - a[0]) * 0.07, a[1] + (b[1] - a[1]) * 0.07]], [b, [b[0] + (a[0] - b[0]) * 0.07, b[1] + (a[1] - b[1]) * 0.07]]]) line(rail([s, e]), rd.width, P.asphalt);
   }
-  poly(rail([[-1, 96], [19, 96], [19, 113], [-1, 113]]), P.gravel, 1);
   for (const rd of map.roads.filter(x => x.center)) line(rd.pts, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
   // övergångsställen vid korsningen
   for (const [u, v, a] of [[-12, 31.5, 0], [0, 40, Math.PI / 2], [6, 32, Math.PI / 2]]) {
@@ -174,13 +173,18 @@ export function buildMolnbo(scene, map) {
   }
   // kontaktledningen: portaler var 30:e meter, linorna i ett anrop
   const wirePairs = [];
+  // portalerna står var 30:e meter, men inte på broarna: en på var sida (u -38 och 32), och linorna går
+  // inte genom däcken (glappet mellan dem)
+  const portalUs = [];
+  for (let u = -300; u <= 300; u += 30) portalUs.push(u === -30 ? -38 : u === 30 ? 32 : u);
   let lastU = null;
-  for (let u = -300; u <= 300; u += 30) {
+  for (const u of portalUs) {
+    if (u === 0) { lastU = null; continue; }
     const [x, z] = R(u, -1); const o = outsideD(crisp, x, z);
     if (o > REACH) { lastU = null; continue; }
     catenaryPortal(o < 22 ? b : fb, RM, u, [-14.2, 11.4]);
-    if (lastU != null && o < 60) for (const v of RAIL.tracks) { wirePairs.push([[lastU, 5.7, v], [u, 5.7, v]]); wirePairs.push([[lastU, 6.9, v], [u, 6.9, v]]); }
-    lastU = u;
+    if (lastU != null && o < 60 && !(lastU === -38 && u === 32)) for (const v of RAIL.tracks) { wirePairs.push([[lastU, 5.7, v], [u, 5.7, v]]); wirePairs.push([[lastU, 6.9, v], [u, 6.9, v]]); }
+    lastU = u === 32 || u !== 0 ? u : null;
   }
   scene.add(wires(RM, wirePairs));
   // perrongerna, väntkurerna, avgångsskylten och namnskylten

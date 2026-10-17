@@ -121,7 +121,11 @@ function applyRelease(p, r) {
   for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) op.units.push(newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true }));
   if (sector && r.stock) { const st = op.stock[sector] ??= {}; for (const [t, n] of Object.entries(r.stock)) st[t] = (st[t] ?? 0) + n; }
   // 0.17.0-molnbo: adopt, enheterna utan sektor följer med till den nya sektorn
-  if (sector && r.adopt) for (const u of op.units) if (u.sector == null) u.sector = sector;
+  // (också enheter i en sektor vars alla banor är spelade: sektorn stängs strax efter i syncOperation)
+  if (sector && r.adopt) {
+    const done = id => !!SECTORS.find(x => x.id === id)?.maps?.every(m => MAPS[m] && mapState(p, m).unlockedDay > MAPS[m].days.length);
+    for (const u of op.units) if (u.sector == null || (u.sector !== sector && done(u.sector))) u.sector = sector;
+  }
   op.released.push(r.id);
   op.inbox.push({ id: r.id, from: r.from, text: r.text, seq: op.seq++, unread: true });
   return { ...p, research, op };

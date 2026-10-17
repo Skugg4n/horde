@@ -103,8 +103,8 @@ const ROADS_RAIL = [
   { id: 'inner', name: 'Skolvägen', surface: 'asphalt', width: 4.5, curbs: true,
     pts: [[2, 82], [25, 81], [49, 80], [72, 76], [94, 70]] },
   { id: 'folkets', name: 'Folkets hus', surface: 'gravel', width: 6, paint: false,
-    pts: [[3, 104], [12, 104], [18.5, 104]] },
-  { id: 'folkbak', surface: 'gravel', width: 3.4, pts: [[50, 113], [30, 116], [12, 114], [10, 108]] },
+    pts: [[3.8, 116], [16, 116], [30, 116], [30, 111]] },
+  { id: 'folkbak', surface: 'gravel', width: 3.4, pts: [[50, 113], [44, 116], [38, 116]] },
   { id: 'fagpath', name: 'Fagernäs', surface: 'gravel', width: 3.4, pts: [[50, 100], [75, 97], [104, 90], [128, 78], [138, 70]] },
   { id: 'kvarn', name: 'Kvarnvägen', surface: 'asphalt', width: 4.5, curbs: false,
     pts: [[4, 124], [-25, 128], [-58, 116], [-82, 84], [-98, 50], [-104, 27]] },
@@ -127,7 +127,7 @@ export const road = id => ROADS.find(r => r.id === id);
 // Ytor som är gångbara utöver vägarna (polygoner i järnvägens ram).
 const AREAS_RAIL = {
   parking: [[-46, -18], [4, -18], [4, -40], [-46, -40]],
-  plaza: [[5, 95], [19, 95], [19, 114], [5, 114]],       // Folkets hus grusplan
+  plaza: [[21, 110], [39, 110], [39, 121], [21, 121]],    // Folkets hus grusplan
   cafePark: [[-3, 36], [6, 36], [6, 46], [-3, 46]],       // caféets parkering mot korsningen
   stationYard: [[80, 21], [104, 21], [104, 25], [80, 25]], // grusplanen framför stationshuset
 };
@@ -146,10 +146,10 @@ const B0 = (id, kind, [u, v], w, d, front, o = {}) => {
   return { id, kind, x, z, ry, w, d, eave: 3.0, ridge: 5.5, ridgeX: true, u, v, ...o };
 };
 export const FOLKETS = (() => {
-  // Folkets hus: stort rött trähus, gaveln med skylten mot Stenbyvägen (västerut i järnvägens ram).
-  const [u, v] = [30, 104], len = 20, wid = 13;
+  // Folkets hus: stort rött trähus, gaveln med skylten och dörrarna mot grusplanen i söder (mot kameran).
+  const [u, v] = [30, 99], len = 20, wid = 13;
   const [x, z] = R(u, v);
-  const ry = ryAlong(-1, 0);           // lokal +x mot gatan (horden kommer dit)
+  const ry = ryAlong(0, 1);            // lokal +x mot grusplanen (horden kommer dit)
   const at = (lx, lz) => [x + lx * Math.cos(ry) + lz * Math.sin(ry), z - lx * Math.sin(ry) + lz * Math.cos(ry)];
   const face = len / 2;
   return { id: 'folkets', x, z, ry, len, wid, wallH: 6.2, face, main: 0, doors: [-3.6, -0.8, 0.8, 3.6], at, entrance: at(face + 1.4, 0), u, v };
@@ -199,6 +199,8 @@ function placeVillas() {
           const [x, z] = R(cu, cv);
           // inte i järnvägen, inte på en annan väg, inom räckhåll för kameran
           if (cv > RAIL.corridor[0] - 6 && cv < RAIL.corridor[1] + 5 && cu < 150) continue;
+          // inte i bergskärningen längs Fagernäsvägen (ROCK nedan)
+          if (cu > 12 && cu < 106 && cv > 30 && cv < 42) continue;
           if (outside(x, z) > 40) continue;
           const ry = ryAlong(-nv, nu);   // framsidan (lokal +z) mot vägen (-nu, -nv)
           const q = rect(x, z, ry, w + 3, d + 3);
