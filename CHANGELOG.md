@@ -1,5 +1,31 @@
 # Ändringslogg
 
+## 0.17.1: Mölnbo efter speltestet (2026-10-18)
+
+Speltestet av 0.17.0 (docs/playtests/2026-10-18-0.17.0.md) sa NEJ: dag 1 gick inte att vinna på två försök och spärrarna på bron syntes inte.
+
+Bron:
+- Spärrarna på broarna ritas på däcket (hindren, spöket, plattorna och sikten lyfts efter banans höjd), och pekaren träffar däcket i stället för marken bakom det.
+- Ingen enhet kan stå under ett brodäck: rutorna där säger "Under the bridge" (soldaterna får gå där).
+- Rotorsaken dag 4: horden bröt en av gångbrons två rutor och gick genom luckan medan resten av spärren stod kvar, och grupperna från Stenbyvägen, Gnestavägen och Fagernäs går aldrig över broarna. Ingen väg i rutnätet går förbi två spärrar på däcken (nytt prov). Resten av en spärr med en lucka märks nu genombruten, och raden säger var: "Barricade down on Gångbron. They are through the gap."
+- Hordens väg syns alltid: varje ingång dagen använder visas från början med "From wave N", och när en väg byts blinkar den och raden säger gatan ("Horde rerouting via Kvarnvägen").
+
+Trapptornen: 7,2 m höga betongschakt med två trapplopp, vilplan, bröstning, ledstång, brygga mot gångbron och tak med räcke (Commons-fotot). Lookbooken visar det nya tornet.
+
+Dag 1: vågorna 14, 30 och 43 (var 14, 56 och 88) och ingen överlapp dag 1 och 2. Överlappen kommer dag 3 med tåget, och dagens första rad varnar. Första gången en egen spärr leder om horden säger raden att den rivs med ett klick (halva priset tillbaka, som på de andra banorna).
+
+Räknaren: plåten och resultatet läser samma rad ("Wave 4 of 5 · 1 cleared"). Tågets avgång är ett eget ögonblick: kameran glider till tåget som rullar ut, raden står och "The train is through" före VICTORY.
+
+Inmatningen:
+- Gesterna (src/ui/gesture.js): höger- och mittknappen panorerar alltid, högerklick utan dragning lägger tillbaka det man håller, vänster-dra siktar bara från en giltig plats, och en vänsterdragning ställer aldrig ut något. Placeringsprovet provar gesterna med riktiga pekarhändelser.
+- Esc har en ordning: det man håller, sedan panelen, sedan lektionsraden, sist pausmenyn.
+
+Text på text: PAUSED står ovanför köpraden, lektionsplåten för ett kort ställs utanför köpraden, tågets ruta hålls fri, köpraden bryts i två rader i ett smalt fönster och knappen flyttar upp när den inte ryms. Laddningsskylten säger banan man väntar på (förut "Loading Hagstumosse · Ishallen" när Mölnbo öppnades). npm run layout går nu också igenom HUD:en i striden.
+
+?debug&jump=molnbo:N ger truppen en spelare har när Mölnbo öppnar (balansens ankomst), inte hela truppen på nivå 1 som speltestet fick.
+
+Balansen: dag 5 hp 16 till 15. Kartläsaren vinner dag 1 till 4 på första försöket och dag 5 inom 2; naive vinner dag 1 och 2 och fastnar på dag 3 (docs/balance-log.md, Mölnbo 0.17.1). E4:s och Hagstumosses kvitto är orört.
+
 ## 0.17.0: Mölnbo (2026-10-18)
 
 Ny sektor: Mölnbo, stationen och bron (docs/superpowers/specs/2026-10-17-molnbo-design.md). Byggd på grenen feature/molnbo ovanpå 0.16.3 och sammanslagen med 0.16.4 (nedan). Antagandena om Olas öppna frågor och det som är kvar: docs/superpowers/specs/2026-10-18-molnbo-build-notes.md.

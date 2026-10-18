@@ -40,3 +40,10 @@ Det här är antaget för att kunna bygga. Varje punkt går att ändra i src/dat
 4. Siktlinjer med brodäcket (en höjd per ruta för däcket, eller en egen regel för rutor under bron).
 5. Balansen efter speltestet: hp-faktorerna (12 till 32) är höga jämfört med Hagstumosse eftersom truppen är stor; dag 4 och 5 kan behöva mjukare kurvor.
 6. Ljud: tåget, avgångsskylten och trafikljusen har inget eget ljud.
+
+## 0.17.1 (efter speltestet av 0.17.0)
+
+- Bron i bilden: hindren, spöket och plattorna ligger på däcket, och pekaren träffar däcket. Rutor under ett däck är KIND.bridge ("Under the bridge"): ingen enhet står där. Simuleringen är fortfarande platt.
+- Dag 4:s rotorsak: en lucka i gångbrons spärr (en av två rutor sönder) räcker för horden, och grupperna söder om spåret går aldrig över broarna. Ingen väg i rutnätet går förbi två spärrar på däcken (tests/molnbo.test.js). En genombruten spärr märks nu, och raderna säger gatan.
+- ?debug&jump=molnbo:N ger balansens ankomst (src/data/arrival.js ARRIVAL_TROOP). Speltestet av 0.17.0 hoppade dit med hela truppen på nivå 1, långt svagare än balansens spelare; med den truppen förlorar också en enkel skriptad spelare dag 1, med ankomsten vinner den med basen hel.
+- Dag 4 är fortfarande en knivsegg för kartläsaren (seed 0 vinner med bas 1). En sänkning av hp 31 till 28 gav bara en bas till, så den behölls.

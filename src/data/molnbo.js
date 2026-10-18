@@ -19,7 +19,7 @@ import { makeRng } from '../sim/rng.js';
 import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
 import { smooth, distPolyline, inPoly } from './gnesta.js';
 
-export const MOLNBO_VERSION = '0.1.0';
+export const MOLNBO_VERSION = '0.1.1';
 
 // ---------- järnvägens ram ----------
 const TH = 21 * Math.PI / 180;
