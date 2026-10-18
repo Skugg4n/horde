@@ -1921,7 +1921,8 @@ function updateLessons() {
     if (l.done && lessonTest(l.done)) { progress = markSeen(progress, l.id); save(); continue; }
     // 0.16.4: mellan dagarna hör stegen till olika skärmar (kartan, resultatet, förrådet); ett som väntar på kartan
     // stoppar inte resultatets
-    if (!lessonTest(l.when)) { if (l.kind === 'caption' || mode !== 'play') continue; break; }
+    // 0.19.0: ett steg med wait: false håller inte upp stegen efter sig (gn-2.reroute väntar på en barriär som kanske aldrig kommer)
+    if (!lessonTest(l.when)) { if (l.kind === 'caption' || mode !== 'play' || l.wait === false) continue; break; }
     if (!shows(progress, l.kind)) { progress = markSeen(progress, l.id); save(); continue; }
     startLesson(l);
     break;

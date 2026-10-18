@@ -53,7 +53,9 @@ export const LESSONS = {
   'gn-2': [
     { id: 'gn-2.arrows', kind: 'show', when: 'start', target: { world: 'route' }, text: 'Red arrows: the way the horde will walk.', manual: 'route' },
     { id: 'gn-2.block', kind: 'step', when: 'start', done: 'obstacle:block', target: { ui: '#buildbar .card[data-id="block"]' }, text: 'Block a street. They walk around the block.', manual: 'barricades' },
-    { id: 'gn-2.reroute', kind: 'show', when: 'obstacle:block', target: { world: 'route' }, text: 'New route. Always leave them one way through.' },
+    // 0.19.0 (speltestet av 0.18.1: den som hoppade över barriären med Esc fick aldrig korselden före våg 1): väntar inte
+    // i kön (wait: false), så att stegen efter kommer ändå
+    { id: 'gn-2.reroute', kind: 'show', when: 'obstacle:block', wait: false, target: { world: 'route' }, text: 'New route. Always leave them one way through.' },
     { id: 'gn-2.v', kind: 'caption', when: 'waveStarted', target: { ui: '#routekey' }, text: 'Route:', keys: ['V'] },
     // 0.18.0 (skiva 1, kampanjplanens dag 5): korselden
     // 0.18.1 (speltestet av 0.18.0: "korselden såg jag aldrig", bildtexten kom bara med ett kort i handen efter våg 1):

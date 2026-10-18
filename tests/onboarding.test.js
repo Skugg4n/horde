@@ -192,3 +192,15 @@ test('sparfilen: South och North slås ihop till Hagstumosse, ingen enhet förlo
   assert.deepEqual(q.maps['gnesta-norr'], { unlockedDay: 2, attempts: { 1: 1 } });
   assert.equal(loadProgress(s).op.units.length, q.op.units.length, 'en andra läsning ändrar inget');
 });
+
+// 0.19.0 (speltestet av 0.18.1): Ishallen dag 2 lär ut korselden före våg 1 också när barriärsteget hoppas över med Esc:
+// stegets efterföljare (gn-2.reroute, som väntar på en barriär) håller inte upp kön
+test('Ishallen dag 2: korselden kommer även om barriären hoppas över', async () => {
+  const { LESSONS } = await import('../src/data/lessons.js');
+  const g2 = LESSONS['gn-2'], ids = g2.map(l => l.id);
+  const re = g2.find(l => l.id === 'gn-2.reroute');
+  assert.equal(re.wait, false);
+  assert.ok(ids.indexOf('gn-2.xfask') > ids.indexOf('gn-2.reroute'));
+  // inga andra steg mellan barriären och korselden som väntar på något spelaren kan hoppa över
+  for (const l of g2.slice(ids.indexOf('gn-2.block') + 1, ids.indexOf('gn-2.xfask'))) assert.ok(l.kind === 'caption' || l.wait === false || !/^obstacle:|^placed:/.test(l.when), l.id);
+});
