@@ -23,7 +23,7 @@ test('Mölnbo är en bana efter Hagstumosse, med fem dagar och korta intron', ()
   for (const d of molnbo.days) {
     assert.match(d.intro.title, /^Day \d: /);
     assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
-    assert.doesNotMatch(JSON.stringify(d), /—/);
+    assert.doesNotMatch(JSON.stringify(d), /\u2014/);
   }
   // tågklockan från dag 3, det sista tåget dag 5
   assert.deepEqual(molnbo.days.map(d => !!d.train), [false, false, true, true, true]);
