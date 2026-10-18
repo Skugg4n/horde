@@ -1504,7 +1504,8 @@ function uiRect(sel) {
   return r.width && r.height ? { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null;
 }
 // 0.16.1: det lektionsplåten inte ska täcka (etiketterna, gränssnittet, kortets utfällda ruta, ledningens rad)
-const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
+// 0.17.1 (speltestet av 0.17.0: lektionsraden över DAY-rutan och över "UNITS 2/6"): tågets ruta och köpradens rubrik
+const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not([hidden])', '#buildbar', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
   '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark'];
 function coachAvoid() {
   const out = [];
@@ -2034,7 +2035,7 @@ function screenRect(object) {
 }
 function hudRects() {
   const out = [];
-  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)', '#evac']) {
+  for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)', '#evac', '#train']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();

@@ -435,12 +435,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet .note-line { font-size: 14px; letter-spacing: 0.03em; color: var(--paper-dim); margin: -6px 0 14px; }
 
 /* Vapenkorten nere till vänster: välj ett kort, ställ ut pjäsen på kartan */
-#buildbar { position: fixed; bottom: 14px; left: 14px; padding: 5px 7px 7px; }
+#buildbar { position: fixed; bottom: 14px; left: 14px; padding: 5px 7px 7px; width: max-content; }
 #buildbar[hidden] { display: none; }
 #buildbar .k { font-size: 10px; letter-spacing: 0.22em; color: var(--paper-dim); margin: 0 0 4px 2px; }
 #buildbar .k b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--paper); letter-spacing: 0.04em; margin-left: 6px; }
 #buildbar .k .guns { margin-left: 14px; }
-#buildbar .cards { display: flex; gap: 4px; }
+#buildbar .cards { display: flex; gap: 4px; flex-wrap: wrap; }  /* 0.17.1: bryts i två rader i ett smalt fönster (förut gick korten utanför plåten) */
 /* 0.11.0: kategorier med små rubriker (Defenses, Units), alltid på en rad; tvåstegsvalet
    tänder kategorin och dämpar de andra */
 #buildbar .groups { display: flex; gap: 7px; flex-wrap: nowrap; }
@@ -960,3 +960,5 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .entry, .entry * { pointer-events: none !important; }
 /* 0.17.1: en genombruten spärr (en lucka): tom röd ram */
 .obbar.breached { border-color: #d4482c; animation: none; }
+/* 0.17.1: fiendekortets PAUSED uppe i mitten, inte över köpraden */
+#enemycard .paused { top: 22px; bottom: auto; }

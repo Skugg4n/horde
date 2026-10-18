@@ -147,13 +147,20 @@ export function buildBar(root, actions) {
   el.hidden = true;
   root.appendChild(el);
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
-  let key = null, barR = -1;
+  let key = null, barR = -1, barH = -1;
   const cards = new Map();      // id -> { btn, price, why, state }
   // Köpradens högerkant till CSS (--bar-r): vågens knapp och rad ställer sig till höger om den.
   function measure() {
     if (el.hidden) return;
-    const r = Math.round(el.getBoundingClientRect().right);
+    // 0.17.1: korten kan gå utanför radens ruta i ett smalt fönster; högerkanten är det som står längst till höger
+    const b = el.getBoundingClientRect();
+    let right = b.right;
+    for (const c of el.querySelectorAll('.card')) right = Math.max(right, c.getBoundingClientRect().right + 7);
+    const r = Math.round(right);
     if (r !== barR) { barR = r; document.documentElement.style.setProperty('--bar-r', r + 'px'); }
+    // 0.17.1: och höjden (--bar-h), så att knappen och fartknappen kan ställa sig ovanför raden när de inte ryms bredvid
+    const h = Math.round(innerHeight - b.top);
+    if (h !== barH) { barH = h; document.documentElement.style.setProperty('--bar-h', h + 'px'); }
   }
   addEventListener('resize', () => { barR = -1; measure(); });
   function render(sim) {

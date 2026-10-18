@@ -5,6 +5,8 @@
 //   - ingen textrad går utanför sin knapp eller sin skylt (avrundat 1 px),
 //   - inga två textrutor som inte är förälder och barn överlappar (syskon, kusiner, tips över innehåll),
 //   - knapparna i en rad (.acts) överlappar inte varandra.
+// 0.17.1: och gränssnittet i striden (auditHud): köpraden, plåtarna, lektionsplåten med PAUSED, ingångarnas etiketter
+// och raderna, på Mölnbo dag 1 och 4 och E4 dag 2.
 // Utfallet: en rad per fel, och exit-kod 1 om något fel finns.
 //
 //   node scripts/layout-check.mjs [--port 8146] [--shots katalog]
@@ -70,6 +72,48 @@ function audit(scope) {
   return { errors: out, texts: textBoxes.length };
 }
 
+// 0.17.1 (speltestet av 0.17.0: text på text på tre ställen, "PAUSED" över köpradens Ksp 58, vågens etikett bakom
+// tågets ruta, lektionsraden över DAY-rutan och över "UNITS 2/6"): gränssnittet i striden. Varje synlig plåt i HUD:en
+// är en ägare; en textrad får inte överlappa en textrad hos en annan ägare och inte ligga över en annan ägares plåt,
+// och korten i köpraden håller sin text inne i kortet.
+function auditHud(scope) {
+  const out = [];
+  const OWNERS = ['#day', '#res', '#train', '#evac', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap', '#banner', '.entry', '#coach .cplate', '#coach .paused', '#notes .note', '.panel', '#routekey', '#hint'];
+  const vis = n => { if (n.closest('[hidden]')) return false; for (let a = n; a; a = a.parentElement) { const s = getComputedStyle(a); if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05) return false; } return true; };
+  const owners = [];
+  for (const sel of OWNERS) for (const n of document.querySelectorAll(sel)) if (vis(n) && !owners.some(o => o.el.contains(n))) { const r = n.getBoundingClientRect(); if (r.width && r.height) owners.push({ sel, el: n, r }); }
+  const texts = [];
+  for (const o of owners) {
+    const w = document.createTreeWalker(o.el, NodeFilter.SHOW_TEXT);
+    for (let t = w.nextNode(); t; t = w.nextNode()) {
+      if (!t.textContent.trim() || !vis(t.parentElement)) continue;
+      const range = document.createRange(); range.selectNodeContents(t);
+      for (const r of range.getClientRects()) if (r.width > 1 && r.height > 1) texts.push({ o, el: t.parentElement, r, text: t.textContent.trim().slice(0, 30) });
+    }
+  }
+  const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+  const glyphs = r => ({ left: r.left, right: r.right, top: r.top + r.height * 0.2, bottom: r.bottom - r.height * 0.2 });
+  for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+    const a = texts[i], b = texts[j];
+    if (a.o === b.o) continue;
+    if (hit(glyphs(a.r), glyphs(b.r))) out.push(`${scope}: "${a.text}" (${a.o.sel}) över "${b.text}" (${b.o.sel})`);
+  }
+  // text över en annan ägares plåt (etiketten bakom tågets ruta, raden över DAY-rutan)
+  for (const t of texts) for (const o of owners) {
+    if (o === t.o || o.el.contains(t.el) || t.o.el.contains(o.el)) continue;
+    if (['#notes .note', '#banner'].includes(t.o.sel) && ['#notes .note', '#banner'].includes(o.sel)) continue;
+    if (hit(glyphs(t.r), o.r)) out.push(`${scope}: "${t.text}" (${t.o.sel}) ligger över ${o.sel}`);
+  }
+  // köpradens kort: texten inne i kortet
+  for (const c of document.querySelectorAll('#buildbar .card')) {
+    if (!vis(c)) continue;
+    const cr = c.getBoundingClientRect();
+    // en rad som klipps med ellips (kortets värden, hela står när pekaren är över kortet) räknas inte
+    for (const t of texts) if (c.contains(t.el) && getComputedStyle(t.el).textOverflow !== 'ellipsis' && (t.r.left < cr.left - 1 || t.r.right > cr.right + 1 || t.r.top < cr.top - 1 || t.r.bottom > cr.bottom + 1)) out.push(`${scope}: "${t.text}" går utanför kortet ${c.dataset.id ?? ''}`);
+  }
+  return { errors: [...new Set(out)], texts: texts.length };
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
   let errors = [], checked = 0;
@@ -126,6 +170,42 @@ async function run() {
     await check('molnbo-opmap');
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); H.showDepot('molnbo', 'opmap', { day: 4 }); })()`);
     await check('molnbo-depot');
+    // 0.17.1: gränssnittet i striden (auditHud): lektionsplåten med PAUSED över köpraden, raden vid pekaren nära
+    // DAY-rutan, tågets ruta med ingångarnas etiketter, mitt i en våg, och E4 med lektionsplåten vid köpraden
+    // lektionsplåtarna bort med Esc tills ingen står kvar; öppnade ett Esc pausmenyn stängs den (Resume)
+    const clearLessons = async () => {
+      for (let i = 0; i < 8 && await ev('!!window.__horde.lesson'); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
+      await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
+      await page.waitForTimeout(200);
+    };
+    const checkHud = async scope => {
+      await page.waitForTimeout(700);
+      const r = await page.evaluate(auditHud, `${scope} @${W}`);
+      errors = errors.concat(r.errors); checked++;
+      if (!r.texts) errors.push(`${scope} @${W}: ingen text i HUD:en`);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${scope}-${W}.png` });
+    };
+    await ev(`window.__horde.setProgress({ ...window.__horde.progress, lessons: undefined })`);
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 1); })()`);
+    await checkHud('hud-molnbo-1-lesson');
+    await clearLessons();
+    // raden vid pekaren när Psg 90 är i handen (lessons.js mb-1.roofs) ska komma igen
+    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-1.roofs') } }); })()`);
+    await ev(`window.__horde.startPlacing('psg90')`);
+    await page.mouse.move(Math.round(W * 0.2), 190);
+    await checkHud('hud-molnbo-1-psg90');
+    await ev(`window.__horde.stopPlacing()`);
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); })()`);
+    await clearLessons();
+    await checkHud('hud-molnbo-4-build');
+    // första trycket säger till om enheter i reserven, nästa startar vågen
+    for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
+    await page.waitForTimeout(2500);
+    await clearLessons();
+    if (await ev('window.__horde.sim.phase') !== 'wave') errors.push(`hud-molnbo-4-wave @${W}: vågen startade inte`);
+    await checkHud('hud-molnbo-4-wave');
+    await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
+    await checkHud('hud-e4-2-lesson');
     if (pageErrors.length) errors.push(...pageErrors.map(e => `@${W} konsolfel: ${e}`));
     await page.close();
   }

@@ -218,19 +218,33 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // köpraden (--bar-r) och fartknappen. Ryms vågens rad inte ens då döljs dess "N left" (dagens
   // plåt uppe till vänster säger samma sak), så att ingenting hamnar utanför fönstret.
   let layoutKey = '', nextText = { long: '', short: '' };
+  // 0.17.1 (layoutprovet i 1024 px: köpraden med tolv kort gick in under Start wave och fartknappen): ryms fartknappen
+  // inte till höger om köpraden står den ovanför radens högra ände, och ryms knappen inte ens smal mellan köpraden och
+  // fartknappen ställer den sig också ovanför raden (--bar-h), till vänster om fartknappen.
   function layoutBottom() {
-    const barR = parseFloat(document.documentElement.style.getPropertyValue('--bar-r')) || 0;
+    const css = document.documentElement.style;
+    const barR = parseFloat(css.getPropertyValue('--bar-r')) || 0, barH = parseFloat(css.getPropertyValue('--bar-h')) || 0;
     const sp = speedBtn2.hidden ? 0 : speedBtn2.offsetWidth;
-    const k = [innerWidth, barR, sp, goBtn.hidden, waveBar.hidden, el.go.textContent, el.cd.textContent, nextText.long, el.nextCd.hidden, el.next.hidden].join('|');
+    const k = [innerWidth, innerHeight, barR, barH, sp, goBtn.hidden, waveBar.hidden, el.go.textContent, el.cd.textContent, nextText.long, el.nextCd.hidden, el.next.hidden].join('|');
     if (k === layoutKey) return;
     layoutKey = k;
-    const lo = barR ? barR + 14 : 14, hi = innerWidth - (sp ? sp + 32 : 14);
+    const lift = barH ? barH + 10 : 0;
+    const spUp = !!sp && !!barR && barR + 14 > innerWidth - sp - 18;
+    speedBtn2.style.bottom = spUp ? lift + 'px' : '';
+    const lo = barR ? barR + 14 : 14, hi = innerWidth - (sp && !spUp ? sp + 32 : 14);
     for (const node of [goBtn, waveBar]) {
       if (node.hidden) continue;
       node.classList.remove('narrow');
+      node.style.bottom = '';
       if (node === waveBar) set(el.nextLbl, nextText.long);
       let w = node.offsetWidth;
       if (w > hi - lo) { node.classList.add('narrow'); if (node === waveBar) set(el.nextLbl, nextText.short); w = node.offsetWidth; }
+      if (w > hi - lo && lift) {
+        node.style.bottom = lift + 'px';
+        const right = innerWidth - 18 - (spUp ? sp + 12 : 0);
+        node.style.left = Math.round(right - w / 2) + 'px';
+        continue;
+      }
       const c = Math.min(Math.max(innerWidth / 2, lo + w / 2), hi - w / 2);
       node.style.left = Math.round(Math.max(lo + w / 2, c)) + 'px';
     }
@@ -282,7 +296,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // etikett. Bara om ingen ryms används reserven vid kanten (vägen syns inte alls).
   const entryEl = root.querySelector('#entry');
   const entries = [entryEl];
-  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel', '#minimap:not(.off)', '#evac:not([hidden])'];
+  // 0.17.1 (speltestet av 0.17.0: "10 WALKERS" kapades bakom tågets ruta): tågets ruta och raderna räknas också
+  const UI_SEL = ['#day', '#res', '#buildbar', '#go', '#wavebar', '#speedcd', '#banner', '#hint', '#menubtn', '#routekey', '.panel', '#minimap:not(.off)', '#evac:not([hidden])', '#train:not([hidden])', '#coach:not([hidden]) .cplate', '#notes .note'];
   const PADE = 8;
   function uiRects() {
     const out = [];

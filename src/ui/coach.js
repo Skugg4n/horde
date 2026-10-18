@@ -62,8 +62,12 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     if (off) { edge.style.left = off.x + 'px'; edge.style.top = off.y + 'px'; edge.style.transform = `translate(-50%, -50%) rotate(${off.angle}rad)`; }
     // plåten: under, ovanför, till höger eller vänster om målet, där den ryms; aldrig över målet
     const pw = plate.offsetWidth, ph = plate.offsetHeight, g = 26;
-    const t = r ?? (off ? { x0: off.x - 20, y0: off.y - 20, x1: off.x + 20, y1: off.y + 20 } : { x0: vw / 2 - 1, y0: vh / 2 - 1, x1: vw / 2 + 1, y1: vh / 2 + 1 });
-    const cx = (t.x0 + t.x1) / 2, cy = (t.y0 + t.y1) / 2;
+    const t0 = r ?? (off ? { x0: off.x - 20, y0: off.y - 20, x1: off.x + 20, y1: off.y + 20 } : { x0: vw / 2 - 1, y0: vh / 2 - 1, x1: vw / 2 + 1, y1: vh / 2 + 1 });
+    // 0.17.1 (layoutprovet: plåten för ett kort i köpradens andra rad låg över de andra korten): ligger målet inne i en
+    // ruta som ska hållas fri (köpraden), ställs plåten utanför den rutan, med ledlinjen ända fram till målet
+    const box = (Array.isArray(avoid) ? avoid : []).find(a => r && a.x0 <= r.x0 + PAD && a.y0 <= r.y0 + PAD && a.x1 >= r.x1 - PAD && a.y1 >= r.y1 - PAD);
+    const t = box ?? t0;
+    const cx = (t0.x0 + t0.x1) / 2, cy = (t0.y0 + t0.y1) / 2;
     const clampX = x => Math.max(12, Math.min(vw - pw - 12, x)), clampY = y => Math.max(12, Math.min(vh - ph - 40, y));
     const cands = [
       { x: clampX(cx - pw / 2), y: t.y1 + g, side: 'b' },
@@ -77,18 +81,27 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     ];
     // 0.16.1 (speltestet av 0.16.0: plåten låg under fiendeetiketten, över COMMAND-texten och kortets ruta): plåten
     // ställs där den inte täcker målet, gränssnittet (avoid: rutor) eller PAUSED längst ned
-    const others = [...(Array.isArray(avoid) ? avoid : avoid ? [avoid] : []), { x0: vw / 2 - 60, y0: vh - 96, x1: vw / 2 + 60, y1: vh }];
+    // 0.17.1 (speltestet av 0.17.0: PAUSED stod över köpradens kort): PAUSED står ovanför det översta av gränssnittet
+    // nere i mitten (köpraden, knappen), inte på en fast höjd
+    const given = Array.isArray(avoid) ? avoid : avoid ? [avoid] : [];
+    const low = given.filter(a => a.x0 < vw / 2 + 60 && a.x1 > vw / 2 - 60 && a.y0 > vh * 0.55).reduce((m, a) => Math.min(m, a.y0), vh - 52);
+    pausedEl.style.bottom = Math.round(vh - low + 6) + 'px';
+    const others = [...given, { x0: vw / 2 - 60, y0: low - 30, x1: vw / 2 + 60, y1: low }];
     const fits = c => c.x >= 8 && c.y >= 8 && c.x + pw <= vw - 8 && c.y + ph <= vh - 36;
     const hits = (c, a) => a && c.x < a.x1 && a.x0 < c.x + pw && c.y < a.y1 && a.y0 < c.y + ph;
-    const clear = c => !(r && hits(c, r)) && !others.some(a => hits(c, a));
+    const clear = c => !(r && hits(c, r)) && !others.some(a => a !== box && hits(c, a)) && !(box && hits(c, box));
+    // 0.17.1 (speltestet av 0.17.0: raden vid pekaren skrevs över DAY-rutan): ryms ingen fri plats tas den som
+    // täcker minst av gränssnittet, inte den första
+    const covered = c => others.reduce((n, a) => n + Math.max(0, Math.min(c.x + pw, a.x1) - Math.max(c.x, a.x0)) * Math.max(0, Math.min(c.y + ph, a.y1) - Math.max(c.y, a.y0)), 0);
+    const leastCovering = list => list.reduce((b, c) => (!b || covered(c) < covered(b) ? c : b), null);
     // ett stort mål (en väg över halva skärmen): plåten uppe i mitten, inne i hålet, utan ledlinje
     const big = r && (r.x1 - r.x0) * (r.y1 - r.y0) > vw * vh * 0.35;
     const bigAt = big && [90, Math.max(r.y0 + 70, 90), 150, 220].map(y => ({ x: clampX(vw / 2 - pw / 2), y, side: 'none' })).find(c => fits(c) && !others.some(a => hits(c, a)));
     const best = bigAt || (big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' } : null)
-      || cands.find(c => fits(c) && clear(c)) || cands.find(c => fits(c) && !(r && hits(c, r))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
+      || cands.find(c => fits(c) && clear(c)) || leastCovering(cands.filter(c => fits(c) && !(r && hits(c, r)))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
     plate.style.left = Math.round(best.x) + 'px'; plate.style.top = Math.round(best.y) + 'px';
     // ledlinjen: från plåtens kant till målets kant, rak
-    const L = { b: [best.x + pw / 2, best.y, cx, t.y1], t: [best.x + pw / 2, best.y + ph, cx, t.y0], r: [best.x, best.y + ph / 2, t.x1, cy], l: [best.x + pw, best.y + ph / 2, t.x0, cy], none: [0, 0, 0, 0] }[best.side];
+    const L = { b: [best.x + pw / 2, best.y, cx, t0.y1], t: [best.x + pw / 2, best.y + ph, cx, t0.y0], r: [best.x, best.y + ph / 2, t0.x1, cy], l: [best.x + pw, best.y + ph / 2, t0.x0, cy], none: [0, 0, 0, 0] }[best.side];
     const len = Math.hypot(L[2] - L[0], L[3] - L[1]);
     lead.hidden = len < 4;
     Object.assign(lead.style, { left: L[0] + 'px', top: L[1] + 'px', width: len + 'px', transform: `rotate(${Math.atan2(L[3] - L[1], L[2] - L[0])}rad)` });
