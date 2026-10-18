@@ -7,6 +7,9 @@
 // Varje försök loggas med utfallet: placed (enheten står), reason (ett skäl visades vid pekaren),
 // silent (enheten i handen, inget hände, inget skäl). Invarianten: silent ska vara 0.
 //
+// 0.17.1: sist provas gesterna (src/ui/gesture.js) med riktiga pekarhändelser: dra med vänster, höger och mitten
+// panorerar och ställer aldrig ut något, högerklick lägger tillbaka, vänster-dra från en giltig plats siktar.
+//
 //   node scripts/placement-harness.mjs [--port 8144] [--fps 1.5] [--n 60] [--seed 1] [--verbose] [--map molnbo --day 1]
 //
 // Kräver en server som serverar repot (python3 -m http.server 8144) och playwright (PW_PATH eller
@@ -156,10 +159,85 @@ async function run() {
     (bySeq[seq] ??= { placed: 0, reason: 0, silent: 0, notHolding: 0 })[res]++;
     if (VERBOSE || res === 'silent' || res === 'notHolding') console.log(`#${i} ${sc.map} d${sc.day} ${seq} ${setup.id} -> ${res} card=${pickUp.target}/${pickUp.held} lesson=${out.lesson} target=${out.target} holding=${out.holding} tips=${out.tips.slice(-1)} log=${out.log} up=${out.up} click=${out.click}`);
   }
+  const gest = await gestures(page);
   await browser.close();
-  const fails = totals.silent + totals.notHolding;
-  console.log(JSON.stringify({ fps: FPS, n: N, ...totals, failures: fails, bySeq }, null, 1));
+  const fails = totals.silent + totals.notHolding + gest.fail.length;
+  console.log(JSON.stringify({ fps: FPS, n: N, ...totals, failures: fails, bySeq, gestures: { pass: gest.pass, fail: gest.fail } }, null, 1));
   if (errors.length) console.log('console errors:', errors.slice(0, 5));
   process.exit(fails || errors.length ? 1 : 0);
 }
+
+// ---------- gesterna (0.17.1, speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten") ----------
+// Reglerna i src/ui/gesture.js, med riktiga pekarhändelser i låg bildtakt, på första scenen:
+//   pan-left    kort i handen, vänster-dra från en plats där det inte får stå: kameran flyttas, inget ställs ut, kortet kvar
+//   pan-right   kort i handen, höger-dra från en giltig plats: kameran flyttas, inget ställs ut, kortet kvar
+//   pan-middle  samma med mittknappen
+//   right-click kort i handen, högerklick utan dragning: kortet läggs tillbaka
+//   aim-valid   Psg 90 i handen, vänster-dra från en giltig plats: den ställs ut där trycket var, vänd mot pekaren
+async function gestures(page) {
+  const sc = SCENES[0], pass = [], fail = [];
+  const state = () => page.evaluate(() => { const H = window.__horde, s = H.sim; return { n: s.guns.length + Object.keys(s.obstacles).length, holding: H.placing?.type ?? null, tx: H.rig.target.x, tz: H.rig.target.z, last: s.guns[s.guns.length - 1] ?? null }; });
+  const fresh = async type => {
+    await page.evaluate(async ({ sc, type }) => {
+      const H = window.__horde;
+      if (H.sim?.map.id !== sc.map || H.sim?.day !== sc.day || H.sim.guns.length > 6 || H.mode !== 'play') await H.jump(sc.map, sc.day);
+      H.stopPlacing(); H.sim.cash = Math.max(H.sim.cash, 2000); H.rig.goHome?.();
+      H.startPlacing(type);
+    }, { sc, type });
+    await sleep(FRAME * 2);
+  };
+  // en punkt på kartan där det man håller får stå (want = true) eller inte: pekaren dit, en bildruta, spöket säger
+  const find = async want => {
+    const cands = await page.evaluate(() => { const out = []; for (let y = 160; y < innerHeight - 180; y += 37) for (let x = 120; x < innerWidth - 300; x += 53) { const el = document.elementFromPoint(x, y); if (el === window.__horde.renderer.domElement) out.push([x, y]); } return out; });
+    for (let i = 0; i < 80; i++) {
+      const [x, y] = cands[Math.floor(rnd() * cands.length)];
+      await page.mouse.move(x, y); await sleep(FRAME * 1.6);
+      const ok = await page.evaluate(() => window.__horde.spot?.ok ?? null);
+      if (ok === want) return [x, y];
+    }
+    return null;
+  };
+  const drag = async ([x, y], button, dx = 140, dy = 70) => {
+    await page.mouse.move(x, y); await sleep(FRAME * 1.2);
+    await page.mouse.down({ button });
+    for (let k = 1; k <= 4; k++) { await page.mouse.move(x + dx * k / 4, y + dy * k / 4); await sleep(FRAME * 0.6); }
+    await page.mouse.up({ button }); await sleep(FRAME * 2.5);
+  };
+  const check = (name, ok, info) => { (ok ? pass : fail).push(name); if (!ok || VERBOSE) console.log(`gest ${name}: ${ok ? 'ok' : 'FEL'} ${JSON.stringify(info)}`); };
+  const card = await page.evaluate(() => [...document.querySelectorAll('#buildbar .card.buy')].filter(b => !b.classList.contains('off')).map(b => b.dataset.id).find(id => id !== 'psg90'));
+  for (const [name, button, want, type] of [['pan-left', 'left', false, card], ['pan-left-cone', 'left', false, 'psg90'], ['pan-right', 'right', true, 'psg90'], ['pan-middle', 'middle', true, card]]) {
+    await fresh(type);
+    const at = await find(want);
+    if (!at) { check(name, false, { reason: 'ingen punkt' }); continue; }
+    const a = await state();
+    await drag(at, button);
+    const b = await state();
+    check(name, b.n === a.n && b.holding === type && Math.hypot(b.tx - a.tx, b.tz - a.tz) > 1, { a, b });
+  }
+  {
+    await fresh(card);
+    const at = await find(true);
+    if (!at) check('right-click', false, { reason: 'ingen punkt' });
+    else {
+      const a = await state();
+      await page.mouse.move(...at); await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' }); await sleep(FRAME * 2.5);
+      const b = await state();
+      check('right-click', b.n === a.n && b.holding === null, { a, b });
+    }
+  }
+  {
+    await fresh('psg90');
+    const at = await find(true);
+    if (!at) check('aim-valid', false, { reason: 'ingen punkt' });
+    else {
+      const a = await state();
+      await drag(at, 'left', 160, 0);
+      const b = await state();
+      // vänd ungefär åt höger på skärmen: inte samma vinkel som spelet valde av sig själv (kontrolleras via userFacing)
+      check('aim-valid', b.n === a.n + 1 && b.holding === null && Math.hypot(b.tx - a.tx, b.tz - a.tz) < 0.01, { a, b: { ...b, last: b.last && { facing: b.last.facing, x: b.last.x, z: b.last.z } } });
+    }
+  }
+  return { pass, fail };
+}
+
 run().catch(e => { console.error(e); process.exit(2); });

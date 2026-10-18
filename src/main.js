@@ -13,6 +13,7 @@ import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
+import { pressKind, releaseAction, isDrag, BUTTON } from './ui/gesture.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -332,7 +333,6 @@ function turnAim(dir) {
 // flyttats och tryckts i samma bildruta, var den gammal eller saknades, och då tog släppets klick över och
 // ställde pjäsen där man släppte. Medan man drar står "Unit here" vid pjäsens punkt och en linje går
 // därifrån till pekaren.
-const AIM_DRAG_PX = 10;
 let aim = null, suppressClick = false;
 const groundRay = new Raycaster(), groundNdc = new Vector2(), groundHit = new Vector3();
 function groundAt(cx, cy) {
@@ -346,16 +346,19 @@ renderer.domElement.addEventListener('pointerdown', e => {
   if (e.button !== 0 || mode !== 'play') return;
   if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
   // 0.16.0: sikta-dra är upplåst från E4 dag 3; före det ger ett klick riktningen mot vägen
-  if (!hasCone() || !feat('aim') || (placing.move && e.shiftKey)) return;
-  const here = picker.pickAt(e.clientX, e.clientY);
-  if (here?.kind === 'spot') spot = spotFor(here.id, here.x, here.z, here.roof, here.rt);
-  if (!spot || spot.key < 0) return;
+  // 0.17.1 (speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten"): bara ett tryck på en
+  // giltig plats siktar (src/ui/gesture.js). Annars panorerar dragningen och släppet ställer inte ut något.
+  if (placing?.move && e.shiftKey) return;
+  const here = hasCone() ? picker.pickAt(e.clientX, e.clientY) : null;
+  const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
+  if (pressKind({ button: e.button, holding: !!placing, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0 }) !== 'aim') return;
+  spot = sp;
   aim = { sp: spot, x: spot.x, z: spot.z, sx: e.clientX, sy: e.clientY, drag: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
   if (!aim) return;
-  if (!aim.drag && Math.hypot(e.clientX - aim.sx, e.clientY - aim.sy) < AIM_DRAG_PX) return;
+  if (!aim.drag && !isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
   aim.drag = true;
   if (aim.rotate || !placing) return;
   const g = groundAt(e.clientX, e.clientY);
@@ -367,7 +370,17 @@ addEventListener('pointerup', () => {
   if (!a.drag) return;            // ett vanligt klick: plockaren sköter det
   suppressClick = true;
   if (a.rotate) { commitRotate(); return; }
-  if (placing) { spot = a.sp; placeHere(a.sp.key); }
+  if (placing && releaseAction({ kind: 'aim', button: 0, moved: true }) === 'place-aimed') { spot = a.sp; placeHere(a.sp.key); }
+});
+// 0.17.1: högerknappen. Dra panorerar (camera-rig.js), ett högerklick utan dragning lägger tillbaka det man håller.
+// Webbläsarens meny visas aldrig över kartan (på macOS kommer den redan vid trycket, så beslutet tas vid släppet).
+let rightDown = null;
+renderer.domElement.addEventListener('pointerdown', e => { if (e.button === BUTTON.right) rightDown = { x: e.clientX, y: e.clientY }; });
+addEventListener('pointerup', e => {
+  if (e.button !== BUTTON.right || !rightDown) return;
+  const moved = isDrag(e.clientX - rightDown.x, e.clientY - rightDown.y);
+  rightDown = null;
+  if (mode === 'play' && releaseAction({ kind: 'pan', button: BUTTON.right, moved, holding: !!placing || !!rotating }) === 'cancel') { stopPlacing(); rotating = null; }
 });
 const takeSuppress = () => { const s0 = suppressClick; suppressClick = false; return s0; };
 const aimTip = document.createElement('div');
@@ -557,7 +570,7 @@ addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clie
 addEventListener('pointerdown', e => { pointer.x = e.clientX; pointer.y = e.clientY; }, true);
 renderer.domElement.addEventListener('pointerdown', e => { shiftHeld = e.shiftKey; }, true);
 renderer.domElement.addEventListener('pointerleave', () => { ghostTip.hidden = true; ghostWhere.hidden = true; spot = null; });
-renderer.domElement.addEventListener('contextmenu', e => { if (placing || rotating) { e.preventDefault(); stopPlacing(); rotating = null; } });
+renderer.domElement.addEventListener('contextmenu', e => { if (mode === 'play') e.preventDefault(); });
 // Varje handling visar sin egen ändring av pengarna under kassan, exakt det beloppet,
 // och låter: ett klick när den gick igenom, en nekande ton när den inte gjorde det.
 const withCash = (sound, fn) => (...args) => {
@@ -636,7 +649,15 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ||
   }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
-}, { heightAt: () => map?.groundY ?? null, ignoreClick: () => { const d = rig.takeDrag(), s0 = takeSuppress(); if ((d || s0) && placing) logPlace({ out: d ? 'ignored-pan' : 'ignored-aim' }); return d || s0; } });
+}, { heightAt: () => map?.groundY ?? null, ignoreClick: () => {
+  // 0.17.1: en vänsterdragning längre än DRAG_PX är aldrig ett klick, också där kameran inte panorerar (gesture.js)
+  const moved = leftDown ? isDrag(pointer.x - leftDown.x, pointer.y - leftDown.y) : false;
+  const d = rig.takeDrag() || moved, s0 = takeSuppress();
+  if ((d || s0) && placing) logPlace({ out: s0 ? 'ignored-aim' : 'ignored-pan' });
+  return d || s0;
+} });
+let leftDown = null;
+renderer.domElement.addEventListener('pointerdown', e => { leftDown = e.button === BUTTON.left ? { x: e.clientX, y: e.clientY } : null; }, true);
 picker.onPick(p => mapPick(p));
 function mapPick(p) {
   if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') { if (placing) logPlace({ out: 'ignored-phase' }); return; }
@@ -1347,27 +1368,28 @@ addEventListener('keydown', e => {
     return;
   }
   if (e.code === 'KeyJ' && !e.repeat && !e.metaKey && !e.ctrlKey && !menu.isOpen() && meta('manual')) { e.preventDefault(); openManual(); return; }
+  // 0.17.1: Esc har en enda ordning (src/sim/clock.js escapeAction): det man håller, panelen, lektionsraden, menyn
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
+      category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS,
+      lesson: !!lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption') });
+    if (what === 'close-category') chord.escape();
+    else if (what === 'menu-back') menu.back();
+    else if (what === 'close-research') sheetAction('done');
+    else if (what === 'cancel-placing') { stopPlacing(); rotating = null; if (chord.open != null) chord.reset(); }
+    else if (what === 'close-panel') { closePanel(); hovered = null; }
+    else if (what === 'skip-lesson') skipLesson();
+    else if (what === 'open-menu') menu.show();
+    return;
+  }
   if (lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption')) {
-    if (e.key === 'Escape' && !e.repeat) { e.preventDefault(); skipLesson(); return; }
     if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); releaseLesson(); return; }
     // ett 'show' under hård paus: inga andra tangenter; ett 'step': handlingen går, men Enter och Space startar
     // inget annat än vad steget gäller (Start the wave)
     // 0.16.2: en siffra (ta upp ett kort) släpper ett 'show' och tar upp kortet, som ett klick på plåten gör
     if (lesson.pause && lesson.step.kind === 'show') { if (!/^(Digit|Numpad)[0-9]$/.test(e.code) || e.repeat) return; releaseLesson(); }
     else if (lesson.pause && (e.key === 'Enter' || (e.code === 'Space' && lesson.step.target?.ui !== '#go'))) { e.preventDefault(); return; }
-  }
-  if (e.key === 'Escape') {
-    // Esc: stäng menyn, annars forskningen, placeringen eller panelen, och först sist öppna menyn.
-    e.preventDefault();
-    const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
-      category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS });
-    if (what === 'close-category') chord.escape();
-    else if (what === 'menu-back') menu.back();
-    else if (what === 'close-research') sheetAction('done');
-    else if (what === 'cancel-placing') { stopPlacing(); rotating = null; }
-    else if (what === 'close-panel') { closePanel(); hovered = null; }
-    else if (what === 'open-menu') menu.show();
-    return;
   }
   // Medan menyn är öppen gör spelets tangenter ingenting.
   if (menu.isOpen()) { if (e.code === 'Space') e.preventDefault(); return; }

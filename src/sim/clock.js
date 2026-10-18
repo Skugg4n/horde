@@ -21,7 +21,11 @@ export function advance(st, frameDt, { playing, paused, mul = 1, dt, maxPerSpeed
 // 0.11.0: en öppen kategori i köpradens tvåstegsval (category) stängs före placeringen, och ett
 // Esc strax efter ett köp (justPlaced, H095: saken släpptes när den ställdes ut och tangenten var
 // tänkt för den) öppnar inte menyn.
-export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false, category = false, justPlaced = false }) {
+// 0.17.1 (speltestet av 0.17.0: "ibland lägger Esc tillbaka kortet, ibland öppnar den pausmenyn"): EN ordning i
+// spelet. 1 det man håller (kortet, flytten, Rotate) läggs tillbaka, också när en kategori är utfälld eller en
+// lektionsrad står, 2 en utfälld kategori, en panel eller en markering stängs, 3 lektionsraden hoppas över
+// (lesson), 4 strax efter ett köp ingenting (justPlaced), 5 pausmenyn öppnas.
+export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false, category = false, justPlaced = false, lesson = false }) {
   if (repeat) return 'none';
   if (menuOpen) return 'menu-back';
   // 0.14.0: förrådet stängs med Esc som forskningen gjorde
@@ -29,9 +33,10 @@ export function escapeAction({ menuOpen, mode, placing, panel, selected = false,
   // 0.12.1 (speltestet): på resultatskylten, introt och huvudmenyn gör Esc ingenting (pausmenyn lade
   // sig över resultatet efter en förlust). Bara forskningen stängs med Esc (ovan).
   if (mode !== 'play') return 'none';
-  if (category && mode === 'play') return 'close-category';
   if (placing) return 'cancel-placing';
+  if (category) return 'close-category';
   if (panel || selected) return 'close-panel';
-  if (justPlaced && mode === 'play') return 'none';
+  if (lesson) return 'skip-lesson';
+  if (justPlaced) return 'none';
   return 'open-menu';
 }

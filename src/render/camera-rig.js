@@ -2,11 +2,11 @@
 // WASD, piltangenter) och zooma (hjulet) inom gränser; E4 står still som förut.
 // Skakningen (basen tar skada, granater) läggs ovanpå som en förskjutning.
 import * as THREE from 'three';
+import { pressKind, isDrag, BUTTON } from '../ui/gesture.js';
 
 export const OFFSET = new THREE.Vector3(40, 46, 40);
 const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
 const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
-const DRAG_START = 6;          // px innan en nedtryckning räknas som panorering (annars klick)
 const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
 
 // Zoomen (vyns höjd i meter) som får med hela rektangeln c ({ x0, x1, z0, z1 }) vid bildformatet a.
@@ -51,12 +51,18 @@ export function createRig({ camera, map, fill, dom }) {
   let drag = null, dragged = false, active = true, panLock = false;
   const keys = new Set();
   // 0.16.2: en gammal panorering (släppt utanför scenen, så att inget klick tog den) äter aldrig nästa klick
-  const onDown = e => { dragged = false; if (!canPan || !active || panLock || e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, moved: false }; };
+  // 0.17.1 (src/ui/gesture.js): höger- och mittknappen panorerar alltid; vänsterknappen när den inte siktar (panLock)
+  const onDown = e => {
+    dragged = false;
+    if (!canPan || !active || pressKind({ button: e.button }) !== 'pan' || (e.button === BUTTON.left && panLock)) return;
+    if (e.button === BUTTON.middle) e.preventDefault();      // ingen autoskroll
+    drag = { x: e.clientX, y: e.clientY, moved: false, button: e.button };
+  };
   const onUp = () => { if (drag?.moved) dom.style.cursor = ''; drag = null; };
   const onMove = e => {
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if (!drag.moved && Math.hypot(dx, dy) < DRAG_START) return;
+    if (!drag.moved && !isDrag(dx, dy)) return;
     if (!drag.moved) { drag.moved = true; dragged = true; dom.style.cursor = 'grabbing'; }
     const k = view / innerHeight;
     target.addScaledVector(R, -dx * k).addScaledVector(D, -dy * k / PITCH);

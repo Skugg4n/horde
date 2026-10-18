@@ -73,9 +73,11 @@ test('Esc gör en sak per tryck: markering först, ingen upprepning', () => {
 
 // 0.11.0: köpradens öppna kategori stängs först i spelet, och ett Esc strax efter ett köp (H095)
 // öppnar inte pausmenyn.
-test('Esc: öppen kategori före placeringen, inget pausmeny strax efter ett köp', () => {
+// 0.17.1: det man håller går före kategorin (en ordning: det man håller, panelen, menyn)
+test('Esc: öppen kategori stängs, inget pausmeny strax efter ett köp', () => {
   const base = { menuOpen: false, mode: 'play', placing: false, panel: false };
-  assert.equal(escapeAction({ ...base, category: true, placing: true }), 'close-category');
+  assert.equal(escapeAction({ ...base, category: true, placing: true }), 'cancel-placing');
+  assert.equal(escapeAction({ ...base, category: true }), 'close-category');
   assert.equal(escapeAction({ ...base, category: true, menuOpen: true }), 'menu-back');
   assert.equal(escapeAction({ ...base, justPlaced: true }), 'none');
   assert.equal(escapeAction({ ...base, justPlaced: true, placing: true }), 'cancel-placing');
@@ -94,4 +96,25 @@ test('Esc gör ingenting på resultat- och introskylten, stänger bara forskning
   }
   assert.equal(escapeAction({ ...base, mode: 'research' }), 'close-research');
   assert.equal(escapeAction({ ...base, mode: 'play' }), 'open-menu');
+});
+
+// 0.17.1 (speltestet av 0.17.0: "ibland lägger Esc tillbaka kortet, ibland öppnar den pausmenyn"): en ordning.
+// Varje tryck gör en sak: först läggs det man håller tillbaka, sedan stängs panelen, sedan lektionsraden, sist menyn.
+test('Esc: det man håller, sedan panelen, sedan menyn, alltid i den ordningen', () => {
+  let st = { menuOpen: false, mode: 'play', placing: true, panel: true, selected: true, category: true, lesson: true, justPlaced: false };
+  const order = [];
+  for (let i = 0; i < 6; i++) {
+    const what = escapeAction(st);
+    order.push(what);
+    if (what === 'cancel-placing') st = { ...st, placing: false };
+    else if (what === 'close-category') st = { ...st, category: false };
+    else if (what === 'close-panel') st = { ...st, panel: false, selected: false };
+    else if (what === 'skip-lesson') st = { ...st, lesson: false };
+    else if (what === 'open-menu') st = { ...st, menuOpen: true };
+    else break;
+  }
+  assert.deepEqual(order, ['cancel-placing', 'close-category', 'close-panel', 'skip-lesson', 'open-menu', 'menu-back']);
+  // en lektionsrad tar aldrig Esc från kortet i handen
+  assert.equal(escapeAction({ mode: 'play', placing: true, lesson: true }), 'cancel-placing');
+  assert.equal(escapeAction({ mode: 'play', panel: true, lesson: true }), 'close-panel');
 });
