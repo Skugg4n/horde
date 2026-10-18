@@ -64,3 +64,13 @@ export const DMG_ICONS = {
   heavy: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M6 22 V9 Q6 2 12 1 Q18 2 18 9 V22 Z"/><path d="M6 17 H18 M6 19.5 H18"/></g></svg>`,
   explosive: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M12 2 L14 8 L20 5 L16 11 L22 13 L15.5 15 L18 21 L12 17 L6 21 L8.5 15 L2 13 L8 11 L4 5 L10 8 Z"/></g></svg>`,
 };
+// 0.18.1: fiendernas siluetter till förrådets INTEL-ruta (fyllda, currentColor; den okända är en grå "?")
+const Z = 'fill="currentColor" stroke="none"';
+export const FOE_ICONS = {
+  walker: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><circle cx="11" cy="5" r="3.2"/><path d="M8 9 H14 L16 19 H13 L13.5 30 H10.5 L10 21 L9 30 H6 L7 19 L4 15 L6 12 Z"/><path d="M14 10 L21 13 L20 15 L14 13 Z"/></g></svg>`,
+  runner: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><circle cx="15" cy="5" r="3"/><path d="M11 9 H16 L15 18 L20 23 L18 30 H15.5 L17 24 L11 20 L7 30 H4 L8 19 L9 12 L4 15 L3 13 Z"/></g></svg>`,
+  crawler: `<svg viewBox="0 0 32 32" class="foe"><g ${Z}><circle cx="25" cy="20" r="3"/><path d="M4 25 L10 21 H21 L23 24 L19 26 H14 L9 28 H4 Z"/><path d="M21 24 L24 29 H26 L23 23 Z"/></g></svg>`,
+  armored: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><path d="M7.5 6 Q11 0 14.5 6 V8 H7.5 Z"/><path d="M7 9 H15 L17 19 H14 L14.5 30 H11 L11 21 L10 30 H6.5 L7 19 L5 15 Z"/><rect x="15" y="9" width="6" height="12" rx="1"/></g></svg>`,
+  brute: `<svg viewBox="0 0 28 32" class="foe"><g ${Z}><circle cx="14" cy="5" r="3.6"/><path d="M5 9 H23 L26 20 H22 L20 14 L19 20 L20 30 H15.5 L14 22 L12.5 30 H8 L9 20 L8 14 L6 20 H2 Z"/></g></svg>`,
+  unknown: `<svg viewBox="0 0 24 32" class="foe unk"><g ${Z} opacity="0.45"><circle cx="12" cy="5" r="3.2"/><path d="M8 9 H16 L17 19 H14 L14 30 H10 L10 19 H7 Z"/></g><text x="12" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="#1d1913">?</text></svg>`,
+};

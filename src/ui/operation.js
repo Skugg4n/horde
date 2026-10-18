@@ -14,10 +14,11 @@ import { mapState } from '../meta/progress.js';
 import { barsHtml } from './statbars.js';
 import { FATIGUE } from '../sim/sanity.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, maxMen, vetOf, levelCost, refillCost, returnValue,
-  upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive, deployCap } from '../meta/operation.js';
+  upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive, deployCap, lanes, canSetLane } from '../meta/operation.js';
+import { intelFor } from '../meta/intel.js';
 import { shopItem, SHOP } from '../data/shop.js';
 import { metaFeatures, STAGES } from '../meta/unlocks.js';
-import { ICONS } from './icons.js';
+import { ICONS, FOE_ICONS } from './icons.js';
 
 const STATUS = {
   holding: { text: 'Holding', color: '#9fc46a' },
@@ -187,7 +188,7 @@ export function opMapSheet(root, progress, handlers) {
 }
 
 // ---------- förrådet ----------
-const STATE_TEXT = { rp: 'Not enough RP', closed: 'Sector closed', 'not released': 'Not released here', none: 'None released', max: 'Max level', full: 'At full strength', locked: 'Not yet', cap: 'Not released yet',
+const STATE_TEXT = { laneFull: 'Into battle is full. Move a unit to rest first.', noMen: 'No men left. Refill it first.', rp: 'Not enough RP', closed: 'Sector closed', 'not released': 'Not released here', none: 'None released', max: 'Max level', full: 'At full strength', locked: 'Not yet', cap: 'Not released yet',
   last: 'The last unit here was given by command: returning it leaves the sector empty with no RP back.' };
 const upgradeText = (st) => {
   const t = st.node.tiers[(st.tier ?? st.node.tiers.length) - 1];
@@ -257,20 +258,57 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     confirm = { kind: 'return', uid, ok: 'Return', no: 'Keep', text: c.given ? 'Return it? No RP back.' : `Return it? +${c.refund} RP back.` };
     msg = ''; render();
   }
-  function unitRow(u) {
+  // 0.18.1 (Olas skärmbild av förrådet: "oklart vilka trupper man har, vilka som går ut och vilka som vilar"): ett kort
+  // per enhet i en av två banor. Typ, nivå, stjärna, män, trötthetens märke med straffet i ord, och i reserven vad en
+  // dags vila ger. Knappen → Battle / → Rest gör samma sak som att dra kortet till den andra banan.
+  const fatText = f => {
+    if (!f) return 'Rested';
+    const acc = Math.round((1 - FATIGUE.accuracy[f]) * 100), rate = Math.round((1 - FATIGUE.rate[f]) * 100);
+    return `${FATIGUE.names[f]}: −${acc} % accuracy${rate ? `, −${rate} % fire rate` : ''}`;
+  };
+  function unitRow(u, lane = null) {
     const max = maxMen(u, p.research), lc = levelCost(u), rc = refillCost(p, u);
     const others = multi() ? openSectors(p).filter(s => s !== u.sector && canReassign(p, u.uid, s).ok) : [];
     const from = u.sector, n = from ? count(from) : 0;
     const ret = meta().has('return');
-    return `<div class="urow" data-uid="${u.uid}">
-      <div class="un"><b>${esc(name(u.type))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}
-        <span class="men">${u.men != null ? `${u.men} of ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}${meta().has('fatigue') ? ` · <span class="fat f${u.fatigue ?? 0}" data-fat title="A won day at the front tires a unit; a day in reserve rests it.">${FATIGUE.names[u.fatigue ?? 0]} <s></s><s></s><s></s></span>` : ''}</span></div>
+    const f = u.fatigue ?? 0, fat = meta().has('fatigue');
+    const rest = lane === 'rest' && fat ? `<span class="recov">${f ? `Recovers +1 rest: ${FATIGUE.names[f - 1]} tomorrow` : 'Stays rested'}</span>` : '';
+    const move = lane ? `<button type="button" class="mini lanebtn" data-a="lane" data-to="${lane === 'battle' ? 'rest' : 'battle'}">${lane === 'battle' ? '→ Rest' : '→ Battle'}</button>` : '';
+    return `<div class="urow ${lane ? 'ucard ' + lane : ''}" data-uid="${u.uid}"${lane ? ' draggable="true"' : ''}>
+      <div class="un"><b>${esc(name(u.type))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}${move}
+        <span class="men">${u.men != null ? `${u.men} / ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}</span>
+        ${fat ? `<span class="fatb f${f}" data-fat title="A won day at the front tires a unit; a day in reserve rests it.">${esc(fatText(f))}</span>` : ''}${rest}</div>
       <div class="ua">
         ${lc != null ? `<button type="button" class="mini ${p.rp < lc ? 'off' : ''}" data-a="lvl">Level ${ROMAN[u.level + 1]} <i>${rp(lc)}</i></button>` : '<span class="mini max">Max level</span>'}
         ${rc ? `<button type="button" class="mini ${p.rp < rc ? 'off' : ''}" data-a="refill">Refill <i>${rp(rc)}</i></button>` : u.men != null ? '<span class="mini max">Full</span>' : '<span class="mini gap"></span>'}
         ${!ret ? '' : canReturn(p, u.uid).ok ? `<button type="button" class="mini ${confirm?.uid === u.uid ? 'sel' : ''}" data-a="return" title="${u.granted && !u.spent ? 'Send it back to command. It was given, so no RP back.' : 'Back to the depot for about half of the RP spent on it'}">Return${returnValue(u) ? ` <i>+${returnValue(u)}</i>` : ''}</button>` : '<span class="mini max" title="The last unit here was given by command.">Last unit</span>'}
       </div>
       ${others.length ? `<div class="send">${others.map(s => `<button type="button" class="mini sendb" data-a="send" data-to="${s}">Send to ${esc(sname(s))}</button><span class="pv ${from && n - 1 < garrisonOf(from) ? 'under' : ''}">${from ? `${esc(short(from))} garrison ${n} → ${n - 1}` : ''}</span>`).join('')}</div>` : ''}</div>`;
+  }
+  // Banorna: "Into battle (x / tak)" och "Reserve · resting". Över taket vägrar stridsbanan med ett skäl.
+  function laneHtml(sec) {
+    const L = lanes(p, sec), capTxt = Number.isFinite(L.cap) ? ` / ${L.cap}` : '';
+    return `<div class="lanes">
+      <div class="lane battle" data-lane="battle"><div class="lh"><b>Into battle</b> <span class="cnt ${L.battle.length >= L.cap ? 'full' : ''}">${L.battle.length}${capTxt}</span></div>
+        <div class="lcards">${L.battle.map(u => unitRow(u, 'battle')).join('') || '<p class="muted">Nobody. Move units here.</p>'}</div></div>
+      <div class="lane rest" data-lane="rest"><div class="lh"><b>Reserve · resting</b> <span class="cnt">${L.rest.length}</span></div>
+        <div class="lcards">${L.rest.map(u => unitRow(u, 'rest')).join('') || '<p class="muted">Nobody rests. Drag a unit here.</p>'}</div></div>
+    </div>`;
+  }
+  // INTEL för nästa strid (src/meta/intel.js): det vi vet om fienden, ärligt om det okända.
+  function intelHtml() {
+    const nb = nextBattle();
+    if (!nb || nb.id !== sector) return '<p class="muted">No battle planned here.</p>';
+    const it = intelFor(MAPS[nb.map], nb.day);
+    if (!it) return '<p class="muted">No reports.</p>';
+    const q = { known: 'Confirmed', partial: 'Partial reports', unknown: 'No reliable reports' }[it.quality];
+    const num = t => (t.count != null ? `${t.count}` : t.range ? `${t.range[0]}–${t.range[1]}` : '?');
+    const types = it.types.map(t => `<div class="foe-row"><span class="fi">${FOE_ICONS[t.type] ?? FOE_ICONS.unknown}</span><b>${esc(/ed$/.test(t.name) ? t.name : t.name + 's')}</b><span class="fn">${num(t)}</span></div>`).join('');
+    const unk = it.quality === 'unknown' ? `<div class="foe-row unk"><span class="fi">${FOE_ICONS.unknown}</span><b>Unknown</b><span class="fn">?</span></div>`
+      : it.later ? `<div class="foe-row unk"><span class="fi">${FOE_ICONS.unknown}</span><b>Later waves</b><span class="fn">Unconfirmed</span></div>` : '';
+    const ents = it.entries.map(e => `<li><b>${esc(e.name)}</b>${e.dir ? ` <span>${esc(e.dir)}</span>` : ''}</li>`).join('');
+    return `<div class="iq q-${it.quality}">${q} · ${it.waves} waves</div>${types}${unk}
+      <div class="ient"><h5>Entries</h5><ul>${ents}</ul>${it.note ? `<p class="inote">${esc(it.note)}</p>` : ''}</div>`;
   }
   // 0.14.2 (speltestet av 0.14.1: "när Refill köps krymper kortet och mitt nästa klick hamnade fel"): varje
   // enhetsrad har fast höjd och fasta platser för sina knappar (nivå, påfyllnad, tillbaka; omplaceringen uppe
@@ -289,7 +327,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
   const capLine = sector => {
     const cap = deployCap(p, sector), have = count(sector);
     if (!Number.isFinite(cap)) return '';
-    return `<p class="capline ${have > cap ? 'over' : ''}"><b>${esc(sname(sector))}: ${Math.min(have, cap)} of ${cap} units deployed per battle.</b>${have > cap ? ` You have ${have} units. Only ${cap} can fight. Choose at deployment; the rest wait in reserve.` : ''}</p>`;
+    return `<p class="capline ${have > cap ? 'over' : ''}"><b>${cap} units go into battle.</b>${have > cap ? ` You have ${have}. The rest stay in reserve and recover.` : ''}</p>`;
   };
   // Skicka: fråga först om enheten lämnar sektorn som strider härnäst. Allt går att ta tillbaka till Deploy.
   function askSend(uid, to) {
@@ -329,7 +367,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     return list.length ? `<button type="button" class="mini bulk" data-a="bulk">Send all but the garrison to ${esc(sname(nb.id))} <i>${list.length}</i></button>` : '';
   }
   function render() {
-    const keep = scrollKey === sector ? [...el.querySelectorAll('.cols section')].map(x => x.scrollTop) : null;
+    const keep = scrollKey === sector ? [...el.querySelectorAll('.dgrid section, .dgrid .lcards')].map(x => x.scrollTop) : null;
     scrollKey = sector;
     const m = meta();
     const here = p.op.units.filter(u => u.sector === sector);
@@ -337,19 +375,22 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const types = sector && m.has('requisition') ? stockTypes(p, sector).sort((a, b) => order.indexOf(a) - order.indexOf(b)) : [];
     // 0.16.0 (Olas tillägg): bara uppgraderingar för det man har eller fått släppt, och de ledningen släppt; inga maxade
     const ups = m.has('upgrades') ? upgradeList(p).filter(Boolean).filter(st => st.tier != null && st.reason !== 'locked' && st.reason !== 'cap') : [];
-    const cols = [
-      `<section class="${sector && sector === nextBattle()?.id ? 'next' : ''}">${sector && sector === nextBattle()?.id ? `<div class="nbtag">Next battle · ${esc(MAPS[nextBattle().map].name)} · Day ${nextBattle().day}</div>` : ''}<h4>${sector ? 'Units in ' + esc(sname(sector)) : 'Unassigned units'}${sector && multi() ? ` <span class="gar ${count(sector) < garrisonOf(sector) ? 'under' : ''}">Garrison ${count(sector)} / ${garrisonOf(sector)}</span>` : ''}</h4>${sector ? capLine(sector) : ''}${bulk()}${sentRows()}${here.map(unitRow).join('') || '<p class="muted">None.</p>'}</section>`,
-      m.has('requisition') ? `<section><h4>Requisition${sector ? ' for ' + esc(sname(sector)) : ''}</h4>${sector ? types.map(t => reqCard(t, sector)).join('') || '<p class="muted">Nothing released here yet.</p>' : '<p class="muted">Pick a sector.</p>'}</section>` : '',
-      m.has('upgrades') ? `<section><h4>Depot upgrades</h4>${ups.map(st => `<button type="button" class="req up ${st.ok ? '' : 'off'}" data-up="${st.id}">
-          <b>${esc(upgradeName(st.id) ?? st.node.name)} ${ROMAN[st.tier]}</b><span class="rs">${esc(upgradeText(st))}</span><i>${rp(st.cost)}</i></button>`).join('') || '<p class="muted">Nothing released yet.</p>'}</section>` : '',
-    ].filter(Boolean);
+    const isNext = !!sector && sector === nextBattle()?.id;
+    const rosterHead = `<h4>${sector ? 'Roster · ' + esc(sname(sector)) : 'Unassigned units'}${sector && multi() ? ` <span class="gar ${count(sector) < garrisonOf(sector) ? 'under' : ''}">Garrison ${count(sector)} / ${garrisonOf(sector)}</span>` : ''}</h4>`;
+    const roster = `<section class="roster ${isNext ? 'next' : ''}">${rosterHead}${sector ? capLine(sector) : ''}${bulk()}${sentRows()}${sector ? laneHtml(sector) : (here.map(u => unitRow(u)).join('') || '<p class="muted">None.</p>')}</section>`;
+    const intel = `<section class="intel"><h4>Intel${isNext ? ` · Day ${nextBattle().day}` : ''}</h4>${intelHtml()}</section>`;
+    const noRp = p.rp <= 0;
+    const reqs = m.has('requisition') ? `<section class="reqs"><h4>Requisition</h4><p class="sub">New units released by command${sector ? ' for ' + esc(sname(sector)) : ''}</p>${sector ? types.map(t => reqCard(t, sector)).join('') || '<p class="muted">Nothing released here yet.</p>' : '<p class="muted">Pick a sector.</p>'}</section>` : '';
+    const upsHtml = m.has('upgrades') ? `<section class="ups"><h4>Upgrades</h4><p class="sub">Improve what you have${noRp ? ' · <em>No RP. Earn RP in battle.</em>' : ''}</p>${ups.map(st => `<button type="button" class="req up ${st.ok ? '' : 'off'}" data-up="${st.id}" ${st.ok ? '' : 'aria-disabled="true"'}>
+          <b>${esc(upgradeName(st.id) ?? st.node.name)} ${ROMAN[st.tier]}</b><span class="rs">${esc(st.ok ? upgradeText(st) : p.rp < st.cost ? `Need ${st.cost - p.rp} more RP` : upgradeText(st))}</span><i>${rp(st.cost)}</i></button>`).join('') || '<p class="muted">Nothing released yet.</p>'}</section>` : '';
+    const lower = [reqs, upsHtml].filter(Boolean);
     el.innerHTML = `
       <div class="oh"><div class="h">${deploy ? 'Requisition' : 'Depot'}</div><div class="rp"><span>Requisition points</span><b>${p.rp}</b></div></div>
       ${deploy ? `<div class="flow"><span>Operations map</span><i>›</i><span class="on">Requisition</span><i>›</i><span>Deploy day ${deploy.day}</span></div>` : ''}
       ${nextBattle() && m.has('depot') ? `<div class="nextb"><span>Next battle</span><b>${esc(MAPS[nextBattle().map].name)} · Day ${nextBattle().day}</b></div>` : ''}
       ${multi() ? `<div class="slines">${openSectors(p).filter(id => id !== nextBattle()?.id).map(sectorLine).join('')}</div>` : ''}
       ${tabs().length > 1 ? `<div class="tabs">${tabs().map(s => `<button type="button" class="tab ${s === sector ? 'on' : ''}" data-tab="${s ?? ''}">${s ? esc(sname(s)) : 'Unassigned'} <span>${p.op.units.filter(u => u.sector === s).length}</span>${s && s === nextBattle()?.id ? '<em>Next battle</em>' : ''}</button>`).join('')}</div>` : ''}
-      <div class="cols n${cols.length}">${cols.join('')}</div>
+      <div class="dgrid ${lower.length ? '' : 'top'} l${lower.length}">${roster}${intel}${lower.join('')}</div>
       <div class="dmsg ${msg || confirm ? 'show' : ''} ${msgGood ? 'good' : ''} ${confirm ? 'ask' : ''}">${confirm ? `<span>${esc(confirm.text)}</span><button type="button" class="mini warn" data-a="yes">${confirm.ok}</button><button type="button" class="mini" data-a="no">${confirm.no}</button>` : esc(msg)}</div>
       <div class="acts">${deploy ? `<button type="button" class="act main deploy" data-a="deploy"><span class="a">Deploy</span><span class="sub">${esc(MAPS[sector0].name)} · Day ${deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">Operations map</span><kbd>Esc</kbd></button>`
         : '<button type="button" class="act main" data-a="done"><span class="a">Done</span><kbd>Esc</kbd></button>'}</div>`;
@@ -382,7 +423,25 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
       if (r.ok) { p = r.progress; sendLog = r.log; msg = 'Brought back.'; msgGood = true; } confirm = null; render();
     });
     el.querySelector('[data-a="no"]')?.addEventListener('click', () => { confirm = null; render(); });
-    if (keep) [...el.querySelectorAll('.cols section')].forEach((x, i) => { x.scrollTop = keep[i] ?? 0; });
+    if (keep) [...el.querySelectorAll('.dgrid section, .dgrid .lcards')].forEach((x, i) => { x.scrollTop = keep[i] ?? 0; });
+    // banorna: knappen och dra och släpp
+    const toLane = (uid, lane) => {
+      const c = canSetLane(p, uid, lane);
+      if (!c.ok) { msg = STATE_TEXT[c.reason] ?? 'Not possible.'; msgGood = false; confirm = null; render(); return; }
+      if (c.same) return;
+      act('lane', uid, lane);
+    };
+    for (const r of el.querySelectorAll('.urow.ucard')) {
+      const uid = Number(r.dataset.uid);
+      r.querySelector('[data-a="lane"]')?.addEventListener('click', e => { e.stopPropagation(); toLane(uid, e.currentTarget.dataset.to); });
+      r.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', String(uid)); e.dataTransfer.effectAllowed = 'move'; r.classList.add('drag'); });
+      r.addEventListener('dragend', () => r.classList.remove('drag'));
+    }
+    for (const ln of el.querySelectorAll('.lane')) {
+      ln.addEventListener('dragover', e => { e.preventDefault(); ln.classList.add('over'); });
+      ln.addEventListener('dragleave', () => ln.classList.remove('over'));
+      ln.addEventListener('drop', e => { e.preventDefault(); ln.classList.remove('over'); const uid = Number(e.dataTransfer.getData('text/plain')); if (uid) toLane(uid, ln.dataset.lane); });
+    }
   }
   render();
   return { el, close: () => el.remove(), progress: () => p };

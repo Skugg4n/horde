@@ -112,6 +112,47 @@ export function deployCap(p, sector) {
   return MAPS[m]?.frontage ?? Infinity;
 }
 export const pressureOf = (p, id) => p.op?.pressure[poolOf(id)] ?? 0;
+
+// ---------- banorna i förrådet (0.18.1, Olas skärmbild av förrådet: "oklart vilka som går ut och vilka som vilar") ----------
+// Varje enhet i sektorn står i en av två banor: "Into battle" (högst deployCap) och "Reserve · resting". Spelaren
+// flyttar dem (setLane, u.lane = 'battle' | 'rest'); utan val föreslår förrådet banan som balansens policy väljer:
+// de som är värda mest, där tröttheten drar ned (unitWorth, utvilade först vid lika). Bara stridsbanan går ut i
+// striden (opStartConfig). En vunnen dag nollställer valen, så att nästa dags förslag följer den nya tröttheten.
+export const FATIGUE_WORTH = [1, 0.95, 0.75];
+export const unitWorth = u => (UNIT_RP[u.type] ?? 100) * (1 + 0.6 * (u.level - 1)) * (vetOf(u) ? 1.1 : 1) * FATIGUE_WORTH[u.fatigue ?? 0];
+const fit = u => u.men == null || u.men > 0;
+const suggestOrder = (a, b) => unitWorth(b) - unitWorth(a) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
+export function lanes(p, sector) {
+  const here = unitsIn(p, sector), cap = deployCap(p, sector);
+  const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);
+  const open = here.filter(u => !u.lane && fit(u)).sort(suggestOrder);
+  while (battle.length < cap && open.length) battle.push(open.shift());
+  const inBattle = new Set(battle.map(u => u.uid));
+  return { battle, rest: here.filter(u => !inBattle.has(u.uid)), cap };
+}
+export function canSetLane(p, uid, lane) {
+  const u = unitOf(p, uid);
+  if (!u || u.sector == null) return { ok: false, reason: 'unknown' };
+  if (lane !== 'battle' && lane !== 'rest') return { ok: false, reason: 'unknown' };
+  const L = lanes(p, u.sector);
+  if (lane === 'battle') {
+    if (L.battle.some(x => x.uid === uid)) return { ok: true, same: true };
+    if (!fit(u)) return { ok: false, reason: 'noMen' };
+    if (L.battle.length >= L.cap) return { ok: false, reason: 'laneFull', cap: L.cap };
+  }
+  return { ok: true };
+}
+export function setLane(p, uid, lane) {
+  const c = canSetLane(p, uid, lane);
+  if (!c.ok) return c;
+  const sector = unitOf(p, uid).sector, L = lanes(p, sector);
+  const q = withOp(p), op = copyOp(q);
+  // de föreslagna låses i sin bana när spelaren väljer, så att förslaget inte flyttar någon annan i stället
+  const inBattle = new Set(L.battle.map(u => u.uid));
+  for (const x of op.units) if (x.sector === sector) x.lane = inBattle.has(x.uid) ? 'battle' : 'rest';
+  op.units.find(x => x.uid === uid).lane = lane;
+  return { ok: true, progress: { ...q, op } };
+}
 // 0.16.0: garnisonen. Tryckpunkter som en öppen sektor får för en vunnen dag någon annanstans: 1, eller
 // PRESSURE_UNDERMANNED om färre än GARRISON enheter står där. Förrådet visar samma regel (garrisonLine).
 export const PRESSURE_UNDERMANNED = 2;
@@ -380,7 +421,8 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   const base = startConfig(p, day, mapId);
   if (!base) return null;
   const d = base.map.days[day - 1];
-  const core = unitsIn(p, mapId).filter(u => u.men == null || u.men > 0)
+  // 0.18.1: bara stridsbanan (lanes) går ut; resten vilar i förrådet
+  const core = lanes(p, mapId).battle
     .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}), ...(u.fatigue ? { fatigue: u.fatigue } : {}) }));
   // 0.16.0: det som är upplåst i dag (src/meta/unlocks.js). Utan förnödenheter (E4 dag 1) är kassan tom och
   // de dödade ger inget.
@@ -443,6 +485,8 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
       else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + pressureGain(q, s));
     }
     for (const s of Object.keys(op.pressure)) if (!op.pressure[s]) delete op.pressure[s];
+    // 0.18.1: banornas val gäller en dag; i morgon föreslår förrådet igen efter den nya tröttheten
+    for (const u of op.units) if (u.sector === poolOf(mapId)) delete u.lane;
     q = { ...q, op };
   }
   return { progress: syncOperation(q), rp, attempt };

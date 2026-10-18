@@ -363,9 +363,9 @@ test('leveranserna: varje löfte om rekvisition motsvaras av lager som går att 
 // 0.16.4 (Olas: "man kan rekvirera mycket men bara ställa ut ett visst antal; oklart hur många"): taket som förrådet
 // visar är samma som uppställningens, rekvisition över taket går (enheterna väntar i reserven), och den som ställer ut
 // mer än taket nekas med skälet 'front'.
-import { deployCap } from '../src/meta/operation.js';
+import { deployCap, lanes } from '../src/meta/operation.js';
 import { frontage } from '../src/sim/sim.js';
-test('taket per strid: förrådet och uppställningen säger samma sak, reserven tar resten', () => {
+test('taket per strid: förrådet och uppställningen säger samma sak, resten vilar i förrådet', () => {
   for (const [m, d] of [['riksvagen', 2], ['gnesta', 4], ['gnesta-norr', 3]]) {
     const p = debugReach(newCampaign(), m, d);
     const sim = createSim(opStartConfig(p, d, m));
@@ -382,18 +382,20 @@ test('taket per strid: förrådet och uppställningen säger samma sak, reserven
   if (unitsIn(p, 'gnesta').length <= cap) p = { ...p, op: { ...p.op, units: [...p.op.units, ...[0, 1, 2].map(i => ({ uid: 900 + i, type: 'm249', level: 1, sector: 'gnesta', wins: 0, spent: 0, granted: true }))] } };
   const have = unitsIn(p, 'gnesta').length;
   assert.ok(have > cap, `${have} enheter, taket ${cap}`);
+  // 0.18.1 (förrådets banor): bara stridsbanan går ut; de övriga vilar i förrådets reserv och kommer inte till striden
+  const L = lanes(p, 'gnesta');
+  assert.equal(L.battle.length, cap);
+  assert.equal(L.rest.length, have - cap, 'resten vilar i förrådet');
   const sim = createSim({ ...opStartConfig(p, 5, 'gnesta'), cash: 0 });
+  assert.equal(sim.reserve.length, cap, 'striden får stridsbanan');
   const pl = sim.place;
-  let placed = 0, refused = null;
-  for (let k = 0; k < pl.n && refused == null; k++) {
+  let placed = 0;
+  for (let k = 0; k < pl.n; k++) {
     if (pl.kind[k] !== KIND.open) continue;
     const u = sim.reserve.find(x => canDeployType(sim, x.type));
     if (!u) break;
-    const r = build(sim, k, u.type);
-    if (r.ok) placed++; else if (r.reason === 'front') refused = r.reason;
+    if (build(sim, k, u.type).ok) placed++;
   }
   assert.equal(placed, cap, 'så många som taket säger får stå ute');
-  assert.equal(refused, 'front');
-  assert.ok(sim.reserve.length >= have - cap, 'resten väntar i reserven');
 });
 const canDeployType = (sim, t) => sim.reserve.some(u => u.type === t);
