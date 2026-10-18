@@ -1,9 +1,17 @@
 export const ZOMBIES = {
   walker: { id: 'walker', name: 'Walker', fear: 1, hp: 30, speed: 1.6, bounty: 10, intel: 1, baseDamage: 1, hitDamage: 8, scale: 1 },
-  // 0.16.4 (Olas bonus): löparen snubblar ibland, faller framåt, kryper på alla fyra och reser sig (src/sim/sim.js stumble).
-  // every: meter mellan försöken, chance: att det blir ett snubbel, time: sekunder, slow: farten i de tre stegen.
+  // 0.16.4 (Olas bonus): löparen snubblar ibland (src/sim/sim.js stumble).
+  // 0.19.0 (H454, H455): sällsynt och oregelbundet, helst utlöst. every: meter mellan försöken, chance: att det blir
+  // ett snubbel, gap: minst så många meter mellan två, trigger: chansen vid en tung träff, i taggtråden och i en skarp
+  // sväng (turn: grader på en meter). variants: w vikten, time sekunder, speed farten genom snubblet [u, fart] (aldrig
+  // noll: farten framåt behålls), fall: varianten faller (en tung träff fäller).
   runner: { id: 'runner', name: 'Runner', fear: 1.2, hp: 18, speed: 3.4, bounty: 6, intel: 1, baseDamage: 1, hitDamage: 6, scale: 0.95,
-    stumble: { every: [20, 40], chance: 0.6, time: 1.2, steps: [0.3, 0.7], slow: [0.45, 0.1, 0.55] } },
+    stumble: { every: [40, 90], chance: 0.2, gap: 12, turn: 55, trigger: { heavy: 0.5, wire: 0.35, turn: 0.25 },
+      variants: [
+        { id: 'trip', w: 0.6, time: 0.6, speed: [[0, 1], [0.35, 0.55], [1, 1]] },
+        { id: 'slide', w: 0.25, time: 1.1, fall: true, speed: [[0, 1], [0.2, 0.85], [0.6, 0.18], [0.8, 0.3], [1, 0.85]] },
+        { id: 'scramble', w: 0.15, time: 1.3, fall: true, speed: [[0, 0.9], [0.2, 0.5], [0.75, 0.45], [1, 0.9]] },
+      ] } },
   brute:  { id: 'brute', name: 'Brute', fear: 3, hp: 560, speed: 1.0, bounty: 60, intel: 5, baseDamage: 1, hitDamage: 30, scale: 1.45, slowTaken: 0.4 },
   // 0.18.0 (strategiskt djup, skiva 1). fear: hur mycket Sanity zombien kostar en trupp på nära håll (src/sim/sanity.js).
   // take: andel av skadan per skadeklass (src/data/weapons.js DMG_CLASSES); saknas klassen biter allt.

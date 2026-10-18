@@ -176,9 +176,9 @@ export function createView(scene, initialSim) {
         e.chop += dt * 11;
         zombieAttack(parts, e.chop, clock);
       } else {
-        // 0.16.4: snubblet, samma steg som simuleringen räknar med
+        // 0.16.4: snubblet, samma variant som simuleringen räknar med (0.19.0, H455)
         const sb = stumbleOf(z);
-        if (sb) zombieStumble(parts, sb.u, e.phase, clock); else zombieWalk(parts, e.phase, clock);
+        if (sb) zombieStumble(parts, sb, e.phase, clock); else zombieWalk(parts, e.phase, clock);
       }
       horde.draw(parts);
     }

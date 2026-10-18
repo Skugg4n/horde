@@ -583,17 +583,64 @@ function moveZombies(sim, dt) {
   }
   if (sim.map.door) doorBreak(sim, dt);
 }
-// 0.16.4 (Olas bonus): löparna snubblar ibland. Var every[0] till every[1] meter (ur zombiens id och simuleringens
-// frö, inte ur sim.rng, så att inget annat slumpas om) provas ett snubbel med chansen chance. Snubblet tar time
-// sekunder i tre steg (faller, kryper, reser sig) med farten slow[i]; vyn ritar samma steg (stumbleOf). Inte i
-// diset, där ingen ser det, och inte när zombien står still (slår eller väntar).
-const mix32 = (a, b) => { let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35); h ^= h >>> 15; h = Math.imul(h, 0x27d4eb2f); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
-const stumbleRoll = (sim, z, n, k) => mix32(mix32((sim.seed ?? 1) | 0, z.id * 131 + k), n);
+// 0.16.4 (Olas bonus): löparna snubblar ibland. Allt ur zombiens id och simuleringens frö, inte ur sim.rng, så att inget
+// annat slumpas om. Inte i diset, där ingen ser det, och inte när zombien står still (slår eller väntar).
+// 0.19.0 (H454, H455, Ola: "klonk, rakt ner, kryper på stället, plopp", och för ofta och för jämnt): sällsynt och
+// oregelbundet, helst utlöst av något. Var every[0] till every[1] meter provas ett snubbel med chansen chance; dessutom
+// kan en tung träff (12,7 mm, granat), taggtråden och en skarp sväng fälla löparen (trigger: chansen per tillfälle).
+// Farten behålls: tre varianter med var sin fartkurva (variants, aldrig noll), vyn ritar samma variant (stumbleOf):
+//   trip      snavar, viftar och tar emot sig utan att falla (vanligast, kort)
+//   slide     faller och glider framåt med farten, som ebbar ut, och kommer upp
+//   scramble  faller och kravlar upp på alla fyra medan den rör sig framåt
+// 0.19.0 (funnet under H454): mix32 gav ett tal 0..1, och det inre anropet i stumbleRoll och assaults blev då 0 i det
+// yttre (a ^ ... avrundar). Alla zombier fick samma tärning: alla löpare snubblade likadant, och varje zombie stormade
+// ett hus med garnison (tärningen 0,26 under ASSAULT 0,3). mixU ger heltalet, mix32 talet 0..1 ur det.
+const mixU = (a, b) => { let h = Math.imul((a | 0) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul((b | 0) + 0x632be5ab, 0xc2b2ae35); h ^= h >>> 15; h = Math.imul(h, 0x27d4eb2f); h ^= h >>> 13; return h >>> 0; };
+const mix32 = (a, b) => mixU(a, b) / 4294967296;
+const stumbleRoll = (sim, z, n, k) => mix32(mixU((sim.seed ?? 1) | 0, z.id * 131 + k), n);
+// Farten i snubblet vid u (0..1): kurvans punkter [u, fart] linjärt emellan.
+export function stumbleSpeed(v, u) {
+  const P = v.speed;
+  for (let i = 1; i < P.length; i++) if (u <= P[i][0]) { const [a, sa] = P[i - 1], [b, sb] = P[i]; return sa + (sb - sa) * (u - a) / Math.max(1e-9, b - a); }
+  return P[P.length - 1][1];
+}
+// Varianten ur en tärning r (0..1): vikterna i ordning, eller (fall: true) bara de som faller.
+function stumbleKind(st, r, fall = false) {
+  const vs = st.variants.filter(v => !fall || v.fall), tot = vs.reduce((a, v) => a + v.w, 0);
+  let acc = 0;
+  for (const v of vs) { acc += v.w / tot; if (r < acc) return v.id; }
+  return vs[vs.length - 1].id;
+}
+function startStumble(sim, z, st, kind, why) {
+  const v = st.variants.find(q => q.id === kind);
+  z.stumbleT = v.time; z.stumbleK = kind; z.stumbleAt = z.run ?? 0;
+  sim.events.push({ t: 'stumble', id: z.id, kind, why });
+}
+// Utlöst snubbel (H454): why 'heavy' | 'wire' | 'turn'. Chansen trigger[why], inte strax efter ett annat snubbel
+// (st.gap meter), inte i diset. Ren funktion av zombien, fröet och hur många gånger den provats.
+function tripBy(sim, z, why) {
+  const st = ZOMBIES[z.type]?.stumble;
+  if (!st?.trigger?.[why] || z.dead || z.stumbleT > 0 || z.attacking) return;
+  if ((z.run ?? 0) - (z.stumbleAt ?? -Infinity) < st.gap) return;
+  if (sim.route.kind === 'grid' && fogFactor(sim.map, z.x, z.z) > 1 + 1e-9) return;
+  const n = z.trigN = (z.trigN ?? 0) + 1;
+  if (stumbleRoll(sim, z, n, 7) >= st.trigger[why]) return;
+  startStumble(sim, z, st, stumbleKind(st, stumbleRoll(sim, z, n, 8), why === 'heavy'), why);
+}
 function stumble(sim, z, st, dt, fog) {
   if (z.stumbleT > 0) {
+    const v = st.variants.find(q => q.id === z.stumbleK);
     z.stumbleT = Math.max(0, z.stumbleT - dt);
-    const e = st.time - z.stumbleT, u = e / st.time;
-    return u < st.steps[0] ? st.slow[0] : u < st.steps[1] ? st.slow[1] : st.slow[2];
+    return stumbleSpeed(v, 1 - z.stumbleT / v.time);
+  }
+  // en skarp sväng (rutnätets riktning vrider sig mer än st.turn grader på en meter)
+  if (st.trigger?.turn && fog <= 1 + 1e-9) {
+    const q = sim.route.place(z), h = Math.atan2(q.dirZ, q.dirX);
+    if (z.hd != null && (z.run ?? 0) - (z.hdAt ?? 0) <= 1.5) {
+      const d = Math.abs(Math.atan2(Math.sin(h - z.hd), Math.cos(h - z.hd)));
+      if (d > st.turn * Math.PI / 180) { z.hd = h; z.hdAt = z.run; tripBy(sim, z, 'turn'); if (z.stumbleT > 0) return stumble(sim, z, st, 0, fog); }
+    }
+    if (z.hd == null || (z.run ?? 0) - (z.hdAt ?? 0) > 1) { z.hd = h; z.hdAt = z.run ?? 0; }
   }
   const n = z.tripN ?? 0;
   z.trip ??= (z.run ?? 0) + st.every[0] + (st.every[1] - st.every[0]) * stumbleRoll(sim, z, n, 1);
@@ -601,16 +648,18 @@ function stumble(sim, z, st, dt, fog) {
   z.tripN = n + 1;
   z.trip = z.run + st.every[0] + (st.every[1] - st.every[0]) * stumbleRoll(sim, z, n + 1, 1);
   if (fog > 1 + 1e-9 || stumbleRoll(sim, z, n, 2) >= st.chance) return 1;
-  z.stumbleT = st.time;
-  sim.events.push({ t: 'stumble', id: z.id });
-  return st.slow[0];
+  if ((z.run ?? 0) - (z.stumbleAt ?? -Infinity) < st.gap) return 1;
+  startStumble(sim, z, st, stumbleKind(st, stumbleRoll(sim, z, n, 3)), 'run');
+  return stumble(sim, z, st, 0, fog);
 }
-// Snubblets läge för vyn: null, eller { step: 0 faller | 1 kryper | 2 reser sig, u: 0..1 genom hela snubblet }.
+// Snubblets läge för vyn: null, eller { kind: 'trip' | 'slide' | 'scramble', u: 0..1 genom snubblet, side: -1 | 1 (åt
+// vilket håll kroppen vrids och vilken arm som tar emot först, fast per zombie och snubbel) }.
 export function stumbleOf(z) {
   const st = ZOMBIES[z.type]?.stumble;
   if (!st || !(z.stumbleT > 0)) return null;
-  const u = 1 - z.stumbleT / st.time;
-  return { step: u < st.steps[0] ? 0 : u < st.steps[1] ? 1 : 2, u };
+  const v = st.variants.find(q => q.id === z.stumbleK);
+  if (!v) return null;
+  return { kind: v.id, u: 1 - z.stumbleT / v.time, side: ((z.id * 7 + (z.tripN ?? 0) + (z.trigN ?? 0)) & 1) ? 1 : -1 };
 }
 function breach(sim, z) {
   const def = ZOMBIES[z.type];
@@ -1572,6 +1621,8 @@ function damage(sim, z, amount, p, cls = 'small', src = null) {
   if (src && src.ambushUntil > sim.time) a *= HOLD.mul;
   z.hp -= a;
   sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z, cls, dmg: a, ...(take < 1 ? { armor: true } : {}) });
+  // 0.19.0 (H454): en tung träff som inte dödar kan fälla en löpare
+  if (z.hp > 0 && cls !== 'small') tripBy(sim, z, 'heavy');
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
@@ -1600,6 +1651,8 @@ function obstacleEffect(sim, z, dt, hitCells) {
     if (o.kind === 'slow' && !def.underWire && route.inCell(z, i)) {
       // slowTaken: hur mycket av inbromsningen zombien känner (1 = hela, bjässen bara en del).
       mul = Math.min(mul, 1 - (1 - o.slow) * (def.slowTaken ?? 1));
+      // 0.19.0 (H454): första gången i trådens ruta kan löparen snava
+      if (def.stumble && z.wireAt !== i) { z.wireAt = i; tripBy(sim, z, 'wire'); }
       ob.durability -= dt;
       if (ob.durability <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
@@ -2056,7 +2109,7 @@ function occupyHouse(sim, g, h, men) {
 }
 // Stormningen: zombien väljer att slå på dörren (deterministiskt ur id och frö; bjässar och pansrade alltid).
 function assaults(sim, z) {
-  if (z.assault == null) z.assault = z.type === 'brute' || z.type === 'armored' || mix32(mix32((sim.seed ?? 1) | 0, z.id * 977 + 5), 11) < ASSAULT;
+  if (z.assault == null) z.assault = z.type === 'brute' || z.type === 'armored' || mix32(mixU((sim.seed ?? 1) | 0, z.id * 977 + 5), 11) < ASSAULT;
   return z.assault;
 }
 function attackHouse(sim, g, amount, hurt) {

@@ -922,23 +922,63 @@ export function zombieAttack(z, chop, t = 0) {
   z.body.position.z = 0;
 }
 
-// 0.16.4 (Olas bonus): löparen snubblar. u 0..1 genom snubblet (src/sim/sim.js stumbleOf): faller framåt med armarna
-// ut (till 0,3), kryper på alla fyra med armarna som paddlar (till 0,7) och reser sig in i löpsteget igen.
-export function zombieStumble(z, u, phase, t = 0) {
+// 0.16.4 (Olas bonus): löparen snubblar.
+// 0.19.0 (H455, Ola: "klonk, rakt ner, kryper på stället, plopp"): farten framåt behålls (simuleringen flyttar zombien
+// hela tiden) och ingen pose står still. sb = stumbleOf(z): { kind, u 0..1, side -1 | 1 }. Asymmetriskt: kroppen
+// rullar åt sidan (body.rotation.z), en arm tar emot först, huvudet knycks.
+//   trip      snavar: ett långt steg, kroppen kastas fram och åt sidan, armarna viftar, fångar sig och springer vidare
+//   slide     faller framåt med armarna före, glider på magen med benen efter, trycker sig upp i löpsteget
+//   scramble  faller på knä och händer och kravlar framåt på alla fyra, reser sig medan den rör sig
+const smooth01 = x => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
+export function zombieStumble(z, sb, phase, t = 0) {
   zombieWalk(z, phase, t);
-  const r = Math.min(1, Math.max(0, (u - 0.7) / 0.3));
-  const k = u < 0.3 ? Math.sin(u / 0.3 * Math.PI / 2) : u < 0.7 ? 1 : 1 - r * r * (3 - 2 * r);
-  const crawl = u >= 0.3 && u < 0.7 ? Math.sin((u - 0.3) / 0.4 * Math.PI * 4) : 0;
-  const mix = (a, b) => a + (b - a) * k;
-  z.body.rotation.x = mix(z.body.rotation.x, 1.15);
-  z.body.position.y = mix(z.body.position.y, 0.08);
-  z.body.position.z = mix(z.body.position.z, 0.15);
-  z.spine.rotation.x = mix(z.spine.rotation.x, 0.25);
-  z.head.rotation.x = mix(z.head.rotation.x, -0.9);
-  z.hipL.rotation.x = mix(z.hipL.rotation.x, -1.5 + crawl * 0.3); z.kneeL.rotation.x = mix(z.kneeL.rotation.x, 1.7);
-  z.hipR.rotation.x = mix(z.hipR.rotation.x, -1.5 - crawl * 0.3); z.kneeR.rotation.x = mix(z.kneeR.rotation.x, 1.7);
-  z.shL.rotation.x = mix(z.shL.rotation.x, -1.25 - crawl * 0.45); z.elL.rotation.x = mix(z.elL.rotation.x, -0.25);
-  z.shR.rotation.x = mix(z.shR.rotation.x, -1.25 + crawl * 0.45); z.elR.rotation.x = mix(z.elR.rotation.x, -0.25);
+  const { kind, u, side } = sb;
+  const L = side > 0, lead = L ? z.shL : z.shR, lag = L ? z.shR : z.shL, leadEl = L ? z.elL : z.elR, lagEl = L ? z.elR : z.elL;
+  const mix = (o, key, v, k) => { o[key] += (v - o[key]) * k; };
+  if (kind === 'trip') {
+    // in (0 till 0,3), kastas (0,3 till 0,55), fångar sig (till 1)
+    const k = u < 0.3 ? smooth01(u / 0.3) : 1 - smooth01((u - 0.45) / 0.55);
+    const snap = Math.sin(Math.min(1, u / 0.45) * Math.PI);
+    mix(z.body.rotation, 'x', 0.38, k); mix(z.body.rotation, 'z', side * 0.38, k);
+    mix(z.spine.rotation, 'x', z.lean + 0.22, k);
+    z.head.rotation.x += snap * 0.55; z.head.rotation.z += side * snap * 0.3;
+    // ledarmen ut och fram för att ta emot, den andra slängs bakåt och upp
+    mix(lead.rotation, 'x', -1.7, k); mix(lead.rotation, 'z', side * 0.9, k); mix(leadEl.rotation, 'x', -0.2, k);
+    mix(lag.rotation, 'x', 0.9 + Math.sin(u * 22) * 0.35, k); mix(lag.rotation, 'z', -side * 0.6, k); mix(lagEl.rotation, 'x', -0.9, k);
+    // ett långt räddande steg
+    mix(L ? z.hipR.rotation : z.hipL.rotation, 'x', -0.95, k); mix(L ? z.kneeR.rotation : z.kneeL.rotation, 'x', 0.25, k);
+    mix(L ? z.hipL.rotation : z.hipR.rotation, 'x', 0.35, k); mix(L ? z.kneeL.rotation : z.kneeR.rotation, 'x', 0.5, k);
+    z.body.position.y -= 0.05 * k;
+    return;
+  }
+  if (kind === 'slide') {
+    // faller (0 till 0,22), glider (till 0,62), trycker sig upp (till 1)
+    const fall = smooth01(u / 0.22), up = smooth01((u - 0.62) / 0.38), k = fall * (1 - up);
+    const reach = smooth01((u - 0.05) / 0.15);
+    mix(z.body.rotation, 'x', 1.42, k); mix(z.body.rotation, 'z', side * (0.42 - 0.25 * smooth01((u - 0.2) / 0.4)), k);
+    mix(z.body.position, 'y', 0.1, k); mix(z.body.position, 'z', 0.3, k);
+    mix(z.spine.rotation, 'x', 0.05, k);
+    mix(z.head.rotation, 'x', -1.05 + Math.sin(Math.min(1, u / 0.3) * Math.PI) * 0.4, k); z.head.rotation.z += side * 0.25 * k;
+    // ledarmen före (redan i fallet), den andra efter; armarna fram över huvudet medan den glider
+    mix(lead.rotation, 'x', -2.6, Math.max(k, reach * (1 - up))); mix(leadEl.rotation, 'x', -0.15, k);
+    mix(lag.rotation, 'x', -2.3, k * smooth01((u - 0.12) / 0.15)); mix(lagEl.rotation, 'x', -0.4, k);
+    lead.rotation.z += side * 0.35 * k; lag.rotation.z -= side * 0.2 * k;
+    // benen släpar raka, ett knä drar upp när den reser sig
+    mix(z.hipL.rotation, 'x', 0.15, k); mix(z.kneeL.rotation, 'x', 0.15 + up * 1.2, k);
+    mix(z.hipR.rotation, 'x', 0.05, k); mix(z.kneeR.rotation, 'x', 0.1, k);
+    return;
+  }
+  // scramble: faller (0 till 0,2), kravlar fram på alla fyra (till 0,75), reser sig (till 1). Pulsen följer farten.
+  const fall = smooth01(u / 0.2), up = smooth01((u - 0.72) / 0.28), k = fall * (1 - up);
+  const cr = Math.sin((u - 0.15) * Math.PI * 7), cr2 = Math.sin((u - 0.15) * Math.PI * 7 + Math.PI);
+  mix(z.body.rotation, 'x', 1.05 - 0.25 * smooth01((u - 0.2) / 0.5), k); mix(z.body.rotation, 'z', side * 0.3 + cr * 0.08, k);
+  mix(z.body.position, 'y', 0.18, k); mix(z.body.position, 'z', 0.2, k);
+  mix(z.spine.rotation, 'x', 0.3, k);
+  z.head.rotation.x += (Math.sin(Math.min(1, u / 0.25) * Math.PI) * 0.5 - 0.5) * k;
+  mix(lead.rotation, 'x', -1.3 + cr * 0.55, k); mix(leadEl.rotation, 'x', -0.3 - Math.max(0, cr) * 0.4, k);
+  mix(lag.rotation, 'x', -1.3 + cr2 * 0.55, k * smooth01((u - 0.08) / 0.12)); mix(lagEl.rotation, 'x', -0.3 - Math.max(0, cr2) * 0.4, k);
+  mix(z.hipL.rotation, 'x', -1.35 + cr2 * 0.35, k); mix(z.kneeL.rotation, 'x', 1.6, k);
+  mix(z.hipR.rotation, 'x', -1.35 + cr * 0.35, k); mix(z.kneeR.rotation, 'x', 1.6, k);
 }
 
 // Faller bakåt. t 0..1 (redan kvadrerad av vyn). Knäna viker sig, ryggen rätas ut och armarna

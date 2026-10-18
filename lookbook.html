@@ -156,8 +156,8 @@ const ZV2 = ZV + 5.5;
 });
 label(19, ZV, 'Attacking', 'barrier', 2.6);
 label(24, ZV, 'Dying', 'loops', 2.6);
-// 0.16.4: löparen snubblar (faller, kryper, reser sig), samma pose som i spelet (src/sim/sim.js stumbleOf)
-label(30, ZV, 'Stumbling', 'runner · fall, scramble, rise', 2.6);
+// 0.16.4: löparen snubblar, samma pose som i spelet (src/sim/sim.js stumbleOf). 0.19.0 (H455): tre varianter
+label(30, ZV, 'Stumbling', 'runner · trip, slide, scramble', 2.6);
 
 // rad 4: placeringens spöke (grönt där pjäsen får stå, rött där den inte får)
 const SV = 24;
@@ -615,10 +615,13 @@ function tick(now) {
     z.t += dt;
     if (z.act === 'attack') { zombieAttack(z, z.t * 11, now / 1000); rings.add(z.root.position.x, z.root.position.z, z.hp, Math.min(1.35, z.scale)); }
     else if (z.act === 'stumble') {
-      // 1,2 s snubbel och 1,3 s löpsteg, om och om igen
-      const c = z.t % 2.5;
-      z.phase = (z.phase ?? 0) + dt * ZOMBIES.runner.speed * 2.6 / z.scale * (c < 1.2 ? 0.35 : 1);
-      if (c < 1.2) zombieStumble(z, c / 1.2, z.phase, now / 1000); else zombieWalk(z, z.phase, now / 1000);
+      // 0.19.0 (H455): de tre varianterna i tur och ordning (snavar, glider, kravlar), varje följd av 1,3 s löpsteg
+      const vs = ZOMBIES.runner.stumble.variants, cyc = vs.reduce((a, v) => a + v.time + 1.3, 0);
+      let c = z.t % cyc, i = 0;
+      while (c > vs[i].time + 1.3) { c -= vs[i].time + 1.3; i++; }
+      const v = vs[i], on = c < v.time;
+      z.phase = (z.phase ?? 0) + dt * ZOMBIES.runner.speed * 2.6 / z.scale;
+      if (on) zombieStumble(z, { kind: v.id, u: c / v.time, side: i % 2 ? 1 : -1 }, z.phase, now / 1000); else zombieWalk(z, z.phase, now / 1000);
     } else {
       const f = Math.min(1, (z.t % 2.4) / 0.3);
       if (f < 0.05) zombieWalk(z, 0, now / 1000);
