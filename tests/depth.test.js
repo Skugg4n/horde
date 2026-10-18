@@ -289,3 +289,26 @@ test('tröttheten: en dag ute gör trött, en dag i reserven vilar, ett förlora
   assert.deepEqual(FATIGUE.names, ['Rested', 'Tired', 'Exhausted']);
   void opStartConfig;
 });
+
+// 0.18.0 (uppdraget): en spelare som struntar i skadeklasserna förlorar mot pansrade vågor. Samma våg (14 pansrade och
+// 20 vandrare), samma bana. Den som köper mest eld per krona (fem Ksp 90, 1 250) släpper igenom dem; den som tar en
+// Ksp 88 på Strongest och två Ksp 90 (1 100) håller.
+test('balans: den som struntar i skadeklasserna förlorar mot pansrade vågor', () => {
+  const rows = [ROAD, '.'.repeat(ROAD.length), '.'.repeat(ROAD.length), '.'.repeat(ROAD.length)];
+  const waves = [{ groups: [{ type: 'armored', count: 14, interval: 1.2, delay: 0 }, { type: 'walker', count: 20, interval: 0.6, delay: 0 }] }];
+  const play = loadout => {
+    const map = { ...testMap(rows, waves), baseHp: 8 };
+    const sim = createSim({ map, day: 1, cash: 99999, seed: 3, allow: ['target', 'aim'] });
+    sim.maxGuns = 9;
+    let cost = 0;
+    for (const [t, i, j] of loadout) { const r = build(sim, key(map, i, j), t); assert.ok(r.ok, t); cost += WEAPONS[t].cost; if (t === 'm2') setTarget(sim, r.id, 'strongest'); }
+    startWave(sim);
+    for (let k = 0; k < 30 * 400 && sim.phase === 'wave'; k++) step(sim, 1 / 30);
+    return { phase: sim.phase, base: sim.baseHp, cost };
+  };
+  const blind = play([['m249', 8, 2], ['m249', 14, 2], ['m249', 20, 2], ['m249', 26, 2], ['m249', 32, 2]]);
+  const aware = play([['m2', 8, 3], ['m249', 16, 2], ['m249', 24, 2]]);
+  assert.ok(blind.cost > aware.cost, 'den blinda betalar mer');
+  assert.equal(blind.phase, 'lost', JSON.stringify(blind));
+  assert.equal(aware.phase, 'won', JSON.stringify(aware));
+});

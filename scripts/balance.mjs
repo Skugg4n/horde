@@ -9,18 +9,18 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy } from '../src/sim/sim.js';
+import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { selectMap, mapState } from '../src/meta/progress.js';
 import { newCampaign, opStartConfig, finishDay, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
-import { UPGRADES } from '../src/data/depot.js';
+import { UPGRADES, UNIT_RP } from '../src/data/depot.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
-import { planSquad } from '../src/sim/squad.js';
+import { planSquad, hordeWeight } from '../src/sim/squad.js';
 import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
 import { R as R_MB } from '../src/data/molnbo.js';
@@ -623,7 +623,10 @@ const DEPLOY_ORDER = ['m2', 'ksp58', 'epa', 'psg90', 'ak5', 'inf', 'm249', 'hv',
 // Uppställningen: allt i reserven ut på planens platser. Öppningens Ksp 90 först (Gnesta North), Psg 90 på
 // planens tak (sedan marken), pjäserna från den tyngsta på de platser som ser mest av hordens väg, grupperna
 // på sina egna platser. Det som inte får plats på planen provas på de andras platser.
-function deployAll(sim, plan) {
+// 0.18.0 (tröttheten): rest = de utmattade ställs ut sist, när frontbredden har plats kvar (en människa läser förrådets
+// streck och låter dem vila). Inom typen den högsta nivån först, sedan den mest utvilade.
+function deployAll(sim, plan, rest = false) {
+  if (rest && sim.reserve?.some(u => (u.fatigue ?? 0) >= 2)) return deployRested(sim, plan);
   const tryAt = (spots, type, opts = () => ({})) => {
     for (const k of spots) {
       if (sim.guns.some(g => g.cell === k)) continue;
@@ -642,6 +645,72 @@ function deployAll(sim, plan) {
         : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t);
       if (!ok) break;
     }
+  }
+}
+// Värdet en spelare ser i förrådet: rekvisitionens pris och nivåerna, gånger tröttheten (en utmattad Ksp 58 på nivå 3
+// är fortfarande bättre än utvilade frivilliga). Frontbredden fylls med de bästa; resten vilar.
+const FATIGUE_WORTH = [1, 0.95, 0.75];
+const unitWorth = u => (UNIT_RP[u.type] ?? 100) * (1 + 0.6 * (u.level - 1)) * (u.vet ? 1.1 : 1) * FATIGUE_WORTH[u.fatigue ?? 0];
+function deployRested(sim, plan) {
+  const tryAt = (spots, type, opts) => {
+    for (const k of spots) {
+      if (sim.guns.some(g => g.cell === k)) continue;
+      const r = build(sim, k, type, opts(k));
+      if (r.ok) return true;
+      if (r.reason === 'reserv' || r.reason === 'uppställd' || r.reason === 'front') return false;
+    }
+    return false;
+  };
+  const guns = [...plan.guns, ...plan.squads], squads = [...plan.squads, ...plan.guns];
+  const pick = (t, ok) => sim.reserve.filter(u => u.type === t && canDeploy(sim, u) && ok(u))
+    .sort((a, b) => b.level - a.level || (a.fatigue ?? 0) - (b.fatigue ?? 0) || (b.vet ?? 0) - (a.vet ?? 0) || (b.men ?? 0) - (a.men ?? 0) || a.uid - b.uid)[0];
+  if (plan.openerGun != null) { const u = pick('m249', () => true); if (u) tryAt([plan.openerGun], 'm249', () => ({ uid: u.uid })); }
+  const room = frontage(sim) - sim.guns.length;
+  const chosen = new Set(sim.reserve.filter(u => canDeploy(sim, u)).sort((a, b) => unitWorth(b) - unitWorth(a) || a.uid - b.uid).slice(0, room).map(u => u.uid));
+  for (const ok of [u => chosen.has(u.uid), () => true]) {
+    for (const t of DEPLOY_ORDER) {
+      while (sim.guns.length < frontage(sim)) {
+        const u = pick(t, ok);
+        if (!u) break;
+        const done = t === 'psg90' ? tryAt(plan.roofs ?? [], t, k => ({ facing: plan.roofFacing?.[plan.roofs.indexOf(k)], uid: u.uid })) || tryAt(guns, t, () => ({ uid: u.uid }))
+          : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t, () => ({ uid: u.uid }));
+        if (!done) break;
+      }
+    }
+  }
+}
+// ---------- 0.18.0 (skiva 1): djupets verb i policyerna ----------
+// depth: true (den skickliga och kartläsaren i Mölnbo) använder det som är upplåst: tunga kulsprutor på Strongest
+// när det finns pansrade eller bjässar i dagens vågor, Recrew på en tyst pjäs, och en grupp i huset som ser mest av
+// hordens väg (garrison). depth: 'recrew' (den vanliga spelaren) bemannar bara tysta pjäser igen.
+const HEAVY_TARGETS = ['armored', 'brute'];
+function depthVerbs(sim, P) {
+  if (!P.depth) return;
+  if (P.depth === true && allowed(sim, 'target') && sim.dayCfg.waves.some(w => w.groups.some(g => HEAVY_TARGETS.includes(g.type)))) {
+    for (const g of sim.guns) if (g.weapon.type === 'm2' && g.tgt !== 'strongest') setTarget(sim, g.id, 'strongest');
+  }
+  for (const g of sim.guns) if (g.silent && !g.recrew && sim.cash >= RECREW.cost + OBSTACLES.wire.cost) recrew(sim, g.id);
+}
+// Husen som ser mest av hordens väg för en grupp: { key, score }, bäst först.
+export function housePlan(sim, type) {
+  const w = hordeWeight(sim), out = [];
+  for (const h of housesFor(sim)) {
+    const key = h.cells[0];
+    if (!checkSpot(sim, key, type).ok) continue;
+    let score = 0;
+    // bara hordens väg (vikten 2), inte gatorna intill
+    for (const k of sightFor(sim, key, type).keys) if (w[k] >= 2) score++;
+    out.push({ key, score, id: h.id });
+  }
+  return out.sort((a, b) => b.score - a.score || a.key - b.key);
+}
+function garrisonSquads(sim, P) {
+  if (P.depth !== true || !allowed(sim, 'garrison') || !deployPhase(sim) || sim._garrisoned) return;
+  sim._garrisoned = true;
+  for (const t of SQUAD_ORDER) {
+    if (!reserveCount(sim, t) || sim.guns.length >= frontage(sim)) continue;
+    const best = housePlan(sim, t)[0];
+    if (best && best.score >= (P.houseMin ?? 30)) { build(sim, best.key, t); return; }
   }
 }
 // Förnödenheterna utöver hindren och granatlådorna: ammunition till pjäserna, sandsäckar till grupperna,
@@ -671,8 +740,9 @@ function opPlan(map, day, town) {
 // 0.14.0: på Gnesta North är spärren på Vikingavägen med pjäserna där de ser hordens väg bättre än 0.13:s
 // smarta plan (dödszonen, radhustaken) när styrkan är kärntrupper; skilled spelar så där (planBy).
 export const POLICIES = {
-  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true, evacMap: true },
-  normal: { plan: 'naive', blocks: true, early: false, supplies: false },
+  // 0.18.0: rest (tröttheten), depth (djupets verb, depthVerbs ovan)
+  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true, evacMap: true, rest: true, depth: true },
+  normal: { plan: 'naive', blocks: true, early: false, supplies: false, rest: true, depth: 'recrew' },
   naive: { plan: 'naive', blocks: false, early: false, supplies: false },
   // 0.16.2 (speltestet av 0.16.1, Ishallen dag 2): förstagångsspelaren som följer tipsen. Lägger spärren som
   // lektionen säger och ställer sedan pjäserna längs den nya vägen som pilarna visar (followRoute), men läser inte
@@ -730,6 +800,8 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const P0 = typeof policy === 'string' ? POLICIES[policy] : policy;
   const P = { ...P0, plan: P0.planBy?.[mapId] ?? P0.plan };
   const cfg = opStartConfig(progress, day, mapId);
+  // 0.18.0: HORDE_OFF=sanity,fatigue (bara balansarbetet) slår av mekaniker för att mäta vad var och en gör
+  if (typeof process !== 'undefined' && process.env?.HORDE_OFF) { const off = process.env.HORDE_OFF.split(','); cfg.allow = cfg.allow.filter(f => !off.includes(f)); if (off.includes('fatigue')) cfg.core = cfg.core.map(u => ({ ...u, fatigue: 0 })); }
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
   const map = cfg.map, T = TOWN[mapId], isTown = !!T;
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
@@ -749,8 +821,9 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const think = () => {
     if (evacMap && deployPhase(sim)) evacDeploy(sim);
     if (evacMap) evacReposition(sim);
-    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); deployAll(sim, plan); }
+    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); garrisonSquads(sim, P); deployAll(sim, plan, !!P.rest); }
     else if (lateReady()) deployAll(sim, plan);
+    depthVerbs(sim, P);
     builder();
     if (P.react && !isTown) reactToForetold(sim);
     if (P.supplies) spendSupplies(sim);
@@ -894,7 +967,7 @@ TOWN.molnbo = {
 };
 HV_POLICY.molnbo = { days: [], gap: [] };
 REQUISITION.molnbo = ['up:psg90:3', 'lvl:psg90:2', 'unit:psg90:4', 'lvl:ksp58:3', 'unit:ksp58:6', 'lvl:inf:2', 'unit:inf:3', 'lvl:m2:3', 'lvl:psg90:3', 'unit:ak5:3', 'lvl:ak5:3', 'unit:m249:6'];
-POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true };
+POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true };
 // Framsteget en vanlig spelare har när Mölnbo öppnar (sparas per seed).
 const mbArrival = new Map();
 export function molnboArrival(seedOffset = 0) {

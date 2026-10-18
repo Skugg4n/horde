@@ -73,7 +73,11 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // docs/balance-log.md 0.16.4.
 // 0.17.2: avsiktligt (H307, inget på vägarna): Vikingavägens villor och radhus G backar från gångvägarna,
 // så Vikingavägen dag 1 till 5 är nya. docs/balance-log.md 0.17.2.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"4aca40ff","gnesta 3":"1e26a3bd","gnesta 4":"4634731c","gnesta 5":"71710bac","gnesta-norr 1":"f90cb36d","gnesta-norr 2":"0a597e73","gnesta-norr 3":"445b993d","gnesta-norr 4":"98e1c3d9","gnesta-norr 5":"5e1de9b5"};
+// 0.18.0: Ishallen dag 2 till Vikingavägen dag 5 nya, avsiktligt (strategiskt djup, skiva 1): korselden från Ishallen
+// dag 2, sanity från dag 3, tröttheten efter Vikingavägen dag 3 (policyerna vilar de utmattade när det finns
+// likvärdiga), kryparna och mål-läget dag 4, husen dag 5 (den skickliga ställer en grupp i huset som ser mest av
+// hordens väg). E4 och Ishallen dag 1 står kvar. docs/balance-log.md 0.18.0.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"30e441d4","gnesta 3":"174fceb0","gnesta 4":"0989ad13","gnesta 5":"2cb68445","gnesta-norr 1":"07d6004f","gnesta-norr 2":"0e7ad74e","gnesta-norr 3":"bac421f0","gnesta-norr 4":"a5ab6f92","gnesta-norr 5":"6a048183"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

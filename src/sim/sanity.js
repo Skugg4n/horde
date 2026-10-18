@@ -16,7 +16,7 @@ import { ZOMBIES } from '../data/zombies.js';
 export const SANITY = {
   max: 100,
   near: 8,           // meter: zombier närmare än så tär
-  drain: 1.6,        // per sekund och fear-enhet, på 0 m (linjärt ned till 0 vid near)
+  drain: 1.0,        // per sekund och fear-enhet, på 0 m (linjärt ned till 0 vid near)
   calm: 12,          // meter: ingen zombie så nära, så återhämtar de sig
   recover: 3,        // per sekund
   downOwn: 22,       // en man i gruppen stupar
@@ -24,6 +24,8 @@ export const SANITY = {
   crewLost: 14,      // ett pjäslag i närheten slås ner
   nearUnits: 14,     // meter
   house: 0.5,        // i ett hus tär det hälften så fort
+  dugIn: 0.6,        // ett pjäslag bakom sina säckar (värnet), och en grupp med sandsäckar (förnödenheten): 0,75
+  bags: 0.75,
   effectAt: 60,      // under så mycket börjar det märkas
   effectMin: 0.65,   // träffen vid sanity 0 (andel)
   rateMin: 0.75,     // eldtakten vid sanity 0 (andel)
@@ -35,9 +37,9 @@ export const SANITY = {
 // Tröttheten (0.18.0): 0 Rested, 1 Tired, 2 Exhausted (src/meta/operation.js). Träff, eldtakt och hur fort sanity tär.
 export const FATIGUE = {
   names: ['Rested', 'Tired', 'Exhausted'],
-  accuracy: [1, 0.92, 0.8],
-  rate: [1, 1, 0.88],
-  drain: [1, 1.2, 1.5],
+  accuracy: [1, 0.95, 0.88],
+  rate: [1, 1, 0.94],
+  drain: [1, 1.12, 1.3],
 };
 export const fatigueName = f => FATIGUE.names[Math.max(0, Math.min(2, f | 0))];
 // Pillboxen och skyttar utan lag har ingen sanity.

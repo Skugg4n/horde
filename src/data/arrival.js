@@ -21,9 +21,10 @@ export const ARRIVAL = {
 // om tabellen inte längre stämmer med balansen.
 export const ARRIVAL_TROOP = {
   molnbo: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'm249Rate.1', 'grenade.2', 'ksp58.2', 'psg90.1', 'hvRifles.1', 'psg90.2', 'budget.1', 'hvRifles.2', 'budget.2'],
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 3], ['civ', 2, 4, 3], ['m249', 2, null, 9], ['m249', 2, null, 4], ['hv', 2, 5, 2], ['ksp58', 3, null, 7], ['m249', 2, null, 1],
-      ['ksp58', 3, null, 7], ['m2', 1, null, 6], ['ak5', 2, null, 2], ['ksp58', 3, null, 6], ['m249', 1, null, 0], ['ksp58', 3, null, 5], ['psg90', 2, null, 5], ['psg90', 2, null, 4],
-      ['inf', 2, 5, 0], ['psg90', 2, null, 1], ['psg90', 1, null, 0]],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'm249Rate.1', 'grenade.2', 'ksp58.2', 'psg90.1', 'hvRifles.1', 'hvRifles.2', 'psg90.2', 'budget.1', 'budget.2'],
+    // 0.18.0: omräknad efter skiva 1 (tröttheten, sanity och korselden på Hagstumosse; docs/balance-log.md 0.18.0)
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 3], ['civ', 2, 4, 3], ['m249', 2, null, 8], ['m249', 2, null, 5], ['hv', 2, 5, 2], ['ksp58', 3, null, 7], ['m249', 2, null, 1],
+      ['ksp58', 3, null, 7], ['m2', 1, null, 6], ['ak5', 1, null, 2], ['ksp58', 3, null, 6], ['m249', 1, null, 0], ['ksp58', 3, null, 5], ['psg90', 2, null, 5], ['psg90', 2, null, 4],
+      ['inf', 2, 5, 0], ['psg90', 2, null, 1], ['inf', 1, 4, 0], ['psg90', 1, null, 0]],
   },
 };

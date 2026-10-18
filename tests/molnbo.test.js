@@ -284,8 +284,12 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // trapptornen 7,2 m, ingen enhet under broarna, dag 5 hp 16 till 15 (docs/balance-log.md, Mölnbo 0.17.1).
 // 0.17.2: alla dagar nya, avsiktligt. Prickskyttarna i tornen, på hyreshusen, Folkets hus gavel och stationen (H301),
 // husen och bilarna av vägarna (H307), trädgårdarnas bodar (H308), dag 4 hp 31 till 36 (docs/balance-log.md 0.17.2).
+// 0.18.0: alla dagar nya, avsiktligt (skiva 1): ankomsten från Hagstumosse med sanity, korseld och trötthet, routed och
+// Fall back från dag 1, de pansrade dag 2, kryparna dag 2 till 5, husen, Håll eld dag 4 och överrända pjäser dag 5;
+// kartläsaren vilar de utmattade, ställer Ksp 88 på Strongest, bemannar tysta pjäser och ställer en grupp i ett hus.
+// Dag 4 hp 36 till 34 och färre vandrare i dag 4:s och 5:s sista vågor (toppen under 250). docs/balance-log.md 0.18.0.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'e3366e99', 'molnbo 2': 'c9a25d00', 'molnbo 3': 'ea3c29de', 'molnbo 4': '98f2872d', 'molnbo 5': 'e730f02a' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '4e087429', 'molnbo 2': '2065fc1c', 'molnbo 3': 'c70477a5', 'molnbo 4': '0641acc9', 'molnbo 5': '2df44d12' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '56c5cd8e', 'molnbo 2': 'e2543d9b', 'molnbo 3': 'f7cf1b9c', 'molnbo 4': '13dece00', 'molnbo 5': '71682133' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'b67298aa', 'molnbo 2': '595148d1', 'molnbo 3': '60aeead0', 'molnbo 4': 'f27ce50b', 'molnbo 5': '741638a5' });
 });

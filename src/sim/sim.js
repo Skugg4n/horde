@@ -1659,7 +1659,8 @@ function runSanity(sim, dt, cells) {
       drain += fearAt(z.type, d);
     }
     const res = resilience(fat ? g.weapon : { ...g.weapon, fatigue: 0 });
-    if (drain > 0) g.sanity = Math.max(0, g.sanity - drain * dt * (g.house ? SANITY.house : 1) / res);
+    const cover = g.house ? SANITY.house : !g.squad ? SANITY.dugIn : g.weapon.sandbags ? SANITY.bags : 1;
+    if (drain > 0) g.sanity = Math.max(0, g.sanity - drain * dt * cover / res);
     else if (calm && !g.retreat) g.sanity = Math.min(SANITY.max, g.sanity + SANITY.recover * dt);
     if (g.sanity >= SANITY.effectAt) g.wavered = false;
     if (g.sanity < SANITY.waver && !g.wavered && !g.retreat) { g.wavered = true; const q = unitPos(g); sim.events.push({ t: 'waver', gunId: g.id, x: q.x, z: q.z }); }
