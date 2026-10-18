@@ -1,33 +1,73 @@
-// Gesterna på kartan (0.17.1, speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten").
+// Gesterna på kartan. 0.17.2 (H300, Olas beslut): med kort i handen ställer ett klick ut (riktningen mot vägen),
+// tryck-håll-dra siktar, höger- och Alt-dra siktar direkt; utan kort panorerar vänster-dra.
 // Reglerna i src/ui/gesture.js; scripts/placement-harness.mjs provar dem med riktiga pekarhändelser.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pressKind, releaseAction, isDrag, DRAG_PX, BUTTON } from '../src/ui/gesture.js';
+import { pressKind, releaseAction, dragAims, pans, edgeDir, isDrag, DRAG_PX, HOLD_MS, BUTTON } from '../src/ui/gesture.js';
 
-test('höger- och mittknappen panorerar alltid, också med något i handen på en giltig plats', () => {
-  for (const button of [BUTTON.right, BUTTON.middle]) {
-    assert.equal(pressKind({ button, holding: true, cone: true, aimUnlocked: true, validSpot: true }), 'pan');
-    assert.equal(releaseAction({ kind: 'pan', button, moved: true, holding: true }), 'none');
+const aimable = { holding: true, cone: true, aimUnlocked: true, validSpot: true };
+
+test('utan kort: vänster, höger och mitten panorerar, ett vänsterklick väljer', () => {
+  for (const button of [BUTTON.left, BUTTON.right, BUTTON.middle]) {
+    assert.equal(pressKind({ button }), 'pan');
+    assert.equal(pans(button, false), true);
+    assert.equal(releaseAction({ kind: 'pan', button, moved: true }), 'none');
   }
-  // ett högerklick utan dragning lägger tillbaka det man håller; utan något i handen gör det ingenting
-  assert.equal(releaseAction({ kind: 'pan', button: BUTTON.right, moved: false, holding: true }), 'cancel');
+  assert.equal(releaseAction({ kind: 'pan', button: BUTTON.left, moved: false }), 'click');
   assert.equal(releaseAction({ kind: 'pan', button: BUTTON.right, moved: false, holding: false }), 'none');
 });
 
-test('vänster-dra siktar bara på en giltig plats, med en skjutvinkel och siktet upplåst', () => {
-  const ok = { button: BUTTON.left, holding: true, cone: true, aimUnlocked: true, validSpot: true };
-  assert.equal(pressKind(ok), 'aim');
-  for (const k of ['holding', 'cone', 'aimUnlocked', 'validSpot']) assert.equal(pressKind({ ...ok, [k]: false }), 'pan', k);
-  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.left, moved: true }), 'place-aimed');
-  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.left, moved: false }), 'click');
+test('med kort: bara mittknappen panorerar', () => {
+  assert.equal(pans(BUTTON.middle, true), true);
+  assert.equal(pans(BUTTON.left, true), false);
+  assert.equal(pans(BUTTON.right, true), false);
+  assert.equal(pressKind({ button: BUTTON.middle, ...aimable }), 'pan');
 });
 
-test('en panorering ställer aldrig ut något: bara ett tryck utan rörelse är ett klick', () => {
-  for (const holding of [true, false]) {
-    assert.equal(releaseAction({ kind: 'pan', button: BUTTON.left, moved: true, holding }), 'none');
-    assert.equal(releaseAction({ kind: 'pan', button: BUTTON.left, moved: false, holding }), 'click');
+test('med kort: ett klick ställer ut (vinkeln mot vägen), också där siktet inte går', () => {
+  assert.equal(pressKind({ button: BUTTON.left, ...aimable }), 'hold');
+  assert.equal(releaseAction({ kind: 'hold', button: BUTTON.left, moved: false, holding: true }), 'click');
+  for (const k of ['cone', 'aimUnlocked', 'validSpot']) {
+    const kind = pressKind({ button: BUTTON.left, ...aimable, [k]: false });
+    assert.equal(kind, 'hand', k);
+    assert.equal(releaseAction({ kind, button: BUTTON.left, moved: false, holding: true }), 'click', k);
   }
+});
+
+test('tryck, håll och dra siktar; dra utan att hålla gör ingenting', () => {
+  assert.equal(dragAims('hold', HOLD_MS), true);
+  assert.equal(dragAims('hold', HOLD_MS + 400), true);
+  assert.equal(dragAims('hold', HOLD_MS - 1), false);
+  assert.equal(dragAims('hold', 0), false);
+  assert.equal(releaseAction({ kind: 'hold', button: BUTTON.left, moved: true, holding: true, aimed: true }), 'place-aimed');
+  // för tidig dragning: varken utställd eller panorering
+  assert.equal(releaseAction({ kind: 'hold', button: BUTTON.left, moved: true, holding: true, aimed: false }), 'none');
+  // ingen sikte-plats: dragningen gör ingenting
+  assert.equal(dragAims('hand', 5000), false);
+  assert.equal(releaseAction({ kind: 'hand', button: BUTTON.left, moved: true, holding: true, aimed: false }), 'none');
+});
+
+test('höger-dra och Alt-dra siktar direkt; högerklick lägger tillbaka', () => {
+  assert.equal(pressKind({ button: BUTTON.right, ...aimable }), 'aim');
+  assert.equal(pressKind({ button: BUTTON.left, ...aimable, alt: true }), 'aim');
+  assert.equal(dragAims('aim', 0), true);
+  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.right, moved: true, holding: true, aimed: true }), 'place-aimed');
+  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.left, moved: true, holding: true, aimed: true }), 'place-aimed');
+  // högerklick utan dragning: lägg tillbaka, både där siktet går och där det inte gör det
+  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.right, moved: false, holding: true }), 'cancel');
+  assert.equal(pressKind({ button: BUTTON.right, ...aimable, cone: false }), 'hand');
+  assert.equal(releaseAction({ kind: 'hand', button: BUTTON.right, moved: false, holding: true }), 'cancel');
+  assert.equal(releaseAction({ kind: 'hand', button: BUTTON.right, moved: true, holding: true }), 'none');
+  // Alt-klick utan dragning är ett vanligt klick
+  assert.equal(releaseAction({ kind: 'aim', button: BUTTON.left, moved: false, holding: true }), 'click');
+});
+
+test('dragningens tröskel och kantpanoreringen', () => {
   assert.equal(isDrag(DRAG_PX - 1, 0), false);
   assert.equal(isDrag(DRAG_PX, 0), true);
   assert.equal(isDrag(6, 6), true);
+  assert.deepEqual(edgeDir(500, 400, 1000, 800), [0, 0]);
+  assert.deepEqual(edgeDir(2, 400, 1000, 800), [-1, 0]);
+  assert.deepEqual(edgeDir(998, 799, 1000, 800), [1, 1]);
+  assert.deepEqual(edgeDir(500, 0, 1000, 800), [0, -1]);
 });

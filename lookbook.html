@@ -35,6 +35,7 @@
 import * as THREE from 'three';
 import { VERSION } from './src/version.js';
 import { createScene } from './src/render/scene.js';
+import { EYE } from './src/render/camera-eye.js';
 import { grassTexture } from './src/render/world.js';
 import { mesh } from './src/render/kit.js';
 import { weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, zombieStumble, weaponGhost, setGhostTone, baseModel, roadblockModel, grenadeModel } from './src/render/models.js';
@@ -46,7 +47,7 @@ import { OBSTACLES } from './src/data/obstacles.js';
 import { ZOMBIES } from './src/data/zombies.js';
 import { asphaltTexture } from './src/render/world.js';
 import { spruce, pine, birch } from './src/render/gnesta-kit.js';
-import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, GP, rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard } from './src/render/gnesta-kit.js';
+import { createBatch, frame, seeded, villa, hedge, fence, lamp, mailbox, gardenTree, car, volvoEstate, GP, rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard } from './src/render/gnesta-kit.js';
 import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
 import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost, crewCarryModel } from './src/render/models.js';
@@ -59,8 +60,8 @@ const OVERVIEW = 44, GAME = 25;
 const map = { camera: { target: [0, 0], view: OVERVIEW } };
 const { renderer, scene, camera } = createScene(document.getElementById('stage'), map);
 
-// samma kamera-offset som spelet, men flyttbar och zoombar
-const OFFSET = new THREE.Vector3(40, 46, 40);
+// samma kamera-offset som spelet, men flyttbar och zoombar (0.17.2, H309: lika långt bort som spelets kamera)
+const OFFSET = new THREE.Vector3(...EYE);
 const target = new THREE.Vector3(0, 0, 0);
 let view = OVERVIEW;
 function applyCamera() {
@@ -70,6 +71,8 @@ function applyCamera() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', applyCamera); applyCamera();
+// skärmbilder: window.__look.focus(u, v, vy) (rutnätet nedan)
+window.__look = { focus: (u, v, vy) => { target.copy(at(u, v)); if (vy) view = vy; applyCamera(); } };
 
 // mark
 const ground = mesh(new THREE.PlaneGeometry(700, 700), new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 }));
@@ -434,6 +437,18 @@ const campMen = [];
     scene.add(w.group);
     label(-22 + i * 10, CV + 14, 'EPA pillbox', 'level ' + lv, 4.8);
   });
+  // 0.17.2: A-traktorn från sidan bakifrån (LGF-triangeln och flaket), och Volvo-kombin som parkerad och utbränd bil
+  {
+    const w = weaponModel('epa', 2, { seed: 21 });
+    const p = at(8, CV + 14);
+    w.group.position.set(p.x, 0, p.z); w.group.rotation.y = -0.6 + Math.PI * 0.8; w.pivot.rotation.y = 0.4;
+    scene.add(w.group);
+    label(8, CV + 14, 'A-traktor (EPA)', 'old Volvo, bed cut, welded plates, LGF triangle', 4.8);
+    const vb = createBatch();
+    for (const [u, o, c] of [[16, {}, '#a8323a'], [22, { burnt: true }, GP.car[3]]]) { const q = at(u, CV + 14); volvoEstate(vb, frame(null, q.x, 0, q.z, 0.5), c, o); }
+    vb.flush(scene);
+    label(19, CV + 14, 'Volvo estate', '240-style kombi, parked and burnt', 3.2);
+  }
 }
 
 // E4 vid Lästringe (0.15.0): vägspärren vid avfarten, motorvägens detaljer, fordonen som stannade och

@@ -944,3 +944,30 @@ Resultat (försök till vinst per dag, seed 0 till 4):
 Målen håller: kartläsaren vinner dag 1 till 3 på första försöket, dag 4 på första och dag 5 inom 2 (målen 1 till 2, 1 till 2 och högst 3). Naive vinner dag 1 med basen hel och dag 2, och fastnar på dag 3. Topp 193 levande zombier (målet under cirka 250). Dag 4 är fortfarande en knivsegg: seed 0 vinner med bas 1.
 
 Fingeravtrycken (tests/molnbo.test.js), alla nya avsiktligt: mbSmart fc06f1e8, 2a41adb3, 6b126d51, f7e1072b, 0feb3169; naive 014058cf, aa17bc8e, 7aba3768 (dag 4 och 5 oförändrade, naive når dem inte). E4:s och Hagstumosses kvitto (tests/balance-op-*.test.js) är orört.
+
+## 0.17.2: prickskytteposterna, vägarna och trädgårdarna
+
+Varför: Olas speltest av 0.17.1. H301 ville ha prickskytt i missionskyrkans klocktorn och på de höga husen (hyreshusen, Folkets hus, stationshuset, trapptornen). H307 tog bort det som stod på vägarna, H308 gav trädgårdarna bodar.
+
+Ändrat:
+- Mölnbo: klocktornet (10,6 m) och trapptornen är torn (perch 3) med 15 % längre räckvidd för Psg 90 (src/sim/sim.js TOWER_RANGE); hyreshusen och stationshuset hela taket; Folkets hus bara gaveln mot grusplanen (hela taket gjorde dag 3 till 5 för lätta, också för den som aldrig spärrar).
+- Mölnbo: Hembygdsgården och gärdsgården öster om Kvarnvägen (vägen gick genom huset), missionskyrkan, gula huset och kedjehusen en bit från gatorna, bergskärningen bruten där Genvägen går igenom, bilarna som stod på en gata borttagna. Att i stället dra om Kvarnvägen gav seed 0 tre försök på dag 4, så vägen ligger kvar.
+- Bodarna och studsmattorna i trädgårdarna är saker (ingen pjäs i en bod).
+- Dag 4 hp 31 till 36.
+- Ishallen: bilen vid ishallens sidodörr 2 m in från gatan. Vikingavägen: villor som stod på en gångväg backar, radhus G kortare.
+
+Mölnbo, fem seeds:
+
+    mbSmart  M1 M2 M3 M4 M5
+    alla      1  1  1  1  1   bas dag 4: 5 till 8 (förut 1 till 3)
+
+    naive    M1 M2 M3 M4 M5
+    0         1  1  1  x  -
+    1         1  1  1  x  -
+    2         1  1  1  4  1
+    3         1  1  1  x  -
+    4         1  1  1  x  -
+
+Målen ändrade: kartläsaren vinner varje dag på första försöket och dag 4 kostar basen (högst 12 kvar); den som aldrig spärrar klarar dag 3 med prickskyttarna men fastnar på bron dag 4 i fyra av fem seeds (förut dag 3). Dag 4 och 5 var knivseggar och Ola förlorade dag 4 (MB05, H295); de är mjukare nu. Designens strategiska djup (docs/superpowers/specs/2026-10-18-strategiskt-djup.md) får avgöra om naive ska fastna tidigare igen.
+
+Fingeravtrycken, alla nya avsiktligt: mbSmart e3366e99, c9a25d00, ea3c29de, 98f2872d, e730f02a; naive 4e087429, 2065fc1c, c70477a5, 0641acc9, 2df44d12. Kvittona i tests/balance-op-*.test.js: Vikingavägen dag 1 till 5 nya (normal och skilled), Ishallen dag 1 till 5 nya (skilled), E4 orört.

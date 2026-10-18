@@ -125,7 +125,7 @@ async function run() {
     await page.addInitScript(() => { try { localStorage.clear(); } catch { /* ingen lagring */ } });
     await page.goto(`http://localhost:${PORT}/?mute&debug&test`);
     // första banan ska ha laddat klart innan provet hoppar (annars kan två banor laddas samtidigt)
-    await page.waitForFunction(() => window.__hordeReady && window.__horde?.jump && window.__horde.mode === 'menu', null, { timeout: 30000 });
+    await page.waitForFunction(() => window.__hordeReady && window.__horde?.jump && window.__horde.mode === 'menu', null, { timeout: 90000 });
     await page.waitForTimeout(2000);
     const check = async scope => {
       await page.waitForTimeout(600);
@@ -135,6 +135,16 @@ async function run() {
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${scope}-${W}.png` });
     };
     const ev = s => page.evaluate(s);
+    // 0.17.2: lektionerna bort före segern. Ett Esc per lektion med tid för nästa bildruta emellan (i huvudlös
+    // rendering kan en bildruta ta en sekund; snabba Esc öppnade pausmenyn och lektionen stod kvar och pausade segern)
+    const dropLessons = async () => {
+      for (let i = 0; i < 12; i++) {
+        await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
+        if (!(await ev('!!window.__horde.lesson'))) { await page.waitForTimeout(700); if (!(await ev('!!window.__horde.lesson'))) break; continue; }
+        await page.keyboard.press('Escape'); await page.waitForTimeout(700);
+      }
+      await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
+    };
     const skipLessons = async () => { for (let i = 0; i < 6; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(120); if (!(await ev('window.__horde.lesson'))) break; } await ev(`document.querySelector('#menu .sheet') && window.__horde.sheetAction?.('continue')`); };
     await check('menu');
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 1); H.startDay(1); })()`);
@@ -146,10 +156,11 @@ async function run() {
     // resultatet efter Ishallen dag 2 (RP-tipset står i skylten)
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 2); })()`);
     await page.waitForTimeout(400);
-    for (let i = 0; i < 8 && await ev('window.__horde.lesson'); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); }
+    await dropLessons();
+    // 0.17.2: vänta upp till 60 s på resultatet (segerns paus räknas i bildrutor, och huvudlös rendering i 1920 är långsam)
     // ?debug sparar inte dagens utfall: tiden efter dag 2 räknas som nådd, så att RP och tipset visas
     await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, maps: { ...p.maps, gnesta: { ...p.maps.gnesta, unlockedDay: 3 } } }); H.sim.phase = 'won'; })()`);
-    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 15000 }).catch(() => {});
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(900);
     await check('result');
     await ev(`window.__horde.sheetAction('opmap')`);
@@ -162,8 +173,9 @@ async function run() {
     await ev(`window.__horde.sheetAction('go')`);
     await page.waitForTimeout(400);
     await skipLessons();
+    await dropLessons();
     await ev(`(() => { window.__horde.sim.phase = 'won'; })()`);
-    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 15000 }).catch(() => {});
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(900);
     await check('molnbo-result');
     await ev(`window.__horde.sheetAction('opmap')`);

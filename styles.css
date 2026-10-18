@@ -335,6 +335,16 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel ul.men li.down { color: var(--rust, #b5532a); }
 .panel .info.kit { font-size: 13px; color: var(--paper-dim); margin-top: 8px; }
 .panel .info.moving { font-size: 13px; color: #d9a441; margin-top: 8px; letter-spacing: 0.04em; }
+/* 0.17.2 (H305): enhetens panel har fast bredd; text radbryts i stället för att panelen växer (granatlådan) */
+.panel.unit { width: 540px; box-sizing: border-box; }
+.panel.unit .acts { flex-wrap: wrap; }
+.panel.unit .act { min-width: 0; flex: 1 1 110px; }
+.panel.unit .info, .panel.unit .msg { overflow-wrap: anywhere; }
+.panel.unit .st { flex-wrap: wrap; white-space: normal; }
+/* 0.17.2 (H306): förnödenheterna på enheten, en rad per sak och den höjda eldtakten */
+.panel .info.sup { font-size: 13px; color: #9fc46a; margin: -4px 0 8px; letter-spacing: 0.03em; }
+.st b.up { color: #9fc46a; }
+@media (max-width: 760px) { .panel.unit { width: auto; } }
 
 .menu { min-width: 420px; }
 .menu .logo { font-family: 'Saira Stencil One', sans-serif; font-size: 84px; line-height: 0.95; letter-spacing: 0.06em; color: var(--paper); }
@@ -451,7 +461,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .grp.open .gh kbd, #buildbar .grp.open .card kbd { background: var(--rust); border-color: var(--rust); color: var(--paper); }
 #buildbar .grp.armed .card { box-shadow: 0 0 0 1px rgba(181,83,42,0.7) inset; }
 /* H096: kort statistikrad som alltid syns, hela raden vid hovring */
-#buildbar .card .cs { font: 500 8.5px 'IBM Plex Mono', monospace; color: rgba(217,164,65,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; letter-spacing: -0.02em; }
+#buildbar .card .cs { font: 500 9px 'IBM Plex Mono', monospace; color: rgba(217,164,65,0.9); white-space: nowrap; overflow: hidden; margin-top: 1px; letter-spacing: -0.03em; line-height: 1.15; }
+#buildbar .card .cs span { display: block; overflow: hidden; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
 /* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
 /* 0.10.1: smal rad, små kort (ikon, namn, pris); pekaren fäller ut kortet uppåt (.more) */
@@ -963,3 +974,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .obbar.breached { border-color: #d4482c; animation: none; }
 /* 0.17.1: fiendekortets PAUSED uppe i mitten, inte över köpraden */
 #enemycard .paused { top: 22px; bottom: auto; }
+/* 0.17.2: Quick jump i debugmenyn */
+#debug .row.quick { gap: 4px; }
+#debug .row.quick > label:first-child { width: 100%; }

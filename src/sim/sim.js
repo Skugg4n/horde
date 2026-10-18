@@ -650,7 +650,8 @@ export const deployMen = (sim, type) => (sim.core ? (nextReserve(sim, type)?.men
 // Pjäsens siffror just nu: vapnet med nivå och forskning, plus erfarenhetens stjärna (lite bättre träff och
 // omladdning) och ammunitionslådan (förnödenheter: fortare eld resten av dagen).
 export function gunStats(sim, g) {
-  const w = g.weapon, st = weaponStats(w.type, w.level, sim.research);
+  const w = g.weapon, st0 = weaponStats(w.type, w.level, sim.research);
+  const st = g.roof && sim.place.perch?.[g.cell] === 3 ? { ...st0, range: st0.range * TOWER_RANGE } : st0;
   if (!w.vet && !w.ammo) return st;
   return { ...st, accuracy: Math.min(VETERAN.maxAccuracy, st.accuracy + (w.vet ? VETERAN.accuracy : 0)), rate: st.rate * (w.vet ? VETERAN.rate : 1) * (w.ammo ? SUPPLIES.ammo.rate : 1) };
 }
@@ -747,8 +748,12 @@ export function sightFor(sim, key, type, facing = null) {
 }
 function baseSight(sim, key, type) {
   return isSquad(type) ? unionSight(sim.place, squadPreview(sim, key, type))
-    : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
+    : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range * (inTower(sim, key, type) ? TOWER_RANGE : 1));
 }
+// 0.17.2 (H301): ett torn (perch 3: Mölnbos trapptorn och missionskyrkans klocktorn) ger prickskytten längre räckvidd
+// utöver höjdens sikt över husen
+export const TOWER_RANGE = 1.15;
+export const inTower = (sim, key, type) => onRoof(sim, key, type) && sim.place.perch?.[key] === 3;
 function withCone(sim, key, type, base, facing) {
   const cone = WEAPONS[type]?.cone;
   if (!cone) return base;
@@ -908,13 +913,27 @@ export const movePreview = (sim, id, key) => {
   if (!g?.squad || !sim.place.valid(key)) return [];
   return without(sim, id, () => planSquad(sim, key, { type: g.weapon.type, count: g.soldiers.length }));
 };
-// opts: { facing, via }. via: waypoints (rutnycklar) i ordning.
+// 0.17.2 (Olas önskan): i uppställningen (byggfasen, ingen levande zombie: före första vågen och mellan vågorna) går en
+// utställd enhet att lyfta och ställa någon annanstans direkt och gratis, också en monterad pjäs och före Move är
+// upplåst. Mitt i en våg gäller Move med sin väg och tid som förut.
+export const canReposition = sim => canAct(sim) && sim.phase === 'build' && !sim.zombies.some(z => !z.dead);
+export function checkReposition(sim, id, key) {
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'tom' };
+  if (!canReposition(sim)) return { ok: false, reason: 'fel läge' };
+  if (g.move || (g.squad && g.soldiers.some(s => s.path))) return { ok: false, reason: 'flyttar' };
+  if (key === g.cell) return { ok: false, reason: 'samma' };
+  return checkSpot(sim, key, g.weapon.type, { ignore: id });
+}
+export const repositionGun = (sim, id, key, opts = {}) => moveGun(sim, id, key, { ...opts, instant: true });
+// opts: { facing, via, instant }. via: waypoints (rutnycklar) i ordning. instant: uppställningens fria flytt
+// (checkReposition), pjäsen står på den nya platsen direkt.
 export function moveGun(sim, id, key, opts = {}) {
-  const via = opts.via ?? [];
-  const check = checkMove(sim, id, key, via);
+  const via = opts.instant ? [] : opts.via ?? [];
+  const check = opts.instant ? checkReposition(sim, id, key) : checkMove(sim, id, key, via);
   if (!check.ok) return check;
   const g = gunOf(sim, id), type = g.weapon.type, c = sim.place.center(key), def = WEAPONS[type];
-  const running = clock(sim);
+  const running = !opts.instant && clock(sim);
   if (g.squad) {
     const plan = movePreview(sim, id, key);
     if (plan.length < g.soldiers.length) return { ok: false, reason: 'trångt' };

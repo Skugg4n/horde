@@ -102,7 +102,7 @@ const ROWS_K = [
   { id: 'D', from: [1605, 399], to: [1668, 377], units: 3, depth: 44, storeys: 1, faceTo: 'c1' },
   { id: 'E', from: [1702, 478], to: [1752, 628], units: 6, depth: 42, storeys: 2, faceTo: 'gangvag' },
   { id: 'F', from: [1826, 465], to: [1836, 493], units: 2, depth: 46, storeys: 1, faceTo: 'p2' },
-  { id: 'G', from: [1718, 760], to: [1790, 736], units: 2, depth: 40, storeys: 1, faceTo: 'c2' },
+  { id: 'G', from: [1718, 760], to: [1778, 740], units: 2, depth: 40, storeys: 1, faceTo: 'c2' },
   { id: 'G2', from: [1884, 716], to: [1936, 698], units: 2, depth: 44, storeys: 1, faceTo: 'c2' },
   { id: 'H', from: [1790, 842], to: [1840, 992], units: 6, depth: 50, storeys: 2, faceTo: 'p3' },
   { id: 'I', from: [1851, 1110], to: [1905, 1092], units: 3, depth: 42, storeys: 1, faceTo: 'c3' },
@@ -214,6 +214,8 @@ const rowRects = ROWS.map(R => rowRect(R, 0.5));
 const inAnyRect = (rs, x, z, pad = 0) => rs.some(q => { const dx = x - q.x, dz = z - q.z; return Math.abs(dx * q.c - dz * q.s) <= q.hw + pad && Math.abs(dx * q.s + dz * q.c) <= q.hd + pad; });
 
 const corners = q => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [q.x + a * q.hw * q.c + b * q.hd * q.s, q.z - a * q.hw * q.s + b * q.hd * q.c]);
+// 0.17.2 (H307): hörnen och kanternas mitt (en gångväg som går in i en vägg mitt på räknas också)
+const outline = q => [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]].map(([a, b]) => [q.x + a * q.hw * q.c + b * q.hd * q.s, q.z - a * q.hw * q.s + b * q.hd * q.c]);
 // Överlappar två rektanglar (separerande axlar)?
 function rectsOverlap(p, q) {
   for (const r of [p, q]) for (const [ax, az] of [[r.c, -r.s], [r.s, r.c]]) {
@@ -256,12 +258,14 @@ function buildVillas() {
     for (const h of houses) {
       const me = sized(h), q = rect(h.cx, h.cz, h.ry, me.w + 3, me.d + 3);
       const hit = houses.some(o => o !== h && rectsOverlap(q, rect(o.cx, o.cz, o.ry, sized(o).w + 3, sized(o).d + 3)))
-        || rowRects.some(o => rectsOverlap(q, o)) || corners(rect(h.cx, h.cz, h.ry, me.w, me.d)).some(([x, z]) => nearRoad(x, z, 1.2));
+        || rowRects.some(o => rectsOverlap(q, o)) || outline(rect(h.cx, h.cz, h.ry, me.w, me.d)).some(([x, z]) => nearRoad(x, z, 1.2));
       if (hit && h.k > 0.951) { h.k = Math.max(0.95, h.k * 0.94); moved = true; }
     }
     if (!moved) break;
   }
   for (const h of houses) Object.assign(h, sized(h));
+  // 0.17.2 (H307): ett hus som fortfarande står på en gångväg backar bort från gatan, högst 3 m
+  for (const h of houses) for (let t = 0; t < 12 && outline(rect(h.cx, h.cz, h.ry, h.w, h.d)).some(([x, z]) => nearRoad(x, z, 0.3)); t++) { h.cx -= h.f[0] * 0.25; h.cz -= h.f[1] * 0.25; }
   const houseRects = houses.map(h => rect(h.cx, h.cz, h.ry, h.w, h.d));
   for (const h of houses) {
     const f = h.f, s = [Math.cos(h.ry), -Math.sin(h.ry)];

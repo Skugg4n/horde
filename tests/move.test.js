@@ -159,3 +159,28 @@ test('psg 90 smyger och pillboxen kryper: farterna följer klassen', () => {
   assert.equal(WEAPONS.ksp58.move.crew, 3, 'tre man');
   assert.equal(WEAPONS.psg90.move.crew, 2, 'skytt och observatör');
 });
+
+// 0.17.2 (Olas önskan): i uppställningen (byggfasen utan levande zombier) flyttas en utställd enhet fritt: direkt,
+// gratis, också en monterad pjäs. Mitt i en våg går det inte (Move med väg och tid gäller).
+import { repositionGun, checkReposition, canReposition, checkSpot } from '../src/sim/sim.js';
+import { MAPS } from '../src/data/maps.js';
+import { free as freeMap } from './free.js';
+test('Reposition i uppställningen: direkt och gratis, också monterat; inte under vågen', () => {
+  const map = freeMap(MAPS.riksvagen);
+  const sim = createSim({ map, day: 1, cash: 5000, seed: 1 });
+  const p = sim.place, open = [];
+  for (let k = 0; k < p.w * p.h && open.length < 40; k += 7) if (checkSpot(sim, k, 'm2').ok) open.push(k);
+  assert.equal(build(sim, open[0], 'm2').ok, true);
+  const g = sim.guns.at(-1), cash = sim.cash;
+  assert.equal(canReposition(sim), true);
+  const to = open.find(k => k !== open[0] && checkReposition(sim, g.id, k).ok);
+  assert.ok(to != null);
+  assert.equal(repositionGun(sim, g.id, to).ok, true);
+  assert.equal(g.cell, to);
+  assert.equal(g.move, undefined, 'står klar direkt');
+  assert.equal(sim.cash, cash, 'gratis');
+  startWave(sim);
+  for (let i = 0; i < 400 && !sim.zombies.some(z => !z.dead); i++) step(sim, 0.1);
+  assert.equal(canReposition(sim), false);
+  assert.equal(checkReposition(sim, g.id, open[0]).ok, false);
+});

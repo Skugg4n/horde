@@ -34,7 +34,7 @@ export const LESSONS = {
   ],
   'e4-3': [
     { id: 'e4-3.aim', kind: 'step', when: 'start', done: 'placing:m2|placed:m2', target: { ui: '#buildbar .card[data-id="m2"]' }, text: 'The Ksp 88 covers a narrow arc. Aim it.', manual: 'arc' },
-    { id: 'e4-3.drag', kind: 'caption', when: 'placing:m2', target: { world: 'pointer' }, text: 'Press, then drag toward the road to aim.' },
+    { id: 'e4-3.drag', kind: 'caption', when: 'placing:m2', target: { world: 'pointer' }, text: 'Click places it. Hold, then drag toward the road to aim.' },
     { id: 'e4-3.rotate', kind: 'show', when: 'placed:m2', target: { world: 'gun:m2' }, text: 'Wrong way? Select it and press', keys: ['R'], manual: 'arc' },
     { id: 'e4-3.speed', kind: 'caption', when: 'afterWave1', target: { ui: '#speedcd' }, text: 'Faster:', keys: ['F'], manual: 'speed' },
   ],
@@ -125,7 +125,7 @@ export const TIPS = [
   { id: 'tip.arc', on: 'idleOutside', kind: 'tip', text: 'Target outside arc. Press R to rotate.', repeat: true, needs: 'rotate' },
   { id: 'tip.spare', on: 'spare', kind: 'tip', text: 'Supplies to spare. Click a unit.', repeat: true, needs: 'unitSupplies' },
   { id: 'tip.shut', on: 'allShut', kind: 'tip', text: 'Every road shut: they smash a barricade.', repeat: true, needs: 'block' },
-  { id: 'tip.roof', on: 'placing:psg90', kind: 'tip', text: 'Snipers go on flat roofs or ridges.', manual: 'roofs', needs: 'move' },
+  { id: 'tip.roof', on: 'placing:psg90', kind: 'tip', text: 'Snipers go on towers, flat roofs, ridges and tall buildings.', manual: 'roofs', needs: 'move' },
   { id: 'tip.mounted', on: 'mounted', kind: 'tip', text: "Mounted. It can't move.", needs: 'move' },
   { id: 'tip.star', on: 'star', kind: 'tip', text: 'Three days survived: a star. Better aim, faster reload.', manual: 'veterancy' },
   { id: 'tip.fallen', on: 'fallen', kind: 'tip', text: 'The fallen stay lost after a win. Refill at the depot.', manual: 'losses' },
@@ -156,7 +156,7 @@ export const REVEALS = [
 // fienden setts. icon: köpradens ikon (src/ui/icons.js) eller 'enemy:TYP' (porträttet).
 export const MANUAL_GROUPS = ['Basics', 'Defences', 'Units', 'Operation', 'Enemies'];
 export const MANUAL = [
-  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its key. Each card keeps its key all campaign. Click the ground to place it.', keys: ['4', 'X'] },
+  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card at the bottom or press its key; each card keeps its key. Click the ground to place it. Right-click or Esc puts it back. Holding a card, pan with WASD, the middle button or the screen edge.', keys: ['4', 'X'] },
   { id: 'start', group: 'Basics', title: 'Start the wave', text: 'Build first: nothing moves until you start. After a wave the next one counts down by itself.', keys: ['Space'] },
   { id: 'train', group: 'Basics', title: 'The last train', text: 'At Mölnbo a train waits at the platform. It leaves when the clock runs out. Hold the base until then and the day is won, even with infected still on the streets.' },
   { id: 'base', group: 'Basics', title: 'The base', text: 'Every infected that reaches the base takes a point. At zero the day is lost and starts over with the force you went in with.' },
@@ -166,10 +166,10 @@ export const MANUAL = [
   { id: 'barricades', group: 'Defences', title: 'Barricades', icon: 'block', text: 'Concrete across a street. The horde walks around the block instead. Shut every way and they smash through the weakest one.' },
   { id: 'route', group: 'Defences', title: 'Horde route', text: 'Red arrows show the way the horde will walk now. Hold a barricade over a street to see the new way first.', keys: ['V'] },
   { id: 'unitSupplies', group: 'Defences', title: 'Supplies on units', text: 'Click a unit: an ammo crate makes it fire faster for the day, sandbags dig a squad in, a grenade kit throws at crowds.' },
-  { id: 'arc', group: 'Units', title: 'Arc and rotate', icon: 'm2', text: 'Each gun fires only inside its arc. Press and drag while placing to aim it. Select a gun and press R to turn it.', keys: ['R'] },
+  { id: 'arc', group: 'Units', title: 'Arc and rotate', icon: 'm2', text: 'Each gun fires only inside its arc. A click faces it at the road. Press, hold and drag to aim it, or right-drag. Select a gun and press R to turn it.', keys: ['R'] },
   { id: 'move', group: 'Units', title: 'Move', text: 'Select a unit and press M, then click where it goes. Shift-click adds waypoints. No fire while moving, and the team can be caught.', keys: ['M'] },
   { id: 'squads', group: 'Units', title: 'Squads', icon: 'hv', text: 'Squads drop on a spot and each man finds his own cover. Corners, cars, hedges and ditches.' },
-  { id: 'roofs', group: 'Units', title: 'Snipers', icon: 'psg90', text: 'The Psg 90 goes on flat roofs, the ridge by a chimney, or tall buildings. Height lets it see over the houses.' },
+  { id: 'roofs', group: 'Units', title: 'Snipers', icon: 'psg90', text: 'The Psg 90 goes on flat roofs, the ridge by a chimney, tall buildings and towers. Height lets it see over the houses.' },
   { id: 'veterancy', group: 'Units', title: 'Veterans', icon: 'star', text: 'A unit that survives three won days earns a star: slightly better aim and reload.' },
   { id: 'losses', group: 'Units', title: 'Losses', icon: 'losses', text: 'Lose a day and it starts over with the force you went in with. Win, and the fallen stay lost until you refill them at the depot.' },
   { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to the ice rink, a few at a time. Red patches show where the horde meets them. Choose which to cover, and move your units when the next houses go.' },

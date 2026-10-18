@@ -7,6 +7,8 @@ import { tweaksActive, IDENTITY_TWEAKS } from '../sim/sim.js';
 import { money } from './format.js';
 
 const CLICKS = 5, CLICK_WINDOW = 1600;   // fem klick inom 1,6 s
+// 0.17.2: Quick jump, korta namn på knapparna
+const QUICK_NAME = { riksvagen: 'E4', gnesta: 'Ishallen', 'gnesta-norr': 'Vikingav.', molnbo: 'Mölnbo' };
 const RULES = [
   ['hp', 'Zombie hp ×'], ['speed', 'Zombie speed ×'], ['count', 'Spawn count ×'],
   ['cash', 'Supplies income ×'], ['intel', 'RP income ×'],
@@ -46,6 +48,8 @@ export function mountDebug(root, api) {
         <div class="row"><label>Cash</label><input data-k="cash" type="number" step="100"><button data-a="cash-set">Set</button><button data-a="cash-add">Add</button></div>
         <div class="row"><label>Base hp</label><input data-k="hp" type="number" step="1" min="1"><button data-a="hp-set">Set</button><label class="ck"><input type="checkbox" data-k="god"> God mode</label></div>
         <div class="row"><label>Jump to</label>${sel('map', maps.map(x => [x.id, x.name]))}<input data-k="day" type="number" min="1" max="5" value="${api.day()}" title="Day"><input data-k="wave" type="number" min="1" value="1" title="Wave"><button data-a="jump">Go</button></div>
+        <div class="row wrap quick"><label>Quick jump</label>${(api.quick ?? []).map(([id, d]) => `<button data-a="quick" data-m="${id}" data-d="${d}">${QUICK_NAME[id] ?? id} ${d}</button>`).join('')}</div>
+        <div class="row"><label></label><label class="ck"><input type="checkbox" data-k="autodeploy"> Auto-deploy (balance policy), starts the wave</label></div>
         <div class="row"><button data-a="unlock">Unlock all maps</button><button data-a="reset-save" class="warn">Reset save</button></div>
         <div class="row"><label>Lessons</label><button data-a="tips-reset">Reset tips</button><button data-a="tips-seen">Mark all seen</button></div>
       </section>
@@ -66,6 +70,7 @@ export function mountDebug(root, api) {
           <label class="ck"><input type="checkbox" data-v="fps"> FPS</label>
           <label class="ck"><input type="checkbox" data-v="minimap"> Minimap</label>
         </div>
+        ${api.edge?.() ? `<div class="row"><label>Edge</label>${sel('edge', [['haze', '(a) Grey haze'], ['dark', '(b) Fog of war']])}</div>` : ''}
       </section>
       <div class="dmsg"></div>`;
     el.querySelector('[data-k="map"]').value = m.id;
@@ -73,6 +78,8 @@ export function mountDebug(root, api) {
     for (const [k] of RULES) el.querySelector(`[data-t="${k}"]`).value = t[k];
     el.querySelector('[data-t="countdown"]').value = t.countdown ?? '';
     el.querySelector('[data-k="god"]').checked = t.god;
+    const ad = el.querySelector('[data-k="autodeploy"]'); if (ad) ad.checked = !!api.autoDeploy?.();
+    const ed = el.querySelector('[data-k="edge"]'); if (ed) ed.value = api.edge();
     const v = api.visuals();
     for (const cb of el.querySelectorAll('[data-v]')) cb.checked = !!v[cb.dataset.v];
     fresh = true;
@@ -97,6 +104,7 @@ export function mountDebug(root, api) {
     'cash-add': () => ok(api.setCash((api.sim()?.cash ?? 0) + num('cash')), 'Cash added'),
     'hp-set': () => ok(api.setBaseHp(num('hp')), 'Base hp set'),
     jump: () => { api.jump(val('map'), num('day'), num('wave')); close(); },
+    quick: b => { api.quickJump(b.dataset.m, Number(b.dataset.d)); close(); },
     unlock: () => ok(api.unlockAll(), 'All maps unlocked'),
     'reset-save': () => {
       if (!confirm('Reset save? A backup is kept under horde.save.backup.')) return;
@@ -111,7 +119,7 @@ export function mountDebug(root, api) {
   };
   el.addEventListener('click', e => {
     const b = e.target.closest('[data-a]');
-    if (b && ACT[b.dataset.a]) ACT[b.dataset.a]();
+    if (b && ACT[b.dataset.a]) ACT[b.dataset.a](b);
   });
   el.addEventListener('change', e => {
     const t = e.target;
@@ -121,6 +129,8 @@ export function mountDebug(root, api) {
       api.setTweaks(tw);
     } else if (t.dataset.k === 'god') api.setTweaks({ ...api.tweaks(), god: t.checked });
     else if (t.dataset.v) api.setVisual(t.dataset.v, t.checked);
+    else if (t.dataset.k === 'autodeploy') api.setAutoDeploy?.(t.checked);
+    else if (t.dataset.k === 'edge') ok(api.setEdge?.(t.value), t.value === 'dark' ? 'Edge: fog of war' : 'Edge: grey haze');
     badgeNow();
   });
   const badgeNow = () => { badge.hidden = !tweaksActive(api.tweaks()); };

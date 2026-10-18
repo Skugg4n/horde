@@ -3,7 +3,7 @@
 // och högt gräs. Allt utom skyltarna läggs i Gnesta-byggsatsens batch (gnesta-kit.js createBatch).
 import * as THREE from 'three';
 import { mat, canvasTex } from './kit.js';
-import { GP, UNIT, frame } from './gnesta-kit.js';
+import { GP, UNIT, frame, volvoEstate } from './gnesta-kit.js';
 
 export const EP = {
   rail: '#a3a59f', railPost: '#7f817c', lamp: '#8a8c88', lampHead: '#4a4c4a', lampGlow: '#efe3c0',
@@ -49,7 +49,14 @@ export function highwayLamp(b, M) {
 
 // ---------- fordon ----------
 // Personbil som stått sedan det började. o: { color, burnt, flipped }. Längd längs x.
+// 0.17.2: var tredje övergivna bil (inte de på taket) är en fyrkantig Volvo-kombi
+let wreckN = 0;
 export function wreck(b, M, color, o = {}) {
+  if (!o.flipped && ++wreckN % 3 === 0 && !o.notVolvo) {
+    volvoEstate(b, M, color, { burnt: o.burnt });
+    if (!o.burnt) b.box(M, 0.3, 0.95, 1.2, 1.0, 0.8, 0.06, color, 'paint', 0.9);
+    return;
+  }
   const body = o.burnt ? EP.burnt : color;
   const k = o.burnt ? 'matte' : 'paint';
   if (o.flipped) M = M.clone().multiply(frame(null, 0, 1.62, 0, 0, 0, Math.PI));

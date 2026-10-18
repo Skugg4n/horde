@@ -11,7 +11,7 @@ import { CELL_LEN, movePhase, gunPos, stumbleOf } from '../sim/sim.js';
 import { WEAPONS } from '../data/weapons.js';
 import { alongPath as alongPathAt } from '../sim/crew-path.js';
 import { createSquadView } from './squad-view.js';
-import { squadGhost, setSquadGhost } from './models.js';
+import { squadGhost, setSquadGhost, suppliesModel } from './models.js';
 import { SQUAD, isSquad } from '../sim/squad.js';
 import { createDormant } from './dormant.js';
 import { createCivilians } from './civilians.js';
@@ -189,7 +189,7 @@ export function createView(scene, initialSim) {
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
   // 0.13.0: värnet byggs om när Rotate vänt det (emplace.face)
-  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : '') + (s.emplace ? ':' + s.emplace.face.toFixed(2) : ''); }
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.weapon.ammo ? ':ammo' : '') + (s.weapon.sandbags ? ':bags' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : '') + (s.emplace ? ':' + s.emplace.face.toFixed(2) : ''); }
   // Modellen byggs om när vapnet ändras, och efter en flytt när pjäsen ställs upp på den nya platsen
   // (medan den packas och bärs är det den gamla platsens värn).
   function wantKey(s, e) {
@@ -207,6 +207,9 @@ export function createView(scene, initialSim) {
         hit.rotation.x = -Math.PI / 2; hit.position.set(m.x - s.x, 0.1, m.z - s.z);
         group.add(hit);
       }
+      // 0.17.2 (H306): sandsäckarna framför varje soldat och ammolådorna mitt i gruppen
+      if (s.weapon.ammo || s.weapon.sandbags) group.add(suppliesModel({ ammo: !!s.weapon.ammo, at: [0, 0], sandbags: !!s.weapon.sandbags, seed: s.cell,
+        men: s.soldiers.filter(m => !m.down).map(m => ({ x: m.x - s.x + Math.cos(m.face) * 0.55, z: m.z - s.z + Math.sin(m.face) * 0.55, face: m.face })) }));
       group.userData.pick = { kind: 'gun', id: s.id };
       group.position.set(s.x, 0, s.z);
       scene.add(group);
@@ -233,6 +236,8 @@ export function createView(scene, initialSim) {
     const hit = new THREE.Mesh(HIT_GEO, HIT_MAT);
     hit.rotation.x = -Math.PI / 2; hit.position.y = 0.1;
     e.group.add(hit);
+    // 0.17.2 (H306): ammolådan syns bredvid pjäsen
+    if (s.weapon.ammo) e.group.add(suppliesModel({ ammo: true, at: s.roof ? [-0.9, 0.6] : veh ? [-2.6, 1.4] : [-1.7, 1.2], seed: s.cell }));
     e.group.userData.pick = { kind: 'gun', id: s.id };
     e.group.position.set(s.x + nest[0], s.y ?? 0, s.z + nest[1]);
     // 0.12.0 (H106): skytten på taket ligger där taket bär honom (bredvid skorstenen på nocken), och

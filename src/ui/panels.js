@@ -13,7 +13,7 @@ import { buyState, inBar } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
 import { waveLabel } from './hud.js';
-import { movePhase, gunCount, canMoveType, frontage, allowed } from '../sim/sim.js';
+import { movePhase, gunCount, canMoveType, frontage, allowed, gunStats } from '../sim/sim.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -76,8 +76,17 @@ export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
 }
 
-function statLine(st) {
-  return `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span></div>`;
+// 0.17.2 (H306): eldtakten står med, och med ammolådan syns den högre takten (gunStats)
+const rateText = r => (r >= 2 ? String(Math.round(r)) : r.toFixed(1));
+function statLine(st, boosted = false) {
+  return `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Rate <b${boosted ? ' class="up"' : ''}>${rateText(st.rate)}/s</b></span></div>`;
+}
+// 0.17.2 (H306, Olas speltest: "sandsäckarna och ammolådan verkar inte göra något"): det köpta står som en rad med
+// effekten, så länge dagen varar
+const AMMO_PCT = () => Math.round((SUPPLIES.ammo.rate - 1) * 100), BAGS_PCT = () => Math.round((1 - SUPPLIES.sandbags.take) * 100);
+function suppliedRows(w) {
+  return (w.ammo ? `<p class="info sup">${SUPPLIES.ammo.name}: fires ${AMMO_PCT()} % faster today</p>` : '')
+    + (w.sandbags ? `<p class="info sup">${SUPPLIES.sandbags.name}: ${BAGS_PCT()} % less damage to the men today</p>` : '');
 }
 
 // Gemensamt skal: plåt, rubrik, innehåll, meddelanderad.
@@ -130,10 +139,11 @@ export function cardLines(it, research = []) {
 // H096 (0.11.0, speltestet av 0.10.2: statistiken syntes bara vid hovring): en kort rad som alltid
 // står på kortet, "26·22m·4/s" (skada, räckvidd, eld per sekund). Hela raden vid hovring.
 export function cardCompact(it, research = []) {
-  if (it.kind !== 'gun') { const o = OBSTACLES[it.id]; return o.kind === 'block' ? 'Holds' : `Slow ${Math.round((1 - o.slow) * 100)}%`; }
+  if (it.kind !== 'gun') { const o = OBSTACLES[it.id]; return `<span>${o.kind === 'block' ? 'Holds' : `Slow ${Math.round((1 - o.slow) * 100)}%`}</span>`; }
+  // 0.17.2 (H304: korten ska gå att läsa och stämma med panelen): raden klipptes ("6×4·12m·…", ".6/s"); nu två rader,
+  // skada och räckvidd, sedan takten, med samma tal som hela raden (num)
   const st = weaponStats(it.id, 1, research), w = WEAPONS[it.id];
-  const rate = st.rate >= 2 ? String(Math.round(st.rate)) : st.rate.toFixed(1).replace(/^0/, '');
-  return `${Math.round(st.damage)}${w.squad ? '×' + squadSize(1, research, it.id) : ''}·${Math.round(st.range)}m·${rate}/s`;
+  return `<span>${Math.round(st.damage)}${w.squad ? '×' + squadSize(1, research, it.id) : ''} · ${Math.round(st.range)}m</span><span>${num(st.rate)}/s</span>`;
 }
 const itemDesc = (it, sim) => {
   if (it.kind === 'gun') { const w = WEAPONS[it.id], st = weaponStats(it.id, 1, sim.research); return `${w.short ? w.name + '. ' : ''}${w.desc} Damage ${Math.round(st.damage)}, range ${Math.round(st.range)} m.`; }
@@ -264,12 +274,16 @@ export function upgradeState(s, g, { noRoom = false } = {}) {
   return { ...base, ok: true, text: money(cost), why: '' };
 }
 
+// 0.17.2: Reposition i uppställningen (före vågen och mellan vågorna): lyft enheten och ställ den någon annanstans
+const REPOS_BTN = '<button type="button" class="act" data-a="repos" title="Pick it up and set it down somewhere else. Free and instant until the wave comes. Or drag the unit."><span class="a">Reposition</span><span class="p">Free</span><kbd>M</kbd></button>';
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
 export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
+  // 0.17.2 (H305): fast bredd, texten radbryts (förut växte panelen när granatlådan köptes)
+  ui.el.classList.add('unit');
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
+  const keyOf = (s, g) => (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -290,15 +304,17 @@ export function gunPanel(root, gunId, sim, actions) {
     const minimal = core && !can('rotate');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
-      canMoveType(w.type) && can('move') ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : '',
+      // 0.17.2: i uppställningen flyttas enheten fritt och direkt (Reposition), annars Move med väg och tid
+      actions.canReposition?.() ? REPOS_BTN : canMoveType(w.type) && can('move') ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : '',
       def.cone && can('rotate') ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : '',
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
-    ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}`
-      : `${can('rotate') ? outside : ''}${statLine(weaponStats(w.type, w.level, s.research))}
+    ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}${actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : ''}`
+      : `${can('rotate') ? outside : ''}${statLine(gunStats(s, g), !!w.ammo)}${suppliedRows(w)}
       ${acts ? `<div class="acts">${acts}</div>` : ''}${def.mounted && (!core || can('move')) ? `<p class="info mounted">${core ? "Mounted, can't move." : "Mounted, can't move. Sell it to free the spot."}</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}${can('unitSupplies') ? `<div class="acts kitrow">${kitRow}${supplyRow(w, false)}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     wireSupplies();
+    ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     const kit = ui.body.querySelector('[data-a="kit"]');
     const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
     if (kit) {
@@ -334,8 +350,8 @@ export function gunPanel(root, gunId, sim, actions) {
   // 0.14.0: förnödenheterna till enheten: ammunition (alla) och sandsäckar (grupperna), en gång per dag
   function supplyRow(w, squad) {
     const one = (id, label, title) => (w[id] ? '' : `<button type="button" class="act" data-sup="${id}" title="${title}"><span class="a">${label}</span><span class="p" data-p></span></button>`);
-    return one('ammo', SUPPLIES.ammo.name, `Fires ${Math.round((SUPPLIES.ammo.rate - 1) * 100)} % faster for the rest of the day.`)
-      + (squad ? one('sandbags', SUPPLIES.sandbags.name, `The men dig in: they take ${Math.round((1 - SUPPLIES.sandbags.take) * 100)} % less damage.`) : '');
+    return one('ammo', SUPPLIES.ammo.name, `Fires ${AMMO_PCT()} % faster for the rest of the day.`)
+      + (squad ? one('sandbags', SUPPLIES.sandbags.name, `The men dig in: they take ${BAGS_PCT()} % less damage.`) : '');
   }
   function wireSupplies() {
     for (const b of ui.body.querySelectorAll('[data-sup]')) b.addEventListener('click', () => { const r = actions.supply(gunId, b.dataset.sup); if (!r.ok) ui.say(reasonText(r.reason)); });
@@ -358,14 +374,16 @@ export function gunPanel(root, gunId, sim, actions) {
     const can = f => allowed(s, f), minimal = core && !can('rotate');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
-      can('move') ? '<button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>' : '',
+      actions.canReposition?.() ? REPOS_BTN : can('move') ? '<button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>' : '',
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
-    ui.body.innerHTML = minimal ? '' : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>
+    const gst = gunStats(s, g);
+    ui.body.innerHTML = minimal ? (actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : '') : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Rate <b${w.ammo ? ' class="up"' : ''}>${rateText(gst.rate)}/s</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>${suppliedRows(w)}
       <ul class="men">${men}</ul>
       ${acts ? `<div class="acts">${acts}</div>` : ''}${!core && standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}${can('unitSupplies') ? `<div class="acts kitrow">${supplyRow(w, true)}</div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
     wireSupplies();
+    ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     upB?.addEventListener('click', () => { const r = actions.upgrade(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
     sellB?.addEventListener('click', () => {
       const r = actions.sell(gunId);

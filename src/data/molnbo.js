@@ -154,6 +154,16 @@ const PLAT_N = RS([[RAIL.platformN.u0, RAIL.platformN.v0], [RAIL.platformN.u1, R
 const PLAT_S = RS([[RAIL.platformS.u0, RAIL.platformS.v0], [RAIL.platformS.u1, RAIL.platformS.v0], [RAIL.platformS.u1, RAIL.platformS.v1], [RAIL.platformS.u0, RAIL.platformS.v1]]);
 export const PLATFORMS = { N: PLAT_N, S: PLAT_S };
 
+// 0.17.2 (H307): står rektangeln (x, z, ry, w, d) fri från de gångbara vägarna (med pad meters marginal)?
+function clearOfRoads(x, z, ry, w, d, pad = 0.3) {
+  const c = Math.cos(ry), sn = Math.sin(ry), pts = [];
+  for (const a of [-1, -0.5, 0, 0.5, 1]) for (const b of [-1, -0.5, 0, 0.5, 1]) {
+    const lx = a * w / 2, lz = b * d / 2;
+    pts.push([x + lx * c + lz * sn, z - lx * sn + lz * c]);
+  }
+  return !ROADS.some(r => r.walk && pts.some(([px, pz]) => distPolyline(px, pz, r.pts) < r.width / 2 + pad));
+}
+
 // ---------- byggnaderna ----------
 // Lokal +z är framsidan (dörren, mot gatan), lokal +x längs fasaden. w längs x, d längs z.
 // eave: takfotens höjd, ridge: nockens höjd, ridgeX: nocken längs x. perch: prickskytt på taket.
@@ -182,15 +192,18 @@ export const X60 = (() => {
 const HOUSES = [
   STATION,
   B0('cafe', 'cafe', [12, 41], 14, 9, [-1, 0], { eave: 5.4, ridge: 7.9 }),
-  B0('mission', 'mission', [16, 74], 13, 9, [-1, 0], { eave: 4.2, ridge: 8.2, ridgeX: false }),
+  // 0.17.2 (H301): missionskyrkans klocktorn (takryttaren, lokalt (lx, lz)) är en prickskyttepost, 10,6 m upp
+  B0('mission', 'mission', [16, 72], 13, 9, [-1, 0], { eave: 4.2, ridge: 8.2, ridgeX: false, tower: { lx: 0, lz: 1.8, size: 2.6, h: 10.6 } }),
   B0('white', 'white', [-42, 41], 11, 9, [0, -1], { eave: 5.6, ridge: 8.4 }),
-  B0('yellow', 'yellow', [36, -55], 11, 9, [-1, 0], { eave: 4.9, ridge: 7.6 }),
-  B0('hembygd', 'hembygd', [-104, 40], 12, 7, [0, -1], { eave: 3.0, ridge: 5.6 }),
+  B0('yellow', 'yellow', [36, -57.5], 11, 9, [-1, 0], { eave: 4.9, ridge: 7.6 }),
+  // 0.17.2 (H307): Hembygdsgården och gärdsgården öster om Kvarnvägen (vägen gick förut rakt genom huset)
+  B0('hembygd', 'hembygd', [-84, 40], 12, 7, [0, -1], { eave: 3.0, ridge: 5.6 }),
   B0('kvarn', 'kvarn', [-22, 134], 12, 10, [0, 1], { eave: 6.0, ridge: 9.2 }),
-  B0('chain1', 'chain', [66, 69], 30, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 4 }),
+  B0('chain1', 'chain', [66, 67], 30, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 4 }),
   B0('chain2', 'chain', [72, 89], 26, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 3 }),
-  B0('apt1', 'apartment', [-38, 108], 26, 11, [0, 1], { eave: 6.2, ridge: 8.8 }),
-  B0('apt2', 'apartment', [-64, 96], 24, 11, [1, 0], { eave: 6.2, ridge: 8.8 }),
+  // 0.17.2 (H301): hyreshusen, Folkets hus och stationshuset är höga nog för prickskytten
+  B0('apt1', 'apartment', [-38, 108], 26, 11, [0, 1], { eave: 6.2, ridge: 8.8, perch: true }),
+  B0('apt2', 'apartment', [-64, 96], 24, 11, [1, 0], { eave: 6.2, ridge: 8.8, perch: true }),
 ];
 // Villorna: generiska hus längs gatorna (fritt utplacerade med marginal, deterministiskt).
 const FACADES = ['white', 'white', 'yellow', 'red', 'red', 'grey', 'beige', 'brown', 'blueGrey'];
@@ -259,6 +272,26 @@ export const LOTS = { plots: BUILDINGS.filter(h => h.kind !== 'x60').map(h => ({
 // ---------- bergskärningen, staket, saker ----------
 // Bergskärningen i granit längs Fagernäsvägens södra sida (Street View 6).
 export const ROCK = { u0: 18, u1: 100, v: 33.8, depth: 2.6, h: 3.2 };
+// 0.17.2 (H307, "en stenmur korsar vägen"): skärningen bryts där en gata går igenom (Genvägen), i bitar [u0, u1]
+ROCK.segs = (() => {
+  const out = [], step = 0.5;
+  let a = null;
+  for (let u = ROCK.u0; u <= ROCK.u1 + 1e-9; u += step) {
+    const [x, z] = R(u, ROCK.v), ok = clearOfRoads(x, z, RAIL_RY, step, ROCK.depth, 0.6);
+    if (ok && a == null) a = u;
+    if ((!ok || u + step > ROCK.u1 + 1e-9) && a != null) { const b = ok ? u : u - step; if (b - a >= 3) out.push([a, b]); a = null; }
+  }
+  return out;
+})();
+// Gärdsgården runt Hembygdsgården (rendern ritar den, placeringen räknar den som häck): bitarna som rektanglar.
+const HB = HOUSES.find(h => h.id === 'hembygd');
+export const LOG_FENCE = [[-11, -8], [11, -8], [11, 8], [-11, 8], [-11, -2]];
+export const FENCES = LOG_FENCE.slice(1).map(([bx, bz], i) => {
+  const [ax, az] = LOG_FENCE[i], c = Math.cos(HB.ry), sn = Math.sin(HB.ry);
+  const W = (lx, lz) => [HB.x + lx * c + lz * sn, HB.z - lx * sn + lz * c];
+  const [x0, z0] = W(ax, az), [x1, z1] = W(bx, bz);
+  return { kind: 'fence', x: (x0 + x1) / 2, z: (z0 + z1) / 2, ry: Math.atan2(-(z1 - z0), x1 - x0), w: Math.hypot(x1 - x0, z1 - z0), d: 0.5 };
+});
 // Trafikljusen vid caféets korsning (J).
 export const LIGHTS = [[-0.5, 29], [-11.5, 31], [4, 39.5], [-10, 39]].map(([u, v]) => R(u, v));
 // Parkerade bilar: stationsparkeringen och caféet.
@@ -266,7 +299,8 @@ export const CARS = (() => {
   const r = makeRng(5711), out = [];
   for (let u = -40; u <= -6; u += 2.8) for (const v of [-21.5, -36.5]) if (r() < 0.45) { const [x, z] = R(u + (r() - 0.5) * 0.3, v); out.push({ x, z, ry: ryAlong(0, 1) + (r() < 0.5 ? 0 : Math.PI), color: (r() * 8) | 0 }); }
   for (const [u, v] of [[0, 38.5], [0, 43.5]]) { const [x, z] = R(u, v); out.push({ x, z, ry: ryAlong(1, 0), color: (r() * 8) | 0 }); }
-  return out;
+  // 0.17.2 (H307): ingen bil på en gata
+  return out.filter(c => clearOfRoads(c.x, c.z, c.ry, 4.3, 1.82));
 })();
 // Väntkurer i glas på perrongerna, avgångsskylten (blå LED) och kontaktledningsstolparna.
 export const SHELTERS = [[-60, -11.6], [-36, -11.6], [-56, 9.6], [-30, 9.6]].map(([u, v]) => ({ x: R(u, v)[0], z: R(u, v)[1], u, v }));
@@ -297,7 +331,7 @@ const FAR_RAIL = [
 export const FAR = FAR_RAIL.map(([u, v, w, d, deg = 0, h = 4.6, roof = 'gable']) => {
   const [x, z] = R(u, v);
   return { x, z, w, d, ry: RAIL_RY - deg * Math.PI / 180, h, roof };
-});
+}).filter(f => clearOfRoads(f.x, f.z, f.ry, f.w, f.d, 1));    // 0.17.2 (H307): inget hus i diset på en väg
 
 // ---------- ingångarna ----------
 // Varje ingång ligger där dess dimväg är SPAWN_OUT meter utanför den skarpa ytan. Dagarna i DAYS.
@@ -396,12 +430,25 @@ function buildingShapes() {
   };
   for (const h of BUILDINGS) {
     const half = (h.ridgeX ?? true) ? h.d / 2 : h.w / 2;
-    out.push({ id: h.id, kind: h.kind, rects: [rect(h.x, h.z, h.ry, h.w, h.d)], eave: h.eave, pad: h.kind === 'x60' ? 0.4 : HOUSE_PAD,
-      height: gable(h, h.eave, h.ridge - h.eave, half, h.ridgeX ?? true), perch: h.perch ? (x, z) => (inRect(rect(h.x, h.z, h.ry, h.w, h.d), x, z, -0.3) ? 1 : 0) : null });
+    const roofH = gable(h, h.eave, h.ridge - h.eave, half, h.ridgeX ?? true), body = rect(h.x, h.z, h.ry, h.w, h.d);
+    let height = roofH, perch = h.perch ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null;
+    if (h.tower) {
+      // 0.17.2 (H301): tornet: höjden är tornets i dess ruta, och bara tornet är en utsiktspunkt (perch 3 = torn)
+      const t = h.tower, c = Math.cos(h.ry), sn = Math.sin(h.ry);
+      const tr = rect(h.x + t.lx * c + t.lz * sn, h.z - t.lx * sn + t.lz * c, h.ry, t.size, t.size);
+      height = (x, z) => (inRect(tr, x, z) ? t.h : roofH(x, z));
+      perch = (x, z) => (inRect(tr, x, z, 0.8) ? 3 : 0);
+      h.towerRect = tr;
+    }
+    out.push({ id: h.id, kind: h.kind, rects: [body], eave: h.eave, pad: h.kind === 'x60' ? 0.4 : HOUSE_PAD, height, perch });
   }
   {
     const F = FOLKETS, o = { x: F.x, z: F.z, ry: F.ry, w: F.len, d: F.wid };
-    out.push({ id: 'folkets', kind: 'folkets', rects: [rect(F.x, F.z, F.ry, F.len, F.wid)], eave: F.wallH, pad: HOUSE_PAD, height: gable(o, F.wallH, 3.6, F.wid / 2, true), perch: null });
+    // 0.17.2 (H301): prickskytten på Folkets hus ligger vid nocken över gaveln mot grusplanen (frontespisen), inte
+    // över hela taket: basens tak fick annars plats för alla Psg 90 och dag 3 till 5 blev för lätta (balansen)
+    const fr = rect(F.x, F.z, F.ry, F.len, F.wid);
+    const [gx, gz] = F.at(F.face - 2.4, 0), front = rect(gx, gz, F.ry, 4.4, 4.4);
+    out.push({ id: 'folkets', kind: 'folkets', rects: [fr], eave: F.wallH, pad: HOUSE_PAD, height: gable(o, F.wallH, 3.6, F.wid / 2, true), perch: (x, z) => (inRect(front, x, z) ? 1 : 0) });
   }
   {
     const o = X60;
@@ -410,20 +457,91 @@ function buildingShapes() {
   }
   for (const t of TOWERS) {
     const [x, z] = R(...t.at), r0 = rect(x, z, RAIL_RY, t.size, t.size);
-    out.push({ id: t.id, kind: 'tower', rects: [r0], eave: t.h, pad: 0.2, height: (px, pz) => (inRect(r0, px, pz) ? t.h : 0), perch: (px, pz) => (inRect(r0, px, pz, 0.6) ? 1 : 0) });
+    out.push({ id: t.id, kind: 'tower', rects: [r0], eave: t.h, pad: 0.2, height: (px, pz) => (inRect(r0, px, pz) ? t.h : 0), perch: (px, pz) => (inRect(r0, px, pz, 0.6) ? 3 : 0) });
   }
   {
-    const [x, z] = R((ROCK.u0 + ROCK.u1) / 2, ROCK.v), r0 = rect(x, z, RAIL_RY, ROCK.u1 - ROCK.u0, ROCK.depth);
-    out.push({ id: 'rock', kind: 'rock', rects: [r0], eave: ROCK.h, pad: 0, height: (px, pz) => (inRect(r0, px, pz) ? ROCK.h : 0), perch: null });
+    const rs = ROCK.segs.map(([u0, u1]) => { const [x, z] = R((u0 + u1) / 2, ROCK.v); return rect(x, z, RAIL_RY, u1 - u0, ROCK.depth); });
+    out.push({ id: 'rock', kind: 'rock', rects: rs, eave: ROCK.h, pad: 0, height: (px, pz) => (rs.some(r0 => inRect(r0, px, pz)) ? ROCK.h : 0), perch: null });
   }
   return out;
 }
 export const SHAPES = buildingShapes();
+
+// ---------- trädgårdarna (0.17.2, H308, Olas "fylligare", refs satellit-vid-sodra.jpg) ----------
+// Varje villa får en trädgård bakom huset: bod, trädgårdsmöbler eller studsmatta, fruktträd, och häck eller staket
+// längs tomtgränserna. Mellan tomterna står lövträd i dungar (Mölnbo är lummigt). Allt är data, så att
+// fotavtrycken provas (inget på en gata, tests/footprints.test.js) och placeringen vet var boden står.
+// kind: shed | table | tramp | tree | hedge | fence. Häck och staket: a, b (ändpunkterna) och en tunn rektangel.
+export const GARDEN = (() => {
+  const rng = makeRng(20261102), r = () => rng();
+  const out = [];
+  const solid = SHAPES.flatMap(b => b.rects);
+  const free = (x, z, ry, w, d, pad = 0.6) => {
+    if (outside(x, z) > 18 || inRail(x, z) || Math.abs(toRail(x, z)[1] - 0) < 18) return false;
+    if (!clearOfRoads(x, z, ry, w, d, pad)) return false;
+    if (Object.values(AREAS).some(a => inPoly(x, z, a)) || inPoly(x, z, GROUND.lake)) return false;
+    const q = rect(x, z, ry, w + 1, d + 1);
+    if (solid.some(o => rectHit(o, q))) return false;
+    if (out.some(o => o.kind !== 'tree' && rectHit(o.r, q))) return false;
+    if (Math.hypot(x - FOLKETS.x, z - FOLKETS.z) < 15) return false;
+    return true;
+  };
+  const push = (o) => { o.r = rect(o.x, o.z, o.ry, o.w, o.d); out.push(o); };
+  const homes = BUILDINGS.filter(h => h.kind === 'villa' || h.kind === 'white' || h.kind === 'yellow');
+  for (const h of homes) {
+    const c = Math.cos(h.ry), sn = Math.sin(h.ry);
+    const W = (lx, lz) => [h.x + lx * c + lz * sn, h.z - lx * sn + lz * c];
+    const back = -h.d / 2;
+    // boden i ett bakre hörn
+    if (r() < 0.65) {
+      const side = r() < 0.5 ? -1 : 1, w = 2.4 + r() * 1.2, d = 2 + r() * 0.6;
+      const [x, z] = W(side * (h.w / 2 - w / 2 + 0.5), back - 3.2 - d / 2);
+      if (free(x, z, h.ry, w, d)) push({ kind: 'shed', x, z, ry: h.ry, w, d, color: r() < 0.6 ? 'falu' : r() < 0.5 ? 'grey' : 'green' });
+    }
+    // möbler eller studsmatta på gräset bakom
+    const k = r();
+    if (k < 0.75) {
+      const tramp = k < 0.2, s = tramp ? 3.6 : 2;
+      const [x, z] = W((r() - 0.5) * h.w * 0.5, back - (tramp ? 3.4 : 2.2));
+      if (free(x, z, h.ry, s, s, 0.4)) push({ kind: tramp ? 'tramp' : 'table', x, z, ry: h.ry + (r() - 0.5) * 0.4, w: s, d: s });
+    }
+    // fruktträd
+    for (let i = 0, n = 1 + ((r() * 3) | 0); i < n; i++) {
+      const [x, z] = W((r() - 0.5) * (h.w + 6), back - 4 - r() * 5);
+      if (free(x, z, 0, 0.8, 0.8, 1.2)) push({ kind: 'tree', x, z, ry: r() * 6, w: 0.8, d: 0.8, h: 4 + r() * 3, shape: (r() * 3) | 0 });
+    }
+    // tomtgränserna: häck eller staket längs sidorna och baksidan
+    const hw = h.w / 2 + 3.2, f = h.d / 2 + 2.5, bk = back - 8.5;
+    const lines = [[[-hw, f], [-hw, bk]], [[hw, f], [hw, bk]], [[-hw, bk], [hw, bk]]];
+    const kind = r() < 0.55 ? 'hedge' : 'fence', style = r() < 0.5 ? 'picket' : 'slat';
+    for (const [[ax, az], [bx, bz]] of lines) {
+      if (r() < 0.25) continue;
+      const [x0, z0] = W(ax, az), [x1, z1] = W(bx, bz), L = Math.hypot(x1 - x0, z1 - z0);
+      const ry = Math.atan2(-(z1 - z0), x1 - x0), x = (x0 + x1) / 2, z = (z0 + z1) / 2;
+      if (!clearOfRoads(x, z, ry, L, 0.9, 0.4) || solid.some(o => rectHit(o, rect(x, z, ry, L, 0.9)))) continue;
+      if (outside(x, z) > 18 || inRail(x, z)) continue;
+      push({ kind, style, x, z, ry, w: L, d: kind === 'hedge' ? 0.9 : 0.2, a: [x0, z0], b: [x1, z1] });
+    }
+  }
+  // lövträdsdungar mellan tomterna: ett glest rutnät med brus, tätare i klungor
+  const bump = (x, z) => Math.sin(x * 0.071) * Math.cos(z * 0.063) + Math.sin((x + z) * 0.041);
+  for (let z = CRISP.z0 - 14; z < CRISP.z1 + 14; z += 6.5) for (let x = CRISP.x0 - 14; x < CRISP.x1 + 14; x += 6.5) {
+    const px = x + (r() - 0.5) * 4, pz = z + (r() - 0.5) * 4;
+    if (bump(px, pz) < 0.35 || r() < 0.35) continue;
+    if (!free(px, pz, 0, 0.8, 0.8, 2.2)) continue;
+    if (inPoly(px, pz, GROUND.field) || inPoly(px, pz, GROUND.field2) || GROUND.forest.some(p => inPoly(px, pz, p))) continue;
+    if (solid.some(o => distRect(o, px, pz) < 3.5)) continue;
+    push({ kind: 'tree', x: px, z: pz, ry: r() * 6, w: 0.8, d: 0.8, h: 6 + r() * 5, shape: (r() * 3) | 0, grove: true });
+  }
+  return out;
+})();
 const THING_PAD = 0.8;
 function thingRects() {
   const out = CARS.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
   for (const [x, z] of LIGHTS) out.push(rect(x, z, 0, 0.6, 0.6));
   for (const s of SHELTERS) out.push(rect(s.x, s.z, RAIL_RY, 4, 1.8));
+  // 0.17.2 (H308): bodarna och studsmattorna i trädgårdarna (ingen pjäs i en bod)
+  for (const g of GARDEN) if (g.kind === 'shed' || g.kind === 'tramp') out.push(g.r);
   return out;
 }
 // Skog där den är tät: inne i en skogspolygon och minst 7 m från gator och hus.
@@ -542,7 +660,7 @@ export const DAYS = [
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('brute', 3, 3, 16, 's2')] },
              { groups: [g('walker', 60, 0.28, 0, 's2'), g('walker', 50, 0.3, 4, 's1'), tell('Runners from the ravine!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
              { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('brute', 5, 2.5, 10, 's2')] } ] },
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 31, overlap: 50, train: { at: 340 },
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 36, overlap: 50, train: { at: 340 },
     intro: { title: 'Day 4: North side', text: 'They are north of the tracks. Close the bridges.' },
     objective: 'Hold Folkets hus until the train leaves.',
     waves: [ say('Gnestavägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('runner', 4, 0.8, 6, 's1')] }),
@@ -581,6 +699,8 @@ export const molnbo = {
   roads: ROADS, ground: GROUND, rail: RAIL, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
   buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,
   spawns: SPAWNS, base: BASE, surroundings: MOLNBO_SURROUNDINGS,
+  // 0.17.2 (H307): järnvägens ram för fotavtrycken (src/data/footprints.js), gärdsgården och trädgårdarna
+  railFrame: { R, RAIL_RY }, fences: FENCES, garden: GARDEN,
   // Basen: Folkets hus igenspikade dörrar (render/models.js rinkEntranceModel), samma som ishallens entré.
   iceRink: FOLKETS, baseModel: 'rink',
   grid: molnboGrid(),

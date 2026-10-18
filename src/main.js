@@ -13,7 +13,7 @@ import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
-import { pressKind, releaseAction, isDrag, BUTTON } from './ui/gesture.js';
+import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -34,7 +34,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun } from './sim/sim.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
 import { KIND, roofAt } from './sim/placement.js';
@@ -59,6 +59,13 @@ const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const TEST = new URLSearchParams(location.search).has('test');
+// 0.17.2 (H302): kartans kant, 'haze' eller 'dark' (src/render/molnbo-world.js EDGE_MODES). Debugmenyn byter, ?edge=dark
+// i adressen likaså (skärmbilderna); valet sparas per webbläsare.
+const EDGE_KEY = 'horde.edge';
+let edgeMode = new URLSearchParams(location.search).get('edge') ?? (() => { try { return localStorage.getItem(EDGE_KEY); } catch { return null; } })();
+// 0.17.2 (Olas önskan): debugmenyns Quick jump ställer ut truppen med balanspolicyn (scripts/balance.mjs autoDeploy)
+const AUTODEPLOY_KEY = 'horde.autodeploy';
+let autoDeployOn = (() => { try { return localStorage.getItem(AUTODEPLOY_KEY) !== 'off'; } catch { return true; } })();
 // Laddningsskydd (index.html): huvudfilen och version.js ska vara samma version. Skiljer de sig har en
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
@@ -103,9 +110,10 @@ async function buildMapWorld(m) {
   const st = createScene(null, m, { renderer });
   const w = { map: m, stage: st, scene: st.scene, camera: st.camera };
   buildWorld(w.scene, m);
+  if (edgeMode) w.scene.userData.setEdge?.(edgeMode);
   showLoading(m.name, 'Raising the houses', 0.45);
   await nextFrame();
-  w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement });
+  w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement, holding: () => mode === 'play' && (!!placing || !!rotating) });
   w.rig.active = false;
   const d = Math.min(mapState(progress, m.id).unlockedDay, m.days.length);
   // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
@@ -223,14 +231,15 @@ ghostWhere.id = 'ghostwhere'; ghostWhere.className = 'plate'; ghostWhere.hidden 
 uiRoot.appendChild(ghostWhere);
 const canPlaceNow = () => mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
 // 0.12.0 (H102): Move i panelen tar pjäsen i handen; samma spöke och samma regler som ett köp.
-function startMove(id) {
+function startMove(id, { free = false } = {}) {
   if (!canPlaceNow()) return;
   const g = sim.guns.find(x => x.id === id);
   if (!g) return;
   closePanel();
   audio.ui('pick');
   // 0.13.0 (H136): Shift-klick lägger till waypoints (via), vanligt klick är slutpunkten
-  placing = { type: g.weapon.type, kind: 'gun', move: id, via: [] };
+  // 0.17.2: free = uppställningens fria flytt (Reposition): direkt och gratis, ingen väg
+  placing = { type: g.weapon.type, kind: 'gun', move: id, via: [], free };
   spot = null; hovered = null;
 }
 function startPlacing(type) {
@@ -274,11 +283,11 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   if (rt) key = rt.key;
   else if (x != null && !roofHit) key = snapGun(sim, x, z, placing?.type, { move: placing?.move }).key;
   if (key == null || key < 0) return { key: -1, ok: false, reason: 'utanför' };
-  const c = sim.place.center(key), check = placing?.move ? checkMove(sim, placing.move, key, placing.via ?? []) : checkSpot(sim, key, placing?.type);
+  const c = sim.place.center(key), check = placing?.move ? (placing.free ? checkReposition(sim, placing.move, key) : checkMove(sim, placing.move, key, placing.via ?? [])) : checkSpot(sim, key, placing?.type);
   const roof = onRoof(sim, key, placing?.type);
   // 0.14.2: snäppte spöket bort från rutan under pekaren står pekarens punkt kvar (pilen dit, view.js snap)
   const from = x != null && !roofHit && !rt && key !== sim.place.keyAt(x, z) ? { fx: x, fz: z } : {};
-  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
+  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : roof ? { perch: sim.place.perch?.[key] ?? 1 } : {}) };
 }
 // 0.16.2: varje försök att ställa ut med något i handen och hur det gick (__horde.placeLog med ?debug eller ?test)
 const placeLog = [];
@@ -291,7 +300,8 @@ function placeHere(p) {
   // 0.16.2: riktningen räknas från rutan som klicket gäller, inte från rutan som hovringen senast räknade
   spot = sp;
   if (placing.move) {
-    const r = actions.move(placing.move, key, hasCone() ? aimFacing() : null, placing.via ?? []);
+    const r = placing.free ? actions.reposition(placing.move, key, hasCone() ? aimFacing() : null)
+      : actions.move(placing.move, key, hasCone() ? aimFacing() : null, placing.via ?? []);
     if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
     logPlace({ out: 'moved', key });
     stopPlacing(); placedAt = performance.now();
@@ -341,46 +351,78 @@ function groundAt(cx, cy) {
   groundRay.setFromCamera(groundNdc, camera);
   return groundRay.ray.intersectPlane(mmPlane, groundHit) ? { x: groundHit.x, z: groundHit.z } : null;
 }
+// 0.17.2 (H300, Olas beslut efter speltestet av 0.17.1): med något i handen ställer ett klick ut (riktningen mot
+// vägen), tryck-håll-dra siktar, höger- eller Alt-dra siktar direkt, ett högerklick lägger tillbaka. En vänsterdragning
+// som börjar innan man hållit klart gör ingenting. Reglerna i src/ui/gesture.js.
 renderer.domElement.addEventListener('pointerdown', e => {
   suppressClick = false;           // ett gammalt släpp utan klick ska inte äta nästa klick
-  if (e.button !== 0 || mode !== 'play') return;
-  if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
-  // 0.16.0: sikta-dra är upplåst från E4 dag 3; före det ger ett klick riktningen mot vägen
-  // 0.17.1 (speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten"): bara ett tryck på en
-  // giltig plats siktar (src/ui/gesture.js). Annars panorerar dragningen och släppet ställer inte ut något.
-  if (placing?.move && e.shiftKey) return;
+  if (mode !== 'play' || (e.button !== BUTTON.left && e.button !== BUTTON.right)) return;
+  if (rotating) {
+    if (e.button === BUTTON.left) { aim = { rotate: true, kind: 'aim', button: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false }; rig.panLock = true; }
+    else aim = { rotate: true, kind: 'hand', button: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false };
+    return;
+  }
+  if (!placing) return;
+  if (placing.move && e.shiftKey && e.button === BUTTON.left) return;   // Shift-klick: en waypoint (plockaren)
   const here = hasCone() ? picker.pickAt(e.clientX, e.clientY) : null;
   const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
-  if (pressKind({ button: e.button, holding: !!placing, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0 }) !== 'aim') return;
-  spot = sp;
-  aim = { sp: spot, x: spot.x, z: spot.z, sx: e.clientX, sy: e.clientY, drag: false };
+  const kind = pressKind({ button: e.button, holding: true, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0, alt: e.altKey });
+  if (kind === 'aim' || kind === 'hold') spot = sp;
+  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
   if (!aim) return;
-  if (!aim.drag && !isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
-  aim.drag = true;
-  if (aim.rotate || !placing) return;
+  if (!aim.moved) {
+    if (!isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
+    aim.moved = true;
+    aim.drag = dragAims(aim.kind, performance.now() - aim.t0);
+    // en vänsterdragning innan man hållit klart: inget sikte, ingen panorering; säg hur det görs
+    if (!aim.drag && aim.kind === 'hold' && placing) flashTip('Hold, then drag to aim');
+  }
+  if (!aim.drag || aim.rotate || !placing) return;
   const g = groundAt(e.clientX, e.clientY);
   if (g && Math.hypot(g.x - aim.x, g.z - aim.z) > 0.5) { placing.facing = Math.atan2(g.z - aim.z, g.x - aim.x); placing.userFacing = true; }
 });
-addEventListener('pointerup', () => {
-  if (!aim) return;
-  const a = aim; aim = null; rig.panLock = false;
-  if (!a.drag) return;            // ett vanligt klick: plockaren sköter det
-  suppressClick = true;
-  if (a.rotate) { commitRotate(); return; }
-  if (placing && releaseAction({ kind: 'aim', button: 0, moved: true }) === 'place-aimed') { spot = a.sp; placeHere(a.sp.key); }
-});
-// 0.17.1: högerknappen. Dra panorerar (camera-rig.js), ett högerklick utan dragning lägger tillbaka det man håller.
-// Webbläsarens meny visas aldrig över kartan (på macOS kommer den redan vid trycket, så beslutet tas vid släppet).
-let rightDown = null;
-renderer.domElement.addEventListener('pointerdown', e => { if (e.button === BUTTON.right) rightDown = { x: e.clientX, y: e.clientY }; });
 addEventListener('pointerup', e => {
-  if (e.button !== BUTTON.right || !rightDown) return;
-  const moved = isDrag(e.clientX - rightDown.x, e.clientY - rightDown.y);
-  rightDown = null;
-  if (mode === 'play' && releaseAction({ kind: 'pan', button: BUTTON.right, moved, holding: !!placing || !!rotating }) === 'cancel') { stopPlacing(); rotating = null; }
+  if (!aim || e.button !== aim.button) return;
+  const a = aim; aim = null; rig.panLock = false;
+  if (mode !== 'play') return;
+  const act = releaseAction({ kind: a.kind, button: a.button, moved: a.moved, holding: !!placing || !!rotating, aimed: a.drag });
+  if (a.rotate) {
+    if (act === 'cancel') rotating = null;
+    else if (a.moved && a.button === BUTTON.left) { suppressClick = true; commitRotate(); }
+    return;
+  }
+  if (act === 'cancel') { stopPlacing(); return; }
+  // ett vanligt klick: plockaren sköter det (vänsterknappen); en dragning som inte siktade släpps utan att något händer
+  if (act === 'click') return;
+  if (a.moved && a.button === BUTTON.left) suppressClick = true;
+  if (act === 'place-aimed' && placing) { spot = a.sp; logPlace({ out: 'aimed', key: a.sp.key }); placeHere(a.sp.key); }
+});
+// 0.17.2 (Olas önskan): i uppställningen går en utställd enhet att dra till en ny plats (samma som Reposition).
+// Trycket på enheten låser panoreringen; en dragning lyfter den, släppet ställer den där pekaren är. Ett klick väljer som förut.
+let repDrag = null;
+renderer.domElement.addEventListener('pointerdown', e => {
+  repDrag = null;
+  if (e.button !== BUTTON.left || mode !== 'play' || placing || rotating || !canReposition(sim)) return;
+  const hit = picker.pickAt(e.clientX, e.clientY);
+  if (hit?.kind !== 'gun') return;
+  repDrag = { id: hit.id, sx: e.clientX, sy: e.clientY, active: false };
+  rig.panLock = true;
+}, true);
+addEventListener('pointermove', e => {
+  if (!repDrag || repDrag.active || !isDrag(e.clientX - repDrag.sx, e.clientY - repDrag.sy)) return;
+  repDrag.active = true;
+  startMove(repDrag.id, { free: true });
+});
+addEventListener('pointerup', e => {
+  if (!repDrag || e.button !== BUTTON.left) return;
+  const d = repDrag; repDrag = null; rig.panLock = false;
+  if (!d.active || !placing?.free) return;
+  suppressClick = true;
+  const p = picker.pickAt(e.clientX, e.clientY);
+  if (p?.kind === 'spot') placeHere(p); else { flashTip(reasonText('utanför')); stopPlacing(); }
 });
 const takeSuppress = () => { const s0 = suppressClick; suppressClick = false; return s0; };
 const aimTip = document.createElement('div');
@@ -425,13 +467,15 @@ function commitRotate() {
 function guideMove(id) {
   const g = sim.guns.find(x => x.id === id);
   if (!g) return;
+  // 0.17.2: i uppställningen flyttas allt fritt (Reposition), också det som är monterat
+  if (canReposition(sim)) { startMove(id, { free: true }); return; }
   if (!canMoveType(g.weapon.type)) { flashTip(reasonText('fast')); audio.ui('deny'); tip('tip.mounted'); return; }
   startMove(id);
 }
 // Flyttens väg i handen (H136): från pjäsen genom waypoints till rutan under pekaren.
 const routeCache = { key: '', route: null };
 function moveRoute() {
-  if (!placing?.move || !spot || spot.key < 0) return null;
+  if (!placing?.move || placing.free || !spot || spot.key < 0) return null;
   const g = sim.guns.find(x => x.id === placing.move);
   if (!g) return null;
   const via = placing.via ?? [];
@@ -552,7 +596,8 @@ function updateGhostTip() {
   const where = placing && placing.kind === 'gun' && WEAPONS[placing.type]?.roof && spot && spot.key >= 0;
   ghostWhere.hidden = !where;
   if (where) {
-    const t = spot.roof ? (spot.snapped ? `ROOF · ${spot.perch === 2 ? 'ridge by the chimney' : 'flat part'}` : 'ROOF') : 'GROUND';
+    // 0.17.2 (H301): ett torn (trapptornen, missionskyrkans klocktorn) säger TOWER
+    const t = !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : 'ROOF';
     if (ghostWhere.textContent !== t) ghostWhere.textContent = t;
     ghostWhere.classList.toggle('roof', !!spot.roof);
     ghostWhere.style.left = pointer.x + 'px'; ghostWhere.style.top = pointer.y + 'px';
@@ -588,6 +633,9 @@ const actions = {
   supply: withCash('click', (id, what) => buySupply(sim, id, what)),
   reinforce: withCash('click', id => reinforce(sim, id)),
   move: withCash('place', (id, key, facing, via = []) => moveGun(sim, id, key, { facing, via })),
+  reposition: withCash('place', (id, key, facing) => repositionGun(sim, id, key, { facing })),
+  canReposition: () => !!sim && mode === 'play' && canReposition(sim),
+  startReposition: id => startMove(id, { free: true }),
   startMove: id => guideMove(id),
   rotate: withCash('click', (id, facing) => rotateGun(sim, id, facing)),
   startRotate: id => startRotate(id),
@@ -1431,7 +1479,7 @@ addEventListener('keydown', e => {
     if (!e.repeat && feat('minimap')) { mmOn = !mmOn; minimap.toggle(mmOn); try { localStorage.setItem(MM_KEY, mmOn ? 'on' : 'off'); } catch { /* ingen lagring */ } }
   }
   const unitId = () => (hovered?.kind === 'gun' ? hovered.id : selected?.kind === 'gun' ? selected.id : null);
-  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow() && feat('move')) {
+  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow() && (feat('move') || canReposition(sim))) {
     const id = unitId();
     if (id != null) guideMove(id);
   }
@@ -2091,12 +2139,28 @@ if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropert
 if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
-  open, jump: (...a) => debugJump(...a), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
+  open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
   showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 
+// 0.17.2 (Olas önskan): Quick jump i debugmenyn. Dagen med ankomstens trupp och forskning (som Jump to), truppen
+// utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
+const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 3], ['gnesta', 5],
+  ['gnesta-norr', 1], ['gnesta-norr', 4], ['molnbo', 1], ['molnbo', 3], ['molnbo', 5]];
+async function quickJump(mapId, d) {
+  await debugJump(mapId, d);
+  if (lesson) { coach.hide(); lesson = null; }
+  if (autoDeployOn && sim && mode === 'play') {
+    try { const B = await import('../scripts/balance.mjs'); B.autoDeploy(sim); } catch (e) { console.warn('auto-deploy', e); flashTip('Auto-deploy failed'); }
+  }
+  // striden börjar direkt: ingen fråga om enheter kvar i reserven, ingen lektionsplåt i vägen
+  if (lesson) { coach.hide(); lesson = null; }
+  reserveWarned = true;
+  if (mode === 'play' && sim.phase === 'build') go();
+  return { ok: true };
+}
 // Jump to i debugmenyn (och __horde.jump med ?debug): dagen med sektorerna före räknade som klara.
 async function debugJump(mapId, d, wave) {
   if (!MAPS[mapId]) return;
@@ -2148,6 +2212,11 @@ const debugUi = mountDebug(uiRoot, {
   setTweaks: t => { dbg.tweaks = normalizeTweaks(t); saveDebug(dbg); if (sim) sim.tweaks = dbg.tweaks; },
   spawn: (type, n, spawnId) => (sim && mode === 'play' ? debugSpawn(sim, { type, count: n, spawn: spawnId || undefined }) : { ok: false }),
   burst: house => (sim && mode === 'play' && house ? debugBurst(sim, house) : { ok: false }),
+  edge: () => scene?.userData.edgeMode ?? null,
+  setEdge: m => { edgeMode = m; try { localStorage.setItem(EDGE_KEY, m); } catch { /* ingen lagring */ } scene?.userData.setEdge?.(m); return { ok: !!scene?.userData.setEdge }; },
+  quick: QUICK_JUMPS, quickJump: (m, d) => quickJump(m, d),
+  autoDeploy: () => autoDeployOn,
+  setAutoDeploy: on => { autoDeployOn = !!on; try { localStorage.setItem(AUTODEPLOY_KEY, on ? 'on' : 'off'); } catch { /* ingen lagring */ } },
   visuals: () => ({ ...dbg.visuals, routes: showRoute, minimap: minimap.visible }),
   setVisual: (k, on) => {
     if (k === 'routes') { showRoute = on; hud.routeKey(mode === 'play' && sim?.route.kind === 'grid', showRoute); }
@@ -2251,6 +2320,7 @@ function tick(now) {
   updateEvacMarks();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
+  coach.settle();
   updateGhostTip();
 
   if (panel) panel.update(sim);

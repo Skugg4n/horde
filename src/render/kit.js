@@ -27,7 +27,7 @@ export const PALETTE = {
   civOrange: '#d0612a', hiVis: '#cfe23a', civCap: ['#3a3f2c', '#7a2a24', '#2a3140', '#c25a26'], civWood: '#6b4a2c',
   // 0.13.0 (H135): EPA-pillboxen. Gammal traktorbil i olika plåtar (grön, rödbrun, grå primer, blå),
   // rost, svetsfogar, LGF-triangeln bak.
-  epaBody: ['#54613f', '#7a3b2b', '#6f6f66', '#3e4f5c', '#8a7a52'], rust: '#6e3b1f', weld: '#9a8f78', lgf: '#d0542a', lgfRim: '#8e1f17',
+  epaBody: ['#54613f', '#7a3b2b', '#6f6f66', '#3e4f5c', '#8a7a52'], epaPaint: ['#8a2f25', '#2f4a63', '#b8ab86', '#5f6b4a', '#7b7f80'], rust: '#6e3b1f', weld: '#9a8f78', lgf: '#d0542a', lgfRim: '#8e1f17',
   // hinder
   wireSteel: '#3c3a36', post: '#4a3a2a', concrete: '#a59f90', concreteDark: '#6f695d', grime: '#7d7768', crack: '#3a3630',
   // zombier

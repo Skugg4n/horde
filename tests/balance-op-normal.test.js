@@ -71,7 +71,9 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // Ishallen dag 1 med två omgångar hus och fyra korsningar (need 18 av 24), dag 3 Hemvärnet och Norra vägen (39 / 60 / 84,
 // hp 2,7), de vilande husen och Ksp 58 dag 4 (hp 1,3), Ak 5 och Ksp 88 dag 5 (hp 2,1), Psg 90 på Vikingavägen.
 // docs/balance-log.md 0.16.4.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"4aca40ff","gnesta 3":"1e26a3bd","gnesta 4":"4634731c","gnesta 5":"71710bac","gnesta-norr 1":"a6390155","gnesta-norr 2":"17c1cc7f","gnesta-norr 3":"097bdfcd","gnesta-norr 4":"7bb65256","gnesta-norr 5":"546c05b4"};
+// 0.17.2: avsiktligt (H307, inget på vägarna): Vikingavägens villor och radhus G backar från gångvägarna,
+// så Vikingavägen dag 1 till 5 är nya. docs/balance-log.md 0.17.2.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"4aca40ff","gnesta 3":"1e26a3bd","gnesta 4":"4634731c","gnesta 5":"71710bac","gnesta-norr 1":"f90cb36d","gnesta-norr 2":"0a597e73","gnesta-norr 3":"445b993d","gnesta-norr 4":"98e1c3d9","gnesta-norr 5":"5e1de9b5"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

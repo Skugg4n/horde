@@ -2,34 +2,28 @@
 // WASD, piltangenter) och zooma (hjulet) inom gränser; E4 står still som förut.
 // Skakningen (basen tar skada, granater) läggs ovanpå som en förskjutning.
 import * as THREE from 'three';
-import { pressKind, isDrag, BUTTON } from '../ui/gesture.js';
+import { pans, isDrag, edgeDir, BUTTON } from '../ui/gesture.js';
+import { OFFSET as OFF, EYE, crispView, maxView } from './camera-eye.js';
 
-export const OFFSET = new THREE.Vector3(40, 46, 40);
+export const OFFSET = new THREE.Vector3(...OFF);
+// 0.17.2 (H309): kameran står längre bort längs samma riktning (camera-eye.js), så att närplanet aldrig skär husen
+const EYE_V = new THREE.Vector3(...EYE);
 const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
 const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
 const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
 
-// Zoomen (vyns höjd i meter) som får med hela rektangeln c ({ x0, x1, z0, z1 }) vid bildformatet a.
-export function crispView(c, a, pad = 4) {
-  let need = 0;
-  const cx = (c.x0 + c.x1) / 2, cz = (c.z0 + c.z1) / 2;
-  for (const [x, z] of [[c.x0, c.z0], [c.x1, c.z0], [c.x1, c.z1], [c.x0, c.z1]]) {
-    const dx = x - cx, dz = z - cz;
-    const sx = Math.abs(dx * R.x + dz * R.z) + pad, sy = Math.abs((dx * D.x + dz * D.z) * PITCH) + pad;
-    need = Math.max(need, (2 * sx) / a, 2 * sy);
-  }
-  return Math.ceil(need);
-}
-export function createRig({ camera, map, fill, dom }) {
+// crispView (zoomen som får med hela den skarpa ytan) bor i camera-eye.js, utan three.js
+export { crispView };
+export function createRig({ camera, map, fill, dom, holding = () => false }) {
   const cam = map.camera;
   const canPan = !!cam.pan;
   const home = new THREE.Vector3(cam.target[0], 0, cam.target[1]);
   const target = home.clone();
   let view = cam.view;
-  const [zMin, zMax0] = cam.zoom ?? [view, view];
+  const [zMin] = cam.zoom ?? [view, view];
   // 0.12.0 (H117, speltestet av 0.11.0: "ser aldrig ingången och ishallen samtidigt"): längst ut ryms
   // hela den aktiva kartan (den skarpa ytan) på en skärm i 16:10 (1440 x 900), med 4 m marginal.
-  const zMax = map.surroundings?.crisp ? Math.max(zMax0, crispView(map.surroundings.crisp, 1440 / 900)) : zMax0;
+  const zMax = maxView(map);
   const shake = new THREE.Vector3();
 
   function apply() {
@@ -39,7 +33,7 @@ export function createRig({ camera, map, fill, dom }) {
     }
     const a = innerWidth / innerHeight, v = a < 1 ? view * 1.5 : view;
     camera.left = -v * a / 2; camera.right = v * a / 2; camera.top = v / 2; camera.bottom = -v / 2;
-    camera.position.copy(target).add(OFFSET).add(shake);
+    camera.position.copy(target).add(EYE_V).add(shake);
     camera.lookAt(target.x + shake.x, shake.y, target.z + shake.z);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
@@ -52,14 +46,19 @@ export function createRig({ camera, map, fill, dom }) {
   const keys = new Set();
   // 0.16.2: en gammal panorering (släppt utanför scenen, så att inget klick tog den) äter aldrig nästa klick
   // 0.17.1 (src/ui/gesture.js): höger- och mittknappen panorerar alltid; vänsterknappen när den inte siktar (panLock)
+  // 0.17.2 (H300): med något i handen panorerar bara mittknappen (vänster och höger siktar, src/ui/gesture.js),
+  // och pekaren mot skärmens kant flyttar kameran (edge nedan)
   const onDown = e => {
     dragged = false;
-    if (!canPan || !active || pressKind({ button: e.button }) !== 'pan' || (e.button === BUTTON.left && panLock)) return;
+    if (!canPan || !active || !pans(e.button, holding()) || (e.button === BUTTON.left && panLock)) return;
     if (e.button === BUTTON.middle) e.preventDefault();      // ingen autoskroll
     drag = { x: e.clientX, y: e.clientY, moved: false, button: e.button };
   };
   const onUp = () => { if (drag?.moved) dom.style.cursor = ''; drag = null; };
+  // pekaren över scenen (för kantpanoreringen); null när den lämnat fönstret eller ligger över gränssnittet
+  let edgeAt = null;
   const onMove = e => {
+    edgeAt = e.target === dom ? { x: e.clientX, y: e.clientY } : null;
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (!drag.moved && !isDrag(dx, dy)) return;
@@ -79,7 +78,8 @@ export function createRig({ camera, map, fill, dom }) {
     if (!canPan || !PAN[e.code] || e.metaKey || e.ctrlKey) return;
     if (e.type === 'keydown') { if (!active) return; keys.add(e.code); e.preventDefault(); } else keys.delete(e.code);
   };
-  const onBlur = () => keys.clear();
+  const onBlur = () => { keys.clear(); edgeAt = null; };
+  const onOut = e => { if (!e.relatedTarget) edgeAt = null; };
   dom.addEventListener('pointerdown', onDown);
   addEventListener('pointerup', onUp);
   addEventListener('pointermove', onMove);
@@ -87,6 +87,7 @@ export function createRig({ camera, map, fill, dom }) {
   addEventListener('keydown', onKey);
   addEventListener('keyup', onKey);
   addEventListener('blur', onBlur);
+  document.addEventListener('mouseout', onOut);
   addEventListener('resize', apply);
 
   // Introsvep (0.10.1): kameran glider från ingången till basen; ett klick, hjul eller en tangent
@@ -108,9 +109,13 @@ export function createRig({ camera, map, fill, dom }) {
       if (tour.t >= 1) endTour();
       return;
     }
-    if (!keys.size) return;
     let ux = 0, uy = 0;
     for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
+    if (canPan && active && !drag && edgeAt && holding()) {
+      const [ex, ey] = edgeDir(edgeAt.x, edgeAt.y, innerWidth, innerHeight);
+      ux += ex; uy += ey;
+    }
+    if (!ux && !uy) return;
     const sp = view * 0.9 * dt;
     target.addScaledVector(R, ux * sp).addScaledVector(D, uy * sp / PITCH);
     apply();
@@ -143,6 +148,7 @@ export function createRig({ camera, map, fill, dom }) {
     removeEventListener('keydown', onKey);
     removeEventListener('keyup', onKey);
     removeEventListener('blur', onBlur);
+    document.removeEventListener('mouseout', onOut);
     removeEventListener('resize', apply);
     dom.removeEventListener('pointerdown', onSkip, true);
     dom.removeEventListener('wheel', onSkip, true);
@@ -153,7 +159,7 @@ export function createRig({ camera, map, fill, dom }) {
     update, setShake, goHome, dispose, apply, canPan,
     // true en gång efter en panorering, så att släppet inte räknas som ett klick
     takeDrag() { const d = dragged; dragged = false; return d; },
-    set active(v) { active = v; if (!v) { keys.clear(); drag = null; } },
+    set active(v) { active = v; if (!v) { keys.clear(); drag = null; edgeAt = null; } },
     set panLock(v) { panLock = !!v; if (v) drag = null; },
     get target() { return target; },
     get view() { return view; },

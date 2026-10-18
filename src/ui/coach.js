@@ -43,10 +43,27 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     text.innerHTML = `${esc(step.text)}${step.keys?.length ? ' ' + keysHtml(step.keys) : ''}${step.kind === 'show' ? '<span class="cgo">Click or <kbd>Enter</kbd></span>' : ''}`;
     fewer.hidden = !step.fewer;
     pausedEl.hidden = !step.pause;
+    // 0.17.2: PAUSED ovanför köpraden redan innan plåten ställts (en långsam första bildruta visade den över korten)
+    if (step.pause) pausedEl.style.bottom = Math.round(innerHeight - aboveBar(innerWidth, innerHeight, innerHeight - 52) + 6) + 'px';
     fadeT = step.kind === 'caption' ? 4 : 0;
     el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
   }
   function hide() { cur = null; el.hidden = true; }
+  // 0.17.2: efter att köpraden ritats om i samma bildruta (main.js tick) flyttas PAUSED upp över den direkt
+  let lastLow = Infinity;
+  function settle() {
+    if (el.hidden || pausedEl.hidden) return;
+    const b = Math.round(innerHeight - aboveBar(innerWidth, innerHeight, Math.min(lastLow, innerHeight - 52)) + 6) + 'px';
+    if (pausedEl.style.bottom !== b) pausedEl.style.bottom = b;
+  }
+  // 0.17.2: köpraden mäts alltid (korten fick två rader siffror och raden blev högre än i listan avoid)
+  function aboveBar(vw, vh, low) {
+    for (const id of ['buildbar', 'go']) {
+      const bar = document.getElementById(id)?.getBoundingClientRect();
+      if (bar?.height && bar.left < vw / 2 + 60 && bar.right > vw / 2 - 60 && bar.top > vh * 0.55) low = Math.min(low, bar.top - (id === 'go' ? 6 : 0));
+    }
+    return low;
+  }
   const PAD = 8;
   // Varje bildruta: målets ruta (rect), eller off: { x, y, angle } vid kanten när målet är utanför bild.
   function place(rect, { off = null, avoid = null } = {}) {
@@ -84,7 +101,9 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     // 0.17.1 (speltestet av 0.17.0: PAUSED stod över köpradens kort): PAUSED står ovanför det översta av gränssnittet
     // nere i mitten (köpraden, knappen), inte på en fast höjd
     const given = Array.isArray(avoid) ? avoid : avoid ? [avoid] : [];
-    const low = given.filter(a => a.x0 < vw / 2 + 60 && a.x1 > vw / 2 - 60 && a.y0 > vh * 0.55).reduce((m, a) => Math.min(m, a.y0), vh - 52);
+    let low = given.filter(a => a.x0 < vw / 2 + 60 && a.x1 > vw / 2 - 60 && a.y0 > vh * 0.55).reduce((m, a) => Math.min(m, a.y0), vh - 52);
+    lastLow = low;
+    low = aboveBar(vw, vh, low);
     pausedEl.style.bottom = Math.round(vh - low + 6) + 'px';
     const others = [...given, { x0: vw / 2 - 60, y0: low - 30, x1: vw / 2 + 60, y1: low }];
     const fits = c => c.x >= 8 && c.y >= 8 && c.x + pw <= vw - 8 && c.y + ph <= vh - 36;
@@ -114,7 +133,7 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     if (fadeT <= 0) { el.style.opacity = ''; return true; }
     return false;
   }
-  return { el, show, hide, place, tick, get current() { return cur; }, plateRect: () => plate.getBoundingClientRect() };
+  return { el, show, hide, place, settle, tick, get current() { return cur; }, plateRect: () => plate.getBoundingClientRect() };
 }
 
 // Fiendernas presentationsruta (Olas beslut 4): hård paus, porträttet, rapporten och Continue.
