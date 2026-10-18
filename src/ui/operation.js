@@ -11,6 +11,8 @@ import { WEAPONS } from '../data/weapons.js';
 import { SECTORS, UNIT_RP, FROM_NAME, SUPPLY_BUDGET, poolOf } from '../data/depot.js';
 import { ROMAN } from '../data/research.js';
 import { mapState } from '../meta/progress.js';
+import { barsHtml } from './statbars.js';
+import { FATIGUE } from '../sim/sanity.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, maxMen, vetOf, levelCost, refillCost, returnValue,
   upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive, deployCap } from '../meta/operation.js';
 import { shopItem, SHOP } from '../data/shop.js';
@@ -262,7 +264,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const ret = meta().has('return');
     return `<div class="urow" data-uid="${u.uid}">
       <div class="un"><b>${esc(name(u.type))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}
-        <span class="men">${u.men != null ? `${u.men} of ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}</span></div>
+        <span class="men">${u.men != null ? `${u.men} of ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}${meta().has('fatigue') ? ` · <span class="fat f${u.fatigue ?? 0}" data-fat title="A won day at the front tires a unit; a day in reserve rests it.">${FATIGUE.names[u.fatigue ?? 0]} <s></s><s></s><s></s></span>` : ''}</span></div>
       <div class="ua">
         ${lc != null ? `<button type="button" class="mini ${p.rp < lc ? 'off' : ''}" data-a="lvl">Level ${ROMAN[u.level + 1]} <i>${rp(lc)}</i></button>` : '<span class="mini max">Max level</span>'}
         ${rc ? `<button type="button" class="mini ${p.rp < rc ? 'off' : ''}" data-a="refill">Refill <i>${rp(rc)}</i></button>` : u.men != null ? '<span class="mini max">Full</span>' : '<span class="mini gap"></span>'}
@@ -281,7 +283,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const c = canRequisition(p, t, sector), w = WEAPONS[t], n = stockOf(p, sector, t);
     const cap = deployCap(p, sector), have = count(sector), after = have + 1;
     const eff = n && Number.isFinite(cap) ? `<span class="cap ${after > cap ? 'over' : ''}">→ ${after} / ${cap}${after > cap ? ' · reserve' : ''}</span>` : '';
-    return `<button type="button" class="req ${c.ok ? '' : 'off'} ${n ? '' : 'none'}" data-req="${t}" title="${esc(w.desc)}"><span class="ri">${ICONS[t] ?? ''}</span><b>${esc(name(t))}</b><span class="rs">${n ? `${n} available` : 'None released'}${eff}</span><i>${n ? rp(UNIT_RP[t]) : ''}</i></button>`;
+    return `<button type="button" class="req ${c.ok ? '' : 'off'} ${n ? '' : 'none'}" data-req="${t}" title="${esc(w.desc)}"><span class="ri">${ICONS[t] ?? ''}</span><b>${esc(name(t))}</b><span class="rs">${n ? `${n} available` : 'None released'}${eff}</span><i>${n ? rp(UNIT_RP[t]) : ''}</i>${barsHtml(t)}</button>`;
   };
   // 0.16.4: taket per strid, en regel från förrådet till striden
   const capLine = sector => {
