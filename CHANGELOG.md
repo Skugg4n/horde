@@ -1,5 +1,32 @@
 # Ändringslogg
 
+## 0.17.2: Olas speltest av 0.17.1 (2026-10-18)
+
+Gesterna (H300, Olas beslut): med ett kort i handen ställer ett klick ut enheten, vänd mot hordens väg. Tryck, håll en femtedels sekund och dra för att sikta ("Unit here" och linjen till pekaren står kvar); höger-dra och Alt-dra siktar direkt. En vänsterdragning utan att hålla gör ingenting. Utan kort panorerar vänster-dra; med kort panorerar mittknappen, WASD, piltangenterna och pekaren mot skärmens kant. Högerklick eller Esc lägger tillbaka kortet, och efter en placering utan Shift är kortet släppt. Tipsen, Field manual och placeringsprovet följer.
+
+Prickskytten i Mölnbo (H301): missionskyrkan har ett klocktorn med urtavlor och öppen klockvåning 10,6 m upp, en post för Psg 90. Trapptornen och klocktornet är torn (TOWER i spöket, 15 % längre räckvidd), hyreshusen och stationshuset tak (ROOF), Folkets hus gaveln mot grusplanen. Höjden ger sikten över husen.
+
+Kartans kant (H302): två sätt att avsluta Mölnbo, valbara i debugmenyn (Visuals, Edge): (a) djupare grå dis i lager där höga saker tonar in som siluetter, (b) fog of war, mörker bortom den aktiva ytan som landskapet dämpas mot. (b) är standard: den läses som avsiktlig och ramar in striden, (a) läste fortfarande som dimma över bilden. Kanten är fylld med skog i klungor, buskar och trädgårdsträd. Skärmbilder: docs/fog-a.png och docs/fog-b.png.
+
+Rekvisitionen och korten (H304): siffrorna på köpradens kort står på två rader och klipps inte längre ("6×4 · 12m" och "0.9/s"), med samma tal som den hela raden. Mer statistik i rekvisitionen väntar på designen. PAUSED står alltid ovanför köpraden och knappen, också när köpraden ritas om i samma bildruta.
+
+Panelen (H305): enhetens panel har fast bredd och texten radbryts, så att den inte växer när granatlådan köps.
+
+Förnödenheterna (H306): ammolådan (20 % fortare eld) och sandsäckarna (35 % mindre skada på männen) fungerade i simuleringen men syntes inte. Nu står de som en rad i panelen, eldtakten står med (grön med lådan), och lådorna och säckarna syns vid enheten. Nytt prov att effekten gäller i striden.
+
+Vägarna (H307): inget hus, mur, bil eller trädgårdssak står på en gångbar ruta på någon bana (nytt prov). Mölnbo: Hembygdsgården med gärdsgården öster om Kvarnvägen, missionskyrkan, gula huset och kedjehusen av gatorna, bergskärningen bruten där Genvägen går igenom. Ishallen: bilen vid sidodörren. Vikingavägen: en villa och ett radhus av gångvägarna.
+
+Mölnbo fylligare (H308): varje villa har en trädgård med bod, möbler eller studsmatta, fruktträd och häck eller staket, och lövträdsdungar står mellan tomterna (satellitbilden). Allt i samma instansade batcher.
+
+Husen längst ner blev genomskinliga (H309): orsaken var kamerans närplan. Kameran stod 73 m från blickpunkten, men längst ut i zoomen hamnade marken längst ner på skärmen bakom kameran och närplanet skar upp husen. Kameran står nu fem gånger längre bort längs samma riktning (bilden är densamma i en ortografisk kamera) och diset är flyttat lika långt. Nytt prov för varje bana och bildformat.
+
+Också (Olas tillägg):
+- Reposition: före första vågen och mellan vågorna går en utställd enhet att lyfta och ställa någon annanstans, direkt och gratis (panelens Reposition, M, eller dra enheten). Mitt i en våg gäller Move som förut.
+- Debugmenyn: Quick jump till E4 dag 1 till 3, Ishallen 1, 3 och 5, Vikingavägen 1 och 4 och Mölnbo 1, 3 och 5, med ankomstens trupp och forskning, utställd av balanspolicyn (Auto-deploy, går att slå av) och striden startar direkt.
+- Pillboxen är en A-traktor: en gammal fyrkantig Volvo med flaket kapat, påsvetsade plåtar, igensvetsad vindruta och LGF-triangeln bak. En Volvo-kombi i 240-stil finns bland de parkerade och övergivna bilarna på alla banor. Båda i lookbooken.
+
+Balansen: Mölnbo blev lättare med prickskyttarna. Dag 4 hp 31 till 36. Kartläsaren vinner varje dag på första försöket; den som aldrig spärrar fastnar på bron dag 4 (förut dag 3). docs/balance-log.md 0.17.2.
+
 ## 0.17.1: Mölnbo efter speltestet (2026-10-18)
 
 Speltestet av 0.17.0 (docs/playtests/2026-10-18-0.17.0.md) sa NEJ: dag 1 gick inte att vinna på två försök och spärrarna på bron syntes inte.

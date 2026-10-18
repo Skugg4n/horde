@@ -2320,6 +2320,7 @@ function tick(now) {
   updateEvacMarks();
   if (!canPlaceNow()) chord.reset();
   bar.update(sim, placing?.type, canPlaceNow(), chord.open, chord.armed(performance.now() / 1000));
+  coach.settle();
   updateGhostTip();
 
   if (panel) panel.update(sim);

@@ -311,21 +311,26 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] MB06 | ljud | Tåget, avgångsskylten och trafikljusen.
 
 ## Efter speltest 0.17.1 (2026-10-18)
-- [ ] H290 | ux | Dra i kartan med kort i handen placerar enheten (drag-för-sikte uppfattas som panorering). Beslut behövs: kräva kort håll innan drag blir sikte, eller sikte bara med höger/Alt.
-- [ ] H291 | ux | Esc: beteendet beror på om kortet ligger kvar efter förra placeringen. Släpp kortet efter varje placering (utom Shift) så Esc blir förutsägbar.
+- [x] H290 | ux | Dra i kartan med kort i handen placerar enheten (drag-för-sikte uppfattas som panorering). Beslut behövs: kräva kort håll innan drag blir sikte, eller sikte bara med höger/Alt.
+- [x] H291 | ux | Esc: beteendet beror på om kortet ligger kvar efter förra placeringen. Släpp kortet efter varje placering (utom Shift) så Esc blir förutsägbar.
 - [ ] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left").
 - [ ] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo).
 - [ ] H294 | molnbo | Dag 4 har ny tågklocka fast dag 3 hette "The last train". Berättelsen per dag måste hänga ihop.
 - [ ] H295 | molnbo | Dag 4 svår (förlorad i speltest, policyn vinner med bas 1). Resultatrutan täcker tågets avgång. Över $1 000 kvar varje dag.
 
 ## Olas speltest av 0.17.1 (2026-10-18)
-- [ ] H300 | ux | Sikte: alternativ 2 + håll-och-dra. Klick med kort i handen = placera (auto-riktning). Tryck-håll-dra = sikta (Ola gillade det). Höger/Alt-dra siktar också. Vänster-dra utan kort = panorera.
-- [ ] H301 | molnbo | Prickskytt i klocktornet (missionskyrkan) och på andra höga byggnader (hyreshusen, Folkets hus, stationshuset).
-- [ ] H302 | grafik | Kartkanten: glest och konstigt, dimman känns som grafikfel. Prova mörk "fog of war" vs djupare grå dimma; kolla hur andra gör.
+- [x] H300 | ux | Sikte: alternativ 2 + håll-och-dra. Klick med kort i handen = placera (auto-riktning). Tryck-håll-dra = sikta (Ola gillade det). Höger/Alt-dra siktar också. Vänster-dra utan kort = panorera.
+- [x] H301 | molnbo | Prickskytt i klocktornet (missionskyrkan) och på andra höga byggnader (hyreshusen, Folkets hus, stationshuset).
+- [x] H302 | grafik | Kartkanten: glest och konstigt, dimman känns som grafikfel. Prova mörk "fog of war" vs djupare grå dimma; kolla hur andra gör.
 - [ ] H303 | design | STRATEGISKT DJUP: spelet är passivt (ställ ut längs rutten, vänta). Kill zones, långa kill corridors, trupper i hus, fler trupp- och fiendetyper med immuniteter, trupper som skadas (Close Combat), trötthet/vila. Fable-research pågår.
-- [ ] H304 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?).
-- [ ] H305 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
-- [ ] H306 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
-- [ ] H307 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
-- [ ] H308 | molnbo | Fylligare: fler träd, trädgårdar, häckar (se refs/molnbo/satellit-vid-sodra.jpg).
-- [ ] H309 | bugg | Hus längst ner på skärmen blir genomskinliga vid scroll (kamerans klipp/dimma).
+- [ ] H304 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?). 0.17.2: kortens siffror läsbara (två rader); resten väntar på designen (strategiskt-djup).
+- [x] H305 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
+- [x] H306 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
+- [x] H307 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
+- [x] H308 | molnbo | Fylligare: fler träd, trädgårdar, häckar (se refs/molnbo/satellit-vid-sodra.jpg).
+- [x] H309 | bugg | Hus längst ner på skärmen blir genomskinliga vid scroll (kamerans klipp/dimma).
+- [x] H310 | ux | Reposition i uppställningen: lyft en utställd enhet och ställ den direkt och gratis (före vågen och mellan vågorna).
+- [x] H311 | debug | Quick jump i debugmenyn med auto-deploy (balanspolicyn) och direkt start.
+- [x] H312 | grafik | Pillboxen som A-traktor (Volvo, kapat flak, LGF-triangel) och Volvo-kombi bland bilarna.
+- [ ] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup.
+- [ ] H314 | grafik | Kartans kant (fog of war / grå dis) finns bara i Mölnbo; ta till E4 och Hagstumosse om Ola gillar (b).

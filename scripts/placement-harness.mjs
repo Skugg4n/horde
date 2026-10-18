@@ -180,10 +180,14 @@ async function run() {
 //   right-aim     samma med höger-dra (utan att hålla)
 //   alt-aim       samma med Alt och vänster-dra (utan att hålla)
 async function gestures(page) {
+  // 0.17.2: en ny sparfil först (försöken ovan hoppar mellan banorna, och truppen följer med till den senaste sektorn)
+  await page.evaluate(() => { try { localStorage.clear(); } catch {} });
+  await page.reload();
+  await page.waitForFunction(() => window.__hordeReady && window.__horde?.jump, null, { timeout: 90000 });
   const sc = SCENES[0], pass = [], fail = [];
   const state = () => page.evaluate(() => { const H = window.__horde, s = H.sim, g = s.guns[s.guns.length - 1]; return { n: s.guns.length + Object.keys(s.obstacles).length, holding: H.placing?.type ?? null, tx: H.rig.target.x, tz: H.rig.target.z, last: g ? { type: g.weapon.type, x: g.x, z: g.z, facing: g.facing } : null }; });
   // siktet är upplåst från E4 dag 3: siktgesterna provas där
-  const aimSc = { map: 'riksvagen', day: 3 };
+  const aimSc = arg('map', null) ? SCENES[0] : { map: 'riksvagen', day: 3 };   // --map: banan provas för sig (siktet är upplåst där)
   const fresh = async (type, sc = SCENES[0], force = false) => {
     await page.evaluate(async ({ sc, type, force }) => {
       const H = window.__horde;
@@ -191,12 +195,15 @@ async function gestures(page) {
       // lektionsplåtar och fiendekort som står i vägen släpps (gesterna gäller kartan), och tipsen stängs av
       const P = H.progress; if (P.lessons?.mode !== 'off') H.setProgress({ ...P, lessons: { ...P.lessons, mode: 'off' } });
       for (let i = 0; i < 8 && H.lesson; i++) H.release();
-      H.stopPlacing(); H.sim.cash = Math.max(H.sim.cash, 2000); H.rig.goHome?.();
+      H.stopPlacing(); H.sim.cash = Math.max(H.sim.cash, 2000);
+      if (H.rig.touring) H.rig.skipTour();   // introsvepet flyttar kameran (Mölnbo)
+      H.rig.goHome?.();
       if (type) H.startPlacing(type);
     }, { sc, type, force });
     await sleep(FRAME * 2);
     await page.evaluate(() => { const H = window.__horde; for (let i = 0; i < 8 && H.lesson; i++) H.release(); });
     await sleep(FRAME * 1.2);
+    if (VERBOSE) console.log('fresh', type, JSON.stringify(await page.evaluate(() => { const H = window.__horde; return { mode: H.mode, phase: H.sim.phase, placing: H.placing?.type ?? null, lesson: H.lesson, touring: H.rig.touring, day: H.sim.day, map: H.sim.map.id }; })));
   };
   // en punkt på kartan där det man håller får stå (want = true) eller inte: pekaren dit, en bildruta, spöket säger
   const find = async want => {
@@ -223,8 +230,15 @@ async function gestures(page) {
   };
   const check = (name, ok, info) => { (ok ? pass : fail).push(name); if (!ok || VERBOSE) console.log(`gest ${name}: ${ok ? 'ok' : 'FEL'} ${JSON.stringify(info)}`); };
   const moved = (a, b) => Math.hypot(b.tx - a.tx, b.tz - a.tz) > 1;
-  await fresh(null);
-  const ids = await page.evaluate(() => [...document.querySelectorAll('#buildbar .card.buy')].filter(b => !b.classList.contains('off')).map(b => b.dataset.id));
+  // en ny dag först: försöken ovan kan ha ställt ut hela reserven
+  await fresh(null, SCENES[0], true);
+  // köpraden ritas om i en senare bildruta efter hoppet: vänta tills korten finns
+  let ids = [];
+  for (let i = 0; i < 20 && !ids.length; i++) {
+    ids = await page.evaluate(() => [...document.querySelectorAll('#buildbar .card.buy')].filter(b => !b.classList.contains('off')).map(b => b.dataset.id));
+    if (!ids.length) await sleep(FRAME);
+  }
+  if (!ids.length) console.log('gest: inga kort att ta upp', await page.evaluate(() => [...document.querySelectorAll('#buildbar .card')].map(b => b.dataset.id + ':' + b.className).join(' ') + ' mode ' + window.__horde.mode + ' ' + window.__horde.sim.map.id + ' ' + window.__horde.sim.day));
   // en pjäs att ställa ut, och en med skjutvinkel att sikta med (Psg 90 om den finns i dag)
   const card = ids.find(id => !['wire', 'block', 'car'].includes(id));
   const coned = ['psg90', 'm2', 'ksp58', 'm249'].find(id => ids.includes(id));
@@ -236,7 +250,7 @@ async function gestures(page) {
     check('pan-nocard', b.n === a.n && moved(a, b), { a, b });
   }
   {
-    await fresh(coned);
+    await fresh(coned, SCENES[0], true);
     const at = await find(true);
     if (!at) check('quick-drag', false, { reason: 'ingen punkt' });
     else {
@@ -247,7 +261,7 @@ async function gestures(page) {
     }
   }
   {
-    await fresh(card);
+    await fresh(card, SCENES[0], true);
     const at = await find(true);
     if (!at) check('pan-middle', false, { reason: 'ingen punkt' });
     else {
@@ -258,7 +272,7 @@ async function gestures(page) {
     }
   }
   {
-    await fresh(card);
+    await fresh(card, SCENES[0], true);
     const a = await state();
     const y = await page.evaluate(() => innerHeight * 0.45);
     await page.mouse.move(60, y, { steps: 2 }); await page.mouse.move(3, y, { steps: 2 });
@@ -268,7 +282,7 @@ async function gestures(page) {
     check('pan-edge', b.n === a.n && b.holding === card && moved(a, b), { a, b });
   }
   {
-    await fresh(card);
+    await fresh(card, SCENES[0], true);
     const at = await find(true);
     if (!at) check('right-click', false, { reason: 'ingen punkt' });
     else {
@@ -279,7 +293,7 @@ async function gestures(page) {
     }
   }
   {
-    await fresh(card);
+    await fresh(card, SCENES[0], true);
     const at = await find(true);
     if (!at) check('click-place', false, { reason: 'ingen punkt' });
     else {

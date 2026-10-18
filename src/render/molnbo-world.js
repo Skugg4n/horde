@@ -372,10 +372,10 @@ export function buildMolnbo(scene, map) {
   // är tom: tätare ju längre ut, glesare vid vägarna (de går vidare in i diset).
   {
     const bumpE = (x, z) => Math.sin(x * 0.053 + 1.3) * Math.cos(z * 0.047) + 0.6 * Math.sin((x - z) * 0.031);
-    for (let z = crisp.z0 - 70; z < crisp.z1 + 70; z += 4.2) for (let x = crisp.x0 - 70; x < crisp.x1 + 70; x += 4.2) {
+    for (let z = crisp.z0 - 50; z < crisp.z1 + 50; z += 4.8) for (let x = crisp.x0 - 50; x < crisp.x1 + 50; x += 4.8) {
       const px = x + r.range(-1.6, 1.6), pz = z + r.range(-1.6, 1.6), o = outsideD(crisp, px, pz);
-      if (o < 2 || o > 66) continue;
-      if (r() > 0.25 + o / 70 + 0.25 * bumpE(px, pz)) continue;
+      if (o < 2 || o > 46) continue;
+      if (r() > 0.25 + o / 50 + 0.25 * bumpE(px, pz)) continue;
       if (blocked(px, pz, 4) || map.far.some(f => Math.hypot(f.x - px, f.z - pz) < Math.max(f.w, f.d) / 2 + 3)) continue;
       if (inPoly(px, pz, map.ground.field) || inPoly(px, pz, map.ground.field2)) { if (r() > 0.08) continue; }
       const bb = o < 22 ? b : fb, k = r(), hgt = r.range(8, 15);
@@ -415,13 +415,16 @@ export function buildMolnbo(scene, map) {
   const sheet = fogSheet(crisp, sur.fade, EXT, sur.haze);
   farGroup.add(sheet);
   // 'haze': tre tunnare lager ovanför marken, så att diset har djup och höga saker sticker upp ur det
-  const layers = [2.5, 6, 11].map((y, i) => { const l = fogSheet(crisp, sur.fade, EXT, { start: 16 + i * 14, end: 130, max: 0.4 }); l.position.y = y; l.renderOrder = 3 + i; farGroup.add(l); return l; });
+  // (skapas först när läget behöver dem: tre genomskinliga skivor över hela omgivningen kostar i varje bildruta)
+  let layers = [];
+  const makeLayers = () => { if (!layers.length) layers = [2.5, 6, 11].map((y, i) => { const l = fogSheet(crisp, sur.fade, EXT, { start: 16 + i * 14, end: 130, max: 0.4 }); l.position.y = y; l.renderOrder = 3 + i; farGroup.add(l); return l; }); };
   scene.add(farGroup);
   // Kanten (H302): läget byts i debugmenyn och sparas i webbläsaren ('horde.edge')
   function setEdge(mode) {
     const E = EDGE_MODES[mode] ?? EDGE_MODES[EDGE_DEFAULT], col = new THREE.Color(E.col);
     U.col.value.copy(col); U.curve.value.set(...E.curve); U.hfall.value = E.hfall;
     sheet.material.uniforms.uHaze.value = col.clone(); sheet.material.uniforms.uCurve.value.set(...E.curve);
+    if (E.layers > 0) makeLayers();
     layers.forEach((l, i) => { l.visible = E.layers > 0; l.material.uniforms.uHaze.value = col.clone(); l.material.uniforms.uCurve.value.set(16 + i * 14, 130, E.layers); });
     beyond.material.color.set(E.bg);
     scene.background = new THREE.Color(E.bg);
