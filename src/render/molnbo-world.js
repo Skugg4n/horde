@@ -3,8 +3,8 @@
 // diset i en tredje batch med diset inbakat i materialet (som E4, e4-far.js). Data: src/data/molnbo.js.
 import * as THREE from 'three';
 import { mesh, PALETTE } from './kit.js';
-import { GP, UNIT, createBatch, frame, seeded, villa, lamp, curb, car, gardenTree, spruce, pine, birch, hedge } from './gnesta-kit.js';
-import { farmhouse, barn, hayBale } from './e4-kit.js';
+import { GP, UNIT, createBatch, frame, seeded, villa, lamp, curb, car, gardenTree, spruce, pine, birch, hedge, fence, furniture, trampoline } from './gnesta-kit.js';
+import { farmhouse, barn, hayBale, shed } from './e4-kit.js';
 import { fogSheet } from './gnesta-ghost.js';
 import { createFortify } from './fortify.js';
 import { pattern } from './gnesta-world.js';
@@ -218,7 +218,7 @@ export function buildMolnbo(scene, map) {
   }
   // räcket och bergskärningen längs Fagernäsvägen
   roadRail(b, RM, 20, 78, 25.3); roadRail(b, RM, 106, 118, 25.6);
-  rockCut(b, frame(RM, (ROCK.u0 + ROCK.u1) / 2, 0, ROCK.v + 0.6), ROCK.u1 - ROCK.u0, ROCK.depth, ROCK.h, r);
+  for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v + 0.6), u1 - u0, ROCK.depth, ROCK.h, r);
   // slänten ner mot spåret söder om perrongen: buskar
   for (let u = -110; u < 60; u += 4.2) { const [x, z] = R(u + r.range(-1, 1), 13.5 + r.range(0, 2)); if (inC(x, z, 10)) b.put(UNIT.blob, null, x, 0.6, z, r.range(1.6, 2.6), r.range(1.0, 1.7), r.range(1.6, 2.6), r.pick(GP.hedge), 'matte', r() * 6); }
 
@@ -330,6 +330,24 @@ export function buildMolnbo(scene, map) {
     b.tag = { kind: 'hedge' };
     hedge(b, a[0], a[1], c[0], c[1], r, r.range(1.2, 1.7));
     b.tag = null;
+  }
+
+  // ---------- trädgårdarna (0.17.2, H308) ----------
+  // Bodar, möbler, studsmattor, fruktträd, häckar, staket och lövträdsdungar ur src/data/molnbo.js GARDEN.
+  const SHED = { falu: '#8e2f22', grey: '#7d7a72', green: '#4f5e45' };
+  for (const g of map.garden ?? []) {
+    const bb = pickB(g.x, g.z);
+    if (g.kind === 'shed') shed(bb, frame(null, g.x, 0, g.z, g.ry), { w: g.w, d: g.d, color: SHED[g.color] });
+    else if (g.kind === 'table') furniture(bb, frame(null, g.x, 0, g.z, g.ry), r);
+    else if (g.kind === 'tramp') trampoline(bb, frame(null, g.x, 0, g.z, g.ry));
+    else if (g.kind === 'hedge') { bb.tag = bb === b ? { kind: 'hedge' } : null; hedge(bb, g.a[0], g.a[1], g.b[0], g.b[1], r, r.range(1.1, 1.6), 0.85); bb.tag = null; }
+    else if (g.kind === 'fence') fence(bb, g.a[0], g.a[1], g.b[0], g.b[1], r, g.style);
+    else if (g.kind === 'tree') {
+      if (bb === b) b.tag = { kind: 'tree', x: g.x, z: g.z };
+      if (g.grove && g.shape === 2) birch(bb, g.x, g.z, g.h, r);
+      else gardenTree(bb, frame(null, g.x, 0, g.z, g.ry), g.h, g.shape, r);
+      b.tag = null; trees++;
+    }
   }
 
   // ---------- omgivningen i diset ----------

@@ -573,7 +573,7 @@ export const CARS = (() => {
     }
   }
   // bilen vid ishallen står framför sidodörren, inte i entréns väg
-  const hr = ICE_RINK, lx = hr.len / 2 + 8.5, lz = 11.5;
+  const hr = ICE_RINK, lx = hr.len / 2 + 8.5, lz = 9.5;   // 0.17.2 (H307): 11,5 stod på gatan
   out.push({ x: hr.x + lx * Math.cos(hr.ry) + lz * Math.sin(hr.ry), z: hr.z - lx * Math.sin(hr.ry) + lz * Math.cos(hr.ry), ry: hr.ry + Math.PI / 2, color: (r() * 8) | 0 });
   return out;
 })();

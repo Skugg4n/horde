@@ -650,7 +650,8 @@ export const deployMen = (sim, type) => (sim.core ? (nextReserve(sim, type)?.men
 // Pjäsens siffror just nu: vapnet med nivå och forskning, plus erfarenhetens stjärna (lite bättre träff och
 // omladdning) och ammunitionslådan (förnödenheter: fortare eld resten av dagen).
 export function gunStats(sim, g) {
-  const w = g.weapon, st = weaponStats(w.type, w.level, sim.research);
+  const w = g.weapon, st0 = weaponStats(w.type, w.level, sim.research);
+  const st = g.roof && sim.place.perch?.[g.cell] === 3 ? { ...st0, range: st0.range * TOWER_RANGE } : st0;
   if (!w.vet && !w.ammo) return st;
   return { ...st, accuracy: Math.min(VETERAN.maxAccuracy, st.accuracy + (w.vet ? VETERAN.accuracy : 0)), rate: st.rate * (w.vet ? VETERAN.rate : 1) * (w.ammo ? SUPPLIES.ammo.rate : 1) };
 }
@@ -747,8 +748,12 @@ export function sightFor(sim, key, type, facing = null) {
 }
 function baseSight(sim, key, type) {
   return isSquad(type) ? unionSight(sim.place, squadPreview(sim, key, type))
-    : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range);
+    : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range * (inTower(sim, key, type) ? TOWER_RANGE : 1));
 }
+// 0.17.2 (H301): ett torn (perch 3: Mölnbos trapptorn och missionskyrkans klocktorn) ger prickskytten längre räckvidd
+// utöver höjdens sikt över husen
+export const TOWER_RANGE = 1.15;
+export const inTower = (sim, key, type) => onRoof(sim, key, type) && sim.place.perch?.[key] === 3;
 function withCone(sim, key, type, base, facing) {
   const cone = WEAPONS[type]?.cone;
   if (!cone) return base;

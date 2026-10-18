@@ -278,7 +278,7 @@ function spotFor(key, x = null, z = null, roofHit = false, rt = null) {
   const roof = onRoof(sim, key, placing?.type);
   // 0.14.2: snäppte spöket bort från rutan under pekaren står pekarens punkt kvar (pilen dit, view.js snap)
   const from = x != null && !roofHit && !rt && key !== sim.place.keyAt(x, z) ? { fx: x, fz: z } : {};
-  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : {}) };
+  return { key, x: c.x, z: c.z, y: roof ? sim.place.roof[key] : 0, roof, ok: check.ok, reason: check.reason, ...from, ...(rt ? { snapped: rt.snapped, perch: rt.perch } : roof ? { perch: sim.place.perch?.[key] ?? 1 } : {}) };
 }
 // 0.16.2: varje försök att ställa ut med något i handen och hur det gick (__horde.placeLog med ?debug eller ?test)
 const placeLog = [];
@@ -560,7 +560,8 @@ function updateGhostTip() {
   const where = placing && placing.kind === 'gun' && WEAPONS[placing.type]?.roof && spot && spot.key >= 0;
   ghostWhere.hidden = !where;
   if (where) {
-    const t = spot.roof ? (spot.snapped ? `ROOF · ${spot.perch === 2 ? 'ridge by the chimney' : 'flat part'}` : 'ROOF') : 'GROUND';
+    // 0.17.2 (H301): ett torn (trapptornen, missionskyrkans klocktorn) säger TOWER
+    const t = !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : 'ROOF';
     if (ghostWhere.textContent !== t) ghostWhere.textContent = t;
     ghostWhere.classList.toggle('roof', !!spot.roof);
     ghostWhere.style.left = pointer.x + 'px'; ghostWhere.style.top = pointer.y + 'px';

@@ -423,11 +423,24 @@ export function missionHouse(b, M, o) {
   win(b, M, W, D, '+z', 0, top + 1.4, 1.0, 1.4);
   b.box(M, 0, PL + 1.2, D / 2 + 0.05, 1.6, 2.4, 0.06, '#5a3f30');
   b.box(M, 0, PL + 2.7, D / 2 + 0.6, 2.6, 0.14, 1.4, MP.roofSheet);
-  // takryttaren
-  b.box(M, 0, top + rh + 0.7, D * 0.2, 1.3, 1.6, 1.3, MP.mission);
-  b.put(UNIT.cone, M, 0, top + rh + 2.4, D * 0.2, 1.4, 2.4, 1.4, MP.roofSheet);
-  b.box(M, 0, top + rh + 4.0, D * 0.2, 0.06, 1.0, 0.06, '#b9a35a', 'metal');
-  b.box(M, 0, top + rh + 4.1, D * 0.2, 0.5, 0.06, 0.06, '#b9a35a', 'metal');
+  // 0.17.2 (H301): klocktornet på nocken, prickskyttens post. Schaktet med en urtavla åt varje håll, ett öppet
+  // klockvåningsgolv i tornets höjd (src/data/molnbo.js tower.h), fyra hörnstolpar och spiran ovanpå.
+  const T = o.tower ?? { lx: 0, lz: D * 0.2, size: 2.6, h: 10.6 }, tz = T.lz, tx = T.lx, S = T.size - 0.2;
+  const y0 = top + rh - 1.6, y1 = T.h - 0.12;
+  b.box(M, tx, (y0 + y1) / 2, tz, S, y1 - y0, S, MP.mission);
+  b.box(M, tx, y1 - 0.06, tz, S + 0.3, 0.12, S + 0.3, '#e9e4d6');
+  for (const [dx, dz, ry] of [[0, 1, 0], [0, -1, 0], [1, 0, Math.PI / 2], [-1, 0, Math.PI / 2]]) {
+    const cx = tx + dx * (S / 2 + 0.03), cz = tz + dz * (S / 2 + 0.03), cy = y1 - 1.0;
+    b.box(M, cx, cy, cz, 1.0, 1.0, 0.05, '#f4f1e8', 'matte', ry);
+    b.box(M, cx + dz * 0 + dx * 0.02, cy + 0.15, cz + dz * 0.02, 0.06, 0.34, 0.04, '#26221d', 'matte', ry);
+    b.box(M, cx + dx * 0.02, cy + 0.04, cz + dz * 0.02, 0.26, 0.05, 0.04, '#26221d', 'matte', ry);
+  }
+  b.box(M, tx, T.h + 0.04, tz, S + 0.1, 0.08, S + 0.1, '#8a8173');
+  for (const [cx, cz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) b.box(M, tx + cx * (S / 2 - 0.1), T.h + 0.85, tz + cz * (S / 2 - 0.1), 0.18, 1.6, 0.18, MP.mission);
+  b.box(M, tx, T.h + 1.7, tz, S + 0.2, 0.16, S + 0.2, '#e9e4d6');
+  b.put(UNIT.cone, M, tx, T.h + 3.2, tz, S + 0.1, 2.8, S + 0.1, MP.roofSheet);
+  b.box(M, tx, T.h + 5.0, tz, 0.06, 1.0, 0.06, '#b9a35a', 'metal');
+  b.box(M, tx, T.h + 5.1, tz, 0.5, 0.06, 0.06, '#b9a35a', 'metal');
 }
 // Det gula huset med snickarglädje: gul panel, tegeltak, glasveranda med vita svarvade stolpar på framsidan,
 // sågade lister under takfoten och korsande dekor i gavlarna.

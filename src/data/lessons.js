@@ -125,7 +125,7 @@ export const TIPS = [
   { id: 'tip.arc', on: 'idleOutside', kind: 'tip', text: 'Target outside arc. Press R to rotate.', repeat: true, needs: 'rotate' },
   { id: 'tip.spare', on: 'spare', kind: 'tip', text: 'Supplies to spare. Click a unit.', repeat: true, needs: 'unitSupplies' },
   { id: 'tip.shut', on: 'allShut', kind: 'tip', text: 'Every road shut: they smash a barricade.', repeat: true, needs: 'block' },
-  { id: 'tip.roof', on: 'placing:psg90', kind: 'tip', text: 'Snipers go on flat roofs or ridges.', manual: 'roofs', needs: 'move' },
+  { id: 'tip.roof', on: 'placing:psg90', kind: 'tip', text: 'Snipers go on towers, flat roofs, ridges and tall buildings.', manual: 'roofs', needs: 'move' },
   { id: 'tip.mounted', on: 'mounted', kind: 'tip', text: "Mounted. It can't move.", needs: 'move' },
   { id: 'tip.star', on: 'star', kind: 'tip', text: 'Three days survived: a star. Better aim, faster reload.', manual: 'veterancy' },
   { id: 'tip.fallen', on: 'fallen', kind: 'tip', text: 'The fallen stay lost after a win. Refill at the depot.', manual: 'losses' },

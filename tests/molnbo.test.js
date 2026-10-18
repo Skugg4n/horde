@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
-import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, FOOT, BRIDGE } from '../src/data/molnbo.js';
+import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, FOOT, BRIDGE, SHAPES } from '../src/data/molnbo.js';
 import { liftedHit } from '../src/render/lift.js';
 import { reasonText } from '../src/ui/panels.js';
 import { placeAcross, checkSpot, removeObstacle } from '../src/sim/sim.js';
@@ -166,6 +166,32 @@ test('prickskyttelägen: trapptornen, stationstaket och tågtaket. Gruppen har s
   assert.ok(brick >= 15, `${brick} rutor bakom tåget`);
 });
 
+// 0.17.2 (H301, Olas speltest av 0.17.1): prickskytt i missionskyrkans klocktorn och på de höga husen (hyreshusen,
+// Folkets hus, stationshuset). Tornen är perch 3 (TOWER i spöket), taken perch 1 (ROOF); höjden ger sikten.
+test('prickskyttelägen: klocktornet och de höga husen, och tornets höjd ser längre än marken', () => {
+  const sim = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  const ids = SHAPES.map(s => s.id), cells = id => { const out = []; for (let k = 0; k < p.w * p.h; k++) if (p.perch[k] && p.bldg[k] === ids.indexOf(id) + 1) out.push(k); return out; };
+  const tower = cells('mission');
+  assert.ok(tower.length >= 1 && tower.every(k => p.perch[k] === 3 && p.roof[k] >= 10), `klocktornet: ${tower.map(k => [p.perch[k], p.roof[k]])}`);
+  for (const t of TOWERS) assert.ok(cells(t.id).every(k => p.perch[k] === 3), t.id);
+  for (const id of ['apt1', 'apt2', 'folkets', 'station']) assert.ok(cells(id).length >= 4 && cells(id).every(k => p.perch[k] === 1), id);
+  const k = tower[0];
+  assert.equal(build(sim, k, 'psg90').ok, true, 'Psg 90 i klocktornet');
+  const gun = sim.guns.at(-1);
+  assert.ok(gun.roof && gun.y >= 10, `står ${gun.y} m upp`);
+  // samma pjäs på marken bredvid kyrkan ser mindre av gatorna
+  const sim2 = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  const c = p.center(k);
+  let ground = -1;
+  for (let r = 6; r < 16 && ground < 0; r += 2) for (let a = 0; a < 16 && ground < 0; a++) {
+    const q = p.keyAt(c.x + Math.cos(a * Math.PI / 8) * r, c.z + Math.sin(a * Math.PI / 8) * r);
+    if (q >= 0 && p.kind[q] === KIND.open && build(sim2, q, 'psg90').ok) ground = q;
+  }
+  assert.ok(ground >= 0, 'en markplats nära kyrkan');
+  const seen = s => s.guns.at(-1).fullSight?.keys.length ?? s.guns.at(-1).sight.keys.length;
+  assert.ok(seen(sim) > seen(sim2) * 1.3, `tornet ser ${seen(sim)} rutor, marken ${seen(sim2)}`);
+});
+
 test('tågklockan: dagen vinns när tåget går, också med zombier kvar, och väntar på tåget när vågorna är klara', () => {
   const day = { n: 1, startCash: 0, train: { at: 30 }, waves: [{ groups: [{ type: 'walker', count: 30, interval: 0.5, delay: 0, spawn: 's1' }] }] };
   const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 0 });
@@ -215,16 +241,24 @@ test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och
     assert.ok(a[3] <= 2, `seed ${i} dag 4: ${a}`);
     assert.ok(a[4] <= 3, `seed ${i} dag 5: ${a}`);
   }
-  // sista tåget kostar ändå försök i några seeds
-  assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2 || mbAttempts(r.log)[4] >= 2).length >= 2);
+  // 0.17.2 (H301): med tornen och de höga husen vinner kartläsaren på första försöket, men dag 4 (bron) kostar basen
+  // (MB05, H295: dag 4 och 5 var knivseggar, Ola förlorade dag 4; dag 4 hp 31 till 36, docs/balance-log.md 0.17.2)
+  for (const [i, r] of smart.entries()) {
+    const d4 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 4 && x.won)[0];
+    assert.ok(d4 && d4.baseHp <= 12, `seed ${i}: dag 4 bas ${d4?.baseHp}`);
+  }
 });
 
-test('balans: den som aldrig spärrar förlorar från dag 3', () => {
+// 0.17.2 (H301): prickskyttarna i tornen och på de höga husen bär den som inte spärrar genom dag 3; bron dag 4 stoppar
+// honom (i minst fyra av fem seeds). Förut: förlorade från dag 3.
+test('balans: den som aldrig spärrar förlorar senast på dag 4', () => {
+  let stuck = 0;
   for (const [i, r] of naive.entries()) {
     const a = mbAttempts(r.log);
     assert.deepEqual(a.slice(0, 2), [1, 1], `seed ${i}`);
-    assert.deepEqual(r.stuck, { mapId: 'molnbo', day: 3 }, `seed ${i}: ${a}`);
+    if (r.stuck && r.stuck.day <= 4) stuck++;
   }
+  assert.ok(stuck >= 4, `${stuck} av 5 fastnar`);
 });
 
 test('balans: högst cirka 250 levande zombier samtidigt', () => {
