@@ -15,6 +15,7 @@ import { MAPS } from '../data/maps.js';
 import { WEAPONS } from '../data/weapons.js';
 import { GARRISON, poolOf, RELEASES, UNIT_RP, LEVEL_RP, REFILL_RP, RETURN_RATE, VET_WINS, UPGRADES, SUPPLY_BUDGET, SECTORS, RETIRED_NODES, UNLOCK_TIERS } from '../data/depot.js';
 import { researchNode } from '../data/research.js';
+import { ARRIVAL_TROOP } from '../data/arrival.js';
 import { newProgress, emptyOp, mapState, mapUnlocked, startConfig, dayResult, migrateV3 } from './progress.js';
 import { tierOf, tierData, MAX_LEVEL } from '../sim/stats.js';
 import { squadSize } from '../sim/squad.js';
@@ -462,5 +463,12 @@ export function debugReach(p, mapId, day) {
   }
   const st = mapState(p, mapId);
   maps[mapId] = { ...st, unlockedDay: Math.max(st.unlockedDay, Math.min(day, MAPS[mapId].days.length)) };
-  return syncOperation({ ...p, mapId, maps });
+  const q = syncOperation({ ...p, mapId, maps });
+  // 0.17.1: en sektor med en känd ankomst (src/data/arrival.js ARRIVAL_TROOP) får den truppen och forskningen, så att
+  // ett hopp dit spelas som balansen räknar (förut nivå 1 rakt igenom)
+  const t = ARRIVAL_TROOP[mapId];
+  if (!t) return q;
+  let uid = q.op.nextUid ?? 1;
+  const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
+  return { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units, nextUid: uid } };
 }

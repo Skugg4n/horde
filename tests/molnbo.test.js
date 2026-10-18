@@ -15,7 +15,8 @@ import { rerouteStreet, streetAt } from '../src/sim/streets.js';
 import { createSim, startWave, step, build } from '../src/sim/sim.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
 import { mapUnlocked } from '../src/meta/progress.js';
-import { molnboCampaign, mbAttempts, mbPrints } from '../scripts/balance.mjs';
+import { molnboCampaign, mbAttempts, mbPrints, molnboArrival } from '../scripts/balance.mjs';
+import { ARRIVAL_TROOP } from '../src/data/arrival.js';
 
 const route = routeFor(molnbo), g = route.grid, p = placementFor(molnbo);
 const keyAtRail = (u, v) => { const [x, z] = R(u, v); return g.keyAt(x, z); };
@@ -229,6 +230,16 @@ test('balans: den som aldrig spärrar förlorar från dag 3', () => {
 test('balans: högst cirka 250 levande zombier samtidigt', () => {
   const peak = Math.max(...[...smart, ...naive].flatMap(r => r.log.map(x => x.peak)));
   assert.ok(peak <= 250, `${peak}`);
+});
+
+// 0.17.1 (speltestet av 0.17.0 hoppade dit med truppen på nivå 1): hoppet till Mölnbo ger balansens ankomst.
+test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen räknar med', () => {
+  const a = molnboArrival(0);
+  assert.deepEqual(ARRIVAL_TROOP.molnbo.units, a.op.units.map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0]), 'kör om balansen och skriv in truppen i src/data/arrival.js');
+  assert.deepEqual(ARRIVAL_TROOP.molnbo.research, a.research);
+  const p = debugReach(newCampaign(), 'molnbo', 1);
+  assert.deepEqual(unitsIn(p, 'molnbo').map(u => [u.type, u.level]), ARRIVAL_TROOP.molnbo.units.map(([t, l]) => [t, l]));
+  assert.ok(ARRIVAL_TROOP.molnbo.research.every(id => p.research.includes(id)));
 });
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
