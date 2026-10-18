@@ -12,6 +12,7 @@ import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn } from './ui/hud.js';
+import { rerouteStreet, streetAt } from './sim/streets.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -852,7 +853,8 @@ function blockLines() {
     const id = barricadeId(o, key), c = sim.route.cellCenter(Number(key));
     if (!lines.has(id)) lines.set(id, { frac: 1, x: 0, z: 0, n: 0 });
     const l = lines.get(id);
-    l.frac = Math.min(l.frac, Math.max(0, o.hp) / o.maxHp); l.x += c.x; l.z += c.z; l.n++;
+    l.frac = o.breached ? 0 : Math.min(l.frac, Math.max(0, o.hp) / o.maxHp); l.x += c.x; l.z += c.z; l.n++;
+    if (o.breached) l.breached = true;
   }
   for (const l of lines.values()) { l.x /= l.n; l.z /= l.n; }
   return lines;
@@ -876,6 +878,7 @@ function updateBarricades(dt) {
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.firstChild.style.width = Math.round(l.frac * 100) + '%';
     el.classList.toggle('low', l.frac < FAILING);
+    el.classList.toggle('breached', !!l.breached);
   }
   for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].until < time) alerts.splice(i, 1);
 }
@@ -909,9 +912,10 @@ function barricadeBroken(ev) {
   const id = ev.line != null ? 'l' + ev.line : 'c' + ev.cell;
   if (failingWarned.has('down:' + id)) return;
   failingWarned.add('down:' + id);
-  note(uiRoot, 'Barricade down. They are taking another way.', 'warn');
+  // 0.17.1: var spärren gick sönder (gatan), och att resten av spärren inte stoppar någon längre
+  const c = sim.route.cellCenter(ev.cell), street = sim.route.kind === 'grid' ? streetAt(sim.map, c.x, c.z) : null;
+  note(uiRoot, street ? `Barricade down on ${street}. They are through the gap.` : 'Barricade down. They are taking another way.', 'warn');
   routeFlash = 4;
-  const c = sim.route.cellCenter(ev.cell);
   alerts.push({ x: c.x, z: c.z, until: time + 8, kind: 'barricade' });
 }
 
@@ -1276,7 +1280,16 @@ function updateRoutes() {
     if (nowPaths.some(p => p.through != null)) tip('tip.shut');
     // 0.16.4 (speltestet av 0.16.2: taggtråden på en omväg fick horden att byta väg tyst): samma ingångar men ny väg
     // efter ett hinder, så blinkar den nya vägen och en rad säger det
-    else if (before && !(routeFlash > 0) && nowPaths.some((q, i) => q.cells.join() !== before[i]?.cells.join())) { routeFlash = 4; note(uiRoot, 'Horde rerouted', 'warn'); }
+    // 0.17.1 (speltestet av 0.17.0: "jag förstod aldrig vilken väg horden tog in"): raden säger gatan den nya vägen
+    // går på, och den blinkar också när en spärr gått sönder (då står raden om spärren först)
+    else if (before) {
+      const i = nowPaths.findIndex((q, j) => q.cells.join() !== before[j]?.cells.join());
+      if (i >= 0) {
+        const street = rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i].cells, nowPaths[i].cells);
+        if (!(routeFlash > 0)) note(uiRoot, street ? `Horde rerouting via ${street}` : 'Horde rerouted', 'warn');
+        routeFlash = 4;
+      }
+    }
   }
   routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare

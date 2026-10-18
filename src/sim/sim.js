@@ -1360,6 +1360,10 @@ function obstacleEffect(sim, z, dt, hitCells) {
       }
       if (ob.hp <= 0) {
         delete sim.obstacles[i]; broke = true;
+        // 0.17.1 (speltestet av 0.17.0, Mölnbo dag 4: basen tömdes medan resten av gångbrons spärr stod kvar): en
+        // lucka räcker för horden, så resten av spärren märks genombruten (bara bild och paneler; ändrar inget i
+        // simuleringen)
+        if (ob.line != null) for (const k of Object.keys(sim.obstacles)) if (sim.obstacles[k].line === ob.line) sim.obstacles[k].breached = true;
         // en ny spärr i samma ruta (E4) ska kunna varna igen; en spärr tvärs över gatan får ett nytt id
         if (ob.line == null && sim.failing) sim.failing = sim.failing.filter(x => x !== 'c' + i);
         sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}) });

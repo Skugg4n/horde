@@ -445,7 +445,8 @@ export function cellPanel(root, index, sim, actions) {
     const line = lineOf(s);
     const f = Math.min(...line.map(frac));
     const cond = ui.head.querySelector('[data-cond]');
-    const condText = `Condition ${Math.max(0, Math.round(f * 100))} %${line.length > 1 ? ` · ${line.length} tiles` : ''}`;
+    // 0.17.1: en ruta har gått sönder och horden går genom luckan
+    const condText = line.some(o => o.breached) ? 'Breached: they walk through the gap' : `Condition ${Math.max(0, Math.round(f * 100))} %${line.length > 1 ? ` · ${line.length} tiles` : ''}`;
     if (cond.textContent !== condText) cond.textContent = condText;
     const rm = ui.body.querySelector('[data-a="rm"]');
     const refund = lineRefund(line);

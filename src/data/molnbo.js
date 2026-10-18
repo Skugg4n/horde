@@ -557,6 +557,13 @@ export const DAYS = [
              { groups: [g('walker', 43, 0.25, 0, 's1'), g('walker', 36, 0.3, 0, 's5'), g('runner', 29, 0.3, 10, 's4'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
 ];
 
+// 0.17.1 (speltestet av 0.17.0, dag 4: "bara våg 1 visar en rutt, Krokvägen-vågen visar ingen rutt före start"): varje
+// ingång dagen använder syns från början med sin väg och etiketten "From wave N" (main.js foretold).
+for (const d of DAYS) {
+  const first = new Set(d.waves[0].groups.map(q => q.spawn));
+  d.foretell = [...new Set(d.waves.flatMap(w => w.groups.map(q => q.spawn)))].filter(id => !first.has(id));
+}
+
 export const MOLNBO_SURROUNDINGS = {
   crisp: CRISP, fade: 38,
   haze: { start: 18, end: 140, max: 0.9 },

@@ -958,3 +958,5 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.17.0 (Mölnbo): ingångens etikett ligger ofta mitt i spelytan på Mölnbo; den tar aldrig klick (placeringsprovet:
    klick på etiketten var tysta, npm run placement -- --map molnbo) */
 .entry, .entry * { pointer-events: none !important; }
+/* 0.17.1: en genombruten spärr (en lucka): tom röd ram */
+.obbar.breached { border-color: #d4482c; animation: none; }

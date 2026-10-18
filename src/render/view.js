@@ -793,7 +793,8 @@ export function createView(scene, initialSim) {
         e = { type: ob.type, group, frac: 1 };
         cells.set(i, e); cellObjects.set(i, group);
       }
-      const frac = ob.maxHp ? ob.hp / ob.maxHp : ob.durability / ob.maxDurability;
+      // 0.17.1: en genombruten spärr (en ruta har gått sönder) ser sönderslagen ut i alla sina rutor
+      const frac = ob.breached ? 0 : ob.maxHp ? ob.hp / ob.maxHp : ob.durability / ob.maxDurability;
       if (Math.abs(frac - e.frac) > 0.004) { e.frac = frac; setObstacleWear(e.group, frac); }
     }
   }

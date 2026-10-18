@@ -11,6 +11,7 @@ import { placeAcross, checkSpot, removeObstacle } from '../src/sim/sim.js';
 import { routeFor } from '../src/sim/route.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
 import { crewPassable } from '../src/sim/crew-path.js';
+import { rerouteStreet, streetAt } from '../src/sim/streets.js';
 import { createSim, startWave, step, build } from '../src/sim/sim.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
 import { mapUnlocked } from '../src/meta/progress.js';
@@ -107,6 +108,44 @@ test('bron: spärren ligger på däcket, och ingen enhet kan stå under det', ()
   const [fx, fz] = R(uOn(FOOT, 0), 0), cash = sim.cash;
   const rm = removeObstacle(sim, route.cellAt(fx, fz));
   assert.ok(rm.ok && rm.refund === 75 && sim.cash === cash + 75, JSON.stringify(rm));
+});
+
+// 0.17.1 (speltestet av 0.17.0, dag 4: basen tömdes medan vägbrons spärr stod hel). Ingen väg från norr går förbi två
+// spärrar på broarna, var på däcken de än står (ramperna inräknade, inte korsningarna vid brofästena där gatan är
+// bredare än spärren). Horden norrifrån måste alltså slå sig igenom en spärr.
+test('broarna: med båda broarna spärrade finns ingen väg från norr runt spärrarna', () => {
+  const span = (br, v) => { const [x, z] = R(uOn(br, v), v); return route.span(route.cellAt(x, z)); };
+  let n = 0;
+  for (let vb = -28; vb <= 28; vb += 2) for (let vf = -26; vf <= 26; vf += 2) {
+    const obs = {};
+    for (const k of span(BRIDGE, vb)) obs[k] = { type: 'block' };
+    for (const k of span(FOOT, vf)) obs[k] = { type: 'block' };
+    // banvallen (dag 5) når gångbron genom trappan från norra perrongen, söder om LINK (v -9,4)
+    const north = vf > -8 ? ['s4', 's4n', 's5'] : ['s4', 's4n'];
+    for (const pa of route.paths(north, obs)) { assert.ok(pa.through != null, `${pa.id} förbi spärrarna (vägbron ${vb}, gångbron ${vf})`); n++; }
+  }
+  assert.ok(n > 1500, `${n} fall`);
+});
+
+test('broarna: en lucka i spärren märks, och raden säger gatan horden tar', () => {
+  // bara gångbron spärrad, en ruta slås sönder: resten av spärren märks genombruten
+  const day = { n: 1, startCash: 0, waves: [{ groups: [{ type: 'brute', count: 6, interval: 0.3, delay: 0, spawn: 's4' }] }] };
+  const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 1000 });
+  for (const br of [BRIDGE, FOOT]) { const [x, z] = R(uOn(br, 0), 0); assert.ok(placeAcross(sim, route.cellAt(x, z), 'block').ok); }
+  startWave(sim);
+  let broken = null;
+  while (!broken && sim.time < 400) { step(sim, 0.1); broken = sim.events.find(e => e.t === 'obstacleBroken'); }
+  assert.ok(broken, 'en ruta gick sönder');
+  const rest = Object.values(sim.obstacles).filter(o => o.line === broken.line);
+  assert.ok(rest.length >= 1 && rest.every(o => o.breached), 'resten av spärren är genombruten');
+  assert.ok(Object.values(sim.obstacles).filter(o => o.line !== broken.line).every(o => !o.breached), 'den andra spärren står');
+  const c = route.cellCenter(broken.cell);
+  assert.match(streetAt(molnbo, c.x, c.z), /^(Gångbron|Väg 57)$/);
+  // Stenbyvägen spärrad vid Missionshuset: horden från Gnestavägen tar Kvarnvägen, och raden säger det
+  const before = route.paths(['s1'])[0].cells, obs = {};
+  { const [x, z] = R(-1.5, 56); for (const k of route.span(route.cellAt(x, z))) obs[k] = { type: 'block' }; }
+  const after = route.paths(['s1'], obs)[0].cells;
+  assert.equal(rerouteStreet(molnbo, k => g.center(k), before, after), 'Kvarnvägen');
 });
 
 test('prickskyttelägen: trapptornen, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
