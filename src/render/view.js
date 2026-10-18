@@ -462,7 +462,7 @@ export function createView(scene, initialSim) {
     g.cells.forEach((c, i) => {
       const e = list[i];
       e.visible = true;
-      e.position.set(c.x, 0, c.z); e.rotation.y = c.ry;
+      e.position.set(c.x, liftAt(c.x, c.z), c.z); e.rotation.y = c.ry;
       setGhostTone(e, g.ok);
     });
   }
@@ -496,9 +496,10 @@ export function createView(scene, initialSim) {
         const q = p.center(k);
         if (Math.hypot(q.x - c.x, q.z - c.z) > c.r) continue;
         if (n >= COVER_MAX) break;
-        tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(q.x, 0.065, q.z);
+        const ly = liftAt(q.x, q.z);
+        tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(q.x, 0.065 + ly, q.z);
         cover.setMatrixAt(n, tm);
-        tm.setPosition(q.x, 0.07, q.z);
+        tm.setPosition(q.x, 0.07 + ly, q.z);
         coverEdge.setMatrixAt(n++, tm);
       }
       const bad = c.tone === 'bad';
@@ -583,9 +584,10 @@ export function createView(scene, initialSim) {
     const size = sim.route.grid?.size ?? 2;
     for (let i = 0; i < n; i++) {
       const c = sim.route.cellCenter(want.cells[i]);
-      tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(c.x, 0.07, c.z);
+      const ly = liftAt(c.x, c.z);
+      tm.makeScale(size * 0.92, 1, size * 0.92); tm.setPosition(c.x, 0.07 + ly, c.z);
       tiles.setMatrixAt(i, tm);
-      tm.makeScale(size * 1.36, 1, size * 1.36); tm.setPosition(c.x, 0.075, c.z);
+      tm.makeScale(size * 1.36, 1, size * 1.36); tm.setPosition(c.x, 0.075 + ly, c.z);
       tileEdges.setMatrixAt(i, tm);
     }
     tiles.count = tileEdges.count = n;
@@ -782,7 +784,8 @@ export function createView(scene, initialSim) {
         const grid = sim.route.kind === 'grid';
         const group = obstacleModel(ob.type, grid ? { span: sim.route.grid.size } : undefined);
         const c = cellCenter(i);
-        group.position.set(c.x, 0, c.z);
+        // 0.17.1 (speltestet av 0.17.0: spärren på bron ritades under däcket): på däckets höjd
+        group.position.set(c.x, liftAt(c.x, c.z), c.z);
         // E4: modellens +x mot horden. Rutnätet: spärren ligger tvärs över gatan.
         group.rotation.y = grid ? (sim.route.axis(i) === 'x' ? 0 : Math.PI / 2) : Math.atan2(c.dirZ, -c.dirX);
         group.userData.pick = { kind: 'cell', index: i };

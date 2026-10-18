@@ -11,9 +11,10 @@
 // utan att passera en byggnadsruta (rutvis DDA, Amanatides-Woo). Siktet tittar sedan bara på
 // zombier som står i en synlig ruta. Inga strålar per bildruta.
 
-export const KIND = { open: 0, road: 1, house: 2, water: 3, forest: 4, thing: 5, base: 6 };
+// bridge (0.17.1, Mölnbo): under ett brodäck. Gruppernas soldater får gå där men ingen enhet får stå där.
+export const KIND = { open: 0, road: 1, house: 2, water: 3, forest: 4, thing: 5, base: 6, bridge: 7 };
 // Varför en ruta inte går (simuleringens skäl, panelerna översätter).
-export const KIND_REASON = ['', 'gata', 'hus', 'vatten', 'skog', 'hinder', 'bas'];
+export const KIND_REASON = ['', 'gata', 'hus', 'vatten', 'skog', 'hinder', 'bas', 'bro'];
 export const MIN_SPACING = 5;
 // Hustak (0.8.0): en bana kan ge placeringen tak. roof[k] = takets höjd i meter i rutans mitt
 // (0 = inget tak att ligga på), bldg[k] = byggnadens nummer + 1 (0 = ingen), buildings[i] =

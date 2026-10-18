@@ -69,13 +69,27 @@ export const TOWERS = [
   { id: 'towerS', at: [-16.4, 8.4], size: 3.6, h: 5.6 },
 ];
 const LINK = { v: -9.4, u0: -13, w: 2.4 };
-// Höjden över marken i en punkt (bara bilden: zombierna på bron och perrongen). Ren funktion av läget.
-export function groundY(x, z) {
+// Däckets höjd i en punkt: vägbron, gångbron med ramperna och trappan ner till norra perrongen (0 = inget däck).
+// Ren funktion av läget.
+export function deckY(x, z) {
   const [u, v] = toRail(x, z), av = Math.abs(v);
   if (av <= FOOT.ramp + 2 && Math.abs(u - uOn(FOOT, v)) <= FOOT.width / 2 + 0.9) return DECK_H * (1 - smoothstep(FOOT.deck, FOOT.ramp, av));
   const fu = uOn(FOOT, LINK.v);
   if (Math.abs(v - LINK.v) <= LINK.w / 2 + 0.6 && u >= LINK.u0 && u <= fu) return RAIL.platformN.h + (DECK_H - RAIL.platformN.h) * smoothstep(LINK.u0 + 1, fu - 1.5, u);
   if (av <= BRIDGE.ramp + 2 && Math.abs(u - uOn(BRIDGE, v)) <= BRIDGE.width / 2 + 0.9) return DECK_H * (1 - smoothstep(BRIDGE.deck, BRIDGE.ramp, av));
+  return 0;
+}
+// 0.17.1 (speltestet av 0.17.0: en Psg 90 hamnade under gångbron och syntes inte): en ruta under däcket (eller
+// under rampens kant) går inte att ställa något på. Rutans mitt och fyra punkter nära kanterna provas, så att
+// sandsäckarna inte sticker in under däcket. UNDER_DECK: lägsta däckhöjden som räknas.
+export const UNDER_DECK = 0.3;
+const DECK_SAMPLES = [[0, 0], [-0.7, -0.7], [0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]];
+export const underDeck = (x, z) => DECK_SAMPLES.some(([dx, dz]) => deckY(x + dx, z + dz) >= UNDER_DECK);
+// Höjden över marken i en punkt (bara bilden: zombierna, hindren och vägen på bron och perrongen). Ren funktion av läget.
+export function groundY(x, z) {
+  const [u, v] = toRail(x, z);
+  const d = deckY(x, z);
+  if (d > 0) return d;
   if (inPlat(RAIL.platformN, u, v, 0.5)) return RAIL.platformN.h;
   if (u < RAIL.platformN.u0 && Math.abs(v - RAIL.bank.v) < 2.5) return RAIL.bank.h;
   return 0;
@@ -429,6 +443,8 @@ export function molnboPlacement(grid) {
       const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
       if (grid.walk[k]) return KIND.road;
       if (outside(x, z) > 0) return KIND.thing;
+      // 0.17.1: under bron (eller rampens kant) syns ingen enhet: 'Under the bridge'
+      if (underDeck(x, z)) return KIND.bridge;
       if (inPoly(x, z, GROUND.lake)) return KIND.water;
       if (SHAPES.some(b => b.rects.some(r => inRect(r, x, z)))) return KIND.house;
       if (SHAPES.some(b => b.rects.some(r => inRect(r, x, z, b.pad)))) return KIND.house;

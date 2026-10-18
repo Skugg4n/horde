@@ -4,9 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
-import { molnbo, R, toRail, groundY, DECK_H, RAIL, TOWERS, X60, FOOT, BRIDGE } from '../src/data/molnbo.js';
+import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, FOOT, BRIDGE } from '../src/data/molnbo.js';
+import { liftedHit } from '../src/render/lift.js';
+import { reasonText } from '../src/ui/panels.js';
+import { placeAcross, checkSpot, removeObstacle } from '../src/sim/sim.js';
 import { routeFor } from '../src/sim/route.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
+import { crewPassable } from '../src/sim/crew-path.js';
 import { createSim, startWave, step, build } from '../src/sim/sim.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
 import { mapUnlocked } from '../src/meta/progress.js';
@@ -64,6 +68,45 @@ test('höjden i bilden: däcket, ramperna och perrongen', () => {
   const mid = groundY(...R(uOn(BRIDGE, 22), 22));
   assert.ok(mid > 0.5 && mid < DECK_H - 0.5, `rampen ${mid}`);
   assert.equal(groundY(...R(-50, -10.5)), RAIL.platformN.h);
+});
+
+// 0.17.1 (speltestet av 0.17.0: spärrarna på bron syntes inte, och en Psg 90 hamnade under gångbron)
+test('bron: spärren ligger på däcket, och ingen enhet kan stå under det', () => {
+  const sim = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  // en spärr mitt på varje bro: alla rutor står på däckets höjd (bilden lyfter hindren med map.groundY)
+  for (const br of [BRIDGE, FOOT]) {
+    const [x, z] = R(uOn(br, 0), 0);
+    const r = placeAcross(sim, route.cellAt(x, z), 'block');
+    assert.ok(r.ok, JSON.stringify(r));
+    for (const k of r.cells) assert.equal(groundY(...g.center(k)), DECK_H, `ruta ${k} på däcket`);
+  }
+  // pekaren mot däcket uppifrån som kameran: punkten ligger på däcket, inte på marken bakom
+  const [bx, bz] = R(uOn(BRIDGE, 0), 0), dir = [-40, -46, -40], L = Math.hypot(...dir);
+  const ray = { origin: { x: bx + 40, y: DECK_H + 46, z: bz + 40 }, direction: { x: dir[0] / L, y: dir[1] / L, z: dir[2] / L } };
+  const hit = liftedHit(ray, molnbo.groundY);
+  assert.ok(Math.hypot(hit.x - bx, hit.z - bz) < 0.5, `träffen ${hit.x} ${hit.z}`);
+  // under däcket: inga öppna rutor, skälet "Under the bridge", men soldaterna kan gå där
+  let under = 0;
+  for (let k = 0; k < p.n; k++) {
+    const c = p.center(k);
+    if (p.walk[k] || !underDeck(c.x, c.z)) continue;
+    under++;
+    assert.notEqual(p.kind[k], KIND.open, `ruta ${k} under bron är öppen`);
+    assert.ok(crewPassable(p, k) || p.kind[k] === KIND.house, `ruta ${k}`);
+  }
+  assert.ok(under > 30, `${under} rutor under broarna`);
+  // södra perrongen under gångbron (där Psg 90 hamnade i speltestet)
+  let k0 = -1;
+  // utanför järnvägen (förut öppen mark) och med däcket mer än 2 m över sig
+  for (let k = 0; k < p.n && k0 < 0; k++) { const c = p.center(k), [, v] = toRail(c.x, c.z); if (Math.abs(v) > RAIL.corridor[1] + 1 && !p.walk[k] && deckY(c.x, c.z) > 2) k0 = k; }
+  assert.ok(k0 >= 0, 'en ruta under bron utanför järnvägen');
+  const r0 = checkSpot(sim, k0, 'psg90');
+  assert.deepEqual(r0, { ok: false, reason: 'bro' });
+  assert.equal(reasonText('bro'), 'Under the bridge');
+  // och spärren går att riva med halva priset tillbaka, som på de andra banorna
+  const [fx, fz] = R(uOn(FOOT, 0), 0), cash = sim.cash;
+  const rm = removeObstacle(sim, route.cellAt(fx, fz));
+  assert.ok(rm.ok && rm.refund === 75 && sim.cash === cash + 75, JSON.stringify(rm));
 });
 
 test('prickskyttelägen: trapptornen, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {

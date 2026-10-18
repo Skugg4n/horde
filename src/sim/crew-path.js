@@ -9,7 +9,8 @@
 import { KIND } from './placement.js';
 
 // Rutan går att gå på för en besättning (och för pillboxen: vägar och gräs).
-export const crewPassable = (p, k) => k >= 0 && k < p.n && (p.kind[k] === KIND.open || p.kind[k] === KIND.road);
+// 0.17.1: under Mölnbos broar (KIND.bridge) går det att gå, bara inte att stå
+export const crewPassable = (p, k) => k >= 0 && k < p.n && (p.kind[k] === KIND.open || p.kind[k] === KIND.road || p.kind[k] === KIND.bridge);
 
 const SQ = 10, DG = 14;
 const N8 = [[1, 0, SQ], [-1, 0, SQ], [0, 1, SQ], [0, -1, SQ], [1, 1, DG], [-1, 1, DG], [1, -1, DG], [-1, -1, DG]];

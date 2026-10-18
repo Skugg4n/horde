@@ -623,7 +623,7 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ||
   }
   const i = sim.route.cellAt(x, z);
   return i == null || !sim.route.validCell(i) || !sim.obstacles[i] ? null : { kind: 'cell', id: i };
-}, { ignoreClick: () => { const d = rig.takeDrag(), s0 = takeSuppress(); if ((d || s0) && placing) logPlace({ out: d ? 'ignored-pan' : 'ignored-aim' }); return d || s0; } });
+}, { heightAt: () => map?.groundY ?? null, ignoreClick: () => { const d = rig.takeDrag(), s0 = takeSuppress(); if ((d || s0) && placing) logPlace({ out: d ? 'ignored-pan' : 'ignored-aim' }); return d || s0; } });
 picker.onPick(p => mapPick(p));
 function mapPick(p) {
   if (mode !== 'play' || sim.phase === 'won' || sim.phase === 'lost') { if (placing) logPlace({ out: 'ignored-phase' }); return; }
@@ -860,7 +860,7 @@ function updateBarricades(dt) {
     if (l.frac >= 0.999) continue;
     let el = barEls.get(id);
     if (!el) { el = document.createElement('div'); el.className = 'obbar'; el.innerHTML = '<i></i>'; bars.appendChild(el); barEls.set(id, el); }
-    tmpV.set(l.x, 2.2, l.z).project(camera);
+    tmpV.set(l.x, 2.2 + (map.groundY ? map.groundY(l.x, l.z) : 0), l.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.firstChild.style.width = Math.round(l.frac * 100) + '%';
     el.classList.toggle('low', l.frac < FAILING);

@@ -32,6 +32,8 @@ const REASONS = {
   'vatten': 'In the water',
   'hinder': 'Something in the way',
   'bas': 'On the base',
+  // 0.17.1: Mölnbos broar (enheten skulle stå under däcket och inte synas)
+  'bro': 'Under the bridge',
   'utanför': 'Outside the map',
   'ej upplåst': 'Not released yet.',
   'fel läge': 'The day is over.',

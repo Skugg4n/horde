@@ -4,8 +4,10 @@
 // ligger där (rutorna på vägen), så att hela vägytan svarar och inte bara ritade streck.
 // Tredje argumentet är strålen (för att hitta ett hustak under pekaren, se main.js).
 import * as THREE from 'three';
+import { liftedHit } from './lift.js';
 
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
 
 // camera: kameran eller en funktion som ger den (kameran byts när banan byts).
 // opts.ignoreClick(): true när släppet avslutade en panorering och inte ska räknas som klick.
@@ -28,6 +30,10 @@ export function createPicker(camera, dom, getTargets, groundPick = () => null, o
         if (p) return { kind: p.kind, id: p.kind === 'cell' ? p.index : p.id };
       }
     }
+    // 0.17.1 (Mölnbos bro): med banans höjd (opts.heightAt) räknas punkten där strålen först når däcket, inte
+    // marken bakom det (spöket för en spärr på bron hamnade förut mellan däcken)
+    const hAt = opts.heightAt?.();
+    if (hAt) { const p = liftedHit(ray.ray, hAt); if (p) return groundPick(p.x, p.z, ray.ray); }
     return ray.ray.intersectPlane(GROUND, onGround) ? groundPick(onGround.x, onGround.z, ray.ray) : null;
   }
   const keyOf = p => (p ? p.kind + ':' + p.id : null);
