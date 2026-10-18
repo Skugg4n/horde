@@ -86,3 +86,11 @@ Gnesta North:s karta innehåller Gnesta South (ishallen, rondellen, Sigtunaväge
 - Omplaceringen, garnisonen och trycket finns kvar i koden men är vilande. De visas bara när två skilda platser är aktiva samtidigt (E4, Hagstumosse, senare Mölnbo). Klarheten om nästa strid (NEXT BATTLE, Deploy-knappen med sektorn, skicka och ta tillbaka gratis till Deploy, varningen när sektorn som strider har färre än garnisonen) gäller generellt.
 - Garnisonen (vilande): färre än 3 enheter i en öppen sektor gör att trycket där stiger 2 per vunnen dag någon annanstans i stället för 1 (src/meta/operation.js pressureGain; förrådet säger samma sak, prov i tests/operation.test.js).
 - Interna id:n är oförändrade ('gnesta', 'gnesta-norr'). Sparfilen: enheter, lager och tryck i 'gnesta-norr' slås ihop med 'gnesta' (inga enheter förloras), en kopia sparas under horde.save.v4, och Vikingavägen står kvar öppen för den som redan spelat den efter South dag 4.
+
+## Taket per strid (0.16.4, Olas fråga: "hur många kan jag ställa ut?")
+
+En regel från förrådet till striden: sektorns tak per strid är banans frontbredd (E4 6, Ishallen 8, Vikingavägen 9).
+- **Förrådet** visar taket under sektorns enheter: "Hagstumosse: 6 of 8 units deployed per battle." Varje rekvisitionskort säger vad det gör med taket ("→ 7 / 8", över taket "→ 9 / 8 · reserve"). Över taket står det rakt ut: "You have 10 units. Only 8 can fight. Choose at deployment; the rest wait in reserve."
+- **Rekvisition över taket är tillåten.** Reserven har en uppgift: man väljer vilka som strider dag för dag (tunga pjäser mot bjässarna, grupper mot evakueringen) och ersätter förluster utan att vänta på nästa leverans. Ledningens knapphet (lagret per leverans) står kvar som taket för hur många som finns; frontbredden är taket för hur många som strider.
+- **Uppställningen** visar "DEPLOYED 5 / 8" i köpradens rubrik i varje uppställning (förut först från Vikingavägen dag 3). Vid taket säger klicket varför vid pekaren: "Sector full: 8 / 8 deployed. The rest wait in reserve."
+- Prov: tests/operation.test.js ("taket per strid").

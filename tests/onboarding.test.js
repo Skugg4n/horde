@@ -19,13 +19,18 @@ test('ett nytt begrepp per dag: E4 dag 1 har bara pjäsen, starten och basen', (
   assert.deepEqual([...featuresFor('riksvagen', 1)].sort(), ['base', 'place', 'start']);
   const add = (m, d) => [...featuresFor(m, d)].filter(f => !featuresFor(...prev(m, d)).has(f));
   const prev = (m, d) => (d > 1 ? [m, d - 1] : ['riksvagen', 1]);
-  assert.deepEqual(add('riksvagen', 2).sort(), ['manual', 'speed', 'supplies', 'wire']);
-  assert.deepEqual(add('riksvagen', 3).sort(), ['aim', 'rotate']);
+  // 0.16.4 (Olas feedback, E4 dag 2): Move kommer dag 2 när Södertälje är på väg, fartknappen dag 3
+  assert.deepEqual(add('riksvagen', 2).sort(), ['manual', 'move', 'supplies', 'wire']);
+  assert.deepEqual(add('riksvagen', 3).sort(), ['aim', 'rotate', 'speed']);
   assert.ok(featuresFor('gnesta', 1).has('evac') && !featuresFor('gnesta', 1).has('block'));
   assert.ok(featuresFor('gnesta', 2).has('block') && !featuresFor('gnesta', 2).has('depot'));
   assert.ok(featuresFor('gnesta', 3).has('levels') && !featuresFor('gnesta', 3).has('requisition'));
-  assert.ok(featuresFor('gnesta', 4).has('move') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
-  assert.ok(featuresFor('gnesta', 5).has('unitSupplies') && featuresFor('gnesta', 5).has('upgrades'));
+  // 0.16.4 (speltestet av 0.16.2): dag 3 utan nya funktioner, de vilande husen dag 4, Next wave med bonus dag 5,
+  // förnödenheterna på enheten Vikingavägen dag 1
+  assert.deepEqual([...featuresFor('gnesta', 3)].filter(f => !featuresFor('gnesta', 2).has(f)).sort(), ['depot', 'levels', 'rp']);
+  assert.ok(featuresFor('gnesta', 4).has('dormant') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
+  assert.ok(featuresFor('gnesta', 5).has('early') && featuresFor('gnesta', 5).has('upgrades') && !featuresFor('gnesta', 5).has('unitSupplies'));
+  assert.ok(featuresFor('gnesta-norr', 1).has('unitSupplies') && featuresFor('gnesta-norr', 2).has('car') && !featuresFor('gnesta-norr', 1).has('car'));
   assert.ok(featuresFor('gnesta-norr', 3).has('frontage') && !featuresFor('gnesta-norr', 2).has('frontage'));
   // en okänd bana (provbanorna) har allt
   assert.ok(featuresFor('straight', 1).has('move'));
@@ -71,8 +76,8 @@ test('sparfilens migrering: allt fram till den längst spelade dagen räknas som
   const { lessons, ...old } = p; void lessons;
   assert.equal(furthestPlayed(old), stageIndex('gn-3'));
   const l = lessonsFor(old);
-  for (const id of ['e4-1.pick', 'e4-2.wire', 'e4-3.rotate', 'after-e4.map', 'gn-1.vol', 'gn-2.block', 'after-gn-2.level', 'gn-3.door', 'enemy:walker', 'enemy:runner', 'enemy:brute', 'hud:supplies', 'hud:minimap', 'tip.base']) assert.ok(l.seen.includes(id), id);
-  for (const id of ['after-gn-3.req', 'gn-4.move', 'gn-5.sup', 'gnn-3.front']) assert.ok(!l.seen.includes(id), id);
+  for (const id of ['e4-1.pick', 'e4-2.wire', 'e4-3.rotate', 'after-e4.map', 'gn-1.vol', 'gn-2.block', 'after-gn-2.level', 'gn-2.cover', 'enemy:walker', 'enemy:runner', 'enemy:brute', 'hud:supplies', 'hud:minimap', 'tip.base']) assert.ok(l.seen.includes(id), id);
+  for (const id of ['after-gn-3.req', 'gn-3.door', 'gn-3.early', 'gn-5.sup', 'gnn-3.front']) assert.ok(!l.seen.includes(id), id);
   // det upplåsta följer kampanjen, inte tipsen
   assert.ok(metaFeatures(old).has('levels') && !metaFeatures(old).has('requisition'));
   // uppslagen som det låser upp räknas som lästa (ingen prick på allt en gammal spelare kan)
@@ -137,17 +142,17 @@ test('E4 dag 1: infanteriet vid bommen, en Ksp 90 på en markerad plats, den and
   assert.ok(arrived, 'händelsen arrived när den andra är framme');
   assert.equal(buyState(sim, 'm249').count, 1);
   assert.equal(build(sim, marked[1], 'm249').ok, true, 'den andra ställs ut efter första vågen');
-  assert.equal(callNextWave(sim).reason, 'låst', 'Next wave med bonus kommer South dag 3');
+  assert.equal(callNextWave(sim).reason, 'låst', 'Next wave med bonus kommer South dag 5');
 });
 
-test('E4 dag 3: pillboxen står svetsad från början; South dag 5: förnödenheter på enheten', () => {
+test('E4 dag 3: pillboxen står svetsad från början; Vikingavägen dag 1: förnödenheter på enheten', () => {
   const sim = createSim(opStartConfig(debugReach(newCampaign(), 'riksvagen', 3), 3, 'riksvagen'));
   const epa = sim.guns.find(g => g.weapon.type === 'epa');
   assert.ok(epa && !epa.building, 'svetsad');
   assert.ok(sim.guns.some(g => g.weapon.type === 'inf'));
   assert.equal(buySupply(sim, epa.id, 'ammo').reason, 'ej upplåst');
-  const p5 = debugReach(newCampaign(), 'gnesta', 5);
-  const s5 = createSim({ ...opStartConfig(p5, 5, 'gnesta'), cash: 1000 });
+  const p5 = debugReach(newCampaign(), 'gnesta-norr', 1);
+  const s5 = createSim({ ...opStartConfig(p5, 1, 'gnesta-norr'), cash: 1000 });
   const k = [...Array(s5.place.n).keys()].find(q => build(s5, q, 'm249').ok);
   assert.ok(k != null);
   assert.equal(buySupply(s5, s5.guns[0].id, 'ammo').ok, true);

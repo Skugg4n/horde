@@ -12,7 +12,7 @@ import { SECTORS, UNIT_RP, FROM_NAME, SUPPLY_BUDGET, poolOf } from '../data/depo
 import { ROMAN } from '../data/research.js';
 import { mapState } from '../meta/progress.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, maxMen, vetOf, levelCost, refillCost, returnValue,
-  upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive } from '../meta/operation.js';
+  upgradeList, canRequisition, sectorOpen, openSectors, canReassign, canReturn, stockOf, stockTypes, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED, deployWarning, currentMap, reassignActive, deployCap } from '../meta/operation.js';
 import { shopItem, SHOP } from '../data/shop.js';
 import { metaFeatures, STAGES } from '../meta/unlocks.js';
 import { ICONS } from './icons.js';
@@ -121,7 +121,7 @@ function sectorCard(p, id, meta) {
   const lines = [];
   if (st === 'placeholder') lines.push('No reports yet.');
   else if (st === 'locked') lines.push(`Opens when ${MAPS[map.unlock.map].name} day ${map.unlock.day} is held.`);
-  else if (st === 'silent') lines.push('Secure. The army has moved on.');
+  else if (st === 'silent') lines.push('Secure. The army holds the roadblock.');
   else if (st === 'held') lines.push('Every day here is held.');
   else {
     lines.push(`${esc(map.name)}, day ${day} of ${map.days.length}: ${esc(map.days[day - 1].intro.title.split(':').slice(1).join(':').trim())}.`);
@@ -276,9 +276,18 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
   let scrollKey = null;
   // 0.16.0 (Olas tillägg: knapphet): rekvisitionens kort visar ledningens lager, "1 available" eller "None released";
   // korten har fast höjd och fast plats (köpradens ordning), så att inget hoppar när något köps.
+  // 0.16.4: varje kort säger vad det gör med sektorns tak ("→ 7 / 8", över taket "→ 9 / 8 · reserve")
   const reqCard = (t, sector) => {
     const c = canRequisition(p, t, sector), w = WEAPONS[t], n = stockOf(p, sector, t);
-    return `<button type="button" class="req ${c.ok ? '' : 'off'} ${n ? '' : 'none'}" data-req="${t}" title="${esc(w.desc)}"><span class="ri">${ICONS[t] ?? ''}</span><b>${esc(name(t))}</b><span class="rs">${n ? `${n} available` : 'None released'}</span><i>${n ? rp(UNIT_RP[t]) : ''}</i></button>`;
+    const cap = deployCap(p, sector), have = count(sector), after = have + 1;
+    const eff = n && Number.isFinite(cap) ? `<span class="cap ${after > cap ? 'over' : ''}">→ ${after} / ${cap}${after > cap ? ' · reserve' : ''}</span>` : '';
+    return `<button type="button" class="req ${c.ok ? '' : 'off'} ${n ? '' : 'none'}" data-req="${t}" title="${esc(w.desc)}"><span class="ri">${ICONS[t] ?? ''}</span><b>${esc(name(t))}</b><span class="rs">${n ? `${n} available` : 'None released'}${eff}</span><i>${n ? rp(UNIT_RP[t]) : ''}</i></button>`;
+  };
+  // 0.16.4: taket per strid, en regel från förrådet till striden
+  const capLine = sector => {
+    const cap = deployCap(p, sector), have = count(sector);
+    if (!Number.isFinite(cap)) return '';
+    return `<p class="capline ${have > cap ? 'over' : ''}"><b>${esc(sname(sector))}: ${Math.min(have, cap)} of ${cap} units deployed per battle.</b>${have > cap ? ` You have ${have} units. Only ${cap} can fight. Choose at deployment; the rest wait in reserve.` : ''}</p>`;
   };
   // Skicka: fråga först om enheten lämnar sektorn som strider härnäst. Allt går att ta tillbaka till Deploy.
   function askSend(uid, to) {
@@ -327,7 +336,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     // 0.16.0 (Olas tillägg): bara uppgraderingar för det man har eller fått släppt, och de ledningen släppt; inga maxade
     const ups = m.has('upgrades') ? upgradeList(p).filter(Boolean).filter(st => st.tier != null && st.reason !== 'locked' && st.reason !== 'cap') : [];
     const cols = [
-      `<section class="${sector && sector === nextBattle()?.id ? 'next' : ''}">${sector && sector === nextBattle()?.id ? `<div class="nbtag">Next battle · ${esc(MAPS[nextBattle().map].name)} · Day ${nextBattle().day}</div>` : ''}<h4>${sector ? 'Units in ' + esc(sname(sector)) : 'Unassigned units'}${sector && multi() ? ` <span class="gar ${count(sector) < garrisonOf(sector) ? 'under' : ''}">Garrison ${count(sector)} / ${garrisonOf(sector)}</span>` : ''}</h4>${bulk()}${sentRows()}${here.map(unitRow).join('') || '<p class="muted">None.</p>'}</section>`,
+      `<section class="${sector && sector === nextBattle()?.id ? 'next' : ''}">${sector && sector === nextBattle()?.id ? `<div class="nbtag">Next battle · ${esc(MAPS[nextBattle().map].name)} · Day ${nextBattle().day}</div>` : ''}<h4>${sector ? 'Units in ' + esc(sname(sector)) : 'Unassigned units'}${sector && multi() ? ` <span class="gar ${count(sector) < garrisonOf(sector) ? 'under' : ''}">Garrison ${count(sector)} / ${garrisonOf(sector)}</span>` : ''}</h4>${sector ? capLine(sector) : ''}${bulk()}${sentRows()}${here.map(unitRow).join('') || '<p class="muted">None.</p>'}</section>`,
       m.has('requisition') ? `<section><h4>Requisition${sector ? ' for ' + esc(sname(sector)) : ''}</h4>${sector ? types.map(t => reqCard(t, sector)).join('') || '<p class="muted">Nothing released here yet.</p>' : '<p class="muted">Pick a sector.</p>'}</section>` : '',
       m.has('upgrades') ? `<section><h4>Depot upgrades</h4>${ups.map(st => `<button type="button" class="req up ${st.ok ? '' : 'off'}" data-up="${st.id}">
           <b>${esc(upgradeName(st.id) ?? st.node.name)} ${ROMAN[st.tier]}</b><span class="rs">${esc(upgradeText(st))}</span><i>${rp(st.cost)}</i></button>`).join('') || '<p class="muted">Nothing released yet.</p>'}</section>` : '',
@@ -340,7 +349,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
       ${tabs().length > 1 ? `<div class="tabs">${tabs().map(s => `<button type="button" class="tab ${s === sector ? 'on' : ''}" data-tab="${s ?? ''}">${s ? esc(sname(s)) : 'Unassigned'} <span>${p.op.units.filter(u => u.sector === s).length}</span>${s && s === nextBattle()?.id ? '<em>Next battle</em>' : ''}</button>`).join('')}</div>` : ''}
       <div class="cols n${cols.length}">${cols.join('')}</div>
       <div class="dmsg ${msg || confirm ? 'show' : ''} ${msgGood ? 'good' : ''} ${confirm ? 'ask' : ''}">${confirm ? `<span>${esc(confirm.text)}</span><button type="button" class="mini warn" data-a="yes">${confirm.ok}</button><button type="button" class="mini" data-a="no">${confirm.no}</button>` : esc(msg)}</div>
-      <div class="acts">${deploy ? `<button type="button" class="act main" data-a="deploy"><span class="a">Deploy · ${esc(MAPS[sector0].name)} · Day ${deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">Operations map</span><kbd>Esc</kbd></button>`
+      <div class="acts">${deploy ? `<button type="button" class="act main deploy" data-a="deploy"><span class="a">Deploy</span><span class="sub">${esc(MAPS[sector0].name)} · Day ${deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">Operations map</span><kbd>Esc</kbd></button>`
         : '<button type="button" class="act main" data-a="done"><span class="a">Done</span><kbd>Esc</kbd></button>'}</div>`;
     for (const b of el.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { sector = b.dataset.tab || null; msg = ''; render(); });
     for (const r of el.querySelectorAll('.urow')) {

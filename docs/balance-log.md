@@ -819,6 +819,32 @@ Kampanjens mål håller. Fingeravtrycken: E4 och Ishallen dag 1 står kvar, Isha
 Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 till 18 kvar). Avsikten är att en ny spelare ska ta sig förbi dagen och se förrådet; ribban höjs igen dag 3.
 
 
+## 0.16.4: E4 dag 2 rättvis, Ishallen dag 1 med val, dag 3 utan stup, löparna snubblar
+
+Underlag: Olas feedback (E4 dag 2 orättvis, Hagstumosse dag 1 utan agens) och speltestet av 0.16.2 (docs/playtests/2026-10-17-0.16.2.md: Ishallen dag 3 med 49 / 94 / 190 och sex-sju nyheter på en gång, förrådet lovade en Ksp 90 som inte gick att få).
+
+Ändrat och varför:
+- E4 dag 2: båda ingångarna syns från början (Södertälje förvarnad, etiketten "From wave 2" och vägen därifrån), raden före våg 2 varnar, och Move (M) är dagens andra lektion (förut Ishallen dag 4). Fartknappen flyttade till dag 3. Vågorna och hp är oförändrade. Ny policy firstTimer: ställer båda Ksp 90 mot Nyköping och flyttar en mot Södertälje vid varningen. Den vinner dag 2 på första försöket i alla fem seeds med basen hel (20/20/20). Samma spelare utan flytt (firstStatic) vinner med 15 till 16 kvar. Skälet till att välja Move i stället för en tredje pjäs: det är det intressantare begreppet, och det behövs igen på Ishallen dag 1.
+- Ishallen dag 1: två omgångar hus på olika gator (våg 1 i öster, våg 2 i väster), fyra korsningar och tre grupper frivilliga, need 18 av 24 (var 13 av 20). Inga föreslagna platser i spelet längre. Policyn hints (och skilled) läser farokartan (evacDeploy, evacReposition: grupperna vid korsningarna i tur och ordning, flyttar när omgången byter gata): vinner på första försöket med 20 till 23 framme. Tre grupper vid ishallen förlorar.
+- Ishallen dag 3: Hemvärnet och Norra vägen är dagens två saker. De vilande husen flyttade till dag 4, Next wave med bonus till dag 5, Ksp 58 och pillboxen till dag 4, Ak 5 och Ksp 88 dag 5, Psg 90 till Vikingavägen dag 1, förnödenheterna på enheten till Vikingavägen dag 1 och skrotbilarna till Vikingavägen dag 2. Vågorna 39 / 60 / 84 (var 49 / 94 / 190), hp 4,0 till 2,7: utan Ksp 58 och Ak 5 är styrkan svagare. hints vinner på första försöket i alla seeds (8 till 9 kvar), normal 9 till 13, skilled 8 till 9.
+- Ishallen dag 4 hp 2,2 till 1,3 och dag 5 hp 2,4 till 2,1: utan Psg 90 och Ak 5 föll normal i våg 2 i alla försök (bas 14 till 0) vid 2,2. Nu vinner normal dag 4 på andra försöket (6 till 8 kvar) och dag 5 på 2 till 3; skilled vinner båda på första.
+- Förrådet: den extra Ksp 90 släpps med leveransen dag 4 (förut dag 3, där rekvisitionen inte hade öppnat). Nytt prov: varje löfte i ledningens text motsvaras av lager som går att rekvirera när meddelandet kommer.
+- H234: skyltarnas fotavtryck i placeringen står där skyltarna står (förut frysta där de stod i 0.16.2, bland annat på väg 800:s asfalt). Placeringens fingeravtryck 92004483 till 3790515640. Simuleringens kvitto för E4 dag 2 rörs inte av det (samma rutor).
+- Löparna snubblar (Olas bonus): var 20 till 40 m ett försök, chansen 0,6, ur zombiens id och simuleringens frö (inte sim.rng). Snubblet tar 1,2 s (faller 0,45, kryper 0,1, reser sig 0,55 av farten), cirka 0,8 s förlorad gångtid. Inte i diset. Mätbart men litet: normal snitt bas kvar 11,78 till 11,95 och 88 till 83 försök totalt, skilled 13,42 till 14,00. Ingen omtrimning för det.
+
+Kampanjen (försök per dag E1 E2 E3 S1..S5 N1..N5):
+```
+normal  seed 0  1 1 1 1 1 1 2 2 1 2 1 1 1
+        seed 1  1 1 1 1 1 1 2 3 1 1 1 1 1
+        seed 2  1 1 1 1 1 1 2 3 1 1 2 1 1
+        seed 3  1 1 1 2 1 1 2 1 1 2 2 1 1
+        seed 4  1 1 1 1 1 1 2 3 1 1 2 1 1
+skilled alla seeds 1 på varje dag
+```
+Kampanjens mål håller. Fingeravtrycken: alla steg utom E4 dag 1 nya, avsiktligt (ovan). Simuleringens kvitto: E4 dag 2 bfc5d385 till c6ff18ea och North dag 2 b50f3d9a till d4dc66ed (snubblet; utan det står båda kvar), South dag 3 cab7334b till 1b4eff89 (nya vågor, inga vilande hus).
+
+Kvar att se: dag 4 kräver nu ett andra försök för normal i alla seeds (förut första). Speltesta om det känns som en vägg; det är där bjässarna och de vilande husen möts.
+
 ## Mölnbo (0.17.0-molnbo)
 
 Ny sektor efter Hagstumosse (src/data/molnbo.js). Mätt med `node scripts/balance.mjs molnbo` över fem seeds. Spelaren kommer med det en vanlig spelare har efter Hagstumosse: `opCampaign('normal')` hela vägen genom E4, Ishallen och Vikingavägen, med trupperna (20 enheter), nivåerna, förrådets uppgraderingar och RP (`molnboArrival`). Därifrån spelas Mölnbo dag för dag med försök och rekvisition mellan försöken (`molnboCampaign`, REQUISITION.molnbo). Frontbredden är 10.
@@ -862,3 +888,30 @@ Kampanjen: när Vikingavägen dag 5 är vunnen räknade finishDay Mölnbo som ö
 Fingeravtrycken per dag: tests/molnbo.test.js. Hela kampanjens kvitto (tests/balance-op-*.test.js) är oförändrat: Mölnbo spelas inte i opCampaign:s standardordning (SECTOR_ORDER).
 
 Kvar: speltest med Ola. Hp-faktorerna här är höga jämfört med Hagstumosse (12 där) eftersom truppen är stor; en människa som inte spärrar Stenbyvägen förlorar dag 3, vilket är meningen. Dag 4 och 5 kan behöva mjukas upp efter speltestet.
+
+## Mölnbo 0.17.0: sammanslagen med 0.16.4
+
+Varför: 0.16.4 ändrade simuleringen (löparna snubblar, cirka 0,8 s förlorad gångtid per snubbel) och kampanjen före Mölnbo (E4 dag 2, Ishallen dag 1 och 3 till 5, taket per strid med reserven). Ankomsten till Mölnbo (`molnboArrival`, opCampaign('normal')) är därför en annan trupp, och varje Mölnbodag fick ett nytt kvitto. Utan omtrimning: kartläsaren behövde 3 försök på dag 4 i en seed (målet 1 till 2), och naive vann dag 3 på fjärde försöket i en seed (målet: fast från dag 3).
+
+Ändrat, bara i Mölnbos data (src/data/molnbo.js):
+- dag 3 hp 16,5 till 17,5: naive fast på dag 3 i alla seeds. Med 17 vann kartläsaren dag 3 med bas 1 i en seed; med 17,5 bas 2 till 10.
+- dag 4 hp 32 till 31: kartläsaren vinner dag 4 inom 2 försök. 32 gav 1 till 3, 31,5 och 31 1 till 2.
+- dag 5 hp 15 till 16: med dag 4 lättare kostade dag 5 för få försök; minst tre seeds ska kosta ett extra försök på dag 4 eller 5 (provet). 17 gav upp till 4 försök, 18 upp till 6.
+
+Prövat: dag 3 16,5 och 17 (naive vann i en seed respektive smal marginal), dag 4 31,5 och 32, dag 5 15 till 18.
+
+Resultat (försök till vinst per dag, seed 0 till 4):
+
+    mbSmart  M1 M2 M3 M4 M5   topp
+    0         1  1  1  2  1   192
+    1         1  1  1  1  2   182
+    2         1  1  1  1  1   189
+    3         1  1  1  1  3   188
+    4         1  1  1  1  1   195
+
+    naive    M1 M2 M3 M4 M5
+    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 161 till 169)
+
+Målen håller: kartläsaren vinner dag 1 till 3 på första försöket, dag 4 inom 2, dag 5 inom 3 (målet 4). Naive vinner dag 1 och 2 och fastnar på dag 3. Topp 195 levande zombier (målet under cirka 250). Provet skärpt: dag 4 inom 2 försök (var 4).
+
+Fingeravtrycken (tests/molnbo.test.js), alla nya avsiktligt: mbSmart e1b56ac5, 6b6b4e1d, 2d092c0b, 5aabef35, 95c03dc5; naive 33af5c85, 8eeb29b5, 4da49be3 (dag 4 och 5 oförändrade, naive når dem inte). Dag 1 och 2 ändrades bara av ankomsten och snubblet, inte av datan. E4:s och Hagstumosses kvitto (tests/balance-op-*.test.js) är 0.16.4:s, orört.

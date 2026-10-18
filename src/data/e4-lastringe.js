@@ -175,12 +175,12 @@ export const GANTRIES = (() => {
   return [{ x: best.x, z: best.z, across: [-best.dz, best.dx], legs: [-6.2, 7.5, 21.2], height: 6.6,
     panels: [{ ...sign, off: -0.6, face: 0 }, { ...sign, off: 15.6, face: 1 }] }];
 })();
-// Placeringens fotavtryck för skyltarna, fryst från 0.16.2 (där de stod före H231), så att placeringen
-// och balansen inte ändras av att de ritade skyltarna flyttats. Byts när balansen ändå räknas om.
-const SB = (px, py, ry, kind) => { const [x, z] = w(px, py); return { x, z, ry, kind }; };
-const SIGN_BLOCKS_0162 = [
-  SB(1290, 458, 0.55, 'green'), SB(1345, 368, 0.75, 'blue'), SB(1440, 352, 0.75, 'blue'), SB(1500, 470, 0.9, 'green'),
-  SB(980, 868, 0.5, 'green'), SB(1700, 632, 0.8, 'speed'), SB(700, 1002, 0.6, 'speed'),
+// Placeringens fotavtryck för skyltarna: där de står nu (0.16.4, H234). I 0.16.3 låg de kvar där skyltarna stod
+// i 0.16.2 (bland annat på väg 800:s asfalt före korsningen) för att inte röra balansen; nu räknas balansen om.
+// Panelens bredd och ett smalt djup, och portalens ben.
+export const SIGN_BLOCKS = [
+  ...SIGNS.map(s => ({ x: s.x, z: s.z, ry: s.ry, w: s.kind === 'speed' ? 0.8 : signWidth(s), d: 0.6 })),
+  ...GANTRIES.flatMap(g => g.legs.map(l => ({ x: g.x + g.across[0] * l, z: g.z + g.across[1] * l, ry: 0, w: 0.6, d: 0.6 }))),
 ];
 // Höga belysningsstolpar runt korsningen (gatubilden), utöver rampernas och väg 800:s.
 export const LAMPS = [w(1340, 392), w(1430, 420), w(1405, 470)];
@@ -317,7 +317,7 @@ export function thingRects() {
       out.push(rect(tx, tz, p.ry + p.jack, 13.5, 2.6));
     }
   }
-  for (const s of SIGN_BLOCKS_0162) out.push(rect(s.x, s.z, s.ry, s.kind === 'speed' ? 0.8 : 4.4, 0.6));
+  for (const s of SIGN_BLOCKS) out.push(rect(s.x, s.z, s.ry, s.w, s.d));
   for (const r of ROCKS) out.push(rect(r.x, r.z, 0, r.s * 1.6, r.s * 1.6));
   for (const [x, z] of LAMPS) out.push(rect(x, z, 0, 0.5, 0.5));
   // vägspärren: kuren, fordonen och betongsuggorna kring stammens ände (render/models.js roadblockModel)
@@ -393,8 +393,11 @@ export const DAYS = [
              { groups: [g('walker', 22, 0.8, 0, 'nykoping')] },
              // 0.16.1 (speltestet av 0.16.0: "sista vågen 2 till 3 gånger den näst sista", 14 / 22 / 40): 32 i våg 3
              { groups: [g('walker', 20, 0.6, 0, 'nykoping'), g('walker', 12, 0.5, 18, 'nykoping')] } ] },
-  { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6,
-    intro: { title: 'Day 2: Runners', text: 'Runners on the E4. Wire buys you time.' },
+  // 0.16.4 (Olas feedback: "dag 2 är orättvis, Södertälje kommer plötsligt och man kan inte flytta"): båda ingångarna
+  // syns från början (foretell: etiketten "From wave 2" och vägen därifrån), raden före våg 2 varnar, och Move (M)
+  // är dagens andra lektion, så att den som ställt allt mot Nyköping kan flytta en pjäs (src/data/lessons.js e4-2).
+  { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6, foretell: ['sodertalje'],
+    intro: { title: 'Day 2: Two roads', text: 'Runners from Nyköping, then Södertälje. Wire buys you time.' },
     preset: [{ type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 6, 1.2, 8, 'nykoping')] },
              // 0.16.1 (speltestet av 0.16.0, 20 / 40 / 68): våg 2 44, våg 3 60 (fem klungor löpare i stället för sex)

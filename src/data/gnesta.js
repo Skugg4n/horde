@@ -855,12 +855,14 @@ const LEAD_RUN = 20, LEAD_WALK = 62;
 // pillboxen dag 4, Ksp 88 dag 5 (arsenal: köpradens id som finns i förrådet den dagen; forskningen
 // gäller ovanpå, src/sim/stats.js inArsenal). Infanteriet kommer först på Gnesta North.
 // 0.16.2 (speltestet av 0.16.1: dag 2 hade fem nyheter på en gång): Hemvärnet kommer dag 3
+// 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): en ny enhet per dag. Ksp 58 och pillboxen dag 4, Ksp 88
+// och Ak 5 dag 5, Psg 90 på Vikingavägen (src/data/depot.js RELEASES).
 const ARSENAL = [
   ['block', 'wire', 'civ'],
   ['block', 'wire', 'civ', 'm249'],
-  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5'],
-  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa'],
-  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'],
+  ['block', 'wire', 'civ', 'hv', 'm249'],
+  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'epa'],
+  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'epa', 'ak5', 'm2'],
 ];
 export const DAYS = [
   { n: 1, supplies: 350, startCash: 700, hp: 1.9, arsenal: ARSENAL[0], squads: 4,
@@ -870,8 +872,12 @@ export const DAYS = [
     // de civila: fem familjer i villorna öster om rondellen, ut när vågen börjar och in mot ishallen
     // 0.14.1 (speltestet av 0.14.0: familjerna dog utanför bild långt österut): husen närmare rondellen
     // (B3-03 och B3-02 i stället för B4-13 och B4-02), så att hela vägen ryms i dagens kamera (main.js dayFrame).
-    evac: { need: 13, groups: [{ house: 'B3-03', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 9, wave: 0 }, { house: 'B3-02', count: 4, at: 16, wave: 0 },
-      { house: 'B4-03', count: 4, at: 2, wave: 1 }, { house: 'B3-12', count: 4, at: 8, wave: 1 }] },
+    // 0.16.4 (Olas feedback: "dag 1 har ingen agens, man tittar bara på"): två omgångar på olika gator. Våg 1 går
+    // husen i öster ut (korsningarna vid stickgatorna längst österut), våg 2 husen i väster (korsningarna närmare
+    // rondellen). Fyra korsningar och tre grupper frivilliga: välj vilka som täcks, och flytta (M) när evakueringen
+    // byter gata. Husen, de civilas vägar, hordens väg och korsningarna syns före första vågen.
+    evac: { need: 18, groups: [{ house: 'B4-13', count: 4, at: 3, wave: 0 }, { house: 'B3-13', count: 4, at: 8, wave: 0 }, { house: 'B4-03', count: 4, at: 14, wave: 0 },
+      { house: 'B2-13', count: 4, at: 2, wave: 1 }, { house: 'B2-03', count: 4, at: 7, wave: 1 }, { house: 'B3-03', count: 4, at: 12, wave: 1 }] },
     // 0.16.0 (inlärningen): de vilande husen kommer dag 3 (designen avsnitt 3; förut här och dag 2, H101, H110)
     waves: [ { groups: [g('runner', 3, 1.4, 0, 'east1', LEAD_RUN), g('walker', 16, 0.8, 4, 'east1')] },
              // 0.16.1 (speltestet av 0.16.0: "dag 1 förlorad tre gånger utan att förstå varför"): våg 2:s löpare 12 s
@@ -893,19 +899,20 @@ export const DAYS = [
   // utom hindren; den skickliga slutade med 1 200 och 2 200 dollar över, den normala med 800 och 1 300. Halva och
   // knappt en tredjedel per dödad: samma utfall i alla seeds, överskottet 480 till 560 och 700 (normal 70 till 230).
   // 0.16.2: Hemvärnet och Norra vägen flyttade hit från dag 2; skogsvägen kommer dag 4 (förut här)
-  { n: 3, supplies: 500, startCash: 1300, hp: 4.0, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. They also come along Norra vägen.' },
-    // 0.16.0: de vilande husen är dagens begrepp: ett förvarnat vid stickgatan i våg 1 (förut dag 1 och 2), och
-    // överraskningen från 0.12.0 (ingen förvarning, ett hus vid fältet när våg 2 börjar).
+  // 0.16.4 (speltestet av 0.16.2: vågorna 49 / 94 / 190 och sex-sju nyheter): Hemvärnet och Norra vägen är dagens
+  // två saker; de vilande husen flyttar till dag 4. Vågorna utan dubbla hopp (balansloggen 0.16.4).
+  { n: 3, supplies: 500, startCash: 1300, hp: 2.7, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. They also come along Norra vägen.' },
+    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 18, 0.5, 3, 'east1'), g('walker', 16, 0.6, 4, 'east2')] },
+             { groups: [g('walker', 26, 0.4, 0, 'east2'), g('runner', 34, 0.3, 4, 'east1')] },
+             { groups: [g('walker', 32, 0.35, 0, 'east2'), g('runner', 32, 0.25, 5, 'east1'), g('walker', 20, 0.4, 10, 'east2')] } ] },
+  // 0.16.4: de vilande husen (förut dag 3) är dagens begrepp; Ksp 58 är dagens nya pjäs mot bjässarna
+  { n: 4, supplies: 600, startCash: 1800, hp: 1.3, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes on the forest road. Infected hiding in a house.' },
     dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 20, 0.5, 3, 'east1'), g('walker', 20, 0.6, 4, 'east2')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 50, 0.25, 4, 'east1')] },
-             { groups: [g('walker', 70, 0.25, 0, 'east2'), g('runner', 70, 0.2, 5, 'east1'), g('walker', 50, 0.3, 10, 'east2')] } ] },
-  { n: 4, supplies: 600, startCash: 1800, hp: 2.2, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes, and the forest road. Move your guns to where they come.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, supplies: 600, startCash: 1600, hp: 2.4, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'Everything they have. Keep your units supplied.' },
+  { n: 5, supplies: 600, startCash: 1600, hp: 2.1, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'Everything they have, from three roads.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
              { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
@@ -915,7 +922,8 @@ export const DAYS = [
 export const gnesta = {
   id: 'gnesta', name: 'Hagstumosse · Ishallen', version: GNESTA_VERSION,
   // 0.16.0 (Olas beslut): samma sektor, kartan vidgas norrut; trupperna följer med
-  outro: { text: 'The ice rink holds. The fog lifts. They are circling north, up Vikingavägen.', next: 'gnesta-norr' },
+  // 0.16.4 (Olas rättelse): en vinst läses som en vinst; nästa uppdrag är i samma stadsdel
+  outro: { text: 'The ice rink holds. The civilians are safe inside. A new column is circling north, up Vikingavägen. Hold it there.', next: 'gnesta-norr' },
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
   // Längst ut 84 m igen (0.11.0, Olas önskan; 68 m i 0.5.2 till 0.10.2). Utzoomad ritas horden lite
   // större (view.js setZoom), och en taktisk minikarta kommer.

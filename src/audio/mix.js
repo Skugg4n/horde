@@ -22,6 +22,8 @@ export const VOICES = {
   blast:    { cap: 3, gap: 0.12, lag: 0.15 },
   knock:    { cap: 2, gap: 0.22, lag: 0, thin: true },
   crunch:   { cap: 2, gap: 0.15, lag: 0.1 },
+  // 0.16.4 (Olas feedback: taggtråd ska riva): zombier som fastnar i tråden, glest och få samtidigt
+  snag:     { cap: 2, gap: 0.14, lag: 0, thin: true },
   strain:   { cap: 1, gap: 0.6, lag: 0 },
   breach:   { cap: 2, gap: 0.35, lag: 0 },
   alarm:    { cap: 1, gap: 1.0, lag: 0 },

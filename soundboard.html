@@ -123,7 +123,8 @@ mark(shriekEl, shriekEl.children[settings.shriek === 'torn' ? 1 : 0]);
 buttons('hits', [['Hit', () => play('hit')], ['Kill', () => play('kill')], ['Brute kill', () => play('kill', { type: 'brute' })], ['Many kills', () => burst('kill', 20, 30)]]);
 buttons('base', [
   ['Barricade knock', () => play('knock')], ['Barricade breaks', () => play('crunch', { type: 'block' })],
-  ['Wire strain', () => play('strain')], ['Wire snaps', () => play('crunch', { type: 'wire' })],
+  ['Wire: snag (rip)', () => play('snag')], ['Wire: snag x6', () => burst('snag', 6, 180)],
+  ['Wire: strain', () => play('strain')], ['Wire: snap', () => play('snap')],
   ['Base breach', () => play('breach')], ['Low base alarm', () => play('alarm')],
 ]);
 buttons('ui', [

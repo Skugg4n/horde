@@ -111,7 +111,8 @@ async function run() {
     const before = await page.evaluate(() => { const s = window.__horde.sim; return s.guns.length + Object.keys(s.obstacles).filter(k => s.obstacles[k]).length; });
     // ta upp kortet (vad låg under pekaren, och vad hölls efteråt)
     await page.evaluate(() => { window.__pl.cur = { tips: [] }; });
-    // 0.17.0-molnbo: med fler än 9 kort är tangenten ett ackord ('2-8': först gruppen, sedan saken)
+    // 0.17.0: snabbvalen är fasta (0.16.4: enheterna 1 till 9, Z X C), en tangent per kort; ett gammalt ackord
+    // ('2-8') trycks tangent för tangent
     if (seq === 'hotkey') for (const k of setup.kbd.split('-')) await page.keyboard.press(k);
     else await page.mouse.click(setup.cx, setup.cy);
     if (seq === 'after-buy') {

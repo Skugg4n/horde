@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
 import { ROADS, road, SIGNS, GANTRIES, FAR, SURROUNDINGS, signWidth } from '../src/data/e4-lastringe.js';
 import { distPolyline, inPoly } from '../src/data/gnesta.js';
+import { KIND, placementFor } from '../src/sim/placement.js';
 
 const lay = road('layby');
 const gap = (x, z) => Math.min(...ROADS.map(r => distPolyline(x, z, r.pts) - r.width / 2), inPoly(x, z, lay.pts) ? -1 : 99);
@@ -30,11 +31,23 @@ test('H231: avfartsskylten hänger på portalen, benen står utanför körbanorn
   }
 });
 
-test('H231: placeringen är oförändrad från 0.16.2 (skyltarnas fotavtryck är frysta)', () => {
+// 0.16.4 (H234): skyltarnas fotavtryck följer skyltarna (förut frysta där de stod i 0.16.2). Placeringens nya
+// fingeravtryck, avsiktligt; balansen räknas om (docs/balance-log.md 0.16.4).
+test('H234: placeringens fingeravtryck med skyltarnas fotavtryck där de står nu', () => {
   const p = MAPS.riksvagen.place, g = MAPS.riksvagen.grid;
   let h = 2166136261;
   for (const arr of [p.kind, p.ditch, p.hedge, g.walk]) for (const v of arr) { h ^= v; h = Math.imul(h, 16777619) >>> 0; }
-  assert.equal(h, 92004483);
+  assert.equal(h, 3790515640);
+});
+
+test('H234: de gamla osynliga fotavtrycken blockerar inte längre, de nya står där skyltarna står', () => {
+  const p = placementFor(MAPS.riksvagen);
+  const cellAt = (x, z) => { let best = -1, bd = Infinity; for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - x, c.z - z); if (d < bd) { bd = d; best = k; } } return best; };
+  // 0.16.2:s fotavtryck: väg 800:s asfalt före korsningen (den gröna skylten) och vid korsningen (de blå)
+  for (const [x, z] of [[-3, -17], [-3, -15], [3, -25], [11, -25], [19, -19]]) {
+    assert.notEqual(p.kind[cellAt(x, z)], KIND.thing, `0.16.2:s skylt vid ${x}, ${z} blockerar fortfarande`);
+  }
+  for (const s of SIGNS) assert.equal(p.kind[cellAt(s.x, s.z)], KIND.thing, `${s.lines[0]} saknar fotavtryck`);
 });
 
 test('H230: omgivningen ligger utanför spelytan, gårdarna och husen står inte på vägarna', () => {

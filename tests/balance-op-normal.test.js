@@ -66,7 +66,12 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // spärren vid första stickgatan, Hemvärnet och Norra vägen dag 3 (hp 3,5 till 4,0 när skogsvägen flyttade till dag
 // 4), North dag 3 hp 4,4 till 4,2 (mindre RP från en kortare dag 2). E4 och Ishallen dag 1 står kvar.
 // docs/balance-log.md 0.16.2.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d57d442a","riksvagen 3":"b59eecbe","gnesta 1":"24ffed1c","gnesta 2":"533d645b","gnesta 3":"0af8b2e5","gnesta 4":"aa960bfe","gnesta 5":"4c28d95a","gnesta-norr 1":"9925db7b","gnesta-norr 2":"0e072c56","gnesta-norr 3":"a431bdee","gnesta-norr 4":"7e1af42f","gnesta-norr 5":"be8f6156"};
+// 0.16.4: alla steg utom E4 dag 1 nya, avsiktligt (Olas feedback och speltestet av 0.16.2): löparna snubblar ibland
+// (kostar cirka 1 s), skyltarnas fotavtryck där skyltarna står (H234), E4 dag 2 med Move och Södertälje förvarnad,
+// Ishallen dag 1 med två omgångar hus och fyra korsningar (need 18 av 24), dag 3 Hemvärnet och Norra vägen (39 / 60 / 84,
+// hp 2,7), de vilande husen och Ksp 58 dag 4 (hp 1,3), Ak 5 och Ksp 88 dag 5 (hp 2,1), Psg 90 på Vikingavägen.
+// docs/balance-log.md 0.16.4.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"4aca40ff","gnesta 3":"1e26a3bd","gnesta 4":"4634731c","gnesta 5":"71710bac","gnesta-norr 1":"a6390155","gnesta-norr 2":"17c1cc7f","gnesta-norr 3":"097bdfcd","gnesta-norr 4":"7bb65256","gnesta-norr 5":"546c05b4"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));
@@ -85,3 +90,29 @@ test('Ishallen dag 2: förstagångsspelaren som följer tipsen vinner inom två 
     assert.ok(d2.some(x => x.won), `${policy} seed ${i}: ${JSON.stringify(d2.map(x => [x.won, x.waveBase]))}`);
   }
 });
+
+// 0.16.4 (speltestet av 0.16.2: "Ishallen dag 3 är ett stup", 49 / 94 / 190 och sex-sju nyheter): förstagångsspelaren
+// som följer tipsen klarar dag 3 inom två försök, och vågorna växer utan dubbla hopp.
+test('Ishallen dag 3: förstagångsspelaren vinner inom två försök, inga dubbla hopp mellan vågorna', () => {
+  const sizes = gnestaDays[2].waves.map(w => w.groups.reduce((a, g) => a + g.count, 0));
+  for (let i = 1; i < sizes.length; i++) assert.ok(sizes[i] < sizes[i - 1] * 2, `vågorna ${sizes.join(' / ')}`);
+  for (const [i, seedOffset] of SEEDS.entries()) {
+    const e4 = opCampaign('normal', { seedOffset, sectors: ['riksvagen'] });
+    const r = opCampaign('hints', { seedOffset, sectors: ['gnesta'], start: e4.progress, maxAttempts: 2 });
+    const d3 = r.log.filter(x => x.mapId === 'gnesta' && x.day === 3);
+    assert.ok(d3.some(x => x.won), `seed ${i}: ${JSON.stringify(d3.map(x => [x.won, x.waveBase]))}`);
+  }
+});
+
+// 0.16.4 (Olas feedback: "E4 dag 2 är orättvis"): förstagångsspelaren som ställer båda Ksp 90 mot Nyköping och
+// reagerar på varningen före våg 2 (flyttar en pjäs mot Södertälje, Move) vinner dag 2 på första försöket.
+test('E4 dag 2: förstagångsspelaren som flyttar en pjäs vid varningen vinner på första försöket', () => {
+  assert.deepEqual(MAPS.riksvagen.days[1].foretell, ['sodertalje'], 'Södertälje sägs från början');
+  for (const [i, seedOffset] of SEEDS.entries()) {
+    const r = opCampaign('firstTimer', { seedOffset, sectors: ['riksvagen'], maxAttempts: 1 });
+    const d2 = r.log.find(x => x.mapId === 'riksvagen' && x.day === 2);
+    assert.ok(d2?.won, `seed ${i}: ${JSON.stringify(d2?.waveBase)}`);
+  }
+});
+import { MAPS } from '../src/data/maps.js';
+const gnestaDays = MAPS.gnesta.days;

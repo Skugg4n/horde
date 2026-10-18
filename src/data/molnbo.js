@@ -498,7 +498,8 @@ export function molnboPlacement(grid) {
 //  4 Norra sidan      bron som flaskhals: horden norr om spåret (S1 till S4)
 //  5 Längs spåret     horden på banvallen och upp på perrongen (S5), sista tåget norrut (alla)
 // train: { at } sekunder efter första vågens start går tåget, och dagen är vunnen om basen står (src/sim/sim.js).
-// Balansen: docs/balance-log.md, Mölnbo.
+// Balansen: docs/balance-log.md, Mölnbo. 0.17.0 (sammanslagningen med 0.16.4, löparnas snubbel): dag 3 hp 16,5 till 17,5,
+// dag 4 32 till 31, dag 5 15 till 16.
 const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, interval, delay, spawn, ...(lead ? { lead } : {}) });
 const say = (toast, w) => ({ ...w, toast });
 const tell = (toast, grp) => ({ ...grp, toast });
@@ -513,7 +514,7 @@ export const DAYS = [
              say('From the south, up Stenbyvägen!', { groups: [g('walker', 36, 0.45, 0, 's2'), g('walker', 30, 0.45, 4, 's1')] }),
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's2'), g('brute', 3, 3.5, 20, 's2')] },
              { groups: [g('walker', 50, 0.3, 0, 's2'), g('walker', 46, 0.3, 0, 's1'), tell('Brutes on Gnestavägen!', g('brute', 4, 3, 18, 's1')), g('runner', 30, 0.35, 26, 's2')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16.5, overlap: 50, train: { at: 330 },
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 17.5, overlap: 50, train: { at: 330 },
     intro: { title: 'Day 3: The last train', text: 'Hold until the train leaves. It will not wait.' },
     objective: 'Hold Folkets hus until the train leaves.',
     waves: [ say('Gnestavägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
@@ -521,7 +522,7 @@ export const DAYS = [
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('brute', 3, 3, 16, 's2')] },
              { groups: [g('walker', 60, 0.28, 0, 's2'), g('walker', 50, 0.3, 4, 's1'), tell('Runners from the ravine!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
              { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('brute', 5, 2.5, 10, 's2')] } ] },
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 32, overlap: 50, train: { at: 340 },
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 31, overlap: 50, train: { at: 340 },
     intro: { title: 'Day 4: North side', text: 'They are north of the tracks. Close the bridges.' },
     objective: 'Hold Folkets hus until the train leaves.',
     waves: [ say('Gnestavägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('runner', 4, 0.8, 6, 's1')] }),
@@ -529,7 +530,7 @@ export const DAYS = [
              { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 29, 0.35, 4, 's2'), g('brute', 4, 3, 14, 's4')] },
              { groups: [g('runner', 36, 0.25, 0, 's4'), g('walker', 36, 0.3, 4, 's1'), g('walker', 29, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
              { groups: [g('walker', 58, 0.22, 0, 's4'), g('runner', 29, 0.3, 8, 's2'), g('brute', 4, 3, 14, 's4')] } ] },
-  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 15, overlap: 50, train: { at: 360, last: true },
+  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16, overlap: 50, train: { at: 360, last: true },
     intro: { title: 'Day 5: Along the tracks', text: 'The last train north. Everyone who can, gets on.' },
     objective: 'Hold Folkets hus until the last train leaves.',
     waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('walker', 7, 0.7, 4, 's2')] }),

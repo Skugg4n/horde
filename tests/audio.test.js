@@ -126,3 +126,61 @@ test('arsenalen: varje vapen har en egen röst med tak och takt i röstbudgeten'
   for (let i = 0; i < 20; i++) if (L.tryStart('psg90', c.t, SOUNDS.psg90.dur) != null) ok++;
   assert.equal(ok, 1, 'samma ögonblick: ett skott, resten tystas');
 });
+
+// 0.16.4 (Olas feedback: taggtråden ska riva och slita, inte klinga). En falsk ljudgraf som bara
+// antecknar oscillatorerna, så att rösterna kan spelas utan Web Audio.
+function fakeAudio() {
+  const param = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
+  const node = extra => ({ connect() {}, disconnect() {}, ...extra });
+  const oscs = [];
+  const ctx = {
+    sampleRate: 48000,
+    createGain: () => node({ gain: param() }),
+    createBiquadFilter: () => node({ frequency: param(), Q: param(), type: '' }),
+    createWaveShaper: () => node({}),
+    createBufferSource: () => node({ buffer: null, start() {} }),
+    createOscillator: () => { const o = node({ type: 'sine', frequency: param(), start(t) { o.t0 = t; }, stop(t) { o.t1 = t; } }); oscs.push(o); return o; },
+  };
+  const b = { duration: 2 };
+  return { A: { ctx, buf: { white: b, brown: b, crackle: b, tear: b }, reverb: null }, oscs };
+}
+
+test('taggtråden: snag, strain och snap finns, spelas utan fel och har tak och takt', async () => {
+  const { SOUNDS } = await import('../src/audio/voices.js');
+  for (const id of ['snag', 'strain', 'snap']) {
+    assert.ok(SOUNDS[id], id);
+    assert.ok(VOICES[SOUNDS[id].group], 'röstbudget för ' + id);
+    const { A } = fakeAudio();
+    for (let i = 0; i < 20; i++) SOUNDS[id].play(A, 0, {}, A.ctx.createGain());
+  }
+  // crunch med type 'wire' (obstacleBroken, dormantBurst) är samma brist och delar crunch-budgeten
+  assert.equal(SOUNDS.snap.group, 'crunch');
+  const { A } = fakeAudio();
+  SOUNDS.crunch.play(A, 0, { type: 'wire' }, A.ctx.createGain());
+  // korta ljud: rivet under en halv sekund, knarret kort
+  assert.ok(SOUNDS.snag.dur <= 0.5 && SOUNDS.strain.dur <= 0.6);
+  // samma ögonblick: högst capen, sedan släpps snag igen först efter gap
+  const L = createLimiter();
+  let ok = 0;
+  for (let i = 0; i < 20; i++) if (L.tryStart('snag', 0, SOUNDS.snag.dur) != null) ok++;
+  assert.equal(ok, 1);
+  assert.equal(L.tryStart('snag', VOICES.snag.gap - 0.01, SOUNDS.snag.dur), null);
+  assert.notEqual(L.tryStart('snag', VOICES.snag.gap, SOUNDS.snag.dur), null);
+  assert.ok(VOICES.snag.cap <= 2 && VOICES.snag.thin);
+  assert.equal(VOICES.strain.cap, 1);
+});
+
+test('taggtråden: inget "boing", rivet och bristen har inga ringande toner', async () => {
+  const { SOUNDS } = await import('../src/audio/voices.js');
+  for (const [id, o] of [['snag', {}], ['snap', {}], ['crunch', { type: 'wire' }]]) {
+    for (let i = 0; i < 10; i++) {
+      const { A, oscs } = fakeAudio();
+      SOUNDS[id].play(A, 0, o, A.ctx.createGain());
+      for (const os of oscs) assert.ok(os.t1 - os.t0 <= 0.06 + 0.05, id + ' har en ton som ringer');
+    }
+  }
+  // knarret: bara låga, ostämda sågtänder (och en långsam vickning), inga sinus- eller triangeltoner
+  const { A, oscs } = fakeAudio();
+  SOUNDS.strain.play(A, 0, {}, A.ctx.createGain());
+  for (const os of oscs) assert.ok(os.type === 'sawtooth' || os.frequency.value < 10, 'strain: ' + os.type);
+});

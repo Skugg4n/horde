@@ -10,7 +10,7 @@
 //   Esc                stänger en öppen kategori (main.js frågar escape() först); klick utanför likaså
 //
 // WINDOW är bara bild: så länge lyser kategorin starkare (armed), sedan lugnare men fortfarande öppen.
-import { BUY_MENU, usesChords, flatItems } from '../data/shop.js';
+import { BUY_MENU, usesChords, itemForKey } from '../data/shop.js';
 
 export const WINDOW = 2;
 
@@ -27,7 +27,8 @@ export function createChord({ menu: m = BUY_MENU, window: win = WINDOW } = {}) {
     press(n, now) {
       if (!usesChords(cur())) {
         cat = null;
-        const id = n >= 1 ? flatItems(cur())[n - 1]?.id ?? null : null;
+        // 0.16.4: samma tangent för samma sak varje dag (shop.js FIXED_KEYS); n kan vara en siffra eller Z, X, C
+        const id = itemForKey(n, cur());
         return id ? { t: 'pick', id } : { t: 'none' };
       }
       if (cat != null) {

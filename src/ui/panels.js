@@ -25,8 +25,9 @@ const REASONS = {
   'brant-skorsten': 'Roof too steep, try the ridge by the chimney',
   'nära': 'Too close to another gun',
   // 0.16.0 (textgenomgången): forskningen finns inte längre
-  'fullt': 'Frontage full.',
-  'fulltHv': 'Frontage full.',
+  // 0.16.4 (Olas: taket ska vara en synlig regel): samma ord som förrådet och räknaren
+  'fullt': 'Sector full: every place to fight is taken.',
+  'fulltHv': 'Sector full: every place to fight is taken.',
   'skog': 'In the forest',
   'vatten': 'In the water',
   'hinder': 'Something in the way',
@@ -61,7 +62,7 @@ const REASONS = {
   'gränssnitt': 'Not on the map',
   'i handen': 'Already in hand. Esc puts it back',
   'uppställd': 'Units deploy before the first wave',
-  'front': 'Frontage full.',
+  'front': 'Sector full: every place to fight is taken.',
   // 0.16.0 (inlärningen)
   'markerad': 'Only on the marked spots.',
   'markerad-hinder': 'Only on the marked spots.',
@@ -163,7 +164,8 @@ export function buildBar(root, actions) {
     const deploy = sim.core && menu.some(c => c.id === 'units');
     // 0.16.0 (Olas beslut 3): en rad kort med en siffra var; kategorierna och tvåstegsvalet bara med fler än 9
     // kort. Frontbreddens räknare kommer med frontbredden (North dag 3).
-    const chords = usesChords(menu), counter = !sim.core || allowed(sim, 'frontage');
+    // 0.16.4 (Olas: "oklart hur många man kan ställa ut"): räknaren "DEPLOYED 5 / 8" syns i varje uppställning
+    const chords = usesChords(menu), counter = !sim.core || deploy || allowed(sim, 'frontage');
     el.classList.toggle('deploy', deploy);
     el.classList.toggle('flat', !chords);
     // 0.16.1 (speltestet av 0.16.0: rubriken bytte mellan DEPLOY och SUPPLIES när enheterna tog slut, och Supplies
@@ -171,12 +173,12 @@ export function buildBar(root, actions) {
     // raden bara har enheter som kommit fram, E4 dag 1)
     const onlyUnits = menu.every(c => c.id === 'units');
     const head = !sim.core ? 'BUY' : sim.wavesStarted === 0 || onlyUnits ? 'DEPLOY' : 'DEFENCES';
-    el.innerHTML = `<div class="k">${head}${counter ? ` <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
+    el.innerHTML = `<div class="k">${head}${counter ? ` <span class="guns">${sim.core ? (deploy && sim.wavesStarted === 0 ? 'DEPLOYED' : 'UNITS') : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
       <div class="grp" data-cat="${ci + 1}">${chords ? `<div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div>` : ''}<div class="cards">${c.items.map(x => {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
       <button type="button" class="card buy" data-id="${it.id}" aria-label="${itemDesc(it, sim)}">
-        <kbd>${hotkeyOf(it.id, menu)}</kbd>${ICONS[it.id] || ''}<div class="n${itemShort(it).length > 8 ? ' long' : ''}">${itemShort(it)}</div>
+        <kbd>${hotkeyOf(it.id)}</kbd>${ICONS[it.id] || ''}<div class="n${itemShort(it).length > 8 ? ' long' : ''}">${itemShort(it)}</div>
         <div class="p" data-price></div><div class="cs">${cardCompact(it, sim.research)}</div>
         <div class="more"><div class="r">${role}</div><div class="st">${stats}</div><div class="why" data-why></div></div></button>`;
     }).join('')}</div></div>`).join('')}</div>`;
@@ -507,7 +509,7 @@ export function dayIntro(root, dayCfg, cash, onGo) {
   const p = plate(root, 'intro', `
     <div class="h">${dayCfg.intro.title}</div>
     <p class="lead">${dayCfg.intro.text}</p>
-    <button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button>`);
+    <div class="acts"><button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button></div>`);
   on(p.el, '[data-a="go"]', onGo);
   return p;
 }

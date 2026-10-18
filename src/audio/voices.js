@@ -15,7 +15,17 @@ export function makeBuffers(ctx) {
   const brown = mk(2, d => { let l = 0; for (let i = 0; i < d.length; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; } });
   // Knaster: glesa knäppar av olika styrka (bråte, grus, splitter).
   const crackle = mk(1.5, d => { for (let i = 0; i < d.length; i++) d[i] = Math.random() < 0.004 ? (Math.random() * 2 - 1) * R(0.3, 1) : d[i - 1] * 0.6 || 0; });
-  return { white, brown, crackle };
+  // 0.16.4 (Olas feedback: taggtråd ska riva och slita): täta korta knäppar i klungor, som fibrer
+  // och hud som brister en och en. Grunden för rivljuden.
+  const tear = mk(1.5, d => {
+    let clump = 0;
+    for (let i = 0; i < d.length; i++) {
+      if (Math.random() < 0.0008) clump = R(0.3, 1);
+      clump *= 0.9995;
+      d[i] = Math.random() < 0.02 + 0.08 * clump ? (Math.random() * 2 - 1) * R(0.4, 1) : (d[i - 1] || 0) * 0.35;
+    }
+  });
+  return { white, brown, crackle, tear };
 }
 // Rumsklang ur brus: stereo, exponentiell avklingning, mörkare mot slutet.
 export function makeImpulse(ctx, secs = 2.2, decay = 3) {
@@ -244,32 +254,66 @@ const knock = { group: 'knock', dur: 0.24, play(A, t, o, out) {
   burst(A, t, g, { type: 'bandpass', f: 720 * j, q: 3, peak: 0.6, d: 0.06 });
   burst(A, t, g, { buf: 'brown', type: 'lowpass', f: 320, peak: 0.6, d: 0.13 });
 } };
+// 0.16.4 (Olas feedback: riktig taggtråd låter inte som ett kling): tråden brister. Ett skarpt
+// metalliskt pling under 50 ms (ojämna övertoner ur brus, ingen ton som ringer), en piska (brus
+// som sveper ner genom ett bandpass) och sist trådändarna som skramlar.
+function wireSnap(A, t, out) {
+  const j = R(0.9, 1.12), g = A.ctx.createGain(); g.gain.value = 0.55; g.connect(out);
+  burst(A, t, g, { type: 'highpass', f: 5000, a: 0.0005, peak: 0.9, d: 0.008 });
+  for (const [f, p] of [[2870, 1], [4130, 0.8], [6010, 0.55], [7790, 0.4]])
+    burst(A, t, g, { type: 'bandpass', f: f * j * R(0.97, 1.03), q: 28, a: 0.0005, peak: p * 3, d: R(0.025, 0.045) });
+  burst(A, t, g, { type: 'bandpass', f: 6500 * j, f2: 420, glide: 0.2, q: 2.5, a: 0.008, peak: 1.1, d: 0.22, delay: 0.004 });
+  burst(A, t, g, { type: 'bandpass', f: 2400 * j, f2: 260, glide: 0.24, q: 1.2, a: 0.012, peak: 0.5, d: 0.26, delay: 0.01 });
+  burst(A, t, g, { buf: 'tear', type: 'bandpass', f: 3200, f2: 1400, glide: 0.15, q: 1.5, a: 0.01, peak: 0.5, d: 0.16, delay: R(0.12, 0.18) });
+}
 const crunch = { group: 'crunch', dur: 0.9, play(A, t, o, out) {
-  if (o.type === 'wire') {
-    // Tråden brister: metalliskt kling som faller, och ett snäpp.
-    const g = A.ctx.createGain(); g.gain.value = 0.3; g.connect(out);
-    for (const f of [880, 1330, 2210, 3170]) thump(A, t, g, { type: 'triangle', f: f * R(0.97, 1.03), f2: f * 0.82, glide: 0.6, peak: 0.25, d: 0.6 });
-    burst(A, t, g, { type: 'highpass', f: 2500, peak: 0.7, d: 0.03 });
-    return;
-  }
+  if (o.type === 'wire') { wireSnap(A, t, out); return; }
   const s = sat(A, out, 2.5, 0.8);
   burst(A, t, s.in, { buf: 'brown', type: 'lowpass', f: 1600, f2: 260, glide: 0.5, peak: 1.1, d: 0.55 });
   burst(A, t, s.in, { buf: 'crackle', type: 'highpass', f: 1400, peak: 1, d: 0.65, a: 0.01 });
   thump(A, t, s.in, { f: 64, f2: 30, glide: 0.3, peak: 0.8, d: 0.32 });
   send(A, s.out, 0.3);
 } };
-const strain = { group: 'strain', dur: 0.75, play(A, t, o, out) {
-  const { ctx } = A, g = ctx.createGain(), j = R(0.94, 1.08);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.72);
-  const am = ctx.createOscillator(), amg = ctx.createGain(); am.frequency.value = R(14, 22); amg.gain.value = 0.03;
-  am.connect(amg); amg.connect(g.gain); am.start(t); am.stop(t + 0.75);
-  g.connect(out);
-  for (const f of [1210, 1745, 2660]) {
-    const o2 = ctx.createOscillator(); o2.type = 'triangle';
-    o2.frequency.setValueAtTime(f * j, t); o2.frequency.linearRampToValueAtTime(f * j * 1.045, t + 0.6);
-    o2.connect(g); o2.start(t); o2.stop(t + 0.75);
+// Samma brist som crunch med type 'wire', under eget namn för ljudbordet. Delar crunch-budgeten.
+const snap = { group: 'crunch', dur: 0.5, play(A, t, o, out) { wireSnap(A, t, out); } };
+// 0.16.4 (Olas feedback: mer rivande och slitande): en zombie fastnar i tråden. Kort metallskrap,
+// sedan tyg och kött som rivs: ett till tre ryck av brus med snabbt fallande filter genom tätt
+// knaster, och ett mörkt blött ryck under. Varierar för varje gång.
+const snag = { group: 'snag', dur: 0.42, play(A, t, o, out) {
+  const j = R(0.85, 1.18), g = A.ctx.createGain(); g.gain.value = 1.6; g.connect(out);
+  // skrapet: högt brus som glider ner, under 50 ms
+  burst(A, t, g, { type: 'bandpass', f: 5200 * j, f2: 3100 * j, glide: 0.04, q: 5, peak: 0.5, d: 0.04 });
+  burst(A, t, g, { buf: 'tear', type: 'highpass', f: 3800, peak: 0.35, d: 0.03 });
+  // rivningen
+  const n = 1 + Math.floor(Math.random() * 3);
+  let at = R(0.01, 0.03);
+  for (let i = 0; i < n; i++) {
+    const len = R(0.06, 0.12), top = R(2200, 3600) * j;
+    burst(A, t, g, { buf: 'tear', type: 'bandpass', f: top, f2: top * R(0.18, 0.3), glide: len, q: R(1.2, 2.2), a: 0.004, peak: R(0.8, 1.2), d: len, delay: at });
+    burst(A, t, g, { type: 'bandpass', f: top * 0.7, f2: top * 0.15, glide: len * 0.8, q: 1.4, a: 0.003, peak: R(0.25, 0.4), d: len * 0.8, delay: at });
+    at += len * R(0.4, 0.7);
   }
-  burst(A, t, g, { type: 'bandpass', f: 3100, q: 12, a: 0.1, peak: 1.5, d: 0.5 });
+  // köttet
+  burst(A, t, g, { buf: 'brown', type: 'bandpass', f: 900 * j, f2: 220, glide: 0.12, q: 1.6, a: 0.006, peak: 0.7, d: 0.14, delay: R(0.02, 0.06) });
+} };
+// 0.16.4 (Olas feedback: inget kling): tråden spänns. Ett lågt strävt knarr, ingen melodi: två
+// ostämda låga sågtänder och smalt brus genom ett resonant lågpass som vickar långsamt, med knaster
+// som gör det ojämnt. Kort.
+const strain = { group: 'strain', dur: 0.55, play(A, t, o, out) {
+  const { ctx } = A, len = R(0.32, 0.48), f = R(38, 52);
+  const lp = filt(ctx, 'lowpass', R(260, 340), 7), s = sat(A, out, 3, 0.2), g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t + 0.05);
+  g.gain.setValueAtTime(0.6, t + len * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  const wob = ctx.createOscillator(), wg = ctx.createGain(); wob.frequency.value = R(2.5, 5); wg.gain.value = R(70, 120);
+  wob.connect(wg); wg.connect(lp.frequency); wob.start(t); wob.stop(t + len + 0.05);
+  for (const k of [1, 1.13, 1.61]) {
+    const os = ctx.createOscillator(), og = ctx.createGain(); os.type = 'sawtooth'; og.gain.value = 0.25;
+    os.frequency.setValueAtTime(f * k, t); os.frequency.linearRampToValueAtTime(f * k * 0.94, t + len);
+    chain(os, og, lp); os.start(t); os.stop(t + len + 0.05);
+  }
+  burst(A, t, lp, { buf: 'brown', type: 'bandpass', f: R(150, 220), q: 9, a: 0.04, peak: 1.2, d: len });
+  burst(A, t, lp, { buf: 'tear', type: 'lowpass', f: 600, a: 0.02, peak: 0.5, d: len });
+  chain(lp, g, s.in);
 } };
 const breach = { group: 'breach', dur: 1.1, play(A, t, o, out) {
   const s = sat(A, out, 2.2, 1);
@@ -338,4 +382,4 @@ const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   chain(lp, g, out); send(A, g, 0.6);
 } };
 
-export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, strain, breach, alarm, ui, bonus, horn, stinger };
+export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, snap, snag, strain, breach, alarm, ui, bonus, horn, stinger };

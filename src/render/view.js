@@ -5,9 +5,9 @@ import { rnd, geo, PALETTE } from './kit.js';
 import { createFx } from './fx.js';
 import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
-import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, roadblockModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
+import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, zombieStumble, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, roadblockModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { CELL_LEN, movePhase, gunPos } from '../sim/sim.js';
+import { CELL_LEN, movePhase, gunPos, stumbleOf } from '../sim/sim.js';
 import { WEAPONS } from '../data/weapons.js';
 import { alongPath as alongPathAt } from '../sim/crew-path.js';
 import { createSquadView } from './squad-view.js';
@@ -173,7 +173,9 @@ export function createView(scene, initialSim) {
         e.chop += dt * 11;
         zombieAttack(parts, e.chop, clock);
       } else {
-        zombieWalk(parts, e.phase, clock);
+        // 0.16.4: snubblet, samma steg som simuleringen räknar med
+        const sb = stumbleOf(z);
+        if (sb) zombieStumble(parts, sb.u, e.phase, clock); else zombieWalk(parts, e.phase, clock);
       }
       horde.draw(parts);
     }

@@ -123,12 +123,13 @@ const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const smart = SEEDS.map(s => molnboCampaign('mbSmart', { seedOffset: s, maxAttempts: 6 }));
 const naive = SEEDS.map(s => molnboCampaign('naive', { seedOffset: s, maxAttempts: 4 }));
 
-test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök och dag 4 och 5 inom 4', () => {
+test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och dag 5 inom 4', () => {
   for (const [i, r] of smart.entries()) {
     const a = mbAttempts(r.log);
     assert.equal(r.stuck, null, `seed ${i}: ${a}`);
     for (let d = 0; d < 3; d++) assert.ok(a[d] <= 2, `seed ${i} dag ${d + 1}: ${a}`);
-    for (let d = 3; d < 5; d++) assert.ok(a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
+    assert.ok(a[3] <= 2, `seed ${i} dag 4: ${a}`);
+    assert.ok(a[4] <= 4, `seed ${i} dag 5: ${a}`);
   }
   // dag 4 och 5 kostar försök i de flesta seeds (bron och sista tåget är svåra)
   assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2 || mbAttempts(r.log)[4] >= 2).length >= 3);
@@ -149,8 +150,10 @@ test('balans: högst cirka 250 levande zombier samtidigt', () => {
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
 // 0.17.0-molnbo: första kvittot.
+// 0.17.0 (sammanslagen med 0.16.4): alla steg nya, avsiktligt. Löparnas snubbel och 0.16.4:s ändringar i simuleringen
+// flyttar varje dag; dag 3 till 5 omtrimmade (docs/balance-log.md, Mölnbo 0.17.0).
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '101843c7', 'molnbo 2': '56a6688b', 'molnbo 3': '21d943c1', 'molnbo 4': '6bbcf081', 'molnbo 5': 'b2664d32' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'e18b0a25', 'molnbo 2': '3ec71d04', 'molnbo 3': 'a4dff607', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'e1b56ac5', 'molnbo 2': '6b6b4e1d', 'molnbo 3': '2d092c0b', 'molnbo 4': '5aabef35', 'molnbo 5': '95c03dc5' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '33af5c85', 'molnbo 2': '8eeb29b5', 'molnbo 3': '4da49be3', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
 });

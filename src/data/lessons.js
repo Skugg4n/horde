@@ -23,26 +23,31 @@ export const LESSONS = {
     { id: 'e4-1.start', kind: 'step', when: 'placed:m249', done: 'waveStarted', target: { ui: '#go' }, text: 'Ready. Start the wave.', keys: ['Space'], manual: 'start' },
     { id: 'e4-1.second', kind: 'step', when: 'arrived:m249', done: 'placing:m249|placed:m249:2', target: { ui: '#buildbar .card[data-id="m249"]' }, text: 'A second Ksp 90. Place it too.' },
   ],
+  // 0.16.4 (Olas feedback: "dag 2 är orättvis"): båda ingångarna sägs före första vågen, och Move (M) kommer när
+  // Södertälje är på väg (efter våg 1). Fartknappen flyttade till dag 3.
   'e4-2': [
+    { id: 'e4-2.two', kind: 'show', when: 'start', target: { world: 'entry:sodertalje' }, text: 'Two roads in. Södertälje joins from wave 2.' },
     { id: 'e4-2.supplies', kind: 'show', when: 'start', target: { ui: '#res .cash-box' }, text: 'Supplies. Spend them on defences during the day.', manual: 'supplies' },
     { id: 'e4-2.wire', kind: 'step', when: 'start', done: 'obstacle:wire', target: { ui: '#buildbar .card[data-id="wire"]' }, text: 'Wire slows them. Lay it across the road.', manual: 'wire' },
-    { id: 'e4-2.speed', kind: 'caption', when: 'afterWave1', target: { ui: '#speedcd' }, text: 'Faster:', keys: ['F'], manual: 'speed' },
+    { id: 'e4-2.move', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Units can relocate. Click one, then press', keys: ['M'], manual: 'move' },
+    { id: 'e4-2.where', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Click where it goes. No fire while moving.' },
   ],
   'e4-3': [
     { id: 'e4-3.aim', kind: 'step', when: 'start', done: 'placing:m2|placed:m2', target: { ui: '#buildbar .card[data-id="m2"]' }, text: 'The Ksp 88 covers a narrow arc. Aim it.', manual: 'arc' },
     { id: 'e4-3.drag', kind: 'caption', when: 'placing:m2', target: { world: 'pointer' }, text: 'Press, then drag toward the road to aim.' },
     { id: 'e4-3.rotate', kind: 'show', when: 'placed:m2', target: { world: 'gun:m2' }, text: 'Wrong way? Select it and press', keys: ['R'], manual: 'arc' },
+    { id: 'e4-3.speed', kind: 'caption', when: 'afterWave1', target: { ui: '#speedcd' }, text: 'Faster:', keys: ['F'], manual: 'speed' },
   ],
   'after-e4': [
-    { id: 'after-e4.map', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Gnesta is next. Open the sector.', manual: 'map' },
+    { id: 'after-e4.map', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Hagstumosse is next. Open the sector.', manual: 'map' },
   ],
+  // 0.16.4 (Olas feedback: "dag 1 har ingen agens"): kartan visar husen, de civilas vägar, hordens väg och
+  // korsningarna; spelaren väljer själv var de frivilliga står (inga föreslagna platser längre).
   'gn-1': [
-    { id: 'gn-1.line', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'Civilians walk this yellow line to the ice rink.', manual: 'evac' },
+    { id: 'gn-1.line', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'Marked houses evacuate along the yellow lines to the ice rink.', manual: 'evac' },
     { id: 'gn-1.goal', kind: 'show', when: 'start', target: { ui: '#evac' }, text: 'Get {need} of {total} inside. That wins the day.' },
-    // 0.16.1 (speltestet av 0.16.0: "jag förstår inte varför de dör"): de röda fläckarna och de föreslagna platserna
-    { id: 'gn-1.cross', kind: 'show', when: 'start', target: { world: 'danger' }, text: 'Red: the horde meets their line here.', manual: 'evac' },
-    { id: 'gn-1.vol', kind: 'step', when: 'start', done: 'placing:civ|placed:civ', target: { ui: '#buildbar .card[data-id="civ"]' }, text: 'Volunteers. Cover the crossing.', manual: 'squads' },
-    { id: 'gn-1.spot', kind: 'step', when: 'placing:civ', done: 'placed:civ', target: { world: 'suggest' }, text: 'Cover the crossing: a marked spot.', manual: 'squads' },
+    { id: 'gn-1.cross', kind: 'show', when: 'start', target: { world: 'danger' }, text: 'Red: their lines cross the horde. East first, then west.', manual: 'evac' },
+    { id: 'gn-1.vol', kind: 'step', when: 'start', done: 'placed:civ', target: { world: 'danger' }, text: 'Protect the routes. Place your volunteers.', manual: 'squads' },
     { id: 'gn-1.map', kind: 'caption', when: 'waveStarted', target: { ui: '#minimap' }, text: 'Map:', keys: ['Tab'], manual: 'minimap' },
   ],
   'gn-2': [
@@ -56,18 +61,16 @@ export const LESSONS = {
     { id: 'after-gn-2.depot', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'The depot opens before the day. Spend your RP there.', manual: 'depot' },
     { id: 'after-gn-2.level', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="lvl"]' }, text: 'Spend RP to train a unit one level.' },
   ],
+  // 0.16.4 (speltestet av 0.16.2: Ishallen dag 3 hade sex-sju nyheter på en gång): dag 3 är Hemvärnet och Norra
+  // vägen (en andra väg in, känd från E4), de vilande husen dag 4, Next wave med bonus dag 5
   'gn-3': [
-    // 0.16.2: Hemvärnet kommer dag 3 (förut dag 2)
     { id: 'gn-2.cover', kind: 'caption', when: 'placed:hv', target: { world: 'gun:hv' }, text: 'Squads find their own cover.' },
-    { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
-    { id: 'gn-3.early', kind: 'caption', when: 'afterWave1', target: { ui: '#go' }, text: 'Call early: bonus supplies', manual: 'early' },
   ],
   'after-gn-3': [
     { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
   ],
   'gn-4': [
-    { id: 'gn-4.move', kind: 'show', when: 'start', target: { world: 'gun' }, text: 'Select a unit and press M to move it.', keys: ['M'], manual: 'move' },
-    { id: 'gn-4.where', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Click where it goes. No fire while moving.' },
+    { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
     { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },
   ],
   'after-gn-4': [
@@ -78,9 +81,10 @@ export const LESSONS = {
     { id: 'after-gn-5.north', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Same district, wider map. Your units carry over.', manual: 'sectors' },
   ],
   'gn-5': [
-    { id: 'gn-5.sup', kind: 'show', when: 'start', target: { world: 'gun' }, text: 'Click a unit: ammo, sandbags or a grenade kit.', manual: 'unitSupplies' },
+    { id: 'gn-3.early', kind: 'caption', when: 'afterWave1', target: { ui: '#go' }, text: 'Call early: bonus supplies', manual: 'early' },
   ],
   'gnn-1': [
+    { id: 'gn-5.sup', kind: 'show', when: 'start', target: { world: 'gun' }, text: 'Click a unit: ammo, sandbags or a grenade kit.', manual: 'unitSupplies' },
     { id: 'gnn-1.path', kind: 'caption', when: 'waveStarted', target: { world: 'route' }, text: 'Watch them take the footpath.' },
   ],
   'gnn-2': [
@@ -152,7 +156,7 @@ export const REVEALS = [
 // fienden setts. icon: köpradens ikon (src/ui/icons.js) eller 'enemy:TYP' (porträttet).
 export const MANUAL_GROUPS = ['Basics', 'Defences', 'Units', 'Operation', 'Enemies'];
 export const MANUAL = [
-  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its number. Click the ground to place it. Light ground shows where it may stand.', keys: ['1', '2', '3'] },
+  { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card in the bar at the bottom, or press its key. Each card keeps its key all campaign. Click the ground to place it.', keys: ['4', 'X'] },
   { id: 'start', group: 'Basics', title: 'Start the wave', text: 'Build first: nothing moves until you start. After a wave the next one counts down by itself.', keys: ['Space'] },
   { id: 'train', group: 'Basics', title: 'The last train', text: 'At Mölnbo a train waits at the platform. It leaves when the clock runs out. Hold the base until then and the day is won, even with infected still on the streets.' },
   { id: 'base', group: 'Basics', title: 'The base', text: 'Every infected that reaches the base takes a point. At zero the day is lost and starts over with the force you went in with.' },
@@ -168,7 +172,7 @@ export const MANUAL = [
   { id: 'roofs', group: 'Units', title: 'Snipers', icon: 'psg90', text: 'The Psg 90 goes on flat roofs, the ridge by a chimney, or tall buildings. Height lets it see over the houses.' },
   { id: 'veterancy', group: 'Units', title: 'Veterans', icon: 'star', text: 'A unit that survives three won days earns a star: slightly better aim and reload.' },
   { id: 'losses', group: 'Units', title: 'Losses', icon: 'losses', text: 'Lose a day and it starts over with the force you went in with. Win, and the fallen stay lost until you refill them at the depot.' },
-  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Civilians walk the yellow line to the ice rink. Red patches show where the horde meets them: cover those first. Get enough of them inside and the day is won.' },
+  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to the ice rink, a few at a time. Red patches show where the horde meets them. Choose which to cover, and move your units when the next houses go.' },
   { id: 'minimap', group: 'Operation', title: 'Map', text: 'The map shows your units, the horde and where they come in. Click it to look there.', keys: ['Tab'] },
   { id: 'map', group: 'Operation', title: 'Operations map', text: 'Between days you pick the sector and read what command has sent.' },
   { id: 'rp', group: 'Operation', title: 'RP', text: 'Requisition points. Earned in battle by kills, waves and objectives, spent at the depot between days.' },

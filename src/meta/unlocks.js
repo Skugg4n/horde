@@ -8,17 +8,18 @@
 //   place, start, base   alltid (ställa ut, starta vågen, basen)
 //   manual               Field manual (J), från slutet av E4 dag 1
 //   supplies             förnödenhetsmätaren och köpen i striden; wire, block, car: hindren var för sig
-//   speed                fartknappen (F), efter första vågen E4 dag 2
-//   aim, rotate          sikta-dra och Rotate (R), E4 dag 3
+//   move                 Move (M), E4 dag 2 när Södertälje är på väg (0.16.4, förut South dag 4)
+//   aim, rotate, speed   sikta-dra, Rotate (R) och fartknappen (F), E4 dag 3
 //   opmap                operationskartan, efter E4 dag 3
 //   evac, minimap        evakueringen och minikartan (Tab), South dag 1
 //   route                hordens väg med etiketten V, South dag 2
 //   rp, depot, levels    RP-mätaren, förrådet och nivåer på egna enheter, efter South dag 2
-//   dormant, early       vilande hus och Next wave med bonus, South dag 3
 //   requisition          rekvisitionen i förrådet, efter South dag 3
-//   move                 Move (M) och waypoints, South dag 4
+//   dormant              vilande hus, South dag 4 (0.16.4, förut dag 3)
 //   upgrades             förrådets uppgraderingar, efter South dag 4
-//   unitSupplies         ammunition, sandsäckar och granatlådor på enheten, South dag 5
+//   early                Next wave med bonus, South dag 5 (0.16.4, förut dag 3)
+//   unitSupplies         ammunition, sandsäckar och granatlådor på enheten, North dag 1 (0.16.4, förut South dag 5)
+//   car                  skrotbilarna, North dag 2 (0.16.4, förut efter South dag 2)
 //   return               Return till förrådet, efter South dag 4. ('sectors': vilande, se src/data/depot.js SECTORS)
 //   pings, frontage      minikartans pingar framhävda (North dag 2), frontbredden och reserven (North dag 3)
 import { MAPS } from '../data/maps.js';
@@ -27,23 +28,26 @@ import { mapState, mapUnlocked } from './progress.js';
 export const STAGES = [
   { id: 'e4-1', map: 'riksvagen', day: 1, adds: ['place', 'start', 'base'] },
   { id: 'after-e4-1', after: ['riksvagen', 1], adds: ['manual'] },
-  { id: 'e4-2', map: 'riksvagen', day: 2, adds: ['supplies', 'wire', 'speed'] },
-  { id: 'e4-3', map: 'riksvagen', day: 3, adds: ['aim', 'rotate'] },
+  // 0.16.4 (Olas feedback, E4 dag 2): Move kommer här, fartknappen dag 3
+  { id: 'e4-2', map: 'riksvagen', day: 2, adds: ['supplies', 'wire', 'move'] },
+  { id: 'e4-3', map: 'riksvagen', day: 3, adds: ['aim', 'rotate', 'speed'] },
   { id: 'after-e4', after: ['riksvagen', 3], adds: ['opmap'] },
   { id: 'gn-1', map: 'gnesta', day: 1, adds: ['evac', 'minimap'] },
   { id: 'gn-2', map: 'gnesta', day: 2, adds: ['block', 'route'] },
-  { id: 'after-gn-2', after: ['gnesta', 2], adds: ['rp', 'depot', 'levels', 'car'] },
-  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['dormant', 'early'] },
+  { id: 'after-gn-2', after: ['gnesta', 2], adds: ['rp', 'depot', 'levels'] },
+  // 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): dag 3 Hemvärnet och Norra vägen, de vilande husen
+  // dag 4, Next wave med bonus dag 5, förnödenheterna på enheten och Psg 90 Vikingavägen dag 1, skrotbilarna dag 2
+  { id: 'gn-3', map: 'gnesta', day: 3, adds: [] },
   { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition'] },
-  { id: 'gn-4', map: 'gnesta', day: 4, adds: ['move'] },
+  { id: 'gn-4', map: 'gnesta', day: 4, adds: ['dormant'] },
   // 0.16.0: Return till förrådet kommer med uppgraderingarna. Omplaceringen och trycket mellan sektorerna
   // ('sectors') är vilande tills två skilda platser är aktiva samtidigt (Hagstumosse är en sektor).
   { id: 'after-gn-4', after: ['gnesta', 4], adds: ['upgrades', 'return'] },
-  { id: 'gn-5', map: 'gnesta', day: 5, adds: ['unitSupplies'] },
+  { id: 'gn-5', map: 'gnesta', day: 5, adds: ['early'] },
   // Hagstumosse · Vikingavägen: samma sektor, kartan vidgas norrut (Olas beslut 2026-10-16, "Gnesta = en sektor")
   { id: 'after-gn-5', after: ['gnesta', 5], adds: [] },
-  { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: [] },
-  { id: 'gnn-2', map: 'gnesta-norr', day: 2, adds: ['pings'] },
+  { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: ['unitSupplies'] },
+  { id: 'gnn-2', map: 'gnesta-norr', day: 2, adds: ['pings', 'car'] },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },
   { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: [] },
   { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: [] },
