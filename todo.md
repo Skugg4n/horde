@@ -343,3 +343,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H312 | grafik | Pillboxen som A-traktor (Volvo, kapat flak, LGF-triangel) och Volvo-kombi bland bilarna.
 - [ ] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup.
 - [ ] H314 | grafik | Kartans kant (fog of war / grå dis) finns bara i Mölnbo; ta till E4 och Hagstumosse om Ola gillar (b).
+- [ ] H440 | ux | Förrådet: två banor 'Into battle x/10' och 'Reserve · resting' (dra-och-släpp + klick), tydlig trötthet per enhet, rekvisition och uppgraderingar som visuellt olika delar, INTEL-panel om nästa strid (kända/okända fiendetyper, antal, riktningar, ärligt 'Unknown'). Pågår i 0.18.1. (Ola 2026-10-18)
