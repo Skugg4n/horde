@@ -233,3 +233,10 @@ Rutan: samma kortformat som rekvisitionen (streck, ikoner, en rad text, "2 days"
 6. **Nätterna:** tre (11, 15, 17) plus skymning dag 9. För många, för få? H310 sa "ibland". Natten på gården (15) kan vara gryning i stället om tre nätter blir för mörkt.
 7. **Västerkärv:** frivillig med deadline (mitt förslag) eller obligatorisk dag 15? Och får vännen på gården vara med vid namn (som frivillig med en stjärna), eller ska gården vara anonym?
 8. **Utvecklingsrutan:** åtta projekt, ett i taget, tid i dagar som pris. Är det "tänkt igenom" nog, eller vill du ha den helt bortkopplad från RP (bara tid) så att RP är trupp och ingenting annat?
+
+## 8. Olas inspel (2026-10-18): utbrott i hela Sverige, källan avslöjas gradvis
+
+- Utbrotten sker runt hela Sverige, oklart varför. Det förklarar att horden kommer från många håll. Vi stänger EN punkt: vår närmaste, troligen Björnlunda (grustaget).
+- Vi förstår inte direkt var huvudhotet kommer ifrån. I början blandade slag runt omkring; först efter hand blir det tydligt att Björnlunda är vårt största problem.
+- **Lägeskartan i större skala:** en karta (Södermanland, kanske med Sverige som inzoomning) där man ser underrättelser om större rörelser av zombier och vart de är på väg. Tidigt osäkert (breda, suddiga pilar, "unconfirmed"), sedan allt tydligare. Spårningen pekar till slut mot Björnlunda.
+- Förslag (Claude): underrättelser som egen resurs mellan dagarna. Hemvärnets patruller, en polishelikopter eller en drönare ger en rapport per dag som skärper en pil. Spelaren väljer vad som ska spanas, vilket också styr vilka skådeplatser som öppnas. Utanför vår region fortsätter det: slutet är lokal seger, Sverige brinner vidare (öppet för nästa kampanj).
