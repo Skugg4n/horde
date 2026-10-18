@@ -899,6 +899,15 @@ function updateSquadTags() {
   }
 }
 
+// 0.19.0 (H452): pendeltåget som rullar in (sim.arrival). Från förvarningen bromsar det in från diset i öster och står
+// vid perrongen när det kommer fram; dörrarna slås upp. Bara bild, läget följer simuleringens klocka.
+function updateInbound() {
+  const mb = scene.userData.molnbo, a = sim?.arrival, ib = sim?.map.inbound;
+  if (!mb?.inbound || !ib) return;
+  if (!a || sim.time < a.warnAt) { mb.inbound(null); return; }
+  const k = Math.min(1, (sim.time - a.warnAt) / Math.max(1e-6, a.at - a.warnAt));
+  mb.inbound(ib.uStop + ib.from * (1 - k) * (1 - k), sim.time >= a.open);
+}
 // ---------- enheternas läge (0.18.0, skiva 1) ----------
 // Under varje grupp och över varje pjäs: sanity som en smal stapel (när den är upplåst) och ett eller två ord om
 // läget: tyst, bemannas, viker, flydd, i hus, håller eld, trött, ammolådan. När en enhet bryts blinkar stapeln rött.
@@ -1149,8 +1158,16 @@ function handleEvents() {
       scene.userData.molnbo?.depart();
       const t = sim.map.x60;
       if (t && rig) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
-      note(uiRoot, ev.last ? 'The last train north is away. Mölnbo held.' : 'The train is away with everyone on board.', '', { prio: true, ms: 6000 });
+      note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with everyone on board.', '', { prio: true, ms: 6000 });
     }
+    // 0.19.0 (H452): pendeltåget rullar in. Signalen och raden, en ping på perrongen, och kameran glider dit en stund
+    // (spelaren väljer: flytta trupper mot perrongen eller hålla)
+    else if (ev.t === 'trainWarn') {
+      note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 9000 });
+      const ib = sim.map.inbound;
+      if (ib) { const [x, z] = sim.map.inbound.doors[Math.floor(ib.doors.length / 2)]; alerts.push({ x, z, until: time + 14, kind: 'barricade' }); }
+    }
+    else if (ev.t === 'trainDoors') { for (const [x, z] of ev.doors) view.fx.puff(x, z, 4); }
     else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
@@ -1377,7 +1394,7 @@ function activeSpawns() {
     if (w) { for (const g of w.groups) ids.add(g.spawn ?? first); next = firstOf(w).spawn ?? first; }
   } else if (sim.phase === 'wave') {
     // 0.12.0: de vilande i husen (q.door) kommer inte från någon ingång
-    const queue = sim.spawnQueue.filter(q => !q.door);
+    const queue = sim.spawnQueue.filter(q => !q.door && !q.train);
     for (const q of queue) ids.add(q.spawn ?? first);
     for (const z of sim.zombies) if (!z.dead && z.spawn) ids.add(z.spawn);
     if (queue.length) next = queue[0].spawn ?? first;
@@ -1433,7 +1450,7 @@ function gridEntries() {
       continue;
     }
     if (wave) {
-      const pending = sim.spawnQueue.some(q => !q.door && (q.spawn ?? sim.route.spawns[0].id) === id);
+      const pending = sim.spawnQueue.some(q => !q.door && !q.train && (q.spawn ?? sim.route.spawns[0].id) === id);
       const alive = sim.zombies.filter(z => !z.dead && z.spawn === id);
       const seen = alive.some(z => onScreen(z.x, z.z, 10).in);
       if (!isNext && (seen || (!pending && !alive.length))) continue;
@@ -1744,6 +1761,27 @@ function lessonWorldPts(t) {
     const on = cells.map(k => sim.route.cellCenter(k)).filter(q => !cr || (q.x > cr.x0 && q.x < cr.x1 && q.z > cr.z0 && q.z < cr.z1));
     const near = housesFor(sim).map(h => ({ h, d: Math.min(...on.map(q => Math.hypot(q.x - h.x, q.z - h.z))) })).filter(x => x.d < 16).sort((a, b) => a.d - b.d).slice(0, 4);
     for (const { h } of near) pts.push([h.x, h.z]);
+  }
+  // 0.19.0 (H450): husen längs en namngiven väg från dess början fram till basen (mb-2.houses: Stenbyvägen från
+  // korsningen vid caféet ner till Folkets hus), de två närmaste på varje sida
+  else if (w.startsWith('road:')) {
+    const rd = sim.map.roads?.find(r => r.id === w.slice(5)), P = rd?.pts ?? [];
+    if (rd) {
+      // närmaste punkt på vägen: avståndet, sidan och hur långt längs vägen
+      const proj = (x, z) => {
+        let best = Infinity, s = 0, at = 0, run = 0;
+        for (let i = 1; i < P.length; i++) {
+          const [ax, az] = P[i - 1], [bx, bz] = P[i], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+          const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)), d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+          if (d < best) { best = d; s = Math.sign(dx * (z - az) - dz * (x - ax)); at = run + t * Math.sqrt(L2); }
+          run += Math.sqrt(L2);
+        }
+        return { d: best, s, at };
+      };
+      const b = sim.route.base, end = b ? proj(b.x, b.z).at : Infinity;
+      const near = housesFor(sim).map(h => ({ h, ...proj(h.x, h.z) })).filter(x => x.d < 16 && x.at <= end).sort((a, b) => a.d - b.d);
+      for (const sd of [-1, 1]) for (const { h } of near.filter(x => x.s === sd).slice(0, 2)) pts.push([h.x, h.z]);
+    }
   }
   else if (w === 'xfzone') { for (const k of xfZones()?.keys ?? []) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'sanityLow') { const g = shakenUnit(); if (g) { const q = unitPos(g) ?? g; pts.push([q.x, q.z]); } }
@@ -2536,6 +2574,7 @@ function tick(now) {
   const pu = placementUi();
   const rot = updateRotate();
   updateEvac();
+  updateInbound();
   view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,

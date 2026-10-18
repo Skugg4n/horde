@@ -65,8 +65,8 @@ test('mellan dagarna: kartan efter E4, förrådet efter South dag 2, och sedan e
 
 test('texterna: högst 12 ord per steg och tips, 40 per uppslag, inga tankstreck', () => {
   for (const ls of Object.values(LESSONS)) for (const l of ls) {
-    // 0.18.1: mb-2.houses är Olas exakta text (19 ord), med avsikt längre
-    assert.ok(words(l.text) <= (l.id === 'mb-2.houses' ? 19 : 12), `${l.id}: ${l.text}`);
+    // 0.19.0 (H443): också mb-2.houses (förut Olas text på 19 ord, med undantag)
+    assert.ok(words(l.text) <= 12, `${l.id}: ${l.text}`);
     assert.doesNotMatch(l.text, /\u2014/);
     assert.ok(['step', 'show', 'caption'].includes(l.kind), l.id);
   }

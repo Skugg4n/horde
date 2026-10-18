@@ -30,6 +30,7 @@ export const VOICES = {
   ui:       { cap: 3, gap: 0.04, lag: 0 },
   bonus:    { cap: 1, gap: 0.3, lag: 0 },
   horn:     { cap: 1, gap: 2.0, lag: 0 },
+  trainHorn: { cap: 1, gap: 4.0, lag: 0 },
   stinger:  { cap: 1, gap: 2.0, lag: 0 },
   // 0.18.0: en enhet vacklar eller bryts (sanity), sällan och en i taget
   dread:    { cap: 1, gap: 3.0, lag: 0 },

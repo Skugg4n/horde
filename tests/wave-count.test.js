@@ -42,7 +42,7 @@ test('en källa: kvar = på kartan + inte släppta, ingångarnas tal summerar v�
       assert.equal(c.left, alive + sim.spawnQueue.length, where);
       assert.equal(c.alive + c.queued, c.left, where);
       assert.ok(c.left <= c.total, where);
-      if (sim.nextWaveIn == null) assert.equal(sumComing(sim), sim.spawnQueue.filter(q => !q.door).length, where);
+      if (sim.nextWaveIn == null) assert.equal(sumComing(sim), sim.spawnQueue.filter(q => !q.door && !q.train).length, where);
     }
   }
 });

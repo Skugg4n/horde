@@ -13,7 +13,8 @@
 //   - gångbron är en egen bro väster om vägbron, med ett trapptorn vid varje perrong
 //   - ingen annan passage över eller under spåret; ån har ingen gångbar väg under banan
 //   - Trollvägen når Fagernäsvägen, och vägen förbi hyreshusen vid Kvarnen går igenom till Gnestavägen
-//   - basen är Folkets hus (Olas beslut), målet "håll tills sista tåget norrut gått" (dag 3 till 5)
+//   - basen är Folkets hus (Olas beslut), målet "håll tills sista tåget gått" (dag 3 till 5)
+//   - 0.19.0 (H450): horden kommer från Järna och Södertälje i nordost och drar mot Gnesta i sydväst
 //   - Mölnbo är inte kampanjens final
 import { makeRng } from '../sim/rng.js';
 import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
@@ -345,15 +346,27 @@ function fogPoint(id, out = SPAWN_OUT) {
   }
   throw new Error('ingen dimkant på ' + id);
 }
+// 0.19.0 (H450, Olas rättelse): horden kommer från Järna och Södertälje i nordost (väg 57 och banan) och drar mot Gnesta i
+// sydväst, inte tvärtom. S1 väg 57 norrifrån över bron, S3 Fagernäsvägen österifrån längs spåret, S4 Norrbacken i
+// nordost (norr om spåret). S2 Stenbyvägen söderifrån är en mindre flankgrupp (H451, dag 2 och 5), S5 banvallen
+// västerifrån är dag 5:s överraskning (de som gått runt). Gnestavägen, Kvarnvägen och Krokvägen har ingen ingång.
 export const SPAWNS = [
-  { id: 's1', name: 'Gnestavägen', day: 1, at: fogPoint('gnestavagen') },
-  { id: 's2', name: 'Stenbyvägen', day: 2, at: fogPoint('stenby') },
-  { id: 's3', name: 'Fagernäs', day: 3, at: fogPoint('fagernas') },
-  { id: 's4', name: 'Krokvägen', day: 4, at: fogPoint('krok') },
-  { id: 's4n', name: 'Väg 57 north', day: 5, at: fogPoint('v57n') },
+  { id: 's1', name: 'Väg 57 north', day: 1, at: fogPoint('v57n') },
+  { id: 's2', name: 'Stenbyvägen south', day: 2, at: fogPoint('stenby') },
+  { id: 's3', name: 'Fagernäsvägen east', day: 3, at: fogPoint('fagernas') },
+  { id: 's4', name: 'Norrbacken', day: 4, at: fogPoint('norrback', 12) },
   { id: 's5', name: 'The tracks', day: 5, at: fogPoint('bank') },
 ];
 export const BASE = { at: FOLKETS.entrance };
+// 0.19.0 (H452): pendeltåget som rullar in dag 4 stannar på spår 1 vid norra perrongen, lika långt som X60 vid södra.
+// Dörrarna (två per vagn och sida) slås upp mot perrongen; de som kliver ut står på perrongen vid dörren och tar trappan
+// upp till gångbron. INBOUND: tåget i järnvägens ram (render/molnbo-world.js ritar det), DOORS i världen.
+export const INBOUND = (() => {
+  const u0 = X60.u0, u1 = X60.u1, v = RAIL.tracks[0], n = X60.cars, Lc = (u1 - u0) / n, cl = Lc - 0.5;
+  const doorsU = [];
+  for (let i = 0; i < n; i++) { const cx = u0 + (i + 0.5) * Lc; doorsU.push(cx - 0.28 * cl, cx + 0.28 * cl); }
+  return { u0, u1, v, uStop: (u0 + u1) / 2, from: 260, doorsU, doors: doorsU.map(u => R(u, RAIL.platformN.v0 + 1.6)) };
+})();
 
 // ---------- rutnätet ----------
 // 2 m-rutor, samma regler som Gnesta (src/data/gnesta.js townGrid): gångbart där en gångbar väg eller yta
@@ -627,11 +640,11 @@ export function molnboPlacement(grid) {
 // ---------- dagarna ----------
 // En ny idé per dag (docs/superpowers/specs/2026-10-16-onboarding-design.md). Spelaren kommer från
 // Hagstumosse med hela truppen och allt förrådet har; det nya här är det som platsen själv ger.
-//  1 Mölnbo station   höjden: trapptornen och stationstaket för Psg 90 (S1)
-//  2 Stenbyvägen      det övergivna X60: skydd bakom tåget och taket att ligga på (S1, S2)
-//  3 Sista tåget      tågklockan: håll tills tåget går (S1 till S3)
-//  4 Norra sidan      bron som flaskhals: horden norr om spåret (S1 till S4)
-//  5 Längs spåret     horden på banvallen och upp på perrongen (S5), sista tåget norrut (alla)
+//  1 Mölnbo station   höjden: trapptornen och stationstaket för Psg 90 (S1, väg 57 norrifrån över bron)
+//  2 Stenbyvägen      husen längs Stenbyvägen (S1, en mindre grupp söderifrån S2)
+//  3 Sista tåget      tågklockan: håll tills tåget går (S1, S3 österifrån)
+//  4 Norra sidan      bron som flaskhals: horden norr om spåret (S1, S3, S4), pendeltåget som rullar in fullt
+//  5 Längs spåret     horden på banvallen och upp på perrongen (S5), sista tåget (alla)
 // train: { at } sekunder efter första vågens start går tåget, och dagen är vunnen om basen står (src/sim/sim.js).
 // Balansen: docs/balance-log.md, Mölnbo. 0.17.0 (sammanslagningen med 0.16.4, löparnas snubbel): dag 3 hp 16,5 till 17,5,
 // dag 4 32 till 31, dag 5 15 till 16.
@@ -643,40 +656,49 @@ export const DAYS = [
   // 0.17.1 (speltestet av 0.17.0: 14, 56 och 88 med överlapp, ingen vann dag 1 på två försök): jämnare vågor och
   // ingen överlapp dag 1 och 2 (nästa våg väntar tills den förra är klar). Överlappen kommer dag 3 med tåget, och
   // dagens första rad varnar.
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 18, intro: { title: 'Day 1: Mölnbo station', text: 'High ground. Snipers on the stair towers see the whole road.' },
-    waves: [ say('Along Gnestavägen, from Gnesta.', { groups: [g('walker', 10, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
+  // 0.19.0 (H450): horden från Järna i nordost. Dag 1 väg 57 norrifrån över bron, där trapptornen ser vägen.
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 18, intro: { title: 'Day 1: Mölnbo station', text: 'From Järna down väg 57. Snipers on the stair towers see it.' },
+    waves: [ say('Down väg 57, from Järna.', { groups: [g('walker', 10, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              { groups: [g('walker', 22, 0.5, 0, 's1'), g('runner', 8, 0.6, 10, 's1')] },
              { groups: [g('walker', 30, 0.42, 0, 's1'), tell('Runners behind them!', g('runner', 12, 0.45, 14, 's1')), g('brute', 1, 4, 22, 's1')] } ] },
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, intro: { title: 'Day 2: Stenbyvägen', text: 'Armoured ones on Stenbyvägen. Put squads in the houses on both sides and make it a street they must walk.' },
-    waves: [ say('Gnestavägen again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
+  // 0.19.0 (H450, H451): horden över bron och ner längs Stenbyvägen mot Folkets hus; en mindre grupp söderifrån.
+  // H443: introt högst tolv ord.
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, intro: { title: 'Day 2: Stenbyvägen', text: 'Armoured ones on Stenbyvägen. Put squads in the houses on both sides.' },
+    waves: [ say('Väg 57 again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              // 0.18.0 (skiva 1, kampanjplanens dag 9): de pansrade. Småkaliber biter knappt; Ksp 88 och granaterna tar dem.
-             say('From the south, up Stenbyvägen!', { groups: [g('walker', 36, 0.45, 0, 's2'), g('walker', 30, 0.45, 4, 's1'), tell('Armoured ones on Stenbyvägen! Small arms barely bite.', g('armored', 3, 2.4, 10, 's2'))] }),
-             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's2'), g('crawler', 8, 1.2, 12, 's1'), g('brute', 3, 3.5, 20, 's2')] },
-             { groups: [g('walker', 50, 0.3, 0, 's2'), g('walker', 46, 0.3, 0, 's1'), tell('Brutes on Gnestavägen!', g('brute', 4, 3, 18, 's1')), g('armored', 4, 2, 10, 's2'), g('runner', 30, 0.35, 26, 's2')] } ] },
+             say('A smaller group from the south, up Stenbyvägen!', { groups: [g('walker', 18, 0.6, 0, 's2'), g('walker', 48, 0.4, 4, 's1'), tell('Armoured ones on Stenbyvägen! Small arms barely bite.', g('armored', 3, 2.4, 10, 's1'))] }),
+             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's1'), g('crawler', 8, 1.2, 12, 's1'), g('brute', 3, 3.5, 20, 's1')] },
+             { groups: [g('walker', 50, 0.3, 0, 's1'), g('walker', 46, 0.3, 14, 's1'), tell('Brutes on väg 57!', g('brute', 4, 3, 18, 's1')), g('armored', 4, 2, 10, 's1'), g('runner', 30, 0.35, 26, 's1')] } ] },
   { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 17.5, overlap: 50, train: { at: 420 },
     intro: { title: 'Day 3: The last train', text: 'Hold until the train leaves. It will not wait.' },
     objective: 'Hold Folkets hus until the train leaves.',
     waves: [ say('From today the next wave will not wait for this one.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
-             say('From Fagernäs, through the ravine!', { groups: [g('walker', 40, 0.4, 0, 's3'), g('walker', 30, 0.45, 6, 's2')] }),
-             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('crawler', 10, 1.0, 8, 's3'), g('brute', 3, 3, 16, 's2')] },
-             { groups: [g('walker', 60, 0.28, 0, 's2'), g('walker', 50, 0.3, 4, 's1'), tell('Runners from the ravine!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
-             { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('armored', 5, 2, 14, 's1'), g('brute', 5, 2.5, 10, 's2')] } ] },
+             say('From the east, along Fagernäsvägen!', { groups: [g('walker', 40, 0.4, 0, 's3'), g('walker', 30, 0.45, 6, 's1')] }),
+             { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('crawler', 10, 1.0, 8, 's3'), g('brute', 3, 3, 16, 's1')] },
+             { groups: [g('walker', 60, 0.28, 0, 's3'), g('walker', 50, 0.3, 4, 's1'), tell('Runners along Fagernäsvägen!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
+             { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('armored', 5, 2, 14, 's1'), g('brute', 5, 2.5, 10, 's3')] } ] },
+  // 0.19.0 (H450): norr om spåret från Norrbacken; (H452) pendeltåget som rullar in fullt.
+  // arrival (H452): 30 s in i tredje vågen står pendeltåget vid norra perrongen; förvarningen 9 s före. 50 kliver ut.
   { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 38, overlap: 50, train: { at: 380 },
-    intro: { title: 'Day 4: North side', text: 'They are north of the tracks. Close the bridges.' },
+    arrival: { wave: 2, at: 30, warn: 9, doors: INBOUND.doors,
+      groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
+    intro: { title: 'Day 4: North side', text: 'More of them north of the tracks. Close the bridges.' },
     objective: 'Hold Folkets hus until the train leaves.',
-    waves: [ say('Gnestavägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('runner', 4, 0.8, 6, 's1')] }),
-             say('North of the tracks, along Krokvägen!', { groups: [g('walker', 36, 0.35, 0, 's4'), g('runner', 12, 0.5, 12, 's4')] }),
-             { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 29, 0.35, 4, 's2'), g('armored', 4, 2, 8, 's2'), g('brute', 4, 3, 14, 's4')] },
+    waves: [ say('Väg 57.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('runner', 4, 0.8, 6, 's1')] }),
+             say('North of the tracks, along Norrbacken!', { groups: [g('walker', 36, 0.35, 0, 's4'), g('runner', 12, 0.5, 12, 's4')] }),
+             { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 29, 0.35, 4, 's3'), g('armored', 4, 2, 8, 's3'), g('brute', 4, 3, 14, 's4')] },
              { groups: [g('runner', 36, 0.25, 0, 's4'), g('walker', 36, 0.3, 4, 's1'), g('walker', 29, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
-             { groups: [g('walker', 46, 0.26, 0, 's4'), g('runner', 29, 0.3, 8, 's2'), g('crawler', 10, 1.0, 4, 's4'), g('armored', 4, 2, 16, 's4'), g('brute', 4, 3, 14, 's4')] } ] },
+             { groups: [g('walker', 46, 0.26, 0, 's4'), g('runner', 29, 0.3, 8, 's3'), g('crawler', 10, 1.0, 4, 's4'), g('armored', 4, 2, 16, 's4'), g('brute', 4, 3, 14, 's4')] } ] },
+  // 0.19.0 (H450): "the last train north" stämmer inte när horden kommer norrifrån; tåget heter nu bara det sista.
+  // Banvallen västerifrån är de som gått runt.
   { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 15, overlap: 50, train: { at: 420, last: true },
-    intro: { title: 'Day 5: Along the tracks', text: 'The last train north. Everyone who can, gets on.' },
+    intro: { title: 'Day 5: Along the tracks', text: 'The last train out. Everyone who can, gets on.' },
     objective: 'Hold Folkets hus until the last train leaves.',
-    waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('walker', 7, 0.7, 4, 's2')] }),
-             say('North of the tracks!', { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 22, 0.4, 4, 's4n'), g('runner', 14, 0.4, 12, 's1')] }),
-             say('On the tracks! Up onto the platform!', { groups: [g('walker', 29, 0.35, 0, 's5'), g('runner', 22, 0.3, 8, 's5'), g('walker', 29, 0.35, 4, 's3')] }),
-             { groups: [g('walker', 36, 0.28, 0, 's4'), g('runner', 29, 0.3, 4, 's2'), g('armored', 5, 2, 6, 's2'), g('brute', 4, 3, 10, 's4n'), g('walker', 29, 0.3, 10, 's5')] },
-             { groups: [g('walker', 34, 0.3, 0, 's1'), g('walker', 30, 0.34, 0, 's5'), g('crawler', 10, 1.0, 4, 's1'), g('runner', 29, 0.3, 10, 's4'), g('armored', 6, 1.8, 8, 's1'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
+    waves: [ say('Fagernäsvägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's3', 14), g('walker', 7, 0.7, 4, 's2')] }),
+             say('North of the tracks!', { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 22, 0.4, 4, 's1'), g('runner', 14, 0.4, 12, 's3')] }),
+             say('Some went round. On the tracks from the west!', { groups: [g('walker', 29, 0.35, 0, 's5'), g('runner', 22, 0.3, 8, 's5'), g('walker', 29, 0.35, 4, 's3')] }),
+             { groups: [g('walker', 36, 0.28, 0, 's4'), g('runner', 29, 0.3, 4, 's2'), g('armored', 5, 2, 6, 's2'), g('brute', 4, 3, 10, 's1'), g('walker', 29, 0.3, 10, 's5')] },
+             { groups: [g('walker', 34, 0.3, 0, 's3'), g('walker', 30, 0.34, 0, 's5'), g('crawler', 10, 1.0, 4, 's3'), g('runner', 29, 0.3, 10, 's4'), g('armored', 6, 1.8, 8, 's3'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
 ];
 
 // 0.17.1 (speltestet av 0.17.0, dag 4: "bara våg 1 visar en rutt, Krokvägen-vågen visar ingen rutt före start"): varje
@@ -697,7 +719,7 @@ export const molnbo = {
   outro: { text: 'The last train is through. Mölnbo station held long enough.' },
   camera: { target: R(-6, 20), view: 56, zoom: [24, 84], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
-  roads: ROADS, ground: GROUND, rail: RAIL, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
+  roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
   buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,
   spawns: SPAWNS, base: BASE, surroundings: MOLNBO_SURROUNDINGS,
   // 0.17.2 (H307): järnvägens ram för fotavtrycken (src/data/footprints.js), gärdsgården och trädgårdarna

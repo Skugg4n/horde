@@ -9,7 +9,7 @@ import { fogSheet } from './gnesta-ghost.js';
 import { createFortify } from './fortify.js';
 import { pattern } from './gnesta-world.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
-import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS } from '../data/molnbo.js';
+import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS, INBOUND } from '../data/molnbo.js';
 import {
   MP, seg, bridge, stairTower, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
   cafeHarmoni, missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn,
@@ -435,13 +435,45 @@ export function buildMolnbo(scene, map) {
   setEdge(EDGE_DEFAULT);
 
   // ---------- tåget som går (dag 3 till 5) ----------
-  // depart(): tåget rullar ut österut (mot Järna och Stockholm), accelererar och försvinner i diset.
+  // depart(): tåget rullar ut, accelererar och försvinner i diset.
+  // 0.19.0 (H450): västerut, mot Gnesta, bort från horden som kommer från Järna (förut österut).
   let dep = null;
-  const home = new THREE.Vector3(tx, 0, tz), dir = new THREE.Vector3(Math.cos(RAIL_RY), 0, -Math.sin(RAIL_RY));
+  const home = new THREE.Vector3(tx, 0, tz), dir = new THREE.Vector3(-Math.cos(RAIL_RY), 0, Math.sin(RAIL_RY));
+  // ---------- pendeltåget som rullar in (0.19.0, H452, Mölnbo dag 4) ----------
+  // Samma X60 på spår 1 vid norra perrongen. inbound(u, open): tågets mitt längs spåret (null = inget tåg), och
+  // dörrarna mot perrongen uppslagna (mörka hål, en dörr som hänger snett).
+  const ib = createBatch();
+  x60(ib, null, { w: INBOUND.u1 - INBOUND.u0, cars: X60D.cars });
+  const inbound = new THREE.Group(); inbound.name = 'x60-inbound';
+  ib.flush(inbound);
+  const broken = new THREE.Group(); broken.name = 'x60-doors';
+  {
+    // båda sidor (kameran ser södra sidan; de kliver ut på perrongen i norr)
+    const bb = createBatch();
+    for (const sd of [-1, 1]) {
+      const side = sd * (3.2 / 2 + 0.07);
+      INBOUND.doorsU.forEach((u, i) => {
+        const lx = u - INBOUND.uStop;
+        bb.box(null, lx, 1.45, side, 1.3, 2.2, 0.05, '#0d0e0f');
+        bb.box(null, lx + (i % 2 ? 0.75 : -0.75), 1.3, side + sd * 0.25, 0.7, 2.1, 0.05, MP.x60Door, 'paint', 0, i % 2 ? 0.5 : -0.5, 0.08);
+      });
+    }
+    bb.flush(broken);
+  }
+  inbound.add(broken);
+  inbound.rotation.y = RAIL_RY; inbound.visible = false;
+  scene.add(inbound);
   scene.userData.molnbo = {
     depart() { if (!dep) dep = { t: 0 }; },
-    reset() { dep = null; train.position.copy(home); train.visible = true; },
+    reset() { dep = null; train.position.copy(home); train.visible = true; inbound.visible = false; },
     get departed() { return !!dep; },
+    inbound(u, open = false) {
+      inbound.visible = u != null;
+      if (u == null) return;
+      const [x, z] = R(u, INBOUND.v);
+      inbound.position.set(x, 0, z);
+      broken.visible = open;
+    },
   };
   const update = dt => {
     if (!dep) return;

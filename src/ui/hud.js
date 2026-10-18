@@ -13,7 +13,9 @@ export function waveGroups(dayCfg, index) {
   const wave = dayCfg.waves[index];
   if (!wave) return [];
   return [...wave.groups.map(g => ({ type: g.type, count: g.count })),
-    ...(dayCfg.dormant ?? []).filter(d => (d.wave ?? 0) === index).map(d => ({ type: d.type ?? 'walker', count: d.count }))];
+    ...(dayCfg.dormant ?? []).filter(d => (d.wave ?? 0) === index).map(d => ({ type: d.type ?? 'walker', count: d.count })),
+    // 0.19.0 (H452): de som kliver ur pendeltåget hör till vågen tåget kommer i
+    ...(dayCfg.arrival?.wave === index ? dayCfg.arrival.groups.map(g => ({ type: g.type, count: g.count })) : [])];
 }
 export const waveSize = (dayCfg, index) => waveGroups(dayCfg, index).reduce((a, g) => a + g.count, 0);
 export function waveText(dayCfg, index) {
@@ -58,7 +60,8 @@ export function waveLabel(c, cleared = null) {
   return cleared != null && cleared < c.wave && cleared > 0 ? `${base} · ${cleared} cleared` : base;
 }
 // Vad som ännu kommer från varje ingång: före en våg hela vågens grupper, under vågen de som inte släppts (och
-// med överlapp nästa vågs grupper). Summan över ingångarna plus de vilande i husen är waveCounts().queued.
+// med överlapp nästa vågs grupper). Summan över ingångarna plus de vilande i husen (och pendeltågets, H452) är
+// waveCounts().queued.
 // Map ingång -> [[typ, antal], ...] i fast ordning per typ.
 export function comingBySpawn(sim) {
   const first = sim.route.spawns?.[0]?.id, out = new Map();
@@ -70,7 +73,7 @@ export function comingBySpawn(sim) {
   if (sim.phase === 'build') {
     for (const g of waves[sim.wavesStarted]?.groups ?? []) add(g.spawn ?? first, g.type, g.count);
   } else if (sim.phase === 'wave') {
-    for (const q of sim.spawnQueue) if (!q.door) add(q.spawn ?? first, q.type, 1);
+    for (const q of sim.spawnQueue) if (!q.door && !q.train) add(q.spawn ?? first, q.type, 1);
     const w = sim.nextWaveIn != null && waves[sim.wavesStarted];
     if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
   }

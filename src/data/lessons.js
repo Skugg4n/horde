@@ -126,8 +126,10 @@ export const LESSONS = {
   ],
   'mb-2': [
     // 0.18.1 (Olas speltest: "tåget är skydd" förvirrade, grupperna där var bara mål för horden; husen lärs först på
-    // Vikingavägen dag 5): villorna på båda sidor om Stenbyvägen. Olas exakta text, längre än tolv ord med avsikt.
-    { id: 'mb-2.houses', kind: 'show', when: 'start', target: { world: 'street:s2' }, text: 'Put a squad in a house on each side of Stenbyvägen. They shoot down the street from the windows.', manual: 'garrison' },
+    // Vikingavägen dag 5): villorna på båda sidor om Stenbyvägen.
+    // 0.19.0 (H443): högst tolv ord. (H450): horden går Stenbyvägen från korsningen vid caféet ner mot Folkets hus, så
+    // lektionen pekar på husen längs vägen (road:stenby), inte på ingången söderifrån.
+    { id: 'mb-2.houses', kind: 'show', when: 'start', target: { world: 'road:stenby' }, text: 'Squads in houses on both sides of Stenbyvägen. They must walk it.', manual: 'garrison' },
   ],
   'mb-3': [
     { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'The train leaves when the clock runs out. Hold until then.', manual: 'train' },
@@ -138,7 +140,7 @@ export const LESSONS = {
     { id: 'mb-4.hold', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Hold fire: they walk into the ambush. Select a unit, press', keys: ['H'], manual: 'holdFire' },
   ],
   'mb-5': [
-    { id: 'mb-5.last', kind: 'caption', when: 'start', target: { ui: '#train' }, text: 'The last train north. Hold until it leaves.' },
+    { id: 'mb-5.last', kind: 'caption', when: 'start', target: { ui: '#train' }, text: 'The last train out. Hold until it leaves.' },
     // 0.18.0 (skiva 1, kampanjplanens centrum dag 16): överrända pjäser
     { id: 'mb-5.overrun', kind: 'show', when: 'silent', target: { world: 'silent' }, text: 'A gun crew is down. Recrew it, or send a squad.', keys: ['N'], manual: 'overrun' },
   ],

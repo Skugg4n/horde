@@ -28,8 +28,8 @@ test('Mölnbo är en bana efter Hagstumosse, med fem dagar och korta intron', ()
   assert.deepEqual(molnbo.unlock, { map: 'gnesta-norr', day: 5 });
   for (const d of molnbo.days) {
     assert.match(d.intro.title, /^Day \d: /);
-    // 0.18.1: dag 2 är Olas exakta text om husen längs Stenbyvägen (20 ord), med avsikt längre
-    assert.ok(d.intro.text.split(/\s+/).length <= (d.n === 2 ? 20 : 12), d.intro.text);
+    // 0.19.0 (H443): också dag 2 (förut Olas text på 20 ord, med undantag)
+    assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
     assert.doesNotMatch(JSON.stringify(d), /\u2014/);
   }
   // tågklockan från dag 3, det sista tåget dag 5

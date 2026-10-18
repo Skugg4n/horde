@@ -394,6 +394,22 @@ const horn = { group: 'horn', dur: 3.4, play(A, t, o, out) {
   }
   chain(lp, g, out); send(A, g, 0.5);
 } };
+// 0.19.0 (H452): pendeltågets signal, två toner (en lång och en kort) som ett X60 när det närmar sig, lite avlägsen.
+const trainHorn = { group: 'trainHorn', dur: 3.2, play(A, t, o, out) {
+  const { ctx } = A, lp = filt(ctx, 'lowpass', 1800, 0.8), g = ctx.createGain();
+  g.gain.value = 1;
+  for (const [t0, len, f] of [[0, 1.3, 370], [1.45, 0.6, 311], [2.2, 0.9, 370]]) {
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t + t0); env.gain.exponentialRampToValueAtTime(0.16, t + t0 + 0.06);
+    env.gain.setValueAtTime(0.16, t + t0 + len - 0.1); env.gain.exponentialRampToValueAtTime(0.0001, t + t0 + len);
+    for (const [m, typ] of [[1, 'sawtooth'], [1.26, 'square'], [0.5, 'triangle']]) {
+      const os = ctx.createOscillator(); os.type = typ; os.frequency.setValueAtTime(f * m, t + t0);
+      os.connect(env); os.start(t + t0); os.stop(t + t0 + len + 0.05);
+    }
+    env.connect(lp);
+  }
+  chain(lp, g, out); send(A, g, 0.6);
+} };
 // Dagens slut: vunnen = mörk dur som lyfter, förlorad = dissonans som sjunker.
 const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   const { ctx } = A, won = o.kind === 'won', lp = filt(ctx, 'lowpass', won ? 700 : 900, 1), g = ctx.createGain();
@@ -410,4 +426,4 @@ const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   chain(lp, g, out); send(A, g, 0.6);
 } };
 
-export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, clang, dread, kill, groan, knock, crunch, snap, snag, strain, breach, alarm, ui, bonus, horn, stinger };
+export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, clang, dread, kill, groan, knock, crunch, snap, snag, strain, breach, alarm, ui, bonus, horn, trainHorn, stinger };

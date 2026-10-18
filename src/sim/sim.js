@@ -220,6 +220,33 @@ function runTrain(sim, dt) {
   sim.phase = 'won'; sim.events.push({ t: 'won' });
 }
 
+// ---------- pendeltåget som rullar in (0.19.0, H452) ----------
+// Mölnbo dag 4: mitt i striden rullar ett pendeltåg in från Järna och stannar vid norra perrongen. Dörrarna slås upp
+// och de som sitter i väller ut. dayCfg.arrival = { wave, at, warn, doors: [[x, z]], groups: [{ type, count,
+// interval, delay }] }: at sekunder efter att vågen wave (index) startat står tåget vid perrongen; warn sekunder före
+// kommer förvarningen (signalen och raden), ARRIVAL_DOORS sekunder efter stoppet går dörrarna och de kliver ut i tur och
+// ordning, fördelade på dörrarna. De räknas till vågen. Deterministiskt: allt följer vågens start.
+export const ARRIVAL_DOORS = 1.2;
+function scheduleArrival(sim, index) {
+  const ar = sim.dayCfg.arrival;
+  if (!ar || ar.wave !== index) return;
+  const kc = sim.tweaks?.count ?? 1, at = sim.time + ar.at;
+  const doors = ar.doors.map(([x, z]) => ({ x, z, cell: sim.route.nearestCell ? sim.route.nearestCell(x, z) : -1 }));
+  sim.arrival = { warnAt: at - ar.warn, at, open: at + ARRIVAL_DOORS, warned: false, arrived: false, opened: false, doors: doors.map(d => [d.x, d.z]) };
+  let i = 0;
+  for (const g of ar.groups) {
+    const n = kc === 1 ? g.count : Math.max(1, Math.round(g.count * kc));
+    for (let k = 0; k < n; k++, i++) sim.spawnQueue.push({ at: sim.arrival.open + (g.delay ?? 0) + k * g.interval, type: g.type, wave: index, cell: doors[i % doors.length].cell, train: true });
+  }
+}
+function runArrival(sim) {
+  const a = sim.arrival;
+  if (!a) return;
+  if (!a.warned && sim.time >= a.warnAt - 1e-9) { a.warned = true; sim.events.push({ t: 'trainWarn', in: a.at - sim.time }); }
+  if (!a.arrived && sim.time >= a.at - 1e-9) { a.arrived = true; sim.events.push({ t: 'trainArrive' }); }
+  if (!a.opened && sim.time >= a.open - 1e-9) { a.opened = true; sim.events.push({ t: 'trainDoors', doors: a.doors }); }
+}
+
 function launch(sim) {
   const index = sim.wavesStarted;
   const wave = sim.dayCfg.waves[index];
@@ -238,6 +265,7 @@ function launch(sim) {
     if (dl > 0) (sim.pendingBursts ??= []).push({ at: sim.time + dl, ev });
     else { sim.burst.push(d.house); sim.events.push(ev); }
   }
+  scheduleArrival(sim, index);
   sim.spawnQueue.sort((a, b) => a.at - b.at || a.wave - b.wave);
   scheduleCivilians(sim, index);
   sim.wavesStarted++;
@@ -349,7 +377,8 @@ function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door
   const id = sim.nextId++;
   const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1) * (sim.hpMul ?? 1) * (sim.tweaks?.hp ?? 1);
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
-  const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : sim.route.spawn(sim.rng, spawnId, id);
+  // 0.19.0 (H452): de som kliver ur pendeltåget kommer ut på perrongen vid dörren (cell)
+  const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : cell >= 0 ? sim.route.spawnAt(sim.rng, cell, id) : sim.route.spawn(sim.rng, spawnId, id);
   const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
   if (lead > 0) {
     const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
@@ -406,6 +435,7 @@ export function step(sim, dt) {
     runSoldiers(sim, dt);
     runMoves(sim, dt);
     runCivilians(sim, dt);
+    runArrival(sim);
     landGrenades(sim, dt);
     runSanity(sim, dt, null);
     runRetreats(sim);
@@ -420,6 +450,7 @@ export function step(sim, dt) {
   if (sim.phase !== 'wave') return;
   sim.time += dt;
   if (sim.pendingBursts?.length) for (const b of sim.pendingBursts.filter(q => q.at <= sim.time)) { sim.pendingBursts.splice(sim.pendingBursts.indexOf(b), 1); sim.burst.push(b.ev.house); sim.events.push(b.ev); }
+  runArrival(sim);
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
   // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
   const ov = sim.dayCfg.overlap;

@@ -146,13 +146,13 @@ export const RELEASES = [
     text: 'An empty X60 stands at the south platform. Use it as cover.',
     stock: { inf: 1, ak5: 1 } },
   { id: 'mb-3', map: 'molnbo', day: 3, from: 'MCF',
-    text: 'One train north tonight. It leaves on time, with or without you holding.',
+    text: 'One train out tonight. It leaves on time, with or without you holding.',
     grant: [{ type: 'hv' }], stock: { ksp58: 1, m249: 1 } },
   { id: 'mb-4', map: 'molnbo', day: 4, from: 'FM',
-    text: 'They have crossed north of the tracks. The bridge is the only way over.',
+    text: 'More are coming north of the tracks from Järna. The bridge is the only way over.',
     grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1 } },
   { id: 'mb-5', map: 'molnbo', day: 5, from: 'FM',
-    text: 'The last train north. Everything we have left is at Mölnbo.',
+    text: 'The last train out. Everything we have left is at Mölnbo.',
     stock: { ksp58: 1, inf: 1, ak5: 1 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;

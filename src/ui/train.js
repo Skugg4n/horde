@@ -28,8 +28,8 @@ export function mountTrain(root) {
       key = k;
       el.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the train leaves.';
       el.querySelector('.n').innerHTML = tr.gone ? '<b>The train is away.</b>'
-        : sim.wavesStarted === 0 ? `${tr.last ? 'Last train north' : 'Train north'} leaves <b>${fmt(tr.at)}</b> after the first wave`
-          : `${tr.last ? 'Last train north' : 'Train north'} leaves in <b>${fmt(tr.left)}</b>`;
+        : sim.wavesStarted === 0 ? `${tr.last ? 'Last train' : 'Train'} leaves <b>${fmt(tr.at)}</b> after the first wave`
+          : `${tr.last ? 'Last train' : 'Train'} leaves in <b>${fmt(tr.left)}</b>`;
       el.querySelector('.safe').style.width = (100 * (1 - tr.left / tr.at)).toFixed(2) + '%';
     },
     reset() { key = ''; },
