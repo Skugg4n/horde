@@ -34,7 +34,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, garrisonHouseAt, TARGET_NAME, RECREW } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -877,7 +877,8 @@ function updateSquadTags() {
       });
       pips.appendChild(el); squadTags.set(id, el);
     }
-    const up = g.soldiers.filter(q => !q.down);
+    // 0.18.0: de som springer (flytt, vik, flykt) räknas där de är just nu
+    const up = g.soldiers.filter(q => !q.down).map(q => (q.run > 0 ? soldierAt(q) : q));
     const cx = up.reduce((a, q) => a + q.x, 0) / (up.length || 1), cz = up.reduce((a, q) => a + q.z, 0) / (up.length || 1);
     tmpV.set(up.length ? cx : g.x, g.house ? 6.2 : 2.4, up.length ? cz : g.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
@@ -931,7 +932,7 @@ function updateUnitStatus() {
     const f = unitFlash.get(g.id);
     el.classList.toggle('broke', !!f && f.until > time && f.kind === 'broke');
     el.classList.toggle('waver', !!f && f.until > time && f.kind === 'waver');
-    const at = g.squad ? (() => { const up = g.soldiers.filter(q => !q.down); return up.length ? { x: up.reduce((a, q) => a + q.x, 0) / up.length, z: up.reduce((a, q) => a + q.z, 0) / up.length } : g; })() : g;
+    const at = g.squad ? (unitPos(g) ?? g) : g.move ? gunPos(g) : g;
     tmpV.set(at.x, g.squad ? (g.house ? 6.2 : 2.4) : (g.y ?? 0) + (g.house ? 4.2 : 2.2), at.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.classList.toggle('squad', !!g.squad && !!SQUAD_TAG[g.weapon.type]);

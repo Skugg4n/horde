@@ -1,5 +1,41 @@
 # Ändringslogg
 
+## 0.18.0: strategiskt djup, skiva 1 (2026-10-18)
+
+Spelet får verb mitt i striden och fiender som kräver rätt vapen (docs/superpowers/specs/2026-10-18-strategiskt-djup.md, Olas beslut i avsnitt 7). Varje mekanik kommer på en dag i kampanjen, ett begrepp per dag, med en lektion på högst 12 ord och ett uppslag i Field manual.
+
+Skadeklasser och två nya fiender. Vapnen har en skadeklass: småkaliber (5,56 och 7,62: Ksp 90, Ksp 58, Ak 5, Psg 90 och gevären), tung (12,7 mm: Ksp 88) och explosiv (granatlådan och 40 mm-granaterna). Den pansrade (kravallutrustning, hjälm med visir, sköld) tar 20 % av småkaliber och full skada av tunga och explosiva; träffarna låter som rikoschetter. Kryparen kryper under taggtråden utan att bromsas och utan att slita den, och är svår att träffa från tak, torn och fönster. Båda har fiendekort, egna ljud och en rad i lookbooken.
+
+Sanity. Varje grupp och varje pjäslag har sanity, en smal stapel under enheten. Den tär när de döda är nära (bjässar mest, pansrade och krypare mer än vandrare), när en kamrat stupar och när ett lag i närheten slås ner, och kommer tillbaka när det är lugnt. Civila och frivilliga står kortast, Hemvärnet mellan, infanteriet längst; en veteranstjärna ger mer. Låg sanity ger sämre träff och långsammare eld. Under gränsen bryts enheten (routed): en grupp springer mot basen och samlas i reserven, där den går att ställa ut igen efter en stund; ett pjäslag lämnar sin pjäs. Ett lågt, falskt drag i ljudet och en röd blink när någon bryts.
+
+Överrända pjäser. Pjäslagen går att slå ner. Pjäsen tystnar och står kvar (SILENT, ingen skytt, pipan uppåt); en grupp intill bemannar den igen, eller Recrew (N) skickar ett nytt lag för förnödenheter. Pillboxen står och tar stryk som förut.
+
+Fall back (G). En grupp eller en flyttbar pjäs drar sig tillbaka i ordning till reserven och behåller sin sanity. B är fortfarande kameran till basen.
+
+Trupper i hus. Klicka på ett hus med en grupps kort, en Ksp 90 eller en Ksp 58. Soldaterna skjuter från fönstren med sikten från fasaden och höjden, huset skyddar (sanity tär hälften så fort, de döda når dem inte) och märket över huset säger vem som är där. De döda kan storma dörren; slås den in blir förlusterna stora. Varje hus har en kapacitet. Ksp 88, pillboxen och Psg 90 på marken går inte in (Psg 90 har taken).
+
+Korseld. En zombie i två bågar som skiljer minst 60 grader tar 20 % mer skada och får en ring runt sig. Med en enhet i handen visar guldrutor var den skulle korsa en annan.
+
+Håll eld (H). Enheten skjuter inte förrän ordern släpps eller de döda är nära; första salvan gör dubbel skada. Sedan en paus innan den kan vänta igen.
+
+Trötthet. Rested, Tired, Exhausted. En vunnen dag ute gör en enhet tröttare, en dag i reserven vilar den ett steg; ett förlorat försök räknas inte (Olas beslut). Tired skjuter och står lite sämre, Exhausted tydligt sämre. Syns i förrådet med tre streck.
+
+Rekvisitionens kort visar streck (Firepower, Range, Resilience, Armour-piercing) och skadeklassens tecken. De exakta siffrorna står i Field manual (Weapon numbers). Mål-läget (T): First in line (som förut), Nearest, Strongest, Weakest.
+
+Kampanjen (kampanjplanens ordning på dagarna som finns): korselden Ishallen dag 2, sanity dag 3 med Hemvärnet, tröttheten i förrådet efter Vikingavägen dag 3, kryparna och mål-läget Vikingavägen dag 4, husen Vikingavägen dag 5 (Björnlunda är inte byggd; villagatorna där är närmast), routed och Fall back Mölnbo dag 1, de pansrade Mölnbo dag 2, Håll eld Mölnbo dag 4, överrända pjäser Mölnbo dag 5. E4 och Ishallen dag 1 är orörda.
+
+Speltestet av 0.17.2:
+- Quick jump till Ishallen gav ingen trupp: ett hopp till Mölnbo tog alla sektorers trupper. Nu byter ett hopp bara sektorn man hoppar till, och en tom sektor får truppen en ny kampanj har där.
+- Med Auto-deploy av väntar dagen på Start wave (förut startade vågen med 0 av 10 utställda).
+- Enhetspanelen lägger sig inte över dagrutan eller tågklockan (HUD:en är ett hårt krav), och den har fast höjd: det köpta står kvar som en avbockad knapp.
+- Ammolådan syns: större lådor vid enheten och märket AMMO över den.
+- Köpradens rubrik är DEPLOY och UNITS hela dagen (bytte förut till DEFENCES).
+- Zoomen går mot pekaren.
+
+Balansen: policyerna använder de nya verben (vilar de utmattade, Ksp 88 på Strongest mot pansrade och bjässar, Recrew, en grupp i huset som ser mest av hordens väg). Mölnbo dag 4 hp 36 till 34, färre vandrare i dag 4:s och 5:s sista vågor. Nytt prov att den som struntar i skadeklasserna förlorar mot pansrade vågor. docs/balance-log.md 0.18.0.
+
+Verktyg: scripts/slice1-check.mjs spelar skivans scener huvudlöst och sparar docs/slice1-*.png.
+
 ## 0.17.2: Olas speltest av 0.17.1 (2026-10-18)
 
 Gesterna (H300, Olas beslut): med ett kort i handen ställer ett klick ut enheten, vänd mot hordens väg. Tryck, håll en femtedels sekund och dra för att sikta ("Unit here" och linjen till pekaren står kvar); höger-dra och Alt-dra siktar direkt. En vänsterdragning utan att hålla gör ingenting. Utan kort panorerar vänster-dra; med kort panorerar mittknappen, WASD, piltangenterna och pekaren mot skärmens kant. Högerklick eller Esc lägger tillbaka kortet, och efter en placering utan Shift är kortet släppt. Tipsen, Field manual och placeringsprovet följer.

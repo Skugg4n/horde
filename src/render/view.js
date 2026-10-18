@@ -646,11 +646,12 @@ export function createView(scene, initialSim) {
   // ---------- korselden i handen (0.18.0, skiva 1) ----------
   // Rutorna där enheten i handen skulle korsa en annan enhets båge (src/sim/sim.js crossfirePreview): en varm
   // guldton ovanpå sikten, så att eldgatan syns innan enheten ställs ut.
-  const XF_MAX = 900, XF_TONE = new THREE.Color(0.55, 0.38, 0.06);
-  const xfM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  // Ritas ovanpå sikten (den ljusa tonen) i guld, inte additivt: annars blir den vit där sikten redan är ljus.
+  const XF_MAX = 900, XF_TONE = new THREE.Color('#e3a12f');
+  const xfM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const xfMesh = new THREE.InstancedMesh(validGeo, xfM, XF_MAX);
   xfMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(XF_MAX * 3), 3);
-  xfMesh.count = 0; xfMesh.frustumCulled = false; xfMesh.renderOrder = 2; xfMesh.castShadow = false; xfMesh.name = 'crossfire';
+  xfMesh.count = 0; xfMesh.frustumCulled = false; xfMesh.renderOrder = 6; xfMesh.castShadow = false; xfMesh.name = 'crossfire';
   scene.add(xfMesh);
   let xfKey = '';
   function syncXf() {

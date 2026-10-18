@@ -10,7 +10,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H006 | grafik | Bjässar som bara tar 40 % av taggtrådens bromsning syns inte i grafiken.
 - [ ] H007 | innehåll | Fler banor: Bensinmacken, Bron, Köpcentret, Hamnen (se design).
 - [ ] H008 | innehåll | Sena vapen: Barrett M82, Mk 19, granatkastare 81 mm, Carl-Gustaf, Minigun. (0.8.0: svenska arsenalen i stället; Ksp 58, Ak 5 + granattillsats och Psg 90 gjorda, svenska motsvarigheter till resten kvar att välja.)
-- [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare.
+- [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare. (0.18.0: krypare och pansrad gjorda; uppsvälld och skrikare i skiva 2.)
 - [x] H010 | ljud | Ingen ljudsättning ännu. (0.7.0: syntetiserat ljud och musik, ljudbord i soundboard.html)
 - [ ] H011 | publicering | Inget GitHub-repo. Fråga Ola innan något läggs ut.
 
@@ -322,8 +322,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H300 | ux | Sikte: alternativ 2 + håll-och-dra. Klick med kort i handen = placera (auto-riktning). Tryck-håll-dra = sikta (Ola gillade det). Höger/Alt-dra siktar också. Vänster-dra utan kort = panorera.
 - [x] H301 | molnbo | Prickskytt i klocktornet (missionskyrkan) och på andra höga byggnader (hyreshusen, Folkets hus, stationshuset).
 - [x] H302 | grafik | Kartkanten: glest och konstigt, dimman känns som grafikfel. Prova mörk "fog of war" vs djupare grå dimma; kolla hur andra gör.
-- [ ] H303 | design | STRATEGISKT DJUP: spelet är passivt (ställ ut längs rutten, vänta). Kill zones, långa kill corridors, trupper i hus, fler trupp- och fiendetyper med immuniteter, trupper som skadas (Close Combat), trötthet/vila. Fable-research pågår.
-- [ ] H304 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?).
+- [x] H303 | design | (0.18.0: skiva 1 byggd, skiva 2 och 3 kvar enligt kampanjplanen) STRATEGISKT DJUP: spelet är passivt (ställ ut längs rutten, vänta). Kill zones, långa kill corridors, trupper i hus, fler trupp- och fiendetyper med immuniteter, trupper som skadas (Close Combat), trötthet/vila. Fable-research pågår.
+- [x] H304 | ux | (0.18.0: streck och skadeklasser på korten, siffrorna i Field manual) Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?).
 - [ ] H305 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
 - [ ] H306 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
 - [ ] H307 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
@@ -332,7 +332,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H310 | design | NATT ibland (bryter mot tidigt beslut "aldrig natt", Ola ändrade 2026-10-18). Lysraketer som förmåga, mynningsflammor och gatlyktor som ljus, begränsad sikt, sanity tar mer stryk i mörker. Måste testas fram så man ser lagom mycket och det blir snyggt. Prototyp först: en kvällsdag i skymning, sedan en natt.
 - [ ] H320 | kampanj | Gnesta centrum: flera försvarspunkter som måste hållas: brandstationen (civila, fordon; Räddningstjänsten som röst, Ola jobbar där), Elektron/kommunhuset, Frejaskolan med gymnastiksal och stora ytor. Ledningsplats kanske på brandstationen eller Elektron. (Ola 2026-10-18)
 - [ ] H330 | kartor | Idé (Ola 2026-10-18): bygg HELA Gnesta tätort som en sammanhängande karta från OSM, och skär ut skådeplatser (Hagstumosse, rondellen, centrum, Frösjön) som delar. Ger samma hus/gator överallt och fri sammanslagning. Utvärdera efter Gnesta centrum-förhandsvisningen (prestanda, skala).
-- [ ] H400 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?). 0.17.2: kortens siffror läsbara (två rader); resten väntar på designen (strategiskt-djup).
+- [x] H400 | ux | (0.18.0: streck och skadeklasser) Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?). 0.17.2: kortens siffror läsbara (två rader); resten väntar på designen (strategiskt-djup).
 - [x] H401 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
 - [x] H402 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
 - [x] H403 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
@@ -341,5 +341,28 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H406 | ux | Reposition i uppställningen: lyft en utställd enhet och ställ den direkt och gratis (före vågen och mellan vågorna).
 - [x] H311 | debug | Quick jump i debugmenyn med auto-deploy (balanspolicyn) och direkt start.
 - [x] H312 | grafik | Pillboxen som A-traktor (Volvo, kapat flak, LGF-triangel) och Volvo-kombi bland bilarna.
-- [ ] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup.
+- [x] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup. (0.18.0: naive fastnar på dag 3 eller 4 igen.)
 - [ ] H314 | grafik | Kartans kant (fog of war / grå dis) finns bara i Mölnbo; ta till E4 och Hagstumosse om Ola gillar (b).
+
+## Skiva 1 och speltestet av 0.17.2 (2026-10-18)
+
+- [x] H410 | spel | Skadeklasser (small, heavy, explosive) och två fiender: pansrad (20 % av småkaliber) och krypare (under tråden, svår uppifrån).
+- [x] H411 | spel | Sanity på grupper och pjäslag: tär nära horden och vid förluster, verkar på träff och eldtakt; routed under gränsen.
+- [x] H412 | spel | Överrända pjäser (laget slås ner, pjäsen står tyst) och Recrew (N) eller en grupp intill.
+- [x] H413 | spel | Fall back (G): ordnat vik till reserven, sanity behålls.
+- [x] H414 | spel | Trupper i hus: grupper, Ksp 90 och Ksp 58; fönstrens sikt, skydd, stormning och inslagen dörr.
+- [x] H415 | spel | Korseld (+20 % vid två bågar minst 60 grader isär) med förhandsvisning i guld.
+- [x] H416 | spel | Håll eld (H): bakhållets dubbla salva, nedkylning.
+- [x] H417 | spel | Trötthet över dagarna (Rested, Tired, Exhausted) i förrådet; förlorat försök räknas inte.
+- [x] H418 | spel | Mål-läget (T): First in line, Nearest, Strongest, Weakest.
+- [x] H419 | bugg | Quick jump till Ishallen gav ingen trupp (ett hopp till Mölnbo tog alla sektorers trupper).
+- [x] H420 | bugg | Quick jump utan Auto-deploy startade vågen med 0 utställda; nu väntar dagen på Start wave.
+- [x] H421 | ux | Enhetspanelen över dagrutan och tågklockan, och höjden bytte vid köp; nu fast höjd och HUD:en är ett hårt krav.
+- [x] H422 | ux | Ammolådan syntes inte på enheten (större lådor och märket AMMO).
+- [x] H423 | ux | Köpradens rubrik bytte mellan DEPLOY och DEFENCES; nu DEPLOY och UNITS hela dagen.
+- [x] H424 | ux | Zoomen går mot pekaren.
+- [ ] H425 | speltest | Skiva 1 genom human-ux-tester och sedan Ola: känns autovik som att spelet tar över? Läses sanity-stapeln? Hittar man husen?
+- [ ] H426 | spel | Move in i ett hus mitt i en våg (nu bara i uppställningen eller ur reserven).
+- [ ] H427 | balans | Kryparna gör lite på Vikingavägen dag 4 och 5; mät om de ska vara fler eller ha ett eget hot.
+- [ ] H428 | spel | Soldaterna i husen syns dåligt (de står vid fasaden); fönster med mynningsflammor vore tydligare.
+
