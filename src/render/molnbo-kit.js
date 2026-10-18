@@ -107,23 +107,62 @@ export function bridge(b, M, br, H, { foot = false, pillars = [-3.25, 1.4], corr
     b.box(M, u + nx * (o - 0.6), h(v) + 7.12, v + nz * (o - 0.6), 1.1, 0.05, 0.22, GP.lampGlow, 'glow');
   }
 }
-// Trapptornet: betongkub med trappan i, platt tak med räcke (prickskyttens läge). Ramen: mitt på marken.
-export function stairTower(b, M, size, hgt, { side = 1 } = {}) {
-  const s = size;
+// Trapptornet (0.17.1, speltestet av 0.17.0: "små grå lådor, syns inte som torn"; Commons-fotot Mölnbo_2): ett högt
+// schakt i grå betong med fogar och glasade springor, två trapplopp utanpå med vilplan (betongbröstning, ledstång
+// och stolpar i stål), pelare under vilplanet, en gångbrygga i däckets höjd mot gångbron (link: meter från tornets
+// mitt till gångbrons kant längs lokal x) och ett platt tak med räcke (prickskyttens läge). Ramen: mitt på marken,
+// lokal x längs spåret. side: åt vilket håll (lokal z) trappan ligger. deck: gångbrons höjd.
+export function stairTower(b, M, size, hgt, { side = 1, deck = 4.4, link = 0 } = {}) {
+  const s = size, hs = s / 2;
+  // schaktet: sockel, väggar, fogar, springor och en mörk dörr mot trappan
   b.box(M, 0, hgt / 2, 0, s, hgt, s, MP.concrete);
-  // mörka fogar och en smal glasad springa där trappan går
-  for (const y of [1.4, 2.8, 4.2]) b.box(M, 0, y, 0, s + 0.04, 0.05, s + 0.04, MP.concreteDark);
-  b.box(M, s / 2 + 0.02, hgt * 0.55, 0, 0.04, hgt * 0.8, 0.9, MP.glass, 'glass');
-  // trappan på ena sidan: lopp av steg utanpå
-  for (let k = 0; k < 10; k++) b.box(M, -s / 2 + 0.2 + k * (s - 0.4) / 10, 0.25 + k * 0.42, side * (s / 2 + 0.55), (s - 0.4) / 10 + 0.02, 0.2, 1.1, MP.concreteLight);
-  for (let k = 0; k < 10; k += 3) b.box(M, -s / 2 + 0.2 + k * (s - 0.4) / 10, 0.9 + k * 0.42, side * (s / 2 + 1.08), 0.06, 1.0, 0.06, MP.steel, 'metal');
-  // taket: platta, låg kant, räcke
+  b.box(M, 0, 0.3, 0, s + 0.08, 0.6, s + 0.08, MP.concreteDark);
+  for (let y = 1.5; y < hgt - 0.4; y += 1.5) b.box(M, 0, y, 0, s + 0.04, 0.05, s + 0.04, MP.concreteDark);
+  for (const sx of [-1, 1]) b.box(M, sx * (hs + 0.02), hgt * 0.52, 0, 0.04, hgt * 0.78, 0.7, MP.glass, 'glass');
+  b.box(M, 0, hgt * 0.52, -side * (hs + 0.02), 0.7, hgt * 0.78, 0.04, MP.glass, 'glass');
+  b.box(M, -hs + 0.7, deck + 1.05, side * (hs + 0.02), 1.0, 2.1, 0.04, MP.steelDark, 'metal');
+  b.box(M, 0.4, 1.0, -side * (hs + 0.03), 1.4, 1.3, 0.02, MP.graffiti[1]);
+  // trapploppen: inre raden upp till vilplanet, yttre raden tillbaka upp till däckets höjd
+  const W = 1.2, zIn = side * (hs + 0.15 + W / 2), zOut = side * (hs + 0.35 + W * 1.5), x0 = -hs - 0.9, x1 = hs + 0.9, mid = deck / 2;
+  const flight = (z, xa, ya, xb, yb) => {
+    const n = 12, dx = (xb - xa) / n, dy = (yb - ya) / n;
+    seg(b, M, [xa, ya - 0.35, z], [xb, yb - 0.35, z], W, 0.3, MP.concreteDark);
+    for (let k = 0; k < n; k++) b.box(M, xa + dx * (k + 0.5), ya + dy * (k + 0.5) - 0.12, z, Math.abs(dx) + 0.02, Math.abs(dy) + 0.06, W, MP.concreteLight);
+    // bröstningen på yttersidan (betong) och ledstången på båda sidor (stål), stolpar var tredje steg
+    const zo = z + side * (W / 2 + 0.06), zi = z - side * (W / 2 - 0.04);
+    seg(b, M, [xa, ya + 0.35, zo], [xb, yb + 0.35, zo], 0.14, 0.9, MP.concrete);
+    for (const zz of [zo, zi]) {
+      seg(b, M, [xa, ya + 1.0, zz], [xb, yb + 1.0, zz], 0.06, 0.06, MP.steel, 'metal');
+      for (let k = 0; k <= n; k += 3) b.box(M, xa + dx * k, ya + dy * k + 0.5, zz, 0.06, 1.0, 0.06, MP.steelDark, 'metal');
+    }
+  };
+  flight(zIn, x0, 0, x1, mid);
+  flight(zOut, x1, mid, x0, deck);
+  // vilplanet och toppen (plattor över båda raderna) med räcke runt, pelare under
+  const zMid = (zIn + zOut) / 2, wBoth = Math.abs(zOut - zIn) + W;
+  b.box(M, x1 + 0.7, mid - 0.15, zMid, 1.4, 0.3, wBoth, MP.concreteLight);
+  b.box(M, x0 - 0.7, deck - 0.15, zMid, 1.4, 0.3, wBoth, MP.concreteLight);
+  for (const [x, y] of [[x1 + 1.35, mid], [x0 - 1.35, deck]]) {
+    b.box(M, x, y + 1.0, zMid, 0.06, 0.06, wBoth, MP.steel, 'metal');
+    b.box(M, x, y + 0.45, zMid, 0.14, 0.9, wBoth, MP.concrete);
+  }
+  for (const [x, y] of [[x1 + 0.7, mid], [x0 - 0.7, deck]]) for (const z of [zIn, zOut]) b.box(M, x, (y - 0.3) / 2, z, 0.45, y - 0.3, 0.45, MP.concrete);
+  b.box(M, 0, (mid - 0.5) / 2, zOut, 0.4, mid - 0.5, 0.4, MP.concrete);
+  // gångbryggan mot gångbron i däckets höjd, med glasräcke
+  if (link > hs) {
+    const L = link - hs + 0.2, cx = hs + L / 2 - 0.1;
+    b.box(M, cx, deck - 0.2, 0, L, 0.4, 2.2, MP.concreteLight);
+    for (const z of [-1.05, 1.05]) {
+      b.box(M, cx, deck + 1.0, z, L, 0.06, 0.06, MP.steel, 'metal');
+      b.box(M, cx, deck + 0.55, z, L, 0.8, 0.03, MP.glass, 'glass');
+    }
+  }
+  // taket: platta, låg kant, räcke runt, takluckan
   b.box(M, 0, hgt + 0.1, 0, s + 0.3, 0.2, s + 0.3, MP.concreteLight);
-  for (const [dx, dz, w, d] of [[0, s / 2 + 0.1, s + 0.3, 0.06], [0, -s / 2 - 0.1, s + 0.3, 0.06], [s / 2 + 0.1, 0, 0.06, s + 0.3], [-s / 2 - 0.1, 0, 0.06, s + 0.3]])
-    b.box(M, dx, hgt + 0.75, dz, w, 0.06, d, MP.steel, 'metal');
-  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) b.box(M, dx * (s / 2 + 0.1), hgt + 0.45, dz * (s / 2 + 0.1), 0.07, 0.7, 0.07, MP.steel, 'metal');
-  b.box(M, -s * 0.2, hgt + 0.45, -s * 0.2, 0.9, 0.5, 0.9, MP.concreteDark);   // takluckan
-  b.box(M, 0.1, 1.0, -s / 2 - 0.02, 1.2, 1.3, 0.02, MP.graffiti[1]);
+  for (const [dx, dz, w, d] of [[0, hs + 0.1, s + 0.3, 0.06], [0, -hs - 0.1, s + 0.3, 0.06], [hs + 0.1, 0, 0.06, s + 0.3], [-hs - 0.1, 0, 0.06, s + 0.3]])
+    b.box(M, dx, hgt + 0.95, dz, w, 0.06, d, MP.steel, 'metal');
+  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 1], [0, -1], [1, 0], [-1, 0]]) b.box(M, dx * (hs + 0.1), hgt + 0.55, dz * (hs + 0.1), 0.07, 0.9, 0.07, MP.steel, 'metal');
+  b.box(M, -s * 0.2, hgt + 0.45, -s * 0.2, 0.9, 0.5, 0.9, MP.concreteDark);
 }
 
 // ---------- spåret och perrongerna ----------

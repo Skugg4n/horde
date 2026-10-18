@@ -505,9 +505,10 @@ const campMen = [];
   meshFence(b, RM, -26, 26, -8.5); meshFence(b, RM, -26, 26, 1.4, 1.2); meshFence(b, RM, -26, 26, 8);
   mbBridge(b, RM, { a: [8, 16], b: [14, -16], width: 9, deck: 7, ramp: 15 }, 4.4, { corridor: [-8, 8] });
   mbBridge(b, RM, { a: [-6, 16], b: [0, -16], width: 3.2, deck: 7, ramp: 15 }, 4.4, { foot: true, corridor: [-8, 8] });
-  stairTower(b, frame(RM, -6.5, 0, -10.5), 3.6, 5.6);
+  // 0.17.1: det höga trapptornet (Commons-fotot Mölnbo_2): två lopp med vilplan, bröstning, ledstång, brygga mot gångbron
+  stairTower(b, frame(RM, -9, 0, -11.2), 3.6, 7.2, { side: -1, deck: 4.4, link: 6.5 });
   catenaryPortal(b, RM, -22, [-8.2, 7.6]); catenaryPortal(b, RM, 24, [-8.2, 7.6]);
-  label(-6, MV + 6, 'Road bridge, footbridge, stair tower', 'grey concrete, glass and steel railings, 4.4 m', 9);
+  label(-6, MV + 6, 'Road bridge, footbridge, stair tower', 'grey concrete, glass and steel railings, 4.4 m; tower 7.2 m', 9);
   // perrongen med väntkur, lampor, avgångsskylt och namnskylt
   const PM = F(-6, MV + 34);
   mbPlatform(b, PM, { u0: -14, u1: 14, v0: -2.5, v1: 2.5, h: 0.9 }, { edge: 1, back: true });

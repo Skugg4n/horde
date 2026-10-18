@@ -63,10 +63,11 @@ export const DECK_H = 4.4;
 export const BRIDGE = { a: [-6, 34], b: [16, -34], width: 9, deck: 15, ramp: 30 };
 export const FOOT = { a: [-20, 30], b: [2, -30], width: 3.2, deck: 13, ramp: 28 };
 const uOn = (br, v) => br.a[0] + (br.a[1] - v) * (br.b[0] - br.a[0]) / (br.a[1] - br.b[1]);
-// Trapptornen: en betongkub vid gångbron, platt tak (prickskytt). link: trappan ner till norra perrongen.
+// Trapptornen: ett högt betongschakt vid gångbron med trappan utanpå, platt tak (prickskytt). LINK: trappan ner till
+// norra perrongen. 0.17.1 (speltestet: "små grå lådor"): 7,2 m höga, taket en våning över gångbron.
 export const TOWERS = [
-  { id: 'towerN', at: [-9.5, -12.4], size: 3.6, h: 5.6 },
-  { id: 'towerS', at: [-16.4, 8.4], size: 3.6, h: 5.6 },
+  { id: 'towerN', at: [-9.5, -12.4], size: 3.6, h: 7.2 },
+  { id: 'towerS', at: [-16.4, 8.4], size: 3.6, h: 7.2 },
 ];
 const LINK = { v: -9.4, u0: -13, w: 2.4 };
 // Däckets höjd i en punkt: vägbron, gångbron med ramperna och trappan ner till norra perrongen (0 = inget däck).

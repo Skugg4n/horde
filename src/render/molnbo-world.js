@@ -11,7 +11,7 @@ import { pattern } from './gnesta-world.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
 import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS } from '../data/molnbo.js';
 import {
-  MP, bridge, stairTower, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
+  MP, seg, bridge, stairTower, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
   cafeHarmoni, missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn,
 } from './molnbo-kit.js';
 
@@ -201,9 +201,21 @@ export function buildMolnbo(scene, map) {
   // broarna och trapptornen
   bridge(b, RM, map.bridge, DECK_H, {});
   bridge(b, RM, map.foot, DECK_H, { foot: true, pillars: [-3.25, 1.4] });
-  for (const t of TOWERS) stairTower(b, frame(RM, t.at[0], 0, t.at[1]), t.size, t.h, { side: t.at[1] < 0 ? 1 : -1 });
+  // 0.17.1: trappan på sidan bort från spåren, gångbryggan i däckets höjd mot gångbron
+  for (const t of TOWERS) {
+    const fu = map.foot.a[0] + (map.foot.a[1] - t.at[1]) * (map.foot.b[0] - map.foot.a[0]) / (map.foot.a[1] - map.foot.b[1]);
+    stairTower(b, frame(RM, t.at[0], 0, t.at[1]), t.size, t.h, { side: t.at[1] < 0 ? -1 : 1, deck: DECK_H, link: fu - map.foot.width / 2 - t.at[0] });
+  }
   // trappan ner från gångbron till norra perrongen
   for (let k = 0; k < 9; k++) b.box(RM, -12.2 + k * 0.85, RAIL.platformN.h + 0.2 + k * (DECK_H - RAIL.platformN.h) / 9, -9.4, 0.85, 0.25, 2.3, MP.concreteLight);
+  // 0.17.1: bröstning och ledstång längs trappan, som trapptornens lopp
+  {
+    const y0 = RAIL.platformN.h + 0.2, y1 = RAIL.platformN.h + 0.2 + 8 * (DECK_H - RAIL.platformN.h) / 9;
+    for (const v of [-10.6, -8.2]) {
+      seg(b, RM, [-12.6, y0 + 0.35, v], [-5.0, y1 + 0.35, v], 0.14, 0.9, MP.concrete);
+      seg(b, RM, [-12.6, y0 + 1.0, v], [-5.0, y1 + 1.0, v], 0.06, 0.06, MP.steel, 'metal');
+    }
+  }
   // räcket och bergskärningen längs Fagernäsvägen
   roadRail(b, RM, 20, 78, 25.3); roadRail(b, RM, 106, 118, 25.6);
   rockCut(b, frame(RM, (ROCK.u0 + ROCK.u1) / 2, 0, ROCK.v + 0.6), ROCK.u1 - ROCK.u0, ROCK.depth, ROCK.h, r);
