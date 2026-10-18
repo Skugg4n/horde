@@ -323,3 +323,16 @@ Regeln "det som inte är upplåst finns inte" gäller: inga pansrade före Ksp 8
 8. **Granatkastaren** är den första förmågan "utanför kartan" och bryter lite mot "det du ser är det du har". Vill du ha den, eller hellre bara ordrar till egna enheter (Håll eld, Vik, Rök)?
 9. **Rivning av hus och brand** (3.7) är dyrast och mest riskabel för kartans läsbarhet. Parkera till efter skiva 2?
 10. **Trötthet:** ska ett förlorat försök räknas som en dag ute (hårdare, mer Close Combat) eller inte (mitt förslag: inte, som dagens regel att förluster inte följer med)?
+
+## 7. Beslut (Ola 2026-10-18)
+
+- Skiva 1: som föreslagen PLUS trötthet (båda).
+- Trupper i hus: både grupper och kulsprutor, om det blir bra. Tunga pjäser (Ksp 88) troligen inte i hus.
+- Vik: automatiskt när trycket blir för högt.
+- Pansrad tar 20 % av småkaliber.
+- Stats i rekvisitionen: streck och skadeklassikoner, siffror bara i Field manual.
+- "Tryck" heter i stället **Sanity**: truppernas psykiska motståndskraft mot att bli rädda och fly. Inte "är det värt att försvara" utan "vågar de stå emot". Sanity-motståndet växer med erfarenhet (veteraner står längre). Civila och frivilliga har lågt, Hemvärnet medel, infanteri och fallskärmsjägare högt. Värre monster påverkar sanity mer (lite Cthulhu-känsla). För låg sanity: gruppen blir **routed** och flyr. Vi tar hand om människor, inte bara spelpjäser.
+- Överrända pjäser och vik: ja, vi testar.
+- Pillboxen står fast och tar stryk, det är dess roll. Den ska se mer ut som en A-traktor (EPA) med LGF-triangeln bak, utan att överdriva. Svensk bilpark får gärna in klassiker, t.ex. Volvo kombi.
+- Ej besvarade (förvalda tills vidare): fiendeordningen som föreslagen; granatkastaren med (som förmåga från ledningen); rivning och brand parkeras till efter skiva 2; ett förlorat försök räknas inte som en dag ute för tröttheten.
+- Senare: zombiespecifik utveckling i förrådet efter några dagar (bitskydd i nomex, kravallsköldar, IED längs vägen som utlöses för hand). Väntar, utvecklingsrutan behöver tänkas igenom först.
