@@ -226,7 +226,7 @@ Ingen av raderna är en uppgift för spelaren, och ingen förklarar varför. Det
 1. Svart. Radions sprak. En rad i radions fönster: "E4 avstängd vid Lästringe. Militär på plats." Sedan dagens logotyp HORDE.
 2. Kameran står vid E4:s vägspärr (dagens scen, utan HUD): soldater vid bommen, kön av bilar, en buss. Sol, dis. 4 s.
 3. Pansarbandvagnens radio: Sahlins röst som text: "Roadblock 137. Hold until relieved. Out." Ingen person syns ännu.
-4. Klipp: dag 1 börjar med dagens lektionssteg ("Your Ksp 90. Click it."). Ingen Sal, inga namn. Spelet lär ut striden först.
+4. Klipp: dag 1 börjar med dagens lektionssteg ("Your Ksp 90. Click it."). Ingen station, inga namn. Spelet lär ut striden först.
 5. Efter dag 3: resultatet och radion som i dag ("Reports of a smaller outbreak in eastern Gnesta..."). Sedan, för första gången, porten till vagnhallen: kameran går in i ett mörkt rum där bara arbetslampan över kartbordet och radiorummet lyser; släckbilen står ute på planen. En person med ryggen mot oss vid kartbordet vänder sig om: "MCF. You're in command here now. The rink first." (Lindkvist, namnlös.) I radiorummet, utan att vända sig om, en man i mörkblått: "Fire service. Coffee's on the bench." (Ek, namnlös.)
 6. Lektionssteg: "The map. Gnesta is next. Click the pin." Beslutet, briefingen, porten.
 
