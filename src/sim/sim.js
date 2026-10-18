@@ -379,7 +379,7 @@ function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
   // 0.19.0 (H452): de som kliver ur pendeltåget kommer ut på perrongen vid dörren (cell)
   const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : cell >= 0 ? sim.route.spawnAt(sim.rng, cell, id) : sim.route.spawn(sim.rng, spawnId, id);
-  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false };
+  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false, ...(ZOMBIES[type].shove ? { shove: true } : {}) };
   if (lead > 0) {
     const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
@@ -1660,7 +1660,10 @@ function obstacleEffect(sim, z, dt, hitCells) {
     const c = o.kind === 'block' ? route.blockContact(z, i, def.speed * dt) : null;
     if (c) {
       mul = 0; if (c.crosses) route.stopAt(z, i); z.attacking = true;
-      ob.hp -= def.hitDamage * dt;
+      // 0.19.0 (H456): bjässen knuffar undan skrotbilarna på def.shove sekunder (hela rutan, oavsett hur hel den är)
+      const shove = ob.type === 'car' && def.shove;
+      if (shove) { if (!ob.shove) sim.events.push({ t: 'carShove', cell: i }); ob.shove = Math.min(1, (ob.shove ?? 0) + dt / def.shove); ob.hp = Math.min(ob.hp, ob.maxHp * (1 - ob.shove)); if (ob.shove >= 1 - 1e-9) ob.hp = 0; }
+      else ob.hp -= def.hitDamage * dt;
       if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
       if (ob.hp > 0 && ob.hp < ob.maxHp * BARRICADE_FAILING) {
         const id = barricadeId(ob, i);
@@ -1675,7 +1678,7 @@ function obstacleEffect(sim, z, dt, hitCells) {
         if (ob.line != null) for (const k of Object.keys(sim.obstacles)) if (sim.obstacles[k].line === ob.line) sim.obstacles[k].breached = true;
         // en ny spärr i samma ruta (E4) ska kunna varna igen; en spärr tvärs över gatan får ett nytt id
         if (ob.line == null && sim.failing) sim.failing = sim.failing.filter(x => x !== 'c' + i);
-        sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}) });
+        sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}), ...(shove ? { shoved: true } : {}) });
       }
     }
   }

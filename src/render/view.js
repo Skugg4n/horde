@@ -883,7 +883,7 @@ export function createView(scene, initialSim) {
     cells.delete(i); cellObjects.delete(i);
   }
   function syncCells() {
-    for (const i of [...cells.keys()]) if (!sim.obstacles[i]) removeCell(i);
+    for (const i of [...cells.keys()]) if (!sim.obstacles[i]) { if (cells.get(i).home) shoveAway(i); else removeCell(i); }
     for (const key of Object.keys(sim.obstacles)) {
       const i = Number(key), ob = sim.obstacles[key];
       let e = cells.get(i);
@@ -904,6 +904,33 @@ export function createView(scene, initialSim) {
       // 0.17.1: en genombruten spärr (en ruta har gått sönder) ser sönderslagen ut i alla sina rutor
       const frac = ob.breached ? 0 : ob.maxHp ? ob.hp / ob.maxHp : ob.durability / ob.maxDurability;
       if (Math.abs(frac - e.frac) > 0.004) { e.frac = frac; setObstacleWear(e.group, frac); }
+      // 0.19.0 (H456): bjässen knuffar undan bilarna: vraken glider undan längs gatan och vrids
+      if (ob.shove) shoveCell(e, i, ob.shove);
+    }
+  }
+  const wrecks = [];
+  function shoveCell(e, i, k) {
+    const c = cellCenter(i);
+    if (!e.home) e.home = { x: e.group.position.x, z: e.group.position.z, ry: e.group.rotation.y, dx: c.dirX, dz: c.dirZ, side: (i & 1) ? 1 : -1 };
+    const h = e.home, push = 1.4 * k, side = 0.9 * k * h.side;
+    e.group.position.x = h.x + h.dx * push - h.dz * side; e.group.position.z = h.z + h.dz * push + h.dx * side;
+    e.group.rotation.y = h.ry + h.side * 0.5 * k;
+  }
+  // En undanknuffad bilruta: modellen ligger kvar en stund vid sidan av gatan (glider klart), sedan bort.
+  function shoveAway(i) {
+    const e = cells.get(i); if (!e) return false;
+    cells.delete(i); cellObjects.delete(i);
+    shoveCell(e, i, 1);
+    wrecks.push({ e, t: 0, from: { x: e.group.position.x, z: e.group.position.z }, d: { x: e.home.dx * 1.2 - e.home.dz * 1.4 * e.home.side, z: e.home.dz * 1.2 + e.home.dx * 1.4 * e.home.side } });
+    return true;
+  }
+  function syncWrecks(dt) {
+    for (let n = wrecks.length - 1; n >= 0; n--) {
+      const w = wrecks[n];
+      w.t += dt;
+      const k = Math.min(1, w.t / 0.6), ease = 1 - (1 - k) * (1 - k);
+      w.e.group.position.x = w.from.x + w.d.x * ease; w.e.group.position.z = w.from.z + w.d.z * ease;
+      if (w.t > 8) { disposeModel(w.e.group); wrecks.splice(n, 1); }
     }
   }
 
@@ -1084,7 +1111,7 @@ export function createView(scene, initialSim) {
           const c = cellCenter(ev.cell), sp = sim.route.kind === 'grid' ? 0.9 : 3.5;
           for (let k = 0; k < (sp < 1 ? 2 : 4); k++) fx.puff(c.x, c.z + rnd(-sp, sp), 4);
           if (ev.type === 'block' || ev.type === 'car') for (let k = 0; k < (sp < 1 ? 3 : 5); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
-          removeCell(ev.cell);
+          if (!(ev.shoved && shoveAway(ev.cell))) removeCell(ev.cell);
           break;
         }
       }
@@ -1119,7 +1146,7 @@ export function createView(scene, initialSim) {
     squadView.sync(sim, dt);
     civilians.sync(sim, dt, viewH);
     syncRoute();
-    syncCells();
+    syncCells(); syncWrecks(dt);
     syncCellMarks();
     syncTiles();
     syncGhost();
@@ -1142,6 +1169,7 @@ export function createView(scene, initialSim) {
     for (const e of slots.values()) { dropCrew(e); disposeModel(e.group); }
     slots.clear(); slotObjects.clear();
     for (const i of [...cells.keys()]) removeCell(i);
+    for (const w of wrecks.splice(0)) disposeModel(w.e.group);
     squadView.clear();
     civilians.clear();
     lastChip.clear();

@@ -82,6 +82,7 @@ const LAT_MAX = 0.7;     // största sidoförskjutning inom rutan (rutan är 2 m
 const NEAR = 0.6;        // så nära ett block räknas zombien stå vid det (som E4)
 const HOLD = 0.3;        // zombien ställs så långt från blockets kant
 const LOOK = 3;          // så många rutor fram kan siktpunkten ligga
+const SHOVE_COST = 30;   // 0.19.0 (H456): en skrotbilsruta i bjässarnas flöde, som tre rutors omväg
 const CLEAR = 0.25;      // marginal åt sidorna när sträckan till siktpunkten provas
 const SAMPLE = 0.2;      // provsteg längs sträckan
 const SPAN_MAX = 4;      // en spärr tvärs över gatan når högst så många rutor åt varje håll
@@ -104,6 +105,12 @@ export function laneFor(index, r) {
 export function gridRoute(map) {
   const grid = makeGrid(map.grid);
   const flow = makeFlow(grid);
+  // 0.19.0 (H456): bjässarnas flöde. De går inte runt skrotbilar utan knuffar undan dem (src/sim/sim.js), så i deras
+  // flöde kostar en bilruta bara SHOVE_COST extra; betongen är som för alla. Räknas bara när en bilspärr står ute
+  // (annars samma som flow). flowOf(z): flödet zombien följer (z.shove = en bjässe).
+  const flowB = makeFlow(grid);
+  let cars = false;
+  const flowOf = z => (z.shove && cars ? flowB : flow);
   const { size, w } = grid;
   const half = size / 2;
   const spawnIds = grid.spawns.map(s => s.id);
@@ -139,6 +146,7 @@ export function gridRoute(map) {
   };
   // Siktpunkten för zombien där den står nu.
   function aim(z) {
+    const flow = flowOf(z);
     const n1 = flow.next[z.cell];
     if (n1 < 0) return null;
     const chain = [n1];
@@ -198,7 +206,7 @@ export function gridRoute(map) {
     return z;
   }
   const left = z => {
-    const nxt = flow.next[z.cell];
+    const nxt = flowOf(z).next[z.cell];
     if (nxt < 0) return 0;
     const t = target(z, nxt);
     return walk[nxt] + Math.hypot(t.x - z.x, t.z - z.z);
@@ -208,6 +216,12 @@ export function gridRoute(map) {
   const rebuildAll = obstacles => {
     const costs = grid.costs(obstacles);
     flow.compute(costs);
+    cars = Object.values(obstacles).some(o => o.type === 'car');
+    if (cars) {
+      const cb = grid.costs(Object.fromEntries(Object.entries(obstacles).filter(([, o]) => o.type !== 'car')));
+      for (const [k, o] of Object.entries(obstacles)) if (o.type === 'car' && cb[Number(k)]) cb[Number(k)] += SHOVE_COST;
+      flowB.compute(cb);
+    }
     blocked = new Set();
     for (const key of Object.keys(obstacles)) if (OBSTACLES[obstacles[key].type]?.kind === 'block') blocked.add(Number(key));
     version++;
@@ -284,6 +298,7 @@ export function gridRoute(map) {
       return best;
     },
     advance(z, dist) {
+      const flow = flowOf(z);
       let rest = dist;
       for (let guard = 0; rest > 1e-9 && guard < 4096; guard++) {
         if (flow.isBase(z.cell)) return;
@@ -307,10 +322,11 @@ export function gridRoute(map) {
     // 0.14.1 (granskningen av 0.14, Critical 1): nästa ruta längs flödet när den är spärrad, annars -1.
     // Flödet går bara genom en spärr när ingen öppen väg finns (spärrens kostnad), så den som står
     // framför en sådan ruta har ingen annan väg. De civila klättrar då över (src/sim/sim.js).
-    blockedAhead(z) { const n = flow.next[z.cell]; return n >= 0 && blocked.has(n) ? n : -1; },
+    blockedAhead(z) { const n = flowOf(z).next[z.cell]; return n >= 0 && blocked.has(n) ? n : -1; },
     // Ställer den som klättrat över i spärrens ruta; därifrån går flödet vidare som vanligt.
     climbInto(z, key) { const [x, cz] = grid.center(key); z.x = x; z.z = cz; z.cell = key; z.aimX = null; },
     place(z) {
+      const flow = flowOf(z);
       if (flow.next[z.cell] < 0 || !aimOf(z)) return { x: z.x, z: z.z, dirX: -1, dirZ: 0 };
       const dx = z.aimX - z.x, dz = z.aimZ - z.z, L = Math.hypot(dx, dz);
       if (L < 1e-6) {
@@ -320,7 +336,7 @@ export function gridRoute(map) {
       return { x: z.x, z: z.z, dirX: dx / L, dirZ: dz / L };
     },
     ahead(z, dist) {
-      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat, lane: z.lane, aimX: z.aimX, aimZ: z.aimZ, aimC: z.aimC, aimV: z.aimV };
+      const c = { x: z.x, z: z.z, cell: z.cell, lat: z.lat, lane: z.lane, aimX: z.aimX, aimZ: z.aimZ, aimC: z.aimC, aimV: z.aimV, shove: z.shove };
       this.advance(c, dist);
       return { x: c.x, z: c.z };
     },
@@ -336,7 +352,7 @@ export function gridRoute(map) {
     inCell: (z, key) => z.cell === key,
     blockContact(z, key, reach) {
       if (z.cell === key) return { crosses: false };
-      if (flow.next[z.cell] !== key) return null;
+      if (flowOf(z).next[z.cell] !== key) return null;
       const g = gap(z, key);
       if (g <= NEAR) return { crosses: false };
       return reach > g ? { crosses: true } : null;

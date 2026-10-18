@@ -167,6 +167,8 @@ export const TIPS = [
   { id: 'tip.waver', on: 'waver', kind: 'tip', text: 'A unit is wavering. Thin the dead around it.', manual: 'sanity', needs: 'sanity', repeat: true },
   { id: 'tip.routed', on: 'routed', kind: 'tip', text: 'A unit broke and ran. It regroups in reserve.', manual: 'rout', needs: 'rout' },
   { id: 'tip.breach', on: 'houseBreached', kind: 'tip', text: 'They broke into the house. Heavy losses inside.', manual: 'garrison', needs: 'garrison' },
+  // 0.19.0 (H456): bjässen knuffar undan skrotbilarna
+  { id: 'tip.shove', on: 'carShoved', kind: 'tip', text: 'A brute shoved the cars aside. Concrete holds.', manual: 'cars', needs: 'car' },
 ];
 export const tipOf = id => TIPS.find(t => t.id === id) ?? null;
 export const REPEAT_GAP = 300;   // sekunder mellan två likadana tips som får upprepas
@@ -205,6 +207,8 @@ export const MANUAL = [
   { id: 'supplies', group: 'Defences', title: 'Supplies', text: 'Each day brings supplies, and every kill adds a little. Spend them during the day on defences. They do not carry over.' },
   { id: 'wire', group: 'Defences', title: 'Wire', icon: 'wire', text: 'Lay wire across the road. Everything that walks through it slows down and the wire wears out.' },
   { id: 'barricades', group: 'Defences', title: 'Barricades', icon: 'block', text: 'Concrete across a street. The horde walks around the block instead. Shut every way and they smash through the weakest one.' },
+  // 0.19.0 (H456)
+  { id: 'cars', group: 'Defences', title: 'Junk cars', text: 'Wrecks pushed across a street, cheaper than concrete. The horde walks around them, but a brute shoves them aside in moments. Concrete holds against brutes.' },
   { id: 'route', group: 'Defences', title: 'Horde route', text: 'Red arrows show the way the horde will walk now. Hold a barricade over a street to see the new way first.', keys: ['V'] },
   { id: 'unitSupplies', group: 'Defences', title: 'Supplies on units', text: 'Click a unit: an ammo crate makes it fire faster for the day, sandbags dig a squad in, a grenade kit throws at crowds.' },
   { id: 'arc', group: 'Units', title: 'Arc and rotate', icon: 'm2', text: 'Each gun fires only inside its arc. A click faces it at the road. Press, hold and drag to aim it, or right-drag. Select a gun and press R to turn it.', keys: ['R'] },

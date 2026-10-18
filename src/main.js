@@ -1173,6 +1173,8 @@ function handleEvents() {
     else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
     // 0.18.0 (skiva 1): pansaret, sanity, flykten, husen och de tysta pjäserna
     else if (ev.t === 'hit' && ev.armor) tip('tip.armor');
+    // 0.19.0 (H456)
+    else if (ev.t === 'obstacleBroken' && ev.shoved) tip('tip.shove', cellWorld(ev.cell));
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
     // 0.18.1 (speltestet av 0.18.0: "flykt sker utan banderoll"): banderollen mitt uppe, pingen på minikartan och flykten i bild
     else if (ev.t === 'routed') { hud.banner(routBanner(ev.type), 3.5); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
