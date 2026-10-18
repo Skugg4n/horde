@@ -903,6 +903,9 @@ function updateSquadTags() {
     el.classList.toggle('fire', time - (shotAt.get(g.id) ?? -Infinity) < 0.35);
     el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === g.id);
   }
+  // 0.19.0: lapparna ritas aldrig över köpraden
+  const bar = document.getElementById('buildbar')?.getBoundingClientRect(), barTop = bar && bar.height ? bar.top : innerHeight;
+  for (const el of squadTags.values()) { const v = parseFloat(el.style.top) > barTop - 2 ? 'hidden' : ''; if (el.style.visibility !== v) el.style.visibility = v; }
 }
 
 // 0.19.0 (H452): pendeltåget som rullar in (sim.arrival). Från förvarningen bromsar det in från diset i öster och står
@@ -971,6 +974,35 @@ function updateUnitStatus() {
     else tmpV.set(at.x, g.squad ? 2.4 : (g.y ?? 0) + 2.2, at.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.classList.toggle('squad', !!g.squad && !!SQUAD_TAG[g.weapon.type]);
+  }
+  declutterTags([...unitTags.values()]);
+}
+// 0.19.0 (speltestet av 0.18.1, fynd 6: två sanity-staplar ovanpå varandra, och staplar från enheter utanför bild över
+// köpraden): en lapp som hamnar på köpraden eller utanför fönstret döljs, och en lapp som täcker en annan flyttas ner
+// under den (de översta står kvar).
+function declutterTags(els) {
+  const bar = document.getElementById('buildbar')?.getBoundingClientRect();
+  const barTop = bar && bar.height ? bar.top : innerHeight;
+  const vis = [];
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    const off = r.bottom > barTop - 2 || r.top < 0 || r.right < 0 || r.left > innerWidth;
+    const v = off ? 'hidden' : '';
+    if (el.style.visibility !== v) el.style.visibility = v;
+    if (!off) vis.push({ el, r: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } });
+  }
+  vis.sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
+  const placed = [];
+  for (const t of vis) {
+    let dy = 0;
+    for (let guard = 0; guard < 8; guard++) {
+      const hit = placed.find(q => q.left < t.r.right && t.r.left < q.right && q.top < t.r.bottom + dy && t.r.top + dy < q.bottom);
+      if (!hit) break;
+      dy = hit.bottom - t.r.top + 2;
+    }
+    if (dy) t.el.style.top = (parseFloat(t.el.style.top) + dy) + 'px';
+    if (t.r.bottom + dy > barTop - 2) t.el.style.visibility = 'hidden';
+    placed.push({ left: t.r.left, right: t.r.right, top: t.r.top + dy, bottom: t.r.bottom + dy });
   }
 }
 // 0.18.0: korselden med en enhet i handen (src/sim/sim.js crossfirePreview), sparad per ruta och riktning
@@ -1183,7 +1215,8 @@ function handleEvents() {
     else if (ev.t === 'obstacleBroken' && ev.shoved) tip('tip.shove', cellWorld(ev.cell));
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
     // 0.18.1 (speltestet av 0.18.0: "flykt sker utan banderoll"): banderollen mitt uppe, pingen på minikartan och flykten i bild
-    else if (ev.t === 'routed') { hud.banner(routBanner(ev.type), 3.5); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
+    // 0.19.0 (speltestet av 0.18.1, fynd 5): banderollen är röd och överst bland raderna, inte grå bakom omvägen
+    else if (ev.t === 'routed') { note(uiRoot, routBanner(ev.type), 'warn rout', { prio: true, top: true, ms: 3500 }); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
     else if (ev.t === 'unitBack') note(uiRoot, ev.kind === 'rout' ? `${unitName({ type: ev.type })} regrouping in reserve.` : `${unitName({ type: ev.type })} back in reserve.`);
     else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'recrewed') note(uiRoot, 'The gun is manned again.');

@@ -378,7 +378,7 @@ const scenes = {
       let banner = null, bar = null;
       for (let t = 0; t < 240 && sim.phase === 'wave' && !banner; t += 0.5) {
         H.advance(0.5);
-        const b = document.querySelector('#banner'); if (b && !b.hidden && /breaks!/.test(b.textContent)) banner = b.textContent;
+        const b = [...document.querySelectorAll('#notes .note.rout')].find(n => /breaks!/.test(n.textContent)); if (b) banner = b.textContent;
         if (!bar && t % 4 === 0) { await new Promise(r => requestAnimationFrame(() => r())); const s = document.querySelector('.ustat .sbar:not([hidden])'); if (s) { const r = s.getBoundingClientRect(); bar = { w: Math.round(r.width), h: Math.round(r.height), color: getComputedStyle(s.firstChild).backgroundColor }; } }
       }
       const red = [...document.querySelectorAll('.ustat .sbar[data-st="wavering"], .ustat .sbar[data-st="breaking"]')].length;
