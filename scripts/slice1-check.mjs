@@ -399,7 +399,7 @@ const scenes = {
       const lanes = { battle: q('.depot .lane.battle .ucard'), rest: q('.depot .lane.rest .ucard'), cnt: document.querySelector('.depot .lane.battle .cnt')?.textContent };
       // klick: en från reserven till striden när banan är full ger ett skäl
       document.querySelector('.depot .lane.rest .ucard [data-a="lane"]')?.click();
-      const refusal = document.querySelector('.depot .dmsg')?.textContent.trim();
+      const refusal = (document.querySelector('.depot .lnote') ?? document.querySelector('.depot .dmsg'))?.textContent.trim();
       document.querySelector('.depot .lane.battle .ucard [data-a="lane"]')?.click();
       const after = { battle: q('.depot .lane.battle .ucard'), rest: q('.depot .lane.rest .ucard') };
       const intel = [...document.querySelectorAll('.depot .intel .foe-row b')].map(n => n.textContent);

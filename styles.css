@@ -726,6 +726,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.14.1 (speltestet av 0.14.0: förrådet hoppade under pekaren): förrådet står fast upptill, kolumnerna har
    fast höjd och rullar själva, och meddelandet (eller frågan) har en rad som alltid finns. */
 .sheet.depot { top: 16px; transform: translateX(-50%); }
+/* 0.19.0 (speltestet av 0.18.1, fynd 4: Deploy klipptes vid 800 px höjd): förrådet är en kolumn som ryms i fönstret,
+   rutnätet tar det som blir över och knapparna står alltid inne */
+.sheet.depot { display: flex; flex-direction: column; height: min(calc(100vh - 32px), 940px); box-sizing: border-box; }
+.sheet.depot > * { flex: none; }
+#ui .sheet.depot > .dgrid { flex: 1 1 0; height: auto; min-height: 0; }
 .depot .oh, .opmap .oh { padding-right: 56px; }
 .depot .cols { height: min(58vh, 540px); max-height: none; align-content: start; }
 .depot .cols section { min-height: 0; }
@@ -1080,6 +1085,10 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .capline { font-size: 12px; margin: 0 0 6px; color: var(--paper-dim); }
 .depot .capline b { color: var(--paper); font-weight: 500; }
 .depot .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+/* 0.19.0 (speltestet av 0.18.1, fynd 4): kortet som just flyttats, och skälet under kortet när flytten nekas */
+.depot .urow.moved { border-color: #f2c46b; box-shadow: 0 0 0 1px rgba(242,196,107,0.5); animation: movedfade 1.6s ease-out forwards; }
+@keyframes movedfade { from { background: rgba(242,196,107,0.22); } to { background: rgba(233,223,201,0.04); } }
+.depot .lnote { margin: -2px 0 8px; padding: 4px 8px; font-size: 13px; color: #f0c9b4; border-left: 2px solid #e0603c; background: rgba(181,83,42,0.18); }
 .depot .lane { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--plate-edge); border-radius: 2px; padding: 6px; transition: background 0.15s, border-color 0.15s; }
 .depot .lane.battle { border-color: rgba(224,96,60,0.55); background: rgba(181,83,42,0.07); }
 .depot .lane.rest { border-color: rgba(143,192,232,0.4); background: rgba(143,192,232,0.04); }

@@ -286,13 +286,19 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
       ${others.length ? `<div class="send">${others.map(s => `<button type="button" class="mini sendb" data-a="send" data-to="${s}">Send to ${esc(sname(s))}</button><span class="pv ${from && n - 1 < garrisonOf(from) ? 'under' : ''}">${from ? `${esc(short(from))} garrison ${n} → ${n - 1}` : ''}</span>`).join('')}</div>` : ''}</div>`;
   }
   // Banorna: "Into battle (x / tak)" och "Reserve · resting". Över taket vägrar stridsbanan med ett skäl.
+  // 0.19.0 (speltestet av 0.18.1, fynd 4): korten står i fast ordning i båda banorna (typ som köpraden, nivå, nummer), så
+  // att bara kortet som flyttas byter plats och syns där det landar (moved). Nekas flytten står skälet under kortet.
+  const LANE_ORDER = SHOP.map(x => x.id);
+  const laneSort = list => [...list].sort((a, b) => (LANE_ORDER.indexOf(a.type) - LANE_ORDER.indexOf(b.type)) || b.level - a.level || a.uid - b.uid);
+  let laneNote = null, moved = null;
+  const cardHtml = (u, lane) => unitRow(u, lane).replace('class="urow ', `class="urow ${moved?.uid === u.uid ? 'moved ' : ''}`) + (laneNote?.uid === u.uid ? `<p class="lnote">${esc(laneNote.text)}</p>` : '');
   function laneHtml(sec) {
     const L = lanes(p, sec), capTxt = Number.isFinite(L.cap) ? ` / ${L.cap}` : '';
     return `<div class="lanes">
       <div class="lane battle" data-lane="battle"><div class="lh"><b>Into battle</b> <span class="cnt ${L.battle.length >= L.cap ? 'full' : ''}">${L.battle.length}${capTxt}</span></div>
-        <div class="lcards">${L.battle.map(u => unitRow(u, 'battle')).join('') || '<p class="muted">Nobody. Move units here.</p>'}</div></div>
+        <div class="lcards">${laneSort(L.battle).map(u => cardHtml(u, 'battle')).join('') || '<p class="muted">Nobody. Move units here.</p>'}</div></div>
       <div class="lane rest" data-lane="rest"><div class="lh"><b>Reserve · resting</b> <span class="cnt">${L.rest.length}</span></div>
-        <div class="lcards">${L.rest.map(u => unitRow(u, 'rest')).join('') || '<p class="muted">Nobody rests. Drag a unit here.</p>'}</div></div>
+        <div class="lcards">${laneSort(L.rest).map(u => cardHtml(u, 'rest')).join('') || '<p class="muted">Nobody rests. Drag a unit here.</p>'}</div></div>
     </div>`;
   }
   // INTEL för nästa strid (src/meta/intel.js): det vi vet om fienden, ärligt om det okända.
@@ -427,9 +433,14 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     // banorna: knappen och dra och släpp
     const toLane = (uid, lane) => {
       const c = canSetLane(p, uid, lane);
-      if (!c.ok) { msg = STATE_TEXT[c.reason] ?? 'Not possible.'; msgGood = false; confirm = null; render(); return; }
+      if (!c.ok) { laneNote = { uid, text: STATE_TEXT[c.reason] ?? 'Not possible.' }; moved = null; msg = ''; confirm = null; render(); return; }
       if (c.same) return;
+      laneNote = null; moved = { uid };
+      setTimeout(() => { if (moved?.uid === uid) moved = null; }, 1700);
       act('lane', uid, lane);
+      msg = ''; render();
+      // kortet som flyttats syns i sin nya bana
+      el.querySelector(`.urow.moved[data-uid="${uid}"]`)?.scrollIntoView({ block: 'nearest' });
     };
     for (const r of el.querySelectorAll('.urow.ucard')) {
       const uid = Number(r.dataset.uid);
