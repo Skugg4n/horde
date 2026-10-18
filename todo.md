@@ -330,3 +330,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H308 | molnbo | Fylligare: fler träd, trädgårdar, häckar (se refs/molnbo/satellit-vid-sodra.jpg).
 - [ ] H309 | bugg | Hus längst ner på skärmen blir genomskinliga vid scroll (kamerans klipp/dimma).
 - [ ] H310 | design | NATT ibland (bryter mot tidigt beslut "aldrig natt", Ola ändrade 2026-10-18). Lysraketer som förmåga, mynningsflammor och gatlyktor som ljus, begränsad sikt, sanity tar mer stryk i mörker. Måste testas fram så man ser lagom mycket och det blir snyggt. Prototyp först: en kvällsdag i skymning, sedan en natt.
+- [ ] H320 | kampanj | Gnesta centrum: flera försvarspunkter som måste hållas: brandstationen (civila, fordon; Räddningstjänsten som röst, Ola jobbar där), Elektron/kommunhuset, Frejaskolan med gymnastiksal och stora ytor. Ledningsplats kanske på brandstationen eller Elektron. (Ola 2026-10-18)
