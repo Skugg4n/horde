@@ -308,9 +308,12 @@ function placeHere(p) {
     stopPlacing(); placedAt = performance.now();
     return;
   }
+  const shut = placing.kind === 'obstacle' && !!routeKeys.shuts;
   const r = placing.kind === 'obstacle' ? actions.place(key, type) : actions.build(key, type, hasCone() ? aimFacing() : null);
   if (!r.ok) { logPlace({ out: 'reason', key, reason: r.reason }); flashTip(reasonText(r.reason)); return; }
   logPlace({ out: 'placed', key });
+  // 0.19.0 (H458): spärren stängde sista vägen: varningen står kvar en stund där den lades
+  if (shut) flashTip(SHUT_WARN);
   // Shift: kvar i handen så länge det finns råd till en till.
   // H095: ett Esc strax efter köpet gäller saken som just släpptes, inte pausmenyn.
   if (!shiftHeld || buyState(sim, type).state !== 'ok') { stopPlacing(); placedAt = performance.now(); }
@@ -598,7 +601,9 @@ let tipFlash = null;     // { text, until, x, y }
 function flashTip(text) { tipFlash = { text, until: performance.now() + 1800, x: pointer.x, y: pointer.y }; }
 function updateGhostTip() {
   const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
-  const show = !!flash || (placing && spot && !spot.ok);
+  // 0.19.0 (H458): spärren i handen stänger sista vägen: varningen vid pekaren (placeringen går ändå)
+  const shut = placing?.kind === 'obstacle' && spot?.ok && !!routeKeys.shuts;
+  const show = !!flash || (placing && spot && !spot.ok) || shut;
   // 0.19.0 (H459): över ett hus som enheten kan gå in i: INTO HOUSE
   const intoHouse = placing && placing.kind === 'gun' && spot && spot.key >= 0 && spot.ok && !!garrisonHouseAt(sim, spot.key, placing.type);
   const where = placing && placing.kind === 'gun' && (intoHouse || WEAPONS[placing.type]?.roof) && spot && spot.key >= 0;
@@ -613,8 +618,9 @@ function updateGhostTip() {
   ghostTip.hidden = !show;
   ghostTip.classList.toggle('flash', !!flash);
   if (!show) return;
-  const t = flash ?? reasonText(spot.reason);
+  const t = flash ?? (shut ? SHUT_WARN : reasonText(spot.reason));
   if (ghostTip.textContent !== t) ghostTip.textContent = t;
+  ghostTip.classList.toggle('warn', !flash && shut);
   const at = flash ? tipFlash : pointer;
   ghostTip.style.left = at.x + 'px'; ghostTip.style.top = at.y + 'px';
 }
@@ -1525,7 +1531,9 @@ function updateRoutes() {
       }
     }
   }
-  routeLines.set('now', showRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey);
+  // 0.19.0 (H458): med en spärr i handen som stänger sista vägen visas vägarna också när V slagit av dem
+  const forceRoute = placing?.kind === 'obstacle' && !!routeKeys.shuts;
+  routeLines.set('now', showRoute || forceRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey + (forceRoute && !showRoute ? '|f' : ''));
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
   // 0.12.0 (H114): när en barrikad går sönder blinkar den nya vägen några sekunder
   const flash = routeFlash > 0 ? 0.5 + 0.5 * Math.abs(Math.sin(routeFlash * 6)) : 0;
@@ -1552,10 +1560,21 @@ function updateRoutes() {
     const paths = sim.route.paths(ids, obs);
     const same = paths.every((p, i) => p.cells.join() === nowPaths[i]?.cells.join());
     routeKeys.previewPaths = same ? null : paths.map(p => p.cells.map(cellWorld));
+    // 0.19.0 (H458, H457): stänger spärren i handen den sista öppna vägen för någon av dagens ingångar (också de som
+    // kommer först i en senare våg)? Då står varningen vid pekaren och hela vägvyn visas
+    routeKeys.shuts = holding ? shutsLastRoad(obs) : false;
   }
   routeLines.set('preview', routeKeys.previewPaths, pKey);
   return { cells, tone: ob ? 'paper' : 'rust' };
 }
+// 0.19.0 (H458): dagens alla ingångar; true om någon av dem har en öppen väg nu men ingen med hindren obs.
+function shutsLastRoad(obs) {
+  const first = sim.route.spawns[0]?.id;
+  const ids = [...new Set(sim.dayCfg.waves.flatMap(w => w.groups.map(g => g.spawn ?? first)))];
+  const now = sim.route.paths(ids), then = sim.route.paths(ids, obs);
+  return then.some((p, i) => p.through != null && now[i]?.through == null);
+}
+const SHUT_WARN = 'This shuts every road. They will smash through.';
 addEventListener('keydown', e => {
   // 0.12.2: det man skriver i debugmenyns fält styr inte spelet; Esc stänger menyn
   if (e.target?.closest?.('#debug')) { if (e.key === 'Escape') { e.preventDefault(); debugUi.close(); } return; }

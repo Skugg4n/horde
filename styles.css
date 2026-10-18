@@ -514,6 +514,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 }
 #ghosttip[hidden] { display: none; }
 #ghosttip.flash { border-color: var(--rust); color: #f0c9b4; }
+/* 0.19.0 (H458): spärren i handen stänger sista vägen */
+#ghosttip.warn { border-color: var(--rust); color: #f0c9b4; background: rgba(90, 24, 14, 0.92); }
 @media (max-width: 760px) {
   #buildbar { left: 16px; bottom: 80px; }
   #buildbar .card { width: 66px; }

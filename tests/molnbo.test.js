@@ -301,3 +301,25 @@ test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
   assert.deepEqual(pr(smart), { 'molnbo 1': '85aa38eb', 'molnbo 2': '9f8c075d', 'molnbo 3': '5472293e', 'molnbo 4': '2fba89fd', 'molnbo 5': '78964c6b' });
   assert.deepEqual(pr(naive), { 'molnbo 1': 'cfe6db7e', 'molnbo 2': 'fcf87131', 'molnbo 3': '0054e104', 'molnbo 4': '01cd0974', 'molnbo 5': '741638a5' });
 });
+
+// 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").
+// Ingen bugg i flödesfältet: husen med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte
+// stänga en väg. Det var en ny ingång: gruppen söderifrån (Stenbyvägen, våg 2) kommer ut söder om Kvarnvägens
+// korsning, så med Kvarnvägen stängd är skrotbilarna på Stenbyvägen söder om Folkets hus dess enda väg. De slår sig
+// igenom, luckan öppnar och hela horden tar den kortare vägen genom luckan. H458 varnar nu när spärren läggs.
+test('H457: skrotbilarna söder om Folkets hus är enda vägen för gruppen söderifrån när Kvarnvägen är stängd', () => {
+  const sim = createSim({ map: molnbo, day: 2, cash: 9999, depth: true });
+  sim.maxSquads = 9;
+  const r = sim.route, obs = {};
+  for (const [u, v, t] of [[-90, 71, 'block'], [3, 125, 'car']]) { const [x, z] = R(u, v); for (const k of r.span(r.cellAt(x, z))) obs[k] = { type: t }; }
+  const [p1, p2] = r.paths(['s1', 's2'], obs);
+  assert.equal(p1.through, null, 'horden norrifrån har en öppen väg');
+  assert.ok(p2.through != null && streetAt(molnbo, ...g.center(p2.through)) === 'Stenbyvägen', 'söderifrån genom bilarna');
+  // ett hus med garnison ändrar inte vägarna
+  const before = r.paths(['s1', 's2']).map(p => p.cells.join());
+  const h = sim.map.lots.plots.find(q => q.id === 'V-13');
+  assert.ok(h);
+  const k = p.keyAt(h.house.x, h.house.z);
+  assert.ok(build(sim, k, 'inf').ok && sim.guns[0].house, 'gruppen i huset');
+  assert.deepEqual(r.paths(['s1', 's2']).map(q => q.cells.join()), before);
+});
