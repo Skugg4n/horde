@@ -574,13 +574,14 @@ export const DAYS = [
     waves: [ say('From the east, through the terraces!', { groups: [g('walker', 12, 1.0, 0, 'ostra', 20)] }),
              say('North and east at once!', { groups: [g('walker', 36, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('walker', 15, 1.4, 10, 'ostra'), g('brute', 2, 4, 26, 'vikN')] }),
              say('Runners through the terraces!', { groups: [g('runner', 40, 0.9, 0, 'ostra'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 3, 3, 24, 'ostra')] }),
-             { groups: [g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 1.0, 0, 'ostra'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'ostra')] } ] },
+             // 0.18.0 (skiva 1): kryparna, under tråden genom gräset
+             say('Crawlers in the grass! Wire does nothing.', { groups: [g('crawler', 10, 1.1, 0, 'dansW'), g('walker', 50, 0.3, 2, 'dansW'), g('walker', 40, 1.0, 0, 'ostra'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'ostra')] }) ] },
   { n: 5, supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2050, hp: 12, overlap: 60, intro: { title: 'Day 5: The whole town', text: 'Every road at once. Hold the doors.' },
     dormant: [{ house: 'B2-01', street: 'Sigtunavägen', count: 5, type: 'walker', wave: 0 }, { house: 'N-12', street: 'Vikingavägen', count: 5, type: 'walker', wave: 1 },
       { house: 'B3-02', count: 4, type: 'walker', wave: 3, delay: 45, intel: false }, { house: 'B3-02', count: 2, type: 'brute', wave: 3, delay: 48, intel: false }],
     waves: [ say('Up Sigtunavägen from the east.', { groups: [g('walker', 10, 0.7, 0, 'east1', 30), g('runner', 4, 0.9, 6, 'east1')] }),
              say('North and east!', { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'ostra'), g('brute', 2, 4, 30, 'vikN')] }),
-             say('Runners from every side!', { groups: [g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'ostra'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'east1'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
+             say('Runners from every side!', { groups: [g('crawler', 8, 1.2, 4, 'ostra'), g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'ostra'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'east1'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
              { groups: [g('brute', 4, 3, 0, 'vikN'), g('walker', 40, 0.3, 3, 'vikN'), g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 20, 'ostra'),
                g('runner', 25, 0.7, 40, 'east1'), g('brute', 3, 3, 40, 'ostra'), g('brute', 3, 3, 50, 'dansW'), tell('Behind you, from the west!', g('walker', 15, 0.5, 55, 'sigW'))] } ] },
 ];

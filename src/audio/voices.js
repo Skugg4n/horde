@@ -235,6 +235,17 @@ const groan = { group: 'groan', dur: 1.8, play(A, t, o, out) {
   } else if (type === 'runner') {
     const f = R(360, 480), len = R(0.45, 0.7);
     voiceTract(A, t, out, { f0: f, f1: [f * 1.7, f * 1.45, f * 0.9], len, form: [[1100, 4, 1], [2500, 6, 0.7]], wob: 9, depth: 18, k: 5, noiseAmt: 0.55, peak: 0.22, att: 0.04 });
+  } else if (type === 'armored') {
+    // 0.18.0: den pansrade. Ett stön inne i hjälmen (lågt, dämpat, nästan inget över 900 Hz) och utrustningen som skramlar.
+    const f = R(70, 100), len = R(0.9, 1.4);
+    const muff = A.ctx.createGain(), lp = filt(A.ctx, 'lowpass', 900); muff.gain.value = 1; chain(muff, lp, out);
+    voiceTract(A, t, muff, { f0: f, f1: f * 0.8, len, form: [[380, 4, 1], [760, 5, 0.5]], wob: 4, depth: 5, k: 3, noiseAmt: 0.4, peak: 0.34, att: 0.18 });
+    for (let i = 0; i < 3; i++) burst(A, t + R(0.1, len), out, { type: 'bandpass', f: R(2600, 3600), q: 9, peak: 0.12, d: 0.05 });
+  } else if (type === 'crawler') {
+    // 0.18.0: kryparen. Ett vått, väsande andetag nära marken och naglar som skrapar mot asfalten.
+    const len = R(0.9, 1.3);
+    burst(A, t, out, { buf: 'brown', type: 'bandpass', f: 900, f2: 380, glide: len, q: 1.6, a: 0.25, peak: 0.32, d: len });
+    for (let i = 0; i < 4; i++) burst(A, t + i * R(0.18, 0.3), out, { type: 'highpass', f: R(3000, 4200), peak: 0.1, d: 0.07 });
   } else if (type === 'brute') {
     const f = R(42, 58), len = R(1.1, 1.6);
     const g = voiceTract(A, t, out, { f0: f * 1.15, f1: f * 0.8, len, form: [[320, 3, 1.2], [680, 4, 0.8], [1200, 5, 0.3]], wob: 3.5, depth: 4, k: 4.5, noiseAmt: 0.6, peak: 0.6, att: 0.25 });
@@ -245,6 +256,23 @@ const groan = { group: 'groan', dur: 1.8, play(A, t, o, out) {
     const form = v < 0.33 ? [[420, 5, 1], [850, 6, 0.6]] : v < 0.66 ? [[700, 5, 1], [1150, 6, 0.55]] : [[560, 4, 1], [1000, 6, 0.5]];
     voiceTract(A, t, out, { f0: f, f1: f * R(0.75, 0.95), len, form, wob: R(3, 6), depth: R(4, 9), k: 2.5, noiseAmt: 0.35, peak: 0.3, att: 0.2 });
   }
+} };
+
+// ---------- 0.18.0: pansaret och sanity ----------
+// Småkaliber mot pansar: en kort metallisk rikoschett (inget kött i träffen).
+const clang = { group: 'hit', dur: 0.14, play(A, t, o, out) {
+  const j = R(0.9, 1.2), g = A.ctx.createGain(); g.gain.value = 0.32; g.connect(out);
+  burst(A, t, g, { type: 'bandpass', f: 3200 * j, f2: 1900 * j, glide: 0.1, q: 12, peak: 0.6, d: 0.1 });
+  burst(A, t, g, { type: 'highpass', f: 5000, peak: 0.25, d: 0.03 });
+} };
+// En enhet bryts (routed) eller vacklar: ett lågt, falskt drag under allt annat, och ett andetag som stockar sig.
+// Diskret: det ska kännas mer än höras.
+const dread = { group: 'dread', dur: 2.4, play(A, t, o, out) {
+  const { ctx } = A, len = o.kind === 'waver' ? 1.4 : 2.2, g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.kind === 'waver' ? 0.07 : 0.14, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  g.connect(out);
+  for (const f of [55, 58.3, 82.4]) { const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f * 0.97, t + len); os.connect(g); os.start(t); os.stop(t + len + 0.05); }
+  burst(A, t + 0.25, out, { buf: 'brown', type: 'bandpass', f: 600, f2: 300, glide: 0.5, q: 1.2, a: 0.1, peak: o.kind === 'waver' ? 0.05 : 0.1, d: 0.6 });
 } };
 
 // ---------- hinder och bas ----------
@@ -382,4 +410,4 @@ const stinger = { group: 'stinger', dur: 3.8, play(A, t, o, out) {
   chain(lp, g, out); send(A, g, 0.6);
 } };
 
-export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, kill, groan, knock, crunch, snap, snag, strain, breach, alarm, ui, bonus, horn, stinger };
+export const SOUNDS = { m249, m2, ksp58, ak5, ak4, psg90, thoonk, pop, casing, throw: toss, blast, hit, clang, dread, kill, groan, knock, crunch, snap, snag, strain, breach, alarm, ui, bonus, horn, stinger };

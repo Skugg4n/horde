@@ -295,6 +295,8 @@ export function suppliesModel({ ammo = false, at = [-1.6, 1.1], sandbags = false
     crate(c, 0, 0, 0, 0.15); crate(c, 0.06, 0.4, 0.02, -0.2); crate(c, -0.1, 0, 0.5, 0.35);
     for (const [y, z] of [[0.3, 0], [0.7, 0.02], [0.3, 0.5]]) c.add(box(0.84, 0.06, 0.48, mat(P.grenadeBand), z === 0.5 ? -0.1 : 0, y, z));
     c.position.set(at[0], 0, at[1]);
+    // 0.18.0 (speltestet av 0.17.2: "lådan syns inte på enheten"): större, och märket AMMO över enheten (main.js)
+    c.scale.setScalar(1.45);
     g.add(c);
   }
   if (sandbags) for (const m of men) {
@@ -687,6 +689,10 @@ const BUILDS = {
   // stor och tung men mänsklig: bred bröstkorg, tjocka lemmar, litet huvud på framskjuten nacke
   brute:  { chestW: 0.58, waistW: 0.5, chestD: 0.36, shX: 0.33, armW: 0.16, foreW: 0.14, legW: 0.2, shinW: 0.16,
             hipX: 0.14, thigh: 0.46, shin: 0.48, hipY: 0.94, torsoH: 0.64, upper: 0.33, fore: 0.31, head: 0.24 },
+  // 0.18.0: den pansrade är en vanlig människa i skyddsutrustning (lite bredare över bröst och axlar)
+  armored: { chestW: 0.47, waistW: 0.38, chestD: 0.3, shX: 0.26, armW: 0.12, foreW: 0.1, legW: 0.16, shinW: 0.13 },
+  // kryparen: mager, långa armar
+  crawler: { chestW: 0.36, waistW: 0.3, chestD: 0.2, shX: 0.2, armW: 0.085, foreW: 0.075, legW: 0.12, shinW: 0.1, upper: 0.36, fore: 0.34 },
 };
 // lean: ryggens krökning framåt (radianer). amp: höftens sving, knee: knäböj i svingen,
 // arms: armsving, elbow: armbågen i vila, hang: hur långt huvudet hänger.
@@ -694,6 +700,8 @@ const GAIT = {
   walker: { lean: [0.22, 0.36], amp: 0.42, knee: 0.75, sway: 0.08, arms: 0.12, bob: 0.025, hang: [0.25, 0.55] },
   runner: { lean: [0.38, 0.48], amp: 0.85, knee: 1.55, sway: 0.04, arms: 0.95, bob: 0.07, hang: [-0.1, 0.1], sprint: true },
   brute:  { lean: [0.24, 0.34], amp: 0.32, knee: 0.5, sway: 0.12, arms: 0.1, bob: 0.04, hang: [0.1, 0.3] },
+  armored: { lean: [0.12, 0.2], amp: 0.36, knee: 0.6, sway: 0.06, arms: 0.06, bob: 0.03, hang: [0.05, 0.2] },
+  crawler: { lean: [0.2, 0.3], amp: 0.3, knee: 0.6, sway: 0.05, arms: 0.4, bob: 0.02, hang: [-0.6, -0.4], crawl: true },
 };
 
 // Ryck: hur ofta och hur hårt, per typ. period = sekunder mellan möjliga ryck, chance = andel
@@ -703,6 +711,8 @@ const TWITCH = {
   walker: { period: 1.7, chance: 0.75, head: 0.55, shoulder: 0.45, stutter: 0.9, lurch: 0.3, stomp: 0, shake: 0.02, snap: 0.5 },
   runner: { period: 0.8, chance: 0.8, head: 0.45, shoulder: 0.5, stutter: 0.4, lurch: 0.25, stomp: 0, shake: 0.06, snap: 0.25 },
   brute:  { period: 2.4, chance: 0.6, head: 0.35, shoulder: 0.3, stutter: 0.5, lurch: 0.15, stomp: 1, shake: 0.01, snap: 0.6 },
+  armored: { period: 2.0, chance: 0.6, head: 0.3, shoulder: 0.3, stutter: 0.6, lurch: 0.2, stomp: 0, shake: 0.01, snap: 0.4 },
+  crawler: { period: 1.2, chance: 0.8, head: 0.6, shoulder: 0.4, stutter: 0.8, lurch: 0.2, stomp: 0, shake: 0.05, snap: 0.3 },
 };
 
 // Hash av två heltal till 0..1. Samma zombie-id ger alltid samma ryck (ingen Math.random).
@@ -752,8 +762,9 @@ function stain(parent, w, hgt, x, y, z) {
 export function zombieModel(type = 'walker') {
   const def = ZOMBIES[type] ?? ZOMBIES.walker;
   const gait = GAIT[type] ?? GAIT.walker;
-  const skin = pick(type === 'brute' ? P.zBruteSkin : P.zSkin);
-  const shirt = pick(type === 'runner' ? P.zRunnerShirt : type === 'brute' ? P.zBruteShirt : P.zShirt);
+  if (type === 'armored') return armoredModel(def, gait);
+  const skin = pick(type === 'brute' ? P.zBruteSkin : type === 'crawler' ? P.zCrawlSkin : P.zSkin);
+  const shirt = pick(type === 'runner' ? P.zRunnerShirt : type === 'brute' ? P.zBruteShirt : type === 'crawler' ? P.zMud : P.zShirt);
   // bara underarmar: bjässen alltid, löparen ofta, vandraren ibland
   const bare = type === 'brute' ? [true, true]
     : type === 'runner' ? [Math.random() < 0.6, Math.random() < 0.4]
@@ -780,7 +791,7 @@ export function zombieModel(type = 'walker') {
   h.shR.rotation.set(arms[1][0], 0, arms[1][1]); h.elR.rotation.x = arms[1][2];
 
   // trasor, blod: 13 meshar i kroppen, högst 3 till
-  if (type === 'runner') hem(h, shirt, 2);
+  if (type === 'runner' || type === 'crawler') hem(h, shirt, 2);
   else if (type === 'brute') hem(h, shirt, 1);
   else if (Math.random() < 0.7) hem(h, shirt, 1 + (Math.random() < 0.5 ? 1 : 0));
   if (type === 'brute' || Math.random() < 0.65) stain(h.spine, rnd(0.12, 0.24) * b.chestW / 0.4, rnd(0.12, 0.26), rnd(-0.1, 0.1), rnd(0.25, 0.45), b.chestD / 2 + 0.012);
@@ -798,11 +809,50 @@ export function zombieModel(type = 'walker') {
   return z;
 }
 
+// 0.18.0: den pansrade. Kravallpolisens utrustning på en av de döda: mörk overall, svart hjälm med ett grått visir
+// som är uppfällt och sprucket, och skölden på vänster underarm. Högst 16 meshar (humanoiden 13, hjälm, visir, sköld).
+function armoredModel(def, gait) {
+  const h = humanoid({ skin: pick(P.zSkin), shirt: pick(P.zRiot), pants: pick(P.zRiot), helmet: P.zRiotHelmet, build: BUILDS.armored, bare: [false, Math.random() < 0.3] });
+  const b = h.build;
+  const visor = sbox(b.head * 0.78, b.head * 0.32, 0.03, mat(P.zVisor), 0, 0.07 + b.head * 0.62, 0.03 + b.head * 0.5);
+  visor.rotation.x = -0.5; visor.castShadow = false; h.head.add(visor);
+  // skölden: en platt rektangel längs underarmen, vänd framåt
+  const shield = sbox(0.5, 0.78, 0.035, mat(P.zShield), 0.1, -b.fore * 0.55, 0.12);
+  shield.rotation.y = -0.25; h.elL.add(shield);
+  stain(h.spine, rnd(0.1, 0.18), rnd(0.1, 0.2), rnd(-0.1, 0.1), rnd(0.25, 0.45), b.chestD / 2 + 0.012);
+  // vänster arm bär skölden framför kroppen, höger hänger
+  h.shL.rotation.set(-0.9, 0, 0.15); h.elL.rotation.x = -1.2;
+  h.shR.rotation.set(-0.3 + rnd(-0.15, 0.15), 0, -0.08); h.elR.rotation.x = -0.3;
+  h.head.rotation.set(rnd(gait.hang[0], gait.hang[1]), rnd(-0.2, 0.2), rnd(-0.2, 0.2));
+  const lean = rnd(gait.lean[0], gait.lean[1]);
+  h.spine.rotation.x = lean;
+  h.root.scale.setScalar(def.scale);
+  const z = { ...h, scale: def.scale, type: 'armored', lean, gait,
+    arm0: [h.shL.rotation.x, h.shR.rotation.x], elbow0: [h.elL.rotation.x, h.elR.rotation.x],
+    armZ0: [h.shL.rotation.z, h.shR.rotation.z], head0: [h.head.rotation.x, h.head.rotation.y, h.head.rotation.z] };
+  seedZombie(z, (Math.random() * 1e6) | 0);
+  return z;
+}
+// 0.18.0: kryparen rör sig på alla fyra hela tiden (samma kryp som löparens snubbel, men långsamt och lågt).
+function zombieCrawl(z, phase, t) {
+  const s = Math.sin(phase), c = Math.cos(phase);
+  z.body.rotation.set(1.2, 0, s * 0.06);
+  z.body.position.set(0, 0.1 + Math.abs(c) * 0.02, 0.2);
+  z.spine.rotation.x = 0.2;
+  z.head.rotation.set(-0.95 + Math.sin(t * 1.7 + z.seed) * 0.08, z.head0[1], z.head0[2]);
+  z.hipL.rotation.x = -1.55 + s * 0.35; z.kneeL.rotation.x = 1.75 - Math.max(0, s) * 0.3;
+  z.hipR.rotation.x = -1.55 - s * 0.35; z.kneeR.rotation.x = 1.75 - Math.max(0, -s) * 0.3;
+  z.shL.rotation.x = -1.3 - s * 0.5; z.elL.rotation.x = -0.25 - Math.max(0, -s) * 0.4;
+  z.shR.rotation.x = -1.3 + s * 0.5; z.elR.rotation.x = -0.25 - Math.max(0, s) * 0.4;
+  z.shL.rotation.z = z.armZ0[0]; z.shR.rotation.z = z.armZ0[1];
+}
+
 // Gångcykel. phase växer med sträckan (ungefär 2.6 per meter för en vandrare).
 // Knät böjs när benet svingar fram, ryggen gungar, armarna svänger från viloläget.
 // t: vyns klocka i sekunder, driver ryckningarna (twitch). Benen och armarna går lite i otakt.
 export function zombieWalk(z, phase, t = 0) {
   const g = z.gait, tw = z.tw;
+  if (g.crawl) { zombieCrawl(z, phase, t); return; }
   // Snubbelsteg: steget hakar upp sig en kort stund (fasen hålls tillbaka).
   const stutter = Math.abs(jolt(z.seed, t, tw.period * 1.9, tw.chance * 0.6, 0.35, 21));
   const ph = phase - stutter * tw.stutter;
@@ -860,6 +910,8 @@ function twitchUpper(z, t) {
 // Slår mot ett hinder: står still med böjda knän, armarna hackar växelvis över huvudet.
 export function zombieAttack(z, chop, t = 0) {
   zombieWalk(z, 0, t);
+  // kryparen river från marken
+  if (z.gait.crawl) { const a = Math.sin(chop); z.shL.rotation.x = -1.9 + a * 0.5; z.shR.rotation.x = -1.9 - a * 0.5; z.head.rotation.x = -0.7; return; }
   z.hipL.rotation.x = -0.35; z.kneeL.rotation.x = 0.5;
   z.hipR.rotation.x = 0.2; z.kneeR.rotation.x = 0.35;
   z.body.position.y = -0.05;

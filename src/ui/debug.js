@@ -59,7 +59,7 @@ export function mountDebug(root, api) {
         <div class="row"><button data-a="tweaks-reset">Reset tweaks</button></div>
       </section>
       <section><h4>Spawn</h4>
-        <div class="row"><input data-k="n" type="number" min="1" max="500" value="10">${sel('type', [['walker', 'Walkers'], ['runner', 'Runners'], ['brute', 'Brutes']])}${spawns.length ? sel('spawn', spawns.map(s => [s.id, s.name])) : ''}<button data-a="spawn">Spawn</button></div>
+        <div class="row"><input data-k="n" type="number" min="1" max="500" value="10">${sel('type', [['walker', 'Walkers'], ['runner', 'Runners'], ['brute', 'Brutes'], ['armored', 'Armoured'], ['crawler', 'Crawlers']])}${spawns.length ? sel('spawn', spawns.map(s => [s.id, s.name])) : ''}<button data-a="spawn">Spawn</button></div>
         <div class="row">${houses.length ? sel('house', houses.map(h => [h.id, h.label])) + '<button data-a="burst">Open house</button>' : '<span class="muted">No houses on this map</span>'}</div>
       </section>
       <section><h4>Visuals</h4>

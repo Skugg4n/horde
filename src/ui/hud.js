@@ -6,7 +6,7 @@ import { ZOMBIES } from '../data/zombies.js';
 import { earlyBonus, hasNextWave, waveLeft } from '../sim/sim.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
-const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'] };
+const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'], armored: ['armoured', 'armoured'], crawler: ['crawler', 'crawlers'] };
 // 0.14.1 (speltestet av 0.14.0: "Wave 2: 13 walkers" medan räknaren sa "22 left"): de vilande i husen
 // (dayCfg.dormant) hör till vågen de slås upp i, både i raden och i räknaren, så att siffrorna stämmer.
 export function waveGroups(dayCfg, index) {
@@ -75,7 +75,7 @@ export function comingBySpawn(sim) {
     if (w) for (const g of w.groups) add(g.spawn ?? first, g.type, g.count);
   }
   // 0.12.1 (speltestet: ordningen bytte medan siffrorna sjönk): fast ordning per typ
-  const ORDER = ['walker', 'runner', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
+  const ORDER = ['walker', 'runner', 'crawler', 'armored', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
   return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
 }
 
