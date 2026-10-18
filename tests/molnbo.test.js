@@ -151,6 +151,6 @@ test('balans: högst cirka 250 levande zombier samtidigt', () => {
 // 0.17.0-molnbo: första kvittot.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '2220d9db', 'molnbo 2': '81149352', 'molnbo 3': '4d2aaaf0', 'molnbo 4': 'f0abc7d6', 'molnbo 5': '33593c36' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'e18b0a25', 'molnbo 2': '3ec71d04', 'molnbo 3': 'f210c352', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '101843c7', 'molnbo 2': '56a6688b', 'molnbo 3': '21d943c1', 'molnbo 4': '6bbcf081', 'molnbo 5': 'b2664d32' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'e18b0a25', 'molnbo 2': '3ec71d04', 'molnbo 3': 'a4dff607', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
 });

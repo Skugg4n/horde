@@ -810,13 +810,15 @@ export function stepPrints(log) {
 // ---------- Mölnbo (0.17.0-molnbo) ----------
 // Spelaren kommer från Hagstumosse med det en vanlig spelare har där (opCampaign('normal'): trupperna, nivåerna,
 // förrådets uppgraderingar och RP). Två spelare i Mölnbo:
-//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset (horden från Gnestavägen och Kvarnen måste runt
+//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset och Kvarnvägen (horden från Gnestavägen måste runt
 //             genom rutnätet söder om spåret), gångbron när horden kommer norr om spåret (dag 4 och 5: allt därifrån
 //             måste över vägbron, flaskhalsen), Psg 90 på trapptornen och taken, grupperna bakom tåget.
 //   naive   : samma trupper och köp, ställer allt efter sin egen väg och spärrar aldrig.
 // Mål (uppdraget): mbSmart vinner dag 1 till 3 inom 2 försök och dag 4 och 5 inom 3 till 4, naive förlorar från dag 3,
 // högst cirka 250 levande zombier. docs/balance-log.md, Mölnbo.
-const MB_STENBY = [R_MB(-1.5, 56)];           // Stenbyvägen vid Missionshuset
+// Stenbyvägen vid Missionshuset, och Kvarnvägen förbi hyreshusen (annars går horden från Gnestavägen den vägen,
+// söder om Folkets hus, och aldrig förbi stationen)
+const MB_STENBY = [R_MB(-1.5, 56), R_MB(-90, 71)];
 // Gångbrons södra ramp: horden norrifrån måste över vägbron, där tornen och caféets parkering ser dem. Prövat
 // (balansloggen): spärren på vägbron i stället (horden tar gångbron) och en tyngd på pjäserna vid broarna var sämre.
 const MB_FOOT = [R_MB(-17.5, 22)];

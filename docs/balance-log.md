@@ -824,7 +824,7 @@ Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 ti
 Ny sektor efter Hagstumosse (src/data/molnbo.js). Mätt med `node scripts/balance.mjs molnbo` över fem seeds. Spelaren kommer med det en vanlig spelare har efter Hagstumosse: `opCampaign('normal')` hela vägen genom E4, Ishallen och Vikingavägen, med trupperna (20 enheter), nivåerna, förrådets uppgraderingar och RP (`molnboArrival`). Därifrån spelas Mölnbo dag för dag med försök och rekvisition mellan försöken (`molnboCampaign`, REQUISITION.molnbo). Frontbredden är 10.
 
 Policyerna:
-- mbSmart (kartläsaren): spärrar Stenbyvägen vid Missionshuset, så att horden från Gnestavägen och Kvarnen måste runt genom rutnätet söder om spåret (Fagernäsvägen, Genvägen, Trollvägen, Skolvägen). Dag 4 och 5 spärrar hon också gångbrons södra ramp, så att allt norrifrån måste över vägbron. Psg 90 på tak (trapptornen, stationen, tåget), pjäserna där de ser mest av den tvingade vägen, ammunition och sandsäckar.
+- mbSmart (kartläsaren): spärrar Stenbyvägen vid Missionshuset och Kvarnvägen förbi hyreshusen, så att horden från Gnestavägen måste förbi stationen och runt genom rutnätet söder om spåret (Fagernäsvägen, Genvägen, Skolvägen). Med bara Stenbyvägen spärrad går horden Kvarnvägen söder om Folkets hus och aldrig förbi trapptornen (prickskyttarna sköt inte ett skott i webbläsarens speltest dag 1). Dag 4 och 5 spärrar hon också gångbrons södra ramp, så att allt norrifrån måste över vägbron. Psg 90 på tak (trapptornen, stationen, tåget), pjäserna där de ser mest av den tvingade vägen, ammunition och sandsäckar.
 - naive: samma trupper och köp, allt efter sin egen väg, aldrig en spärr.
 
 Kartan ändrades under passet (det ändrade allt):
@@ -839,22 +839,23 @@ Prövat och förkastat:
 - Dag 4 och 5 med fler zombier och högre hp: topparna gick över 250 (260 till 273). Vågorna dag 4 och 5 är nu 72 % av första gissningen (bjässarna orörda) och hp högre.
 
 Siffrorna (hp-faktor per dag):
-- dag 1 hp 18, dag 2 hp 12, dag 3 hp 18 (tåget efter 330 s), dag 4 hp 37 (340 s), dag 5 hp 28,2 (360 s, det sista tåget).
-- Dag 4 och 5 är knivseggar. Rekvisitionen mellan försöken hjälper lite (lagret är nästan tomt, nivåerna köpta, en förlust ger cirka 60 RP), så kurvan per försök är platt: dag 4 hp 36 vinns på första försöket i alla seeds, hp 38 ger 1 till 5 försök, hp 40 2 till 6. Dag 5 hp 28 ger 1 till 2, hp 28,5 1 till 6, hp 30 en seed som aldrig vinner.
+- dag 1 hp 18, dag 2 hp 12, dag 3 hp 16,5 (tåget efter 330 s), dag 4 hp 32 (340 s), dag 5 hp 15 (360 s, det sista tåget).
+- Dag 2 och 3 avgör naive: dag 2 hp 14 förlorade naive i fyra seeds av fem (för tidigt), dag 3 hp 14 vann naive i fyra seeds (för sent).
+- Dag 4 och 5 är knivseggar. Rekvisitionen mellan försöken hjälper lite (lagret är nästan tomt, nivåerna köpta, en förlust ger cirka 60 RP), så kurvan per försök är platt: ett par hp-steg mellan "alla på första försöket" och "någon seed vinner aldrig". Före Kvarnvägens spärr: dag 4 hp 36 alla på första, hp 40 2 till 6 försök; dag 5 hp 28 1 till 2, hp 30 en seed som aldrig vinner.
 
 Resultat (försök till vinst per dag, seed 0 till 4):
 
     mbSmart  M1 M2 M3 M4 M5   topp
-    0         1  1  1  1  1   210
-    1         1  1  1  2  3   216
-    2         1  1  1  2  1   214
-    3         1  1  1  1  1   212
-    4         1  1  1  1  2   216
+    0         1  1  1  1  2   191
+    1         1  1  1  2  3   183
+    2         1  1  1  1  2   194
+    3         1  1  1  1  4   188
+    4         1  1  1  2  1   195
 
     naive    M1 M2 M3 M4 M5
-    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 163 till 172)
+    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 152 till 160)
 
-Målen: kartläsaren vinner dag 1 till 3 inom 2 försök (alla på första) och dag 4 och 5 inom 4 (1 till 3). Naive vinner dag 1 och 2 (dag 2 med bas 2 till 7) och förlorar från dag 3. Flest levande zombier samtidigt 216 (målet under cirka 250).
+Målen: kartläsaren vinner dag 1 till 3 inom 2 försök (alla på första) och dag 4 och 5 inom 4 (dag 4 1 till 2, dag 5 1 till 4). Naive vinner dag 1 och 2 och förlorar från dag 3. Flest levande zombier samtidigt 195 (målet under cirka 250).
 
 Kampanjen: när Vikingavägen dag 5 är vunnen räknade finishDay Mölnbo som öppen och underbemannad, så sektorn började med tryck 2 (hp gånger 1,12). Ledningens första leverans till Mölnbo (mb-1, adopt) flyttar truppen dit och nollställer trycket: en ny sektor börjar utan tryck.
 
