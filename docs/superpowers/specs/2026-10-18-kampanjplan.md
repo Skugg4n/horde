@@ -240,3 +240,10 @@ Rutan: samma kortformat som rekvisitionen (streck, ikoner, en rad text, "2 days"
 - Vi förstår inte direkt var huvudhotet kommer ifrån. I början blandade slag runt omkring; först efter hand blir det tydligt att Björnlunda är vårt största problem.
 - **Lägeskartan i större skala:** en karta (Södermanland, kanske med Sverige som inzoomning) där man ser underrättelser om större rörelser av zombier och vart de är på väg. Tidigt osäkert (breda, suddiga pilar, "unconfirmed"), sedan allt tydligare. Spårningen pekar till slut mot Björnlunda.
 - Förslag (Claude): underrättelser som egen resurs mellan dagarna. Hemvärnets patruller, en polishelikopter eller en drönare ger en rapport per dag som skärper en pil. Spelaren väljer vad som ska spanas, vilket också styr vilka skådeplatser som öppnas. Utanför vår region fortsätter det: slutet är lokal seger, Sverige brinner vidare (öppet för nästa kampanj).
+
+## 9. Beslut (Ola 2026-10-18)
+
+1. Komprimeringen: JA (Hagstumosse 4 dagar, Mölnbo 2).
+2. Ordning: blandat. Vissa platser MÅSTE försvaras vissa dagar (fasta dagar i berättelsen); däremellan väljer spelaren själv (fönster, styrt av underrättelser).
+3. Västerkärv: med som "Västerkärv", gården anonym (ingen person vid namn).
+4. Nytt krav: mellansnacket i den nya helheten måste vara intressant, relevant och snyggt presenterat så man förstår vad som händer. Tänk ett komplett spel, inte "kartor med en ruta på". Kanske egna miljöer (ledningsplats m.m.). Fable undersöker hur andra spel gör (se 2026-10-18-mellansnack.md).
