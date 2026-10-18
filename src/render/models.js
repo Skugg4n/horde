@@ -284,6 +284,27 @@ function grenadeCrate(g, x, z, ry) {
   c.position.set(x, 0, z); c.rotation.y = ry; g.add(c);
   return c;
 }
+// 0.17.2 (H306, Olas speltest av 0.17.1: "sandsäckarna och ammolådan verkar inte göra något"): förnödenheterna syns
+// på enheten. ammo: en stapel ammunitionslådor med gul rand bredvid skytten (at: [x, z] lokalt). sandbags: en låg
+// båge säckar framför varje soldat i gruppen (men: [{ x, z, face }] lokalt, face i världens vinkel).
+export function suppliesModel({ ammo = false, at = [-1.6, 1.1], sandbags = false, men = [], seed = 1 } = {}) {
+  const g = new THREE.Group(); g.name = 'supplies';
+  const R = seededR(seed * 2654435761 + 11);
+  if (ammo) {
+    const c = new THREE.Group(); c.name = 'supply-ammo';
+    crate(c, 0, 0, 0, 0.15); crate(c, 0.06, 0.4, 0.02, -0.2); crate(c, -0.1, 0, 0.5, 0.35);
+    for (const [y, z] of [[0.3, 0], [0.7, 0.02], [0.3, 0.5]]) c.add(box(0.84, 0.06, 0.48, mat(P.grenadeBand), z === 0.5 ? -0.1 : 0, y, z));
+    c.position.set(at[0], 0, at[1]);
+    g.add(c);
+  }
+  if (sandbags) for (const m of men) {
+    const w = new THREE.Group(); w.name = 'supply-bags';
+    sandbagArc(w, { r: 0.75, layers: 2, n: 5, arc: 0.85, size: 0.62 }, { R });
+    w.position.set(m.x, 0, m.z); w.rotation.y = -(m.face ?? 0);
+    g.add(w);
+  }
+  return g;
+}
 // En granat i luften eller i lådan (lookbook och fx delar formen).
 export function grenadeModel() {
   const g = new THREE.Group();
