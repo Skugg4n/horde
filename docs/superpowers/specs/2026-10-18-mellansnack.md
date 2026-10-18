@@ -312,3 +312,6 @@ Det här dokumentet ändrar inte kampanjplanen, men tre saker ur Olas inspel hö
 4. **Spaningen** (steg 3): ett val per dag mellan tre källor som skärper pilar och kan öppna skådeplatser, eller ska underrättelserna bara komma (ingen resurs, bara berättelse)?
 5. **Handskriftsspåren på kartan** som sparas över kampanjen: ja, eller håll kartan ren och tydlig?
 6. **Centrum som flerpunktsförsvar:** fyra punkter (brandstationen, Elektron, Frejaskolan, järnvägsstationen som bas) där bara basen avgör dagen och de andra kostar: rätt antal, och är priserna rätt sorts (civila, Räddningstjänstens stöd, nästa dags rekvisition)? Och Nymans enda rad om massan i slutet: rätt mängd sagt, eller ännu mindre?
+
+## 10. Olas inspel (2026-10-18)
+Förrådet, trupplistan och underrättelserna ska byggas runt ledningsplatsen som ett bord med "fysiska" lappar, symboler och kort som man kan läsa och dra runt: truppkort som läggs i högen "Into battle" eller "Reserve", underrättelselappar på kartan, ordern som ett papper. Samma dra-och-släpp som förrådets nya två banor (0.18.1), men diegetiskt på kartbordet i vagnhallen.

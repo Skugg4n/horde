@@ -344,3 +344,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup.
 - [ ] H314 | grafik | Kartans kant (fog of war / grå dis) finns bara i Mölnbo; ta till E4 och Hagstumosse om Ola gillar (b).
 - [ ] H440 | ux | Förrådet: två banor 'Into battle x/10' och 'Reserve · resting' (dra-och-släpp + klick), tydlig trötthet per enhet, rekvisition och uppgraderingar som visuellt olika delar, INTEL-panel om nästa strid (kända/okända fiendetyper, antal, riktningar, ärligt 'Unknown'). Pågår i 0.18.1. (Ola 2026-10-18)
+- [ ] H450 | molnbo | Hordens riktning: ska komma från Järna/Södertälje-hållet (väg 57 och banan mot nordost i verkligheten) PÅ VÄG MOT Gnesta (sydväst), inte från Gnesta. Gäller generellt: kontrollera att varje banas ingångar stämmer med berättelsen (horden rör sig mot Gnesta).
+- [ ] H451 | molnbo | Utmaning: en mindre grupp söderifrån, och/eller ett utbrott i ett hus.
+- [ ] H452 | molnbo | Tåghändelse: ett pendeltåg RULLAR IN mitt i striden, saktar in, stannar vid perrongen/gamla stationen och 50 zombier väller ut (dörrar uppbrutna, krossade fönster). Förvarning några sekunder innan; spelaren hinner flytta trupper. Alternativt: tåget vid perrongen har zombier som bryter sig ut vid ett tillfälle.
+- [ ] H453 | ux | Förrådet och mellansnacket byggs runt ledningsplatsen: ett bord med "fysiska" lappar, symboler och kort som man läser och drar runt (trupper, underrättelser, order). Se 2026-10-18-mellansnack.md.
