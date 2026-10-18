@@ -27,14 +27,14 @@ import { LESSONS, TIPS, ENEMIES, REVEALS, REPEAT_GAP, manualEntry } from './data
 import { createCoach, enemyCard, manualSheet } from './ui/coach.js';
 import { portraitOf } from './render/portrait.js';
 import { VET_WINS } from './data/depot.js';
-import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap } from './meta/operation.js';
+import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap, setLane } from './meta/operation.js';
 import { FROM_NAME, sectorOf } from './data/depot.js';
 import { loadProgress, saveProgress, resetSave } from './meta/save.js';
 import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -917,7 +917,7 @@ function updateUnitStatus() {
     const showBar = san && hasSanity(g) && g.sanity != null && !g.silent;
     let el = unitTags.get(g.id);
     if (!showBar && !chips.length) { if (el) { el.remove(); unitTags.delete(g.id); } continue; }
-    if (!el) { el = document.createElement('div'); el.className = 'ustat'; el.innerHTML = '<span class="sbar"><i></i></span><span class="chips"></span>'; pips.appendChild(el); unitTags.set(g.id, el); }
+    if (!el) { el = document.createElement('div'); el.className = 'ustat'; el.innerHTML = `<span class="sbar" title="Sanity"><i></i><u style="left:${SANITY.rout}%"></u></span><span class="chips"></span>`; pips.appendChild(el); unitTags.set(g.id, el); }
     const bar = el.querySelector('.sbar'), fill = bar.firstChild;
     bar.hidden = !showBar;
     if (showBar) {
@@ -925,6 +925,8 @@ function updateUnitStatus() {
       if (fill.style.width !== w) fill.style.width = w;
       const st = sanityState(v);
       if (bar.dataset.st !== st) bar.dataset.st = st;
+      const tick = bar.lastChild, routs = allowed(sim, 'rout');
+      if (tick.hidden === routs) tick.hidden = !routs;
     }
     const html = chips.map(([t, c]) => `<b class="${c}">${t}</b>`).join('');
     const cw = el.querySelector('.chips');
@@ -946,6 +948,16 @@ function xfPreview() {
   const id = `${placing.type}:${spot.key}:${f == null ? '' : f.toFixed(2)}:${sim.guns.map(g => g.id + (g.silent ? 's' : '')).join(',')}`;
   if (xfCache.id !== id) { xfCache.id = id; xfCache.keys = crossfirePreview(sim, spot.key, placing.type, f); }
   return xfCache.keys.length ? { id, keys: xfCache.keys } : null;
+}
+
+// 0.18.1 (speltestet av 0.18.0): korseldens zoner utan kort i handen, i bygget och mellan vågorna (sim crossfireZones)
+const xzCache = { id: '', keys: [] };
+const xzSig = () => sim.guns.map(g => `${g.id}:${g.cell}:${g.house ?? ''}:${g.facing?.toFixed?.(2) ?? ''}:${g.silent ? 's' : ''}${g.move || g.retreat || g.building > 0 || g.turn ? 'm' : ''}`).join(',');
+function xfZones() {
+  if (!sim || mode !== 'play' || sim.phase !== 'build' || !allowed(sim, 'crossfire') || sim.guns.length < 2) return null;
+  const id = xzSig();
+  if (xzCache.id !== id) { xzCache.id = id; xzCache.keys = crossfireZones(sim); }
+  return xzCache.keys.length ? { id, keys: xzCache.keys } : null;
 }
 
 // ---------- mål utanför vinkeln (0.14.1, granskningen av 0.14, Important 5) ----------
@@ -1068,6 +1080,16 @@ function barricadeBroken(ev) {
   alerts.push({ x: c.x, z: c.z, until: time + 8, kind: 'barricade' });
 }
 
+// 0.18.1: "Hemvärnet squad breaks!", "Volunteer squad breaks!", "Ksp 90 crew breaks!"
+function routBanner(type) {
+  const w = WEAPONS[type];
+  if (!w) return 'A unit breaks!';
+  if (type === 'civ') return 'Volunteer squad breaks!';
+  return isSquad(type) ? `${(w.short ?? w.name).replace(/ squad$/, '')} squad breaks!` : `${w.short ?? w.name} crew breaks!`;
+}
+// 0.18.1: korseldens "+20 %" över en zombie som hamnar i två bågar (högst ett var 0,25 s)
+let xfFlashAt = -Infinity;
+
 // En enda väg för händelser: efter varje step och efter startWave/callNextWave.
 function handleEvents() {
   const evs = sim.events;
@@ -1117,12 +1139,19 @@ function handleEvents() {
     // 0.18.0 (skiva 1): pansaret, sanity, flykten, husen och de tysta pjäserna
     else if (ev.t === 'hit' && ev.armor) tip('tip.armor');
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
-    else if (ev.t === 'routed') { const n = unitName({ type: ev.type }); note(uiRoot, `${n} broke and ran!`, 'warn'); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
+    // 0.18.1 (speltestet av 0.18.0: "flykt sker utan banderoll"): banderollen mitt uppe, pingen på minikartan och flykten i bild
+    else if (ev.t === 'routed') { hud.banner(routBanner(ev.type), 3.5); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
     else if (ev.t === 'unitBack') note(uiRoot, ev.kind === 'rout' ? `${unitName({ type: ev.type })} regrouping in reserve.` : `${unitName({ type: ev.type })} back in reserve.`);
     else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'recrewed') note(uiRoot, 'The gun is manned again.');
+    else if (ev.t === 'enteredHouse') note(uiRoot, 'In the house. Firing from the windows.');
     else if (ev.t === 'houseBreached') { note(uiRoot, 'They broke into the house!', 'warn'); tip('tip.breach', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); }
     else if (ev.t === 'dormantBurst') { alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); if (!ev.intel) note(uiRoot, 'Infected breaking out of a house!', 'warn'); }
+    else if (ev.t === 'crossfire' && time - xfFlashAt >= 0.25) {
+      xfFlashAt = time;
+      tmpV.set(ev.x, 2.4, ev.z).project(camera);
+      hud.flash((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, `+${Math.round(CROSSFIRE.bonus * 100)} %`, 'xf');
+    }
     else if (ev.t === 'kill' && ev.bounty) {
       tmpV.set(ev.x, 2, ev.z).project(camera);
       hud.bounty((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, ev.bounty);
@@ -1614,6 +1643,16 @@ const HARD_GAP = 20, HARD_PER_WAVE = 2;
 const lessonPaused = () => !!lesson?.pause || !!card || !!manual;
 
 const countGuns = type => sim.guns.filter(g => g.weapon.type === type).length;
+// 0.18.1: enheten vars sanity sjunkit mest (under verkans gräns), den som lektionen pekar på
+let shakenId = null;
+function shakenUnit() {
+  const cur = sim.guns.find(g => g.id === shakenId && g.sanity != null && g.sanity < SANITY.effectAt && !g.silent);
+  if (cur) return cur;
+  let best = null;
+  for (const g of sim.guns) if (g.sanity != null && hasSanity(g) && !g.silent && g.sanity < SANITY.effectAt && (!best || g.sanity < best.sanity)) best = g;
+  shakenId = best?.id ?? null;
+  return best;
+}
 function lessonTest(expr) {
   if (!expr) return true;
   return expr.split('|').some(alt => alt.split('&').every(c => lessonCond(c.trim())));
@@ -1638,6 +1677,10 @@ function lessonCond(c) {
     case 'placingAny': return play && !!placing && placing.kind === 'gun' && !placing.move;
     case 'sanityLow': return play && allowed(sim, 'sanity') && sim.guns.some(g => g.sanity != null && hasSanity(g) && g.sanity < SANITY.effectAt);
     case 'silent': return play && sim.guns.some(g => g.silent);
+    // 0.18.1
+    case 'units': return play && sim.guns.filter(g => !g.preset).length >= (Number(a) || 1);
+    case 'build': return play && sim.phase === 'build';
+    case 'xfZone': return play && !!xfZones();
     default: return false;
   }
 }
@@ -1676,6 +1719,16 @@ function lessonWorldPts(t) {
   else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
+  // 0.18.1: korseldens rutor (crossfireZones) och enheten med lägst sanity under verkans gräns
+  // 0.18.1: villorna närmast en ingångs gata (mb-2.houses: Stenbyvägen), några på varje sida
+  else if (w.startsWith('street:')) {
+    const cells = sim.route.paths([w.slice(7)])[0]?.cells ?? [], cr = sim.map.surroundings?.crisp;
+    const on = cells.map(k => sim.route.cellCenter(k)).filter(q => !cr || (q.x > cr.x0 && q.x < cr.x1 && q.z > cr.z0 && q.z < cr.z1));
+    const near = housesFor(sim).map(h => ({ h, d: Math.min(...on.map(q => Math.hypot(q.x - h.x, q.z - h.z))) })).filter(x => x.d < 16).sort((a, b) => a.d - b.d).slice(0, 4);
+    for (const { h } of near) pts.push([h.x, h.z]);
+  }
+  else if (w === 'xfzone') { for (const k of xfZones()?.keys ?? []) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
+  else if (w === 'sanityLow') { const g = shakenUnit(); if (g) { const q = unitPos(g) ?? g; pts.push([q.x, q.z]); } }
   // 0.16.4: en ingång och vägen därifrån till spärren (E4 dag 2: Södertälje)
   else if (w.startsWith('entry:')) { const id = w.slice(6), cells = sim.route.paths([id])[0]?.cells ?? []; for (let i = 0; i < cells.length * 0.6; i += 3) pts.push(cellWorld(cells[i])); }
   else if (w.startsWith('gun')) { const type = w.split(':')[1]; const g = sim.guns.find(x => (type ? x.weapon.type === type : !x.preset)) ?? sim.guns[0]; if (g) pts.push([g.x, g.z]); }
@@ -2043,6 +2096,8 @@ const DEPOT_ACTS = {
   send: (p, uid, sector, log) => sendUnit(p, log, uid, sector),
   back: (p, uid, log) => bringBack(p, log, uid),
   upgrade: (p, id) => { const r = buyUpgrade(p, id); return { ...r, text: r.ok ? 'Upgrade bought.' : null }; },
+  // 0.18.1: förrådets banor (Into battle / Reserve · resting)
+  lane: (p, uid, lane) => { const r = setLane(p, uid, lane); return { ...r, text: r.ok ? (lane === 'battle' ? 'Into battle.' : 'Resting in reserve.') : null }; },
 };
 function showDepot(sector, from = 'opmap', deploy = null) {
   void from;
@@ -2183,13 +2238,16 @@ function screenRect(object) {
   }
   return { x0: x0 - PAD, y0: y0 - PAD, x1: x1 + PAD, y1: y1 + PAD };
 }
+// 0.18.1 (speltestet av 0.18.0: panelen låg över dagrutan, uppdraget och tågklockan på Mölnbo): klockorna och dagens
+// rutor är förbjudna för panelen (clock: true), inte bara dyra. Panelen läggs någon annanstans, också över en markering.
+const CLOCKS = ['#day', '#res', '#evac', '#train'];
 function hudRects() {
   const out = [];
   for (const sel of ['#day', '#res', '#hint', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap:not(.off)', '#evac', '#train']) {
     const n = uiRoot.querySelector(sel);
     if (!n || n.hidden) continue;
     const r = n.getBoundingClientRect();
-    if (r.width) out.push({ x0: r.left - PAD, y0: r.top - PAD, x1: r.right + PAD, y1: r.bottom + PAD });
+    if (r.width) out.push({ x0: r.left - PAD, y0: r.top - PAD, x1: r.right + PAD, y1: r.bottom + PAD, clock: CLOCKS.includes(sel) });
   }
   // Knappen och raden nere i mitten byter med fasen; hela den ytan hålls fri.
   out.push({ x0: innerWidth / 2 - 320, y0: innerHeight - (sim?.evac ? 140 : 90), x1: innerWidth / 2 + 320, y1: innerHeight });
@@ -2197,13 +2255,22 @@ function hudRects() {
   out.push({ x0: innerWidth / 2 - 260, y0: 0, x1: innerWidth / 2 + 260, y1: 64 });
   return out;
 }
+// Panelen flyttas om en klocka dyker upp under den (tågklockan visas först när vågen startar) eller den växer över en.
+let clockCheckAt = 0;
+function keepPanelOffClocks() {
+  if (!panel || performance.now() < clockCheckAt) return;
+  clockCheckAt = performance.now() + 250;
+  const r = panel.el.getBoundingClientRect(), pr = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+  if (hudRects().some(u => u.clock && overlap(pr, u) > 0)) { panelSpot = null; placePanel(); }
+}
 const overlap = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
 function placePanel() {
   if (!panel) return;
   const el = panel.el;
   el.classList.add('placed');
   const w = el.offsetWidth, h = el.offsetHeight;
-  const markers = view.pickTargets().map(t => screenRect(t.object)).filter(Boolean);
+  // 0.18.1: en markering bakom kameran ger NaN, och då vann alltid första rutan (uppe till vänster, över klockorna)
+  const markers = view.pickTargets().map(t => screenRect(t.object)).filter(r => r && [r.x0, r.y0, r.x1, r.y1].every(Number.isFinite));
   const huds = hudRects();
   const maxX = Math.max(MARGIN, innerWidth - w - MARGIN), maxY = Math.max(MARGIN, innerHeight - h - MARGIN);
   // Förstahandsval utan tidigare plats: nere till vänster.
@@ -2215,7 +2282,7 @@ function placePanel() {
       let cost = 0;
       for (const m of markers) cost += overlap(r, m) * 10;
       // 0.18.0 (speltestet av 0.17.2: panelen låg över dagrutan och tågklockan): HUD:en är ett hårt krav
-      for (const u of huds) cost += overlap(r, u) * 400;
+      for (const u of huds) cost += overlap(r, u) * (u.clock ? 1e6 : 400);
       cost += Math.hypot(x - want.x, y - want.y) * 0.05;
       if (!best || cost < best.cost) best = { x, y, cost };
     }
@@ -2437,6 +2504,7 @@ function tick(now) {
   updatePips();
   updateSquadTags();
   updateUnitStatus();
+  keepPanelOffClocks();
   updateArcFlags();
   updateSpare();
   if (mode === 'play') minimap.update(frameDt, { sim, view: viewOnGround(), spawns: sim.route.kind === 'grid' ? activeSpawns().ids : [], alerts });
@@ -2453,7 +2521,7 @@ function tick(now) {
   view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,
-    route: aimLine() ?? moveRoute(), valid: validTint(), xf: xfPreview(),
+    route: aimLine() ?? moveRoute(), valid: validTint(), xf: xfPreview(), xfZone: xfZones(),
     snap: placing && spot?.ok && spot.fx != null && !aim?.drag ? { from: [spot.fx, spot.fz], to: [spot.x, spot.z] } : null });
   view.setZoom(rig.view);
   view.sync(vdt);

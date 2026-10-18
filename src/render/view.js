@@ -670,6 +670,30 @@ export function createView(scene, initialSim) {
     }
     xfMesh.count = n; xfMesh.instanceMatrix.needsUpdate = true; if (n) xfMesh.instanceColor.needsUpdate = true;
   }
+  // ---------- korseldens zoner (0.18.1, speltestet av 0.18.0: "korselden såg jag aldrig") ----------
+  // Rutorna där två utställda enheters bågar korsas (src/sim/sim.js crossfireZones), svagt guld i bygget och mellan
+  // vågorna, utan att något hålls i handen. Samma ruta och ton som förhandsvisningen men mycket svagare.
+  const xzM = new THREE.MeshBasicMaterial({ color: XF_TONE, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const xzMesh = new THREE.InstancedMesh(validGeo, xzM, XF_MAX);
+  xzMesh.count = 0; xzMesh.frustumCulled = false; xzMesh.renderOrder = 5; xzMesh.castShadow = false; xzMesh.name = 'crossfire-zones';
+  scene.add(xzMesh);
+  let xzKey = '';
+  function syncXz() {
+    const v = ui.xfZone, key = v ? v.id : '';
+    if (key === xzKey) return;
+    xzKey = key;
+    let n = 0;
+    if (v) {
+      const p = sim.place, size = p.size;
+      for (const k of v.keys) {
+        if (n >= XF_MAX) break;
+        const q = p.center(k);
+        tm.makeScale(size * 0.8, 1, size * 0.8); tm.setPosition(q.x, 0.08 + liftAt(q.x, q.z), q.z);
+        xzMesh.setMatrixAt(n++, tm);
+      }
+    }
+    xzMesh.count = n; xzMesh.instanceMatrix.needsUpdate = true;
+  }
   // Pilen: ett smalt platt skaft och en spets på marken, ovanpå allt (syns också över häckar och sandsäckar).
   const snapM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
   const shaftGeo = new THREE.PlaneGeometry(1, 0.3); shaftGeo.rotateX(-Math.PI / 2); shaftGeo.translate(0.5, 0, 0);
@@ -902,6 +926,12 @@ export function createView(scene, initialSim) {
     if (events.length) syncSlots(0);
     for (const ev of events) {
       switch (ev.t) {
+        // 0.18.1: ett pjäslag som bryts springer från pjäsen mot basen (en grupp springer redan själv)
+        case 'routed': {
+          const g = sim.guns.find(q => q.id === ev.gunId);
+          if (g && !g.squad) { const b = sim.route.base ?? { x: 0, z: 0 }; squadView.flee(ev.x, ev.z, b.x, b.z, WEAPONS[ev.type]?.crew ?? 2); }
+          break;
+        }
         case 'shot': {
           if (ev.soldier != null) {
             // Hemvärnet: skottet går från soldatens gevär (Ak 4)
@@ -1041,6 +1071,7 @@ export function createView(scene, initialSim) {
     syncCover();
     syncValid();
     syncXf();
+    syncXz();
     syncSnap();
     syncUi();
     syncSector();

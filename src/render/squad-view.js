@@ -77,6 +77,19 @@ export function createSquadView(scene) {
     if (s.down) { e.run = null; e.x = s.x; e.z = s.z; }
     return e;
   }
+  // 0.18.1 (speltestet av 0.18.0: "inget synligt flyktögonblick"): när ett pjäslag bryts springer n män från pjäsen
+  // mot (tx, tz) i några sekunder och försvinner. Bara bild.
+  const runners = [];
+  function flee(x, z, tx, tz, n = 2) {
+    const d = Math.hypot(tx - x, tz - z) || 1, run = Math.min(14, d);
+    for (let i = 0; i < n; i++) {
+      const parts = hvSoldierModel(9000 + runners.length * 13 + i, 'hv');
+      horde.attach(parts);
+      const ox = (i - (n - 1) / 2) * 0.9;
+      const x0 = x + ox, z0 = z + ox * 0.5;
+      runners.push({ parts, x: x0, z: z0, x0, z0, x1: x0 + (tx - x) / d * run, z1: z0 + (tz - z) / d * run, t: -i * 0.15, dur: run / 5.5, phase: i, ry: Math.atan2(tx - x, tz - z) });
+    }
+  }
   function sync(next, dt) {
     sim = next;
     horde.begin();
@@ -175,6 +188,20 @@ export function createSquadView(scene) {
         }
       }
     }
+    // 0.18.1: ett flytt pjäslag springer mot basen och försvinner (flee)
+    for (let i = runners.length - 1; i >= 0; i--) {
+      const r = runners[i];
+      r.t += dt;
+      const k = Math.max(0, Math.min(1, r.t / r.dur)), px = r.x, pz = r.z;
+      r.x = r.x0 + (r.x1 - r.x0) * k; r.z = r.z0 + (r.z1 - r.z0) * k;
+      const mv = Math.hypot(r.x - px, r.z - pz);
+      if (mv > 1e-4) r.ry = Math.atan2(r.x - px, r.z - pz);
+      r.phase += mv * 2.4;
+      hvRun(r.parts, r.phase);
+      r.parts.root.position.set(r.x, 0, r.z); r.parts.root.rotation.y = r.ry;
+      if (k >= 1) { horde.release(r.parts); runners.splice(i, 1); continue; }
+      horde.draw(r.parts);
+    }
     marks.count = edges.count = nm; marks.instanceMatrix.needsUpdate = true; edges.instanceMatrix.needsUpdate = true; marks.instanceColor.needsUpdate = true;
     for (const [id, sq] of squads) if (!alive.has(id)) { for (const e of sq.men.values()) horde.release(e.parts); squads.delete(id); }
     horde.end();
@@ -226,10 +253,12 @@ export function createSquadView(scene) {
   function clear() {
     for (const sq of squads.values()) for (const e of sq.men.values()) horde.release(e.parts);
     squads.clear();
+    for (const r of runners) horde.release(r.parts);
+    runners.length = 0;
     horde.clear();
     lines.visible = false; rings.count = 0; marks.count = 0; edges.count = 0;
   }
-  return { sync, fire, position, show, clear, horde, marks };
+  return { sync, fire, position, show, clear, flee, horde, marks };
 }
 
 function hashId(id) {

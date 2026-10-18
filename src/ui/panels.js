@@ -77,7 +77,8 @@ const REASONS = {
   'hus litet': 'Too small for the whole squad',
   'hus vilande': 'Infected inside',
   'hus evak': 'Civilians are leaving that house',
-  'hus flytt': 'Into a house before the wave, or from reserve',
+  'hus anfall': 'The dead are at that door',
+  'hus bruten': 'That house was broken into today',
   'viker': 'Already falling back',
   'tyst': 'The gun is silent',
   'nedkylning': 'Not yet. The men need a moment',
@@ -314,7 +315,8 @@ export function unitStateText(s, g) {
   if (g.retreat) return g.retreat.kind === 'rout' ? 'Broken. Running for the base.' : 'Falling back to the base.';
   if (g.silent) return g.recrew ? `Manning the gun · ${Math.ceil(g.recrew.t)} s` : g.silent === 'routed' ? 'Silent: the crew ran.' : 'Silent: the crew is down.';
   const parts = [];
-  if (allowed(s, 'sanity') && hasSanity(g) && g.sanity != null) parts.push(`Sanity ${Math.round(g.sanity)} · ${sanityState(g.sanity)}`);
+  // 0.18.1 (speltestet av 0.18.0): "Sanity 62 / Holds above 18" när enheten kan brytas, annars läget i ord
+  if (allowed(s, 'sanity') && hasSanity(g) && g.sanity != null) parts.push(allowed(s, 'rout') ? `Sanity ${Math.round(g.sanity)} / Holds above ${SANITY.rout}` : `Sanity ${Math.round(g.sanity)} · ${sanityState(g.sanity)}`);
   if (allowed(s, 'fatigue') && g.weapon.fatigue) parts.push(FATIGUE.names[g.weapon.fatigue]);
   if (g.house) parts.push(g.house.broken ? 'In a house · door broken' : `In a house · door ${Math.max(0, Math.round(g.house.door / g.house.max * 100))} %`);
   if (g.hold) parts.push('Holding fire');

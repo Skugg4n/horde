@@ -3,7 +3,7 @@
 // vad vågen består av.
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { earlyBonus, hasNextWave, waveLeft } from '../sim/sim.js';
+import { earlyBonus, hasNextWave, waveLeft, overlapGate } from '../sim/sim.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
 const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'], armored: ['armoured', 'armoured'], crawler: ['crawler', 'crawlers'] };
@@ -78,6 +78,9 @@ export function comingBySpawn(sim) {
   const ORDER = ['walker', 'runner', 'crawler', 'armored', 'brute'], rank = t => (ORDER.includes(t) ? ORDER.indexOf(t) : ORDER.length);
   return new Map([...out].map(([id, m]) => [id, [...m].sort((a, b) => rank(a[0]) - rank(b[0]))]));
 }
+
+// De levande i vågorna före den senaste (de som måste ned innan nästa våg kommer av sig själv).
+const gateOlder = sim => { const last = sim.wavesStarted - 1; let n = 0; for (const z of sim.zombies) if (!z.dead && !z.atDoor && z.wave < last) n++; for (const q of sim.spawnQueue) if (q.wave < last) n++; return n; };
 
 export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   root.insertAdjacentHTML('beforeend', `
@@ -156,6 +159,18 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     floats.push({ node, x, y, t0: now, sum: amount });
     setTimeout(() => node.remove(), FLOAT_LIFE);
   }
+  // 0.18.1: en kort rad som stiger över en zombie (korseldens "+20 %"), samma rörelse som pengarna
+  function flash(x, y, text, cls = '') {
+    if (floats.length >= FLOAT_MAX) return;
+    const node = document.createElement('div');
+    node.className = 'bounty ' + cls;
+    node.textContent = text;
+    node.style.left = x + 'px'; node.style.top = y + 'px';
+    root.appendChild(node);
+    const f = { node, x, y, t0: performance.now() - FLOAT_MERGE, sum: 0 };
+    floats.push(f);
+    setTimeout(() => { node.remove(); const i = floats.indexOf(f); if (i >= 0) floats.splice(i, 1); }, FLOAT_LIFE);
+  }
   function clearFloats() { for (const f of floats) f.node.remove(); floats.length = 0; }
 
   function update(sim) {
@@ -202,8 +217,12 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
       const secs = sim.nextWaveIn != null ? Math.max(0, Math.ceil(sim.nextWaveIn - 1e-6)) : null;
       // kort form när raden inte ryms (layoutBottom): antalet står redan i dagens plåt
       // 0.16.0 (textgenomgången, speltestet av 0.14.2: "NEXT WAVE: STILL 14 LEFT" lät konstigt)
-      nextText = { long: secs != null ? `Next wave in ${secs}s` : still ? `Next wave · ${n} still out` : 'Next wave',
-        short: secs != null ? `Next in ${secs}s` : 'Next wave' };
+      // 0.18.1: på en dag med överlapp kommer nästa våg av sig själv när det mesta av den här är nere (sim overlapGate):
+      // knappen säger hur många till
+      const gate = sim.dayCfg.overlap != null && secs == null ? overlapGate(sim) : null;
+      const more = gate && !gate.open ? gate.more + gateOlder(sim) : 0;
+      nextText = { long: secs != null ? `Next wave in ${secs}s` : more ? `Next wave after ${more} more` : still ? `Next wave · ${n} still out` : 'Next wave',
+        short: secs != null ? `Next in ${secs}s` : more ? `Next after ${more}` : 'Next wave' };
       set(el.nextLbl, waveBar.classList.contains('narrow') ? nextText.short : nextText.long);
       set(el.nextKey, still ? 'Shift+Space' : 'Space');
       el.next.classList.toggle('still', still);
@@ -438,5 +457,5 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, shift, features, reveal };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, flash, shift, features, reveal };
 }

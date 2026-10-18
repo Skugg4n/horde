@@ -55,8 +55,12 @@ export const LESSONS = {
     { id: 'gn-2.block', kind: 'step', when: 'start', done: 'obstacle:block', target: { ui: '#buildbar .card[data-id="block"]' }, text: 'Block a street. They walk around the block.', manual: 'barricades' },
     { id: 'gn-2.reroute', kind: 'show', when: 'obstacle:block', target: { world: 'route' }, text: 'New route. Always leave them one way through.' },
     { id: 'gn-2.v', kind: 'caption', when: 'waveStarted', target: { ui: '#routekey' }, text: 'Route:', keys: ['V'] },
-    // 0.18.0 (skiva 1, kampanjplanens dag 5): korselden, en bildtext med en enhet i handen
-    { id: 'gn-2.xf', kind: 'caption', when: 'placingAny&afterWave1', target: { world: 'pointer' }, text: 'Crossfire: two arcs at an angle hit harder. Gold tiles.', manual: 'crossfire' },
+    // 0.18.0 (skiva 1, kampanjplanens dag 5): korselden
+    // 0.18.1 (speltestet av 0.18.0: "korselden såg jag aldrig", bildtexten kom bara med ett kort i handen efter våg 1):
+    // före första vågen, medan spelaren ställer ut. Finns redan en korseld pekar lektionen på den; annars ber den om en
+    // andra enhet från en annan vinkel. Guldrutorna syns alltid i bygget (main.js xfZones).
+    { id: 'gn-2.xfask', kind: 'show', when: 'start&units:1', done: 'xfZone|waveStarted', target: { world: 'route' }, text: 'Cover one street from two angles. Place a second unit.', manual: 'crossfire' },
+    { id: 'gn-2.xf', kind: 'show', when: 'build&xfZone', target: { world: 'xfzone' }, text: 'Two angles on one street: they take more damage.', manual: 'crossfire' },
   ],
   'after-gn-2': [
     { id: 'after-gn-2.rp', kind: 'show', when: 'result', target: { ui: '.result .rptab' }, text: 'RP: earned in battle, spent between days.', manual: 'rp' },
@@ -68,7 +72,9 @@ export const LESSONS = {
   'gn-3': [
     { id: 'gn-2.cover', kind: 'caption', when: 'placed:hv', target: { world: 'gun:hv' }, text: 'Squads find their own cover.' },
     // 0.18.0 (skiva 1, kampanjplanens dag 6): sanity-mätaren kommer med Hemvärnet, bara mätaren och dess verkan
-    { id: 'gn-3.sanity', kind: 'caption', when: 'sanityLow', target: { world: 'gun' }, text: 'Sanity: the bar under each unit. Keep the dead off them.', manual: 'sanity' },
+    // 0.18.1 (speltestet av 0.18.0: tipset kom mitt i våg 1 och pekade på en annan enhet än den som vacklade): en paus
+    // första gången en enhets sanity verkligen sjunker, och den pekar på just den enheten
+    { id: 'gn-3.sanity', kind: 'show', when: 'sanityLow', target: { world: 'sanityLow' }, text: 'Blue bar: Sanity. This unit is shaken. Keep the dead off it.', manual: 'sanity' },
   ],
   'after-gn-3': [
     { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
@@ -119,7 +125,9 @@ export const LESSONS = {
     { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Towers, station roof, train roof.' },
   ],
   'mb-2': [
-    { id: 'mb-2.train', kind: 'show', when: 'start', target: { world: 'route' }, text: 'The train is cover. Put a squad on the platform behind it.', manual: 'squads' },
+    // 0.18.1 (Olas speltest: "tåget är skydd" förvirrade, grupperna där var bara mål för horden; husen lärs först på
+    // Vikingavägen dag 5): villorna på båda sidor om Stenbyvägen. Olas exakta text, längre än tolv ord med avsikt.
+    { id: 'mb-2.houses', kind: 'show', when: 'start', target: { world: 'street:s2' }, text: 'Put a squad in a house on each side of Stenbyvägen. They shoot down the street from the windows.', manual: 'garrison' },
   ],
   'mb-3': [
     { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'The train leaves when the clock runs out. Hold until then.', manual: 'train' },
@@ -221,9 +229,9 @@ export const MANUAL = [
   // 0.18.0 (strategiskt djup, skiva 1)
   { id: 'crawler', group: 'Enemies', title: 'Crawlers', icon: 'enemy:crawler', text: 'Low and slow. They slip under the wire without slowing. Hard to hit from roofs, towers and windows; squads and guns on the ground see them.' },
   { id: 'armored', group: 'Enemies', title: 'Armoured', icon: 'enemy:armored', text: 'Riot gear on the dead. Small arms barely bite. The 12.7 mm Ksp 88 and grenades go through. Set the heavy gun to Strongest.' },
-  { id: 'crossfire', group: 'Defences', title: 'Crossfire', text: 'The dead caught in two arcs that meet at an angle take more damage. Holding a unit, gold tiles show where it would cross another.' },
-  { id: 'sanity', group: 'Units', title: 'Sanity', icon: 'sanity', text: 'The bar under each unit. The dead close by, comrades falling and worse things wear it down. Shaken units shoot worse. Veterans and soldiers hold longer than volunteers. Calm brings it back.' },
-  { id: 'rout', group: 'Units', title: 'Broken and fall back', text: 'At the bottom of the bar a unit breaks and runs for the base; it regroups in reserve and can be placed again. Fall back pulls a unit out in order, nerves intact.', keys: ['G'] },
+  { id: 'crossfire', group: 'Defences', title: 'Crossfire', text: 'The dead caught in two arcs that meet at an angle take more damage. Faint gold tiles show where your arcs already cross; holding a unit, bright gold shows where it would.' },
+  { id: 'sanity', group: 'Units', title: 'Sanity', icon: 'sanity', text: 'The blue bar under each unit; red means close to breaking. The dead close by, comrades falling and worse things wear it down. Shaken units shoot worse. Veterans and soldiers hold longer than volunteers. Calm brings it back.' },
+  { id: 'rout', group: 'Units', title: 'Broken and fall back', text: 'Below the white line a unit breaks and runs for the base; it regroups in reserve and can be placed again. Fall back pulls a unit out in order, nerves intact.', keys: ['G'] },
   { id: 'target', group: 'Units', title: 'Target priority', text: 'First in line shoots whoever is closest to the base. Nearest, Strongest and Weakest pick by distance or toughness. Select a unit and cycle.', keys: ['T'] },
   { id: 'garrison', group: 'Units', title: 'Squads in houses', text: 'Click a house by the street with a squad, Ksp 90 or Ksp 58 card. They fire from the windows and take cover. If the dead break the door, losses are heavy.' },
   { id: 'holdFire', group: 'Units', title: 'Hold fire', text: 'The unit waits until you release it or the dead come close. The first volley hits twice as hard. Then a pause before it can wait again.', keys: ['H'] },
