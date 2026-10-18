@@ -386,7 +386,7 @@ const g = (type, count, interval, delay, spawn, lead = 0) => ({ type, count, int
 const INF_AT = [1, -13], EPA_AT = [7, -13];
 export const E4_SPOTS = [[3, -3], [-1, 1], [-15, 13], [-29, 17]];
 export const DAYS = [
-  { n: 1, supplies: 300, startCash: 700, hp: 2.8,
+  { n: 1, intel: 'known', supplies: 300, startCash: 700, hp: 2.8,
     intro: { title: 'Day 1: The roadblock', text: 'Hold the E4 at Lästringe.' },
     preset: [{ type: 'inf', at: INF_AT }], late: [{ type: 'm249', wave: 1 }], spots: E4_SPOTS,
     waves: [ { groups: [g('walker', 14, 1.2, 0, 'nykoping')] },

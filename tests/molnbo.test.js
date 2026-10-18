@@ -28,7 +28,8 @@ test('Mölnbo är en bana efter Hagstumosse, med fem dagar och korta intron', ()
   assert.deepEqual(molnbo.unlock, { map: 'gnesta-norr', day: 5 });
   for (const d of molnbo.days) {
     assert.match(d.intro.title, /^Day \d: /);
-    assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
+    // 0.18.1: dag 2 är Olas exakta text om husen längs Stenbyvägen (20 ord), med avsikt längre
+    assert.ok(d.intro.text.split(/\s+/).length <= (d.n === 2 ? 20 : 12), d.intro.text);
     assert.doesNotMatch(JSON.stringify(d), /\u2014/);
   }
   // tågklockan från dag 3, det sista tåget dag 5
@@ -284,8 +285,19 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // trapptornen 7,2 m, ingen enhet under broarna, dag 5 hp 16 till 15 (docs/balance-log.md, Mölnbo 0.17.1).
 // 0.17.2: alla dagar nya, avsiktligt. Prickskyttarna i tornen, på hyreshusen, Folkets hus gavel och stationen (H301),
 // husen och bilarna av vägarna (H307), trädgårdarnas bodar (H308), dag 4 hp 31 till 36 (docs/balance-log.md 0.17.2).
+// 0.18.0: alla dagar nya, avsiktligt (skiva 1): ankomsten från Hagstumosse med sanity, korseld och trötthet, routed och
+// Fall back från dag 1, de pansrade dag 2, kryparna dag 2 till 5, husen, Håll eld dag 4 och överrända pjäser dag 5;
+// kartläsaren vilar de utmattade, ställer Ksp 88 på Strongest, bemannar tysta pjäser och ställer en grupp i ett hus.
+// Dag 4 hp 36 till 34 och färre vandrare i dag 4:s och 5:s sista vågor (toppen under 250). docs/balance-log.md 0.18.0.
+// 0.18.1 (vågornas grind): ingen av Mölnbo-spelarna kallar tidigt, så högst två vågor är ute samtidigt
+test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => {
+  for (const rs of [smart, naive]) for (const r of rs) for (const x of r.log) assert.ok(x.peakWaves <= 2, `dag ${x.day} försök ${x.attempt}: ${x.peakWaves}`);
+});
+// 0.18.1: alla dagar nya, avsiktligt: ankomsten från Hagstumosse (omräknad), vågornas grind och tåget senare (dag 3 330
+// till 420 s, dag 4 340 till 380 och hp 34 till 38, dag 5 360 till 420), förrådets banor och husen som slutar stormas när
+// alla där är nere. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.18.1.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'e3366e99', 'molnbo 2': 'c9a25d00', 'molnbo 3': 'ea3c29de', 'molnbo 4': '98f2872d', 'molnbo 5': 'e730f02a' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '4e087429', 'molnbo 2': '2065fc1c', 'molnbo 3': 'c70477a5', 'molnbo 4': '0641acc9', 'molnbo 5': '2df44d12' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '85aa38eb', 'molnbo 2': '9f8c075d', 'molnbo 3': '5472293e', 'molnbo 4': '2fba89fd', 'molnbo 5': '78964c6b' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'cfe6db7e', 'molnbo 2': 'fcf87131', 'molnbo 3': '0054e104', 'molnbo 4': '01cd0974', 'molnbo 5': '741638a5' });
 });

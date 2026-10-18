@@ -167,7 +167,13 @@ export function createAudio({ settings, muted = false } = {}) {
           play('thoonk', g ? { x: g.x, z: g.z } : { x: ev.x, z: ev.z }, toScreen);
           break;
         }
-        case 'hit': play('hit', { x: ev.x, z: ev.z }, toScreen); break;
+        case 'hit': play(ev.armor ? 'clang' : 'hit', { x: ev.x, z: ev.z }, toScreen); break;
+        // 0.18.0: en enhet vacklar eller bryts (sanity), ett hus slås in, en pjäs tystnar
+        case 'waver': play('dread', { kind: 'waver' }); break;
+        case 'routed': play('dread', { kind: 'rout' }); break;
+        case 'houseHit': play('knock', { x: ev.x, z: ev.z, gain: 0.7 }, toScreen); break;
+        case 'houseBreached': play('crunch', { x: ev.x, z: ev.z, type: 'block' }, toScreen); break;
+        case 'gunSilent': play('kill', { x: ev.x, z: ev.z, type: 'walker' }, toScreen); break;
         case 'soldierHit': play('hit', { x: ev.x, z: ev.z, gain: 0.7 }, toScreen); break;
         case 'soldierDown': play('kill', { x: ev.x, z: ev.z, type: 'walker' }, toScreen); break;
         case 'kill': play('kill', { x: ev.x, z: ev.z, type: ev.type }, toScreen); break;

@@ -162,6 +162,8 @@ export function createView(scene, initialSim) {
       }
       // hälsoringen syns först när zombien tagit skada
       if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale), liftAt(e.x, e.z));
+      // 0.18.0: fångad i korseld (src/sim/sim.js markCrossfire): en hel, vidare ring runt zombien
+      if (!z.dead && z.xfT != null && sim.time - z.xfT < 0.4) rings.add(e.x, e.z, 1, 1.75, liftAt(e.x, e.z));
       // vrider sig mjukt mot gångriktningen (rutnätets svängar blir inte ryck)
       // en zombie som slår en soldat vänder sig mot honom
       const face = z.foe ? Math.atan2(z.foe[0] - e.x, z.foe[1] - e.z) : e.pour ? Math.atan2(P.x - e.x, P.z - e.z) : Math.atan2(P.dirX, P.dirZ);
@@ -425,6 +427,10 @@ export function createView(scene, initialSim) {
         e.pivotHome.y + rnd(-jit, jit),
         e.pivotHome.z - Math.sin(la) * back + rnd(-jit, jit));
       pv.rotation.z = r * e.look.rise + (e.perch && !s.move ? perchPose(e, e.angle) : 0);
+      // 0.18.0: en tyst pjäs (laget nere eller flytt) står kvar utan skytt, med pipan uppåt och åt sidan
+      const silent = !!s.silent;
+      if (e.model.gunner && e.model.gunner.root.visible === silent) e.model.gunner.root.visible = !silent;
+      if (silent) { pv.rotation.z = 0.42; pv.rotation.x = 0.25; } else if (pv.rotation.x) pv.rotation.x = 0;
     }
     for (const id of [...slots.keys()]) if (!alive.has(id)) removeSlot(id);
   }
@@ -636,6 +642,57 @@ export function createView(scene, initialSim) {
       }
     }
     valid.count = n; valid.instanceMatrix.needsUpdate = true; valid.instanceColor.needsUpdate = true;
+  }
+  // ---------- korselden i handen (0.18.0, skiva 1) ----------
+  // Rutorna där enheten i handen skulle korsa en annan enhets båge (src/sim/sim.js crossfirePreview): en varm
+  // guldton ovanpå sikten, så att eldgatan syns innan enheten ställs ut.
+  // Ritas ovanpå sikten (den ljusa tonen) i guld, inte additivt: annars blir den vit där sikten redan är ljus.
+  const XF_MAX = 900, XF_TONE = new THREE.Color('#e3a12f');
+  const xfM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.62, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const xfMesh = new THREE.InstancedMesh(validGeo, xfM, XF_MAX);
+  xfMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(XF_MAX * 3), 3);
+  xfMesh.count = 0; xfMesh.frustumCulled = false; xfMesh.renderOrder = 6; xfMesh.castShadow = false; xfMesh.name = 'crossfire';
+  scene.add(xfMesh);
+  let xfKey = '';
+  function syncXf() {
+    const v = ui.xf, key = v ? v.id : '';
+    if (key === xfKey) return;
+    xfKey = key;
+    let n = 0;
+    if (v) {
+      const p = sim.place, size = p.size;
+      for (const k of v.keys) {
+        if (n >= XF_MAX) break;
+        const q = p.center(k);
+        tm.makeScale(size * 0.86, 1, size * 0.86); tm.setPosition(q.x, 0.09 + liftAt(q.x, q.z), q.z);
+        xfMesh.setMatrixAt(n, tm); xfMesh.setColorAt(n++, XF_TONE);
+      }
+    }
+    xfMesh.count = n; xfMesh.instanceMatrix.needsUpdate = true; if (n) xfMesh.instanceColor.needsUpdate = true;
+  }
+  // ---------- korseldens zoner (0.18.1, speltestet av 0.18.0: "korselden såg jag aldrig") ----------
+  // Rutorna där två utställda enheters bågar korsas (src/sim/sim.js crossfireZones), svagt guld i bygget och mellan
+  // vågorna, utan att något hålls i handen. Samma ruta och ton som förhandsvisningen men mycket svagare.
+  const xzM = new THREE.MeshBasicMaterial({ color: XF_TONE, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const xzMesh = new THREE.InstancedMesh(validGeo, xzM, XF_MAX);
+  xzMesh.count = 0; xzMesh.frustumCulled = false; xzMesh.renderOrder = 5; xzMesh.castShadow = false; xzMesh.name = 'crossfire-zones';
+  scene.add(xzMesh);
+  let xzKey = '';
+  function syncXz() {
+    const v = ui.xfZone, key = v ? v.id : '';
+    if (key === xzKey) return;
+    xzKey = key;
+    let n = 0;
+    if (v) {
+      const p = sim.place, size = p.size;
+      for (const k of v.keys) {
+        if (n >= XF_MAX) break;
+        const q = p.center(k);
+        tm.makeScale(size * 0.8, 1, size * 0.8); tm.setPosition(q.x, 0.08 + liftAt(q.x, q.z), q.z);
+        xzMesh.setMatrixAt(n++, tm);
+      }
+    }
+    xzMesh.count = n; xzMesh.instanceMatrix.needsUpdate = true;
   }
   // Pilen: ett smalt platt skaft och en spets på marken, ovanpå allt (syns också över häckar och sandsäckar).
   const snapM = new THREE.MeshBasicMaterial({ color: PALETTE.paper, transparent: true, opacity: 0.85, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
@@ -869,6 +926,12 @@ export function createView(scene, initialSim) {
     if (events.length) syncSlots(0);
     for (const ev of events) {
       switch (ev.t) {
+        // 0.18.1: ett pjäslag som bryts springer från pjäsen mot basen (en grupp springer redan själv)
+        case 'routed': {
+          const g = sim.guns.find(q => q.id === ev.gunId);
+          if (g && !g.squad) { const b = sim.route.base ?? { x: 0, z: 0 }; squadView.flee(ev.x, ev.z, b.x, b.z, WEAPONS[ev.type]?.crew ?? 2); }
+          break;
+        }
         case 'shot': {
           if (ev.soldier != null) {
             // Hemvärnet: skottet går från soldatens gevär (Ak 4)
@@ -1007,6 +1070,8 @@ export function createView(scene, initialSim) {
     syncObGhost();
     syncCover();
     syncValid();
+    syncXf();
+    syncXz();
     syncSnap();
     syncUi();
     syncSector();

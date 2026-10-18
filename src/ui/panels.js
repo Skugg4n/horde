@@ -13,7 +13,8 @@ import { buyState, inBar } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
 import { waveLabel } from './hud.js';
-import { movePhase, gunCount, canMoveType, frontage, allowed, gunStats } from '../sim/sim.js';
+import { movePhase, gunCount, canMoveType, frontage, allowed, gunStats, TARGET_NAME, HOLD, RECREW } from '../sim/sim.js';
+import { SANITY, FATIGUE, hasSanity, sanityState } from '../sim/sanity.js';
 
 const REASONS = {
   'pengar': 'Not enough cash.',
@@ -71,6 +72,18 @@ const REASONS = {
   'markerad-hinder': 'Only on the marked spots.',
   'låst': 'Not yet.',
   'depå': 'Between days, at the depot',
+  // 0.18.0 (skiva 1): hus, ordrar och tysta pjäser
+  'hus upptaget': 'Someone already holds that house',
+  'hus litet': 'Too small for the whole squad',
+  'hus vilande': 'Infected inside',
+  'hus evak': 'Civilians are leaving that house',
+  'hus anfall': 'The dead are at that door',
+  'hus bruten': 'That house was broken into today',
+  'viker': 'Already falling back',
+  'tyst': 'The gun is silent',
+  'nedkylning': 'Not yet. The men need a moment',
+  'bemannad': 'The gun is manned',
+  'bemannas': 'A crew is on the way',
 };
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
@@ -191,9 +204,10 @@ export function buildBar(root, actions) {
     // 0.16.1 (speltestet av 0.16.0: rubriken bytte mellan DEPLOY och SUPPLIES när enheterna tog slut, och Supplies
     // är också pengarnas namn): en rubrik per skede, DEPLOY före första vågen, DEFENCES under dagen (utom när
     // raden bara har enheter som kommit fram, E4 dag 1)
-    const onlyUnits = menu.every(c => c.id === 'units');
-    const head = !sim.core ? 'BUY' : sim.wavesStarted === 0 || onlyUnits ? 'DEPLOY' : 'DEFENCES';
-    el.innerHTML = `<div class="k">${head}${counter ? ` <span class="guns">${sim.core ? (deploy && sim.wavesStarted === 0 ? 'DEPLOYED' : 'UNITS') : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
+    // 0.18.0 (speltestet av 0.17.2: "samma ruta, olika ord"): en rubrik hela dagen. Enheter går att ställa ut mitt i
+    // dagen också (de som kommer fram och de som samlats efter ett vik), så DEPLOY och UNITS står kvar.
+    const head = !sim.core ? 'BUY' : 'DEPLOY';
+    el.innerHTML = `<div class="k">${head}${counter ? ` <span class="guns">${sim.core ? 'UNITS' : 'GUNS'} <b data-n></b></span>` : ''}</div><div class="groups">${menu.map((c, ci) => `
       <div class="grp" data-cat="${ci + 1}">${chords ? `<div class="gh"><kbd>${ci + 1}</kbd>${c.name}</div>` : ''}<div class="cards">${c.items.map(x => {
       const it = shopItem(x.id), [role, stats] = cardLines(it, sim.research);
       return `
@@ -276,6 +290,39 @@ export function upgradeState(s, g, { noRoom = false } = {}) {
 
 // 0.17.2: Reposition i uppställningen (före vågen och mellan vågorna): lyft enheten och ställ den någon annanstans
 const REPOS_BTN = '<button type="button" class="act" data-a="repos" title="Pick it up and set it down somewhere else. Free and instant until the wave comes. Or drag the unit."><span class="a">Reposition</span><span class="p">Free</span><kbd>M</kbd></button>';
+// 0.18.0 (skiva 1): enhetens order och läge. Ordrarna kommer när de är upplåsta (allow).
+function ordersHtml(s, g) {
+  const can = f => allowed(s, f), w = g.weapon, def = WEAPONS[w.type];
+  if (g.retreat) return '';
+  const b = [];
+  if (g.silent) b.push(`<button type="button" class="act" data-a="recrew" title="A new crew for supplies. A squad close by does it for free, slower."><span class="a">Recrew</span><span class="p" data-p></span><kbd>N</kbd></button>`);
+  else {
+    if (can('holdFire')) b.push(`<button type="button" class="act" data-a="hold" title="No fire until released or they come close. The first volley hits twice as hard."><span class="a">${g.hold ? 'Open fire' : 'Hold fire'}</span><span class="p" data-holdp></span><kbd>H</kbd></button>`);
+    if (can('target')) b.push(`<button type="button" class="act" data-a="target" title="Who it shoots first: First in line, Nearest, Strongest, Weakest."><span class="a">Target</span><span class="p">${TARGET_NAME[g.tgt ?? 'first']}</span><kbd>T</kbd></button>`);
+    if (can('rout') && w.uid != null && (g.squad || (def.move && !def.mounted && !def.vehicle))) b.push(`<button type="button" class="act" data-a="fallback" title="Withdraw in order to the base. Back in reserve with their nerve intact."><span class="a">Fall back</span><span class="p">To reserve</span><kbd>G</kbd></button>`);
+  }
+  return b.length ? `<div class="acts orders">${b.join('')}</div>` : '';
+}
+function wireOrders(ui, actions, gunId) {
+  const say = r => { if (!r.ok) ui.say(reasonText(r.reason)); };
+  ui.body.querySelector('[data-a="hold"]')?.addEventListener('click', () => say(actions.hold(gunId)));
+  ui.body.querySelector('[data-a="target"]')?.addEventListener('click', () => say(actions.target(gunId)));
+  ui.body.querySelector('[data-a="fallback"]')?.addEventListener('click', () => say(actions.fallBack(gunId)));
+  ui.body.querySelector('[data-a="recrew"]')?.addEventListener('click', () => say(actions.recrew(gunId)));
+}
+// Läget i en rad: sanity, trötthet, hus, tyst, på väg bakåt.
+export function unitStateText(s, g) {
+  if (g.retreat) return g.retreat.kind === 'rout' ? 'Broken. Running for the base.' : 'Falling back to the base.';
+  if (g.silent) return g.recrew ? `Manning the gun · ${Math.ceil(g.recrew.t)} s` : g.silent === 'routed' ? 'Silent: the crew ran.' : 'Silent: the crew is down.';
+  const parts = [];
+  // 0.18.1 (speltestet av 0.18.0): "Sanity 62 / Holds above 18" när enheten kan brytas, annars läget i ord
+  if (allowed(s, 'sanity') && hasSanity(g) && g.sanity != null) parts.push(allowed(s, 'rout') ? `Sanity ${Math.round(g.sanity)} / Holds above ${SANITY.rout}` : `Sanity ${Math.round(g.sanity)} · ${sanityState(g.sanity)}`);
+  if (allowed(s, 'fatigue') && g.weapon.fatigue) parts.push(FATIGUE.names[g.weapon.fatigue]);
+  if (g.house) parts.push(g.house.broken ? 'In a house · door broken' : `In a house · door ${Math.max(0, Math.round(g.house.door / g.house.max * 100))} %`);
+  if (g.hold) parts.push('Holding fire');
+  else if (g.ambushUntil > s.time) parts.push('Ambush');
+  return parts.join(' · ');
+}
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
 export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
@@ -283,7 +330,8 @@ export function gunPanel(root, gunId, sim, actions) {
   ui.el.classList.add('unit');
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
+  // 0.18.0: orderna (håll eld, mål-läget, fall back, recrew) och läget (tyst, på väg bakåt, i hus) byter knapparna
+  const keyOf = (s, g) => `o:${!!g.hold}:${g.tgt ?? ''}:${g.silent ?? ''}:${!!g.recrew}:${g.retreat?.kind ?? ''}:${g.house ? 'h' : ''}:` + (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -294,8 +342,9 @@ export function gunPanel(root, gunId, sim, actions) {
     const gs = can('unitSupplies') ? grenadeStats(s.research) : null;
     ui.head.innerHTML = `<div class="t">${def.name}${w.vet ? ' <span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}</div><div class="sub">Level ${w.level} of ${MAX_LEVEL}${w.kit ? ' · Grenade kit' : ''}${w.ammo ? ' · Extra ammo' : ''}${def.cone && can('rotate') ? ` · ${def.cone}° arc` : ''}</div>`;
     // Granatlådan: en rad till när Grenades är forskat. Med låda står det vad den gör i stället.
+    // 0.18.0 (speltestet av 0.17.2: panelen bytte höjd och knapparna gled vid köp): det köpta står kvar som en avbockad knapp
     const kitRow = !gs ? '' : w.kit
-      ? `<p class="info kit">Throws a grenade when ${gs.minCount} or more come close, or a brute, where it can see.</p>`
+      ? `<button type="button" class="act done" disabled title="Throws a grenade when ${gs.minCount} or more come close, or a brute, where it can see."><span class="a">${GRENADE_KIT.name}</span><span class="p">In use</span></button>`
       : `<button type="button" class="act" data-a="kit"><span class="a">${GRENADE_KIT.name}</span><span class="p" data-p></span></button>`;
     // 0.14.0: en kärntrupp uppgraderas i förrådet mellan dagarna och säljs inte; förnödenheterna köps här
     const core = w.uid != null;
@@ -309,11 +358,13 @@ export function gunPanel(root, gunId, sim, actions) {
       def.cone && can('rotate') ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : '',
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
+    ui.el.classList.toggle('full', !minimal);
     ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}${actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : ''}`
-      : `${can('rotate') ? outside : ''}${statLine(gunStats(s, g), !!w.ammo)}${suppliedRows(w)}
+      : `${can('rotate') ? outside : ''}${statLine(gunStats(s, g), !!w.ammo)}${suppliedRows(w)}<p class="info ustate" data-state></p>${ordersHtml(s, g)}
       ${acts ? `<div class="acts">${acts}</div>` : ''}${def.mounted && (!core || can('move')) ? `<p class="info mounted">${core ? "Mounted, can't move." : "Mounted, can't move. Sell it to free the spot."}</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}${can('unitSupplies') ? `<div class="acts kitrow">${kitRow}${supplyRow(w, false)}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     wireSupplies();
+    wireOrders(ui, actions, gunId);
     ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     const kit = ui.body.querySelector('[data-a="kit"]');
     const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
@@ -349,7 +400,7 @@ export function gunPanel(root, gunId, sim, actions) {
   }
   // 0.14.0: förnödenheterna till enheten: ammunition (alla) och sandsäckar (grupperna), en gång per dag
   function supplyRow(w, squad) {
-    const one = (id, label, title) => (w[id] ? '' : `<button type="button" class="act" data-sup="${id}" title="${title}"><span class="a">${label}</span><span class="p" data-p></span></button>`);
+    const one = (id, label, title) => (w[id] ? `<button type="button" class="act done" disabled title="${title}"><span class="a">${label}</span><span class="p">In use</span></button>` : `<button type="button" class="act" data-sup="${id}" title="${title}"><span class="a">${label}</span><span class="p" data-p></span></button>`);
     return one('ammo', SUPPLIES.ammo.name, `Fires ${AMMO_PCT()} % faster for the rest of the day.`)
       + (squad ? one('sandbags', SUPPLIES.sandbags.name, `The men dig in: they take ${BAGS_PCT()} % less damage.`) : '');
   }
@@ -378,11 +429,13 @@ export function gunPanel(root, gunId, sim, actions) {
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
     const gst = gunStats(s, g);
+    ui.el.classList.toggle('full', !minimal);
     ui.body.innerHTML = minimal ? (actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : '') : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Rate <b${w.ammo ? ' class="up"' : ''}>${rateText(gst.rate)}/s</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>${suppliedRows(w)}
-      <ul class="men">${men}</ul>
+      <p class="info ustate" data-state></p><ul class="men">${men}</ul>${ordersHtml(s, g)}
       ${acts ? `<div class="acts">${acts}</div>` : ''}${!core && standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}${can('unitSupplies') ? `<div class="acts kitrow">${supplyRow(w, true)}</div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
     wireSupplies();
+    wireOrders(ui, actions, gunId);
     ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     upB?.addEventListener('click', () => { const r = actions.upgrade(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
     sellB?.addEventListener('click', () => {
@@ -397,6 +450,12 @@ export function gunPanel(root, gunId, sim, actions) {
 
   function patch(s, g) {
     const w = g.weapon;
+    const stEl = ui.body.querySelector('[data-state]');
+    if (stEl) { const t = unitStateText(s, g); if (stEl.textContent !== t) stEl.textContent = t; stEl.classList.toggle('low', g.sanity != null && g.sanity < SANITY.waver && allowed(s, 'sanity')); }
+    const rc = ui.body.querySelector('[data-a="recrew"]');
+    if (rc) { const poor = s.cash < RECREW.cost, t = poor ? 'Need ' + money(RECREW.cost) : money(RECREW.cost), rp = rc.querySelector('[data-p]'); if (rp.textContent !== t) rp.textContent = t; rc.classList.toggle('off', poor); }
+    const hb = ui.body.querySelector('[data-holdp]');
+    if (hb) { const cd = !g.hold && g.holdCd > s.time ? Math.ceil(g.holdCd - s.time) : 0, t = g.hold ? 'Ambush ready' : cd ? `Wait ${cd} s` : 'Ambush'; if (hb.textContent !== t) hb.textContent = t; hb.parentElement.classList.toggle('off', !!cd); }
     const arm = ui.body.querySelector('[data-armour]');
     if (arm) { const t = g.building > 0 ? `Welding · ${Math.ceil(g.building)} s · not firing` : `Armour ${Math.max(0, Math.round(g.hp))} of ${g.maxHp}`; if (arm.textContent !== t) arm.textContent = t; arm.classList.toggle('low', g.hp < g.maxHp * 0.35); }
     const rf = ui.body.querySelector('[data-a="reinforce"]');

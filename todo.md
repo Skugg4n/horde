@@ -10,7 +10,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H006 | grafik | Bjässar som bara tar 40 % av taggtrådens bromsning syns inte i grafiken.
 - [ ] H007 | innehåll | Fler banor: Bensinmacken, Bron, Köpcentret, Hamnen (se design).
 - [ ] H008 | innehåll | Sena vapen: Barrett M82, Mk 19, granatkastare 81 mm, Carl-Gustaf, Minigun. (0.8.0: svenska arsenalen i stället; Ksp 58, Ak 5 + granattillsats och Psg 90 gjorda, svenska motsvarigheter till resten kvar att välja.)
-- [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare.
+- [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare. (0.18.0: krypare och pansrad gjorda; uppsvälld och skrikare i skiva 2.)
 - [x] H010 | ljud | Ingen ljudsättning ännu. (0.7.0: syntetiserat ljud och musik, ljudbord i soundboard.html)
 - [ ] H011 | publicering | Inget GitHub-repo. Fråga Ola innan något läggs ut.
 
@@ -322,8 +322,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H300 | ux | Sikte: alternativ 2 + håll-och-dra. Klick med kort i handen = placera (auto-riktning). Tryck-håll-dra = sikta (Ola gillade det). Höger/Alt-dra siktar också. Vänster-dra utan kort = panorera.
 - [x] H301 | molnbo | Prickskytt i klocktornet (missionskyrkan) och på andra höga byggnader (hyreshusen, Folkets hus, stationshuset).
 - [x] H302 | grafik | Kartkanten: glest och konstigt, dimman känns som grafikfel. Prova mörk "fog of war" vs djupare grå dimma; kolla hur andra gör.
-- [ ] H303 | design | STRATEGISKT DJUP: spelet är passivt (ställ ut längs rutten, vänta). Kill zones, långa kill corridors, trupper i hus, fler trupp- och fiendetyper med immuniteter, trupper som skadas (Close Combat), trötthet/vila. Fable-research pågår.
-- [ ] H304 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?).
+- [x] H303 | design | (0.18.0: skiva 1 byggd, skiva 2 och 3 kvar enligt kampanjplanen) STRATEGISKT DJUP: spelet är passivt (ställ ut längs rutten, vänta). Kill zones, långa kill corridors, trupper i hus, fler trupp- och fiendetyper med immuniteter, trupper som skadas (Close Combat), trötthet/vila. Fable-research pågår.
+- [x] H304 | ux | (0.18.0: streck och skadeklasser på korten, siffrorna i Field manual) Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?).
 - [ ] H305 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
 - [ ] H306 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
 - [ ] H307 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
@@ -332,7 +332,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H310 | design | NATT ibland (bryter mot tidigt beslut "aldrig natt", Ola ändrade 2026-10-18). Lysraketer som förmåga, mynningsflammor och gatlyktor som ljus, begränsad sikt, sanity tar mer stryk i mörker. Måste testas fram så man ser lagom mycket och det blir snyggt. Prototyp först: en kvällsdag i skymning, sedan en natt.
 - [ ] H320 | kampanj | Gnesta centrum: flera försvarspunkter som måste hållas: brandstationen (civila, fordon; Räddningstjänsten som röst, Ola jobbar där), Elektron/kommunhuset, Frejaskolan med gymnastiksal och stora ytor. Ledningsplats kanske på brandstationen eller Elektron. (Ola 2026-10-18)
 - [ ] H330 | kartor | Idé (Ola 2026-10-18): bygg HELA Gnesta tätort som en sammanhängande karta från OSM, och skär ut skådeplatser (Hagstumosse, rondellen, centrum, Frösjön) som delar. Ger samma hus/gator överallt och fri sammanslagning. Utvärdera efter Gnesta centrum-förhandsvisningen (prestanda, skala).
-- [ ] H400 | ux | Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?). 0.17.2: kortens siffror läsbara (två rader); resten väntar på designen (strategiskt-djup).
+- [x] H400 | ux | (0.18.0: streck och skadeklasser) Rekvisition: mer stats för trupperna (eller medvetet vaga som i Close Combat?). 0.17.2: kortens siffror läsbara (två rader); resten väntar på designen (strategiskt-djup).
 - [x] H401 | ux | Panelen byter storlek fult när man köper granatkit; radbryt text i stället.
 - [x] H402 | bugg | Sandsäckar (ammo crate/sandbags) verkar inte göra något.
 - [x] H403 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
@@ -341,9 +341,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H406 | ux | Reposition i uppställningen: lyft en utställd enhet och ställ den direkt och gratis (före vågen och mellan vågorna).
 - [x] H311 | debug | Quick jump i debugmenyn med auto-deploy (balanspolicyn) och direkt start.
 - [x] H312 | grafik | Pillboxen som A-traktor (Volvo, kapat flak, LGF-triangel) och Volvo-kombi bland bilarna.
-- [ ] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup.
+- [x] H313 | balans | Mölnbo efter prickskytteposterna: naive klarar dag 3 (fastnar dag 4). Avgörs med strategiskt djup. (0.18.0: naive fastnar på dag 3 eller 4 igen.)
 - [ ] H314 | grafik | Kartans kant (fog of war / grå dis) finns bara i Mölnbo; ta till E4 och Hagstumosse om Ola gillar (b).
-- [ ] H440 | ux | Förrådet: två banor 'Into battle x/10' och 'Reserve · resting' (dra-och-släpp + klick), tydlig trötthet per enhet, rekvisition och uppgraderingar som visuellt olika delar, INTEL-panel om nästa strid (kända/okända fiendetyper, antal, riktningar, ärligt 'Unknown'). Pågår i 0.18.1. (Ola 2026-10-18)
+- [x] H440 | ux | Förrådet: två banor 'Into battle x/10' och 'Reserve · resting' (dra-och-släpp + klick), tydlig trötthet per enhet, rekvisition och uppgraderingar som visuellt olika delar, INTEL-panel om nästa strid (kända/okända fiendetyper, antal, riktningar, ärligt 'Unknown'). Pågår i 0.18.1. (Ola 2026-10-18)
 - [ ] H450 | molnbo | Hordens riktning: ska komma från Järna/Södertälje-hållet (väg 57 och banan mot nordost i verkligheten) PÅ VÄG MOT Gnesta (sydväst), inte från Gnesta. Gäller generellt: kontrollera att varje banas ingångar stämmer med berättelsen (horden rör sig mot Gnesta).
 - [ ] H451 | molnbo | Utmaning: en mindre grupp söderifrån, och/eller ett utbrott i ett hus.
 - [ ] H452 | molnbo | Tåghändelse: ett pendeltåg RULLAR IN mitt i striden, saktar in, stannar vid perrongen/gamla stationen och 50 zombier väller ut (dörrar uppbrutna, krossade fönster). Förvarning några sekunder innan; spelaren hinner flytta trupper. Alternativt: tåget vid perrongen har zombier som bryter sig ut vid ett tillfälle.
@@ -355,3 +355,44 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H458 | ui | Varning när man ställer spärren som stänger sista vägen ("This shuts every road. They will smash through.") och hela vägvyn visas då.
 - [ ] H459 | spel | (skärper H428) Soldaterna "in house" står UTANFÖR huset vid fasaden och i trädgården (Olas skärmbild Mölnbo 2026-10-18), Ksp 58 med sandsäckar på gräsmattan. De ska synas I huset: halvkroppar i fönsterkarmarna, mynningsflammor och ljus i fönstret som skjuter, inga ringar på gräset, trupplappen på taket.
 - [ ] H460 | karta | Battle for Laxne (Ola 2026-10-18): byn norr om Gnesta vid väg 223. Horden från norr (223/Laxnevägen), vill söderut mot Gnesta (223 förbi skolan, Hebyvägen). Sjön som flank. Underlag i horde-refs/laxne (OSM, plan, Olas karta + satellit, beskrivning). Placera i kampanjplanen (docs/superpowers/specs/2026-10-18-kampanjplan.md) och bygg förhandsvisning som Björnlunda.
+
+## Skiva 1 och speltestet av 0.17.2 (2026-10-18)
+
+- [x] H410 | spel | Skadeklasser (small, heavy, explosive) och två fiender: pansrad (20 % av småkaliber) och krypare (under tråden, svår uppifrån).
+- [x] H411 | spel | Sanity på grupper och pjäslag: tär nära horden och vid förluster, verkar på träff och eldtakt; routed under gränsen.
+- [x] H412 | spel | Överrända pjäser (laget slås ner, pjäsen står tyst) och Recrew (N) eller en grupp intill.
+- [x] H413 | spel | Fall back (G): ordnat vik till reserven, sanity behålls.
+- [x] H414 | spel | Trupper i hus: grupper, Ksp 90 och Ksp 58; fönstrens sikt, skydd, stormning och inslagen dörr.
+- [x] H415 | spel | Korseld (+20 % vid två bågar minst 60 grader isär) med förhandsvisning i guld.
+- [x] H416 | spel | Håll eld (H): bakhållets dubbla salva, nedkylning.
+- [x] H417 | spel | Trötthet över dagarna (Rested, Tired, Exhausted) i förrådet; förlorat försök räknas inte.
+- [x] H418 | spel | Mål-läget (T): First in line, Nearest, Strongest, Weakest.
+- [x] H419 | bugg | Quick jump till Ishallen gav ingen trupp (ett hopp till Mölnbo tog alla sektorers trupper).
+- [x] H420 | bugg | Quick jump utan Auto-deploy startade vågen med 0 utställda; nu väntar dagen på Start wave.
+- [x] H421 | ux | Enhetspanelen över dagrutan och tågklockan, och höjden bytte vid köp; nu fast höjd och HUD:en är ett hårt krav.
+- [x] H422 | ux | Ammolådan syntes inte på enheten (större lådor och märket AMMO).
+- [x] H423 | ux | Köpradens rubrik bytte mellan DEPLOY och DEFENCES; nu DEPLOY och UNITS hela dagen.
+- [x] H424 | ux | Zoomen går mot pekaren.
+- [ ] H425 | speltest | Skiva 1 genom human-ux-tester och sedan Ola: känns autovik som att spelet tar över? Läses sanity-stapeln? Hittar man husen?
+- [x] H426 | spel | Move in i ett hus mitt i en våg (0.18.1: gruppen eller laget springer till dörren och går in).
+- [ ] H427 | balans | Kryparna gör lite på Vikingavägen dag 4 och 5; mät om de ska vara fler eller ha ett eget hot.
+- [ ] H428 | spel | Soldaterna i husen syns dåligt (de står vid fasaden); fönster med mynningsflammor vore tydligare.
+
+
+## Speltestet av 0.18.0 (docs/playtests/2026-10-18-0.18.0.md)
+
+- [x] H429 | ux | Korselden syns utan kort i handen (zoner i bygget, "+20 %" i striden), Ishallen dag 2 före våg 1. (0.18.1)
+- [x] H430 | ux | Sanity läsbar: större blå stapel, rött nära gränsen, "Sanity 62 / Holds above 18", banderoll, ping och flykt; tipset pekar på rätt enhet. (0.18.1)
+- [x] H431 | balans | Vågorna staplades: grinden (70 % nere eller lång klocka, högst två ute utan tidigt kall). (0.18.1)
+- [x] H432 | ux | Enhetspanelen över tågklockan; "1 cleared216 of 255". (0.18.1)
+- [x] H433 | balans | Ishallen dag 1 med 5 dödade: mätt, dagen kräver försvar (prov). (0.18.1)
+- [x] H434 | ux | Förrådet i zoner: banorna Into battle / Reserve · resting, Requisition, Upgrades, INTEL. (0.18.1)
+- [x] H435 | ux | Mölnbo dag 2: husen längs Stenbyvägen i stället för "tåget är skydd". (0.18.1)
+- [ ] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6).
+- [ ] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7).
+- [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
+- [ ] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9).
+- [ ] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10).
+- [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
+- [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12).
+- [ ] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.

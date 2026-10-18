@@ -38,6 +38,9 @@ export const PALETTE = {
   zBruteSkin: ['#7f8770', '#8a8b74', '#767e68'],
   zBruteShirt: ['#5a4c3b', '#4d4a42', '#6a5a44'],
   blood: '#4f120d', bloodDark: '#3a0e0a',
+  // 0.18.0: den pansrade (kravallutrustning: mörk overall, svart hjälm med visir, skölden) och kryparen (lera, trasor)
+  zRiot: ['#23262b', '#2c3036', '#1f2a33'], zRiotHelmet: '#14161a', zVisor: '#4d5a63', zShield: '#2a2f34', zShieldRim: '#7c8790',
+  zCrawlSkin: ['#6d7458', '#7b7a60', '#5f6650'], zMud: ['#3d362b', '#4a4234', '#352f27'],
   // rekvisita
   carGlass: '#1d1c1a', tire: '#151413', barrel: '#4d5a3d', bark: '#2c2620', pole: '#3b2f24', wire: '#1e1a16',
   wall: '#9a8d78', rubble: '#5d5245',

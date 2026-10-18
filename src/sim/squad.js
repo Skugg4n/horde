@@ -55,6 +55,8 @@ export const COVER = {
   ditch: { score: 7, stance: 'prone', name: 'ditch' },
   hedge: { score: 6, stance: 'kneel', name: 'hedge' },
   open: { score: 0, stance: 'prone', name: 'open grass' },
+  // 0.18.0 (trupper i hus, src/sim/houses.js): fönstret. Väljs aldrig av planSquad, bara när gruppen går in i ett hus.
+  window: { score: 0, stance: 'kneel', name: 'window' },
 };
 
 // 0.12.2 (speltestet: "de ligger och snurrar på marken"): ställningen följer fortfarande skyddet, men

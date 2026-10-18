@@ -53,4 +53,24 @@ export const ICONS = {
     <circle cx="14" cy="10" r="4"/><path d="M14 14 V24 M8 18 H20"/><circle cx="28" cy="10" r="4"/><path d="M28 14 V24 M22 18 H34"/>
     <path d="M40 17 H52 M48 13 L52 17 L48 21"/><circle cx="64" cy="10" r="4"/><path d="M64 14 V24 M58 18 H70"/><path d="M74 8 L84 22 M84 8 L74 22"/>
     <path d="M92 17 H100 M97 13 L100 17 L97 21"/><path d="M106 10 H116 V24 H106 Z M111 13 V21 M107 17 H115"/></g></svg>`,
+  // 0.18.0 (skiva 1): sanity (ett huvud och en darrande linje) och skadeklasserna som små tecken på korten
+  sanity: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <path d="M30 28 V22 Q18 20 20 12 Q22 4 32 4 Q42 4 42 13 L45 18 H41 V23 H36 V28"/><path d="M52 17 H62 L66 9 L72 26 L77 12 L81 21 L85 17 H108"/></g></svg>`,
+};
+// Skadeklasserna (src/data/weapons.js DMG_CLASSES): en liten kula, en stor kula, en smäll.
+const D = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"';
+export const DMG_ICONS = {
+  small: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M9 20 V10 Q9 5 12 3 Q15 5 15 10 V20 Z"/><path d="M9 16 H15"/></g></svg>`,
+  heavy: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M6 22 V9 Q6 2 12 1 Q18 2 18 9 V22 Z"/><path d="M6 17 H18 M6 19.5 H18"/></g></svg>`,
+  explosive: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M12 2 L14 8 L20 5 L16 11 L22 13 L15.5 15 L18 21 L12 17 L6 21 L8.5 15 L2 13 L8 11 L4 5 L10 8 Z"/></g></svg>`,
+};
+// 0.18.1: fiendernas siluetter till förrådets INTEL-ruta (fyllda, currentColor; den okända är en grå "?")
+const Z = 'fill="currentColor" stroke="none"';
+export const FOE_ICONS = {
+  walker: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><circle cx="11" cy="5" r="3.2"/><path d="M8 9 H14 L16 19 H13 L13.5 30 H10.5 L10 21 L9 30 H6 L7 19 L4 15 L6 12 Z"/><path d="M14 10 L21 13 L20 15 L14 13 Z"/></g></svg>`,
+  runner: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><circle cx="15" cy="5" r="3"/><path d="M11 9 H16 L15 18 L20 23 L18 30 H15.5 L17 24 L11 20 L7 30 H4 L8 19 L9 12 L4 15 L3 13 Z"/></g></svg>`,
+  crawler: `<svg viewBox="0 0 32 32" class="foe"><g ${Z}><circle cx="25" cy="20" r="3"/><path d="M4 25 L10 21 H21 L23 24 L19 26 H14 L9 28 H4 Z"/><path d="M21 24 L24 29 H26 L23 23 Z"/></g></svg>`,
+  armored: `<svg viewBox="0 0 24 32" class="foe"><g ${Z}><path d="M7.5 6 Q11 0 14.5 6 V8 H7.5 Z"/><path d="M7 9 H15 L17 19 H14 L14.5 30 H11 L11 21 L10 30 H6.5 L7 19 L5 15 Z"/><rect x="15" y="9" width="6" height="12" rx="1"/></g></svg>`,
+  brute: `<svg viewBox="0 0 28 32" class="foe"><g ${Z}><circle cx="14" cy="5" r="3.6"/><path d="M5 9 H23 L26 20 H22 L20 14 L19 20 L20 30 H15.5 L14 22 L12.5 30 H8 L9 20 L8 14 L6 20 H2 Z"/></g></svg>`,
+  unknown: `<svg viewBox="0 0 24 32" class="foe unk"><g ${Z} opacity="0.45"><circle cx="12" cy="5" r="3.2"/><path d="M8 9 H16 L17 19 H14 L14 30 H10 L10 19 H7 Z"/></g><text x="12" y="22" text-anchor="middle" font-size="9" font-weight="700" fill="#1d1913">?</text></svg>`,
 };

@@ -31,6 +31,8 @@ export const VOICES = {
   bonus:    { cap: 1, gap: 0.3, lag: 0 },
   horn:     { cap: 1, gap: 2.0, lag: 0 },
   stinger:  { cap: 1, gap: 2.0, lag: 0 },
+  // 0.18.0: en enhet vacklar eller bryts (sanity), sällan och en i taget
+  dread:    { cap: 1, gap: 3.0, lag: 0 },
 };
 export const TOTAL_CAP = 40;
 

@@ -112,6 +112,47 @@ export function deployCap(p, sector) {
   return MAPS[m]?.frontage ?? Infinity;
 }
 export const pressureOf = (p, id) => p.op?.pressure[poolOf(id)] ?? 0;
+
+// ---------- banorna i förrådet (0.18.1, Olas skärmbild av förrådet: "oklart vilka som går ut och vilka som vilar") ----------
+// Varje enhet i sektorn står i en av två banor: "Into battle" (högst deployCap) och "Reserve · resting". Spelaren
+// flyttar dem (setLane, u.lane = 'battle' | 'rest'); utan val föreslår förrådet banan som balansens policy väljer:
+// de som är värda mest, där tröttheten drar ned (unitWorth, utvilade först vid lika). Bara stridsbanan går ut i
+// striden (opStartConfig). En vunnen dag nollställer valen, så att nästa dags förslag följer den nya tröttheten.
+export const FATIGUE_WORTH = [1, 0.95, 0.75];
+export const unitWorth = u => (UNIT_RP[u.type] ?? 100) * (1 + 0.6 * (u.level - 1)) * (vetOf(u) ? 1.1 : 1) * FATIGUE_WORTH[u.fatigue ?? 0];
+const fit = u => u.men == null || u.men > 0;
+const suggestOrder = (a, b) => unitWorth(b) - unitWorth(a) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
+export function lanes(p, sector) {
+  const here = unitsIn(p, sector), cap = deployCap(p, sector);
+  const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);
+  const open = here.filter(u => !u.lane && fit(u)).sort(suggestOrder);
+  while (battle.length < cap && open.length) battle.push(open.shift());
+  const inBattle = new Set(battle.map(u => u.uid));
+  return { battle, rest: here.filter(u => !inBattle.has(u.uid)), cap };
+}
+export function canSetLane(p, uid, lane) {
+  const u = unitOf(p, uid);
+  if (!u || u.sector == null) return { ok: false, reason: 'unknown' };
+  if (lane !== 'battle' && lane !== 'rest') return { ok: false, reason: 'unknown' };
+  const L = lanes(p, u.sector);
+  if (lane === 'battle') {
+    if (L.battle.some(x => x.uid === uid)) return { ok: true, same: true };
+    if (!fit(u)) return { ok: false, reason: 'noMen' };
+    if (L.battle.length >= L.cap) return { ok: false, reason: 'laneFull', cap: L.cap };
+  }
+  return { ok: true };
+}
+export function setLane(p, uid, lane) {
+  const c = canSetLane(p, uid, lane);
+  if (!c.ok) return c;
+  const sector = unitOf(p, uid).sector, L = lanes(p, sector);
+  const q = withOp(p), op = copyOp(q);
+  // de föreslagna låses i sin bana när spelaren väljer, så att förslaget inte flyttar någon annan i stället
+  const inBattle = new Set(L.battle.map(u => u.uid));
+  for (const x of op.units) if (x.sector === sector) x.lane = inBattle.has(x.uid) ? 'battle' : 'rest';
+  op.units.find(x => x.uid === uid).lane = lane;
+  return { ok: true, progress: { ...q, op } };
+}
 // 0.16.0: garnisonen. Tryckpunkter som en öppen sektor får för en vunnen dag någon annanstans: 1, eller
 // PRESSURE_UNDERMANNED om färre än GARRISON enheter står där. Förrådet visar samma regel (garrisonLine).
 export const PRESSURE_UNDERMANNED = 2;
@@ -380,8 +421,9 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   const base = startConfig(p, day, mapId);
   if (!base) return null;
   const d = base.map.days[day - 1];
-  const core = unitsIn(p, mapId).filter(u => u.men == null || u.men > 0)
-    .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}) }));
+  // 0.18.1: bara stridsbanan (lanes) går ut; resten vilar i förrådet
+  const core = lanes(p, mapId).battle
+    .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}), ...(u.fatigue ? { fatigue: u.fatigue } : {}) }));
   // 0.16.0: det som är upplåst i dag (src/meta/unlocks.js). Utan förnödenheter (E4 dag 1) är kassan tom och
   // de dödade ger inget.
   const allow = [...featuresFor(mapId, day)], supplies = allow.includes('supplies');
@@ -427,12 +469,24 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
       u.wins++;
     }
     op.units = op.units.filter(u => u.men == null || u.men > 0);
+    // 0.18.0 (tröttheten, Olas beslut): en vunnen dag ute gör enheten tröttare (Rested, Tired, Exhausted), en dag i
+    // reserven vilar den ett steg. Ett förlorat försök räknas inte. Bara när tröttheten är upplåst (src/meta/unlocks.js).
+    if (featuresFor(mapId, day).has('fatigue')) {
+      const out = new Set((report?.units ?? []).map(d => d.uid));
+      for (const u of op.units) {
+        if (u.sector !== poolOf(mapId)) continue;
+        const f = Math.max(0, Math.min(2, (u.fatigue ?? 0) + (out.has(u.uid) ? 1 : -1)));
+        if (f) u.fatigue = f; else delete u.fatigue;
+      }
+    }
     // tryck: sektorn man försvarade lättar, de andra öppna sektorerna blir svårare
     for (const s of openSectors(q)) {
       if (s === poolOf(mapId)) op.pressure[s] = Math.max(0, (op.pressure[s] ?? 0) - PRESSURE_RELIEF);
       else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + pressureGain(q, s));
     }
     for (const s of Object.keys(op.pressure)) if (!op.pressure[s]) delete op.pressure[s];
+    // 0.18.1: banornas val gäller en dag; i morgon föreslår förrådet igen efter den nya tröttheten
+    for (const u of op.units) if (u.sector === poolOf(mapId)) delete u.lane;
     q = { ...q, op };
   }
   return { progress: syncOperation(q), rp, attempt };
@@ -453,7 +507,7 @@ export function debugDepot(p, preset, list = []) {
 }
 // Hoppa till en sektor och dag (debugmenyn): banorna före räknas som klara och sektorns dagar före
 // som vunna, så att leveranserna och trupperna är där en spelare som kommit dit har dem.
-export function debugReach(p, mapId, day) {
+export function debugReach(p, mapId, day, fresh = false) {
   const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];
   const maps = { ...p.maps };
   for (const id of order) {
@@ -463,12 +517,23 @@ export function debugReach(p, mapId, day) {
   }
   const st = mapState(p, mapId);
   maps[mapId] = { ...st, unlockedDay: Math.max(st.unlockedDay, Math.min(day, MAPS[mapId].days.length)) };
-  const q = syncOperation({ ...p, mapId, maps });
+  let q = syncOperation({ ...p, mapId, maps });
+  const pool = poolOf(mapId);
   // 0.17.1: en sektor med en känd ankomst (src/data/arrival.js ARRIVAL_TROOP) får den truppen och forskningen, så att
   // ett hopp dit spelas som balansen räknar (förut nivå 1 rakt igenom)
+  // 0.18.0 (speltestet av 0.17.2: Quick jump till Ishallen efter ett hopp till Mölnbo gav ingen trupp): ett hopp byter
+  // bara truppen i sektorn man hoppar till (förut tog ett hopp till Mölnbo alla andra sektorers trupper). Har sektorn
+  // ingen trupp (leveranserna har redan getts i sparfilen) får den truppen en ny kampanj har där den dagen.
   const t = ARRIVAL_TROOP[mapId];
-  if (!t) return q;
   let uid = q.op.nextUid ?? 1;
+  const others = q.op.units.filter(u => u.sector !== pool);
+  if (!t) {
+    if (fresh || unitsIn(q, mapId).length) return q;
+    const f = debugReach(newCampaign(), mapId, day, true);
+    const units = unitsIn(f, mapId).map(u => ({ ...u, uid: uid++ }));
+    return { ...q, op: { ...q.op, units: [...others, ...units], nextUid: uid } };
+  }
   const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
-  return { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units, nextUid: uid } };
+  q = { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units: [...others, ...units], nextUid: uid } };
+  return q;
 }

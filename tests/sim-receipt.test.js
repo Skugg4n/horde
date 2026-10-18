@@ -74,7 +74,8 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 const RECEIPTS = {
   'E4 day 2': 'c6ff18ea',
   'Gnesta South day 3': '1b4eff89',
-  'Gnesta North day 2': 'd4dc66ed',
+  // 0.18.1: avsiktligt, Vikingavägen dag 2 hp 4,4 till 3,5 och vågornas grind (docs/balance-log.md 0.18.1)
+  'Gnesta North day 2': 'f734013e',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

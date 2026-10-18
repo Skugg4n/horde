@@ -7,6 +7,8 @@
 // ingen stängknapp. Under en hård paus står PAUSED längst ned i mitten. Ett mål utanför bild får en chevron
 // vid skärmkanten. Ett 'show'-steg släpps med klick, Enter eller Space; ett 'step' när handlingen är gjord.
 import { MANUAL, MANUAL_GROUPS } from '../data/lessons.js';
+import { WEAPONS, DMG_NAME } from '../data/weapons.js';
+import { ZOMBIES, takeOf } from '../data/zombies.js';
 import { ICONS } from './icons.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -150,6 +152,14 @@ export function enemyCard(root, { title, report, portrait, onContinue }) {
   return { el, close: () => el.remove() };
 }
 
+// 0.18.0 (Olas beslut: siffrorna bara i Field manual): vapnens och fiendernas exakta siffror, nivå 1.
+function numbersTable() {
+  const pct = x => Math.round(x * 100) + ' %';
+  const rows = Object.values(WEAPONS).map(w => `<tr><td>${esc(w.short ?? w.name)}</td><td>${DMG_NAME[w.dmg] ?? ''}</td><td>${w.damage}</td><td>${w.rate}/s</td><td>${w.range} m</td><td>${pct(w.accuracy)}</td><td>${w.nerve ?? '-'}</td></tr>`).join('');
+  const zs = Object.values(ZOMBIES).map(z => `<tr><td>${esc(z.name)}</td><td>${z.hp}</td><td>${z.speed} m/s</td><td>${pct(takeOf(z.id, 'small'))}</td><td>${pct(takeOf(z.id, 'heavy'))}</td><td>${z.fear}</td></tr>`).join('');
+  return `<table class="mtab"><thead><tr><th>Unit</th><th>Class</th><th>Damage</th><th>Rate</th><th>Range</th><th>Aim</th><th>Nerve</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="mtab"><thead><tr><th>Enemy</th><th>Health</th><th>Speed</th><th>Small arms</th><th>Heavy, explosive</th><th>Fear</th></tr></thead><tbody>${zs}</tbody></table>`;
+}
 // Field manual (avsnitt 5.5): ett uppslag per begrepp i fem grupper, nya med en rostfärgad prick tills de
 // öppnats, Show me spelar om lektionens markering. entries: upplåsta id, fresh: nya id, portrait(type).
 export function manualSheet(root, { entries, fresh, portrait, onOpen, onShowMe, onClose, canShow, focus = null }) {
@@ -165,7 +175,7 @@ export function manualSheet(root, { entries, fresh, portrait, onOpen, onShowMe, 
     const m = MANUAL.find(x => x.id === sel);
     el.innerHTML = `<div class="sheet plate msheet"><div class="mh"><div class="h">Field manual</div><button type="button" class="act" data-a="close"><span class="a">Close</span><kbd>J</kbd></button></div>
       <div class="mb"><nav>${MANUAL_GROUPS.map(g => { const list = have.filter(x => x.group === g); return list.length ? `<div class="mg"><div class="mgh">${g}</div>${list.map(x => `<button type="button" class="mi ${x.id === sel ? 'on' : ''} ${fresh.includes(x.id) ? 'fresh' : ''}" data-id="${x.id}">${esc(x.title)}</button>`).join('')}</div>` : ''; }).join('') || '<p class="muted">Nothing yet. Entries are added as you learn.</p>'}</nav>
-      <article>${m ? `${icon(m)}<div class="h2">${esc(m.title)}</div><p>${esc(m.text)}</p>${m.keys?.length ? `<p class="mkeys">${keysHtml(m.keys)}</p>` : ''}${canShow?.(m.id) ? '<button type="button" class="act" data-a="show"><span class="a">Show me</span></button>' : ''}` : ''}</article></div></div>`;
+      <article>${m ? `${icon(m)}<div class="h2">${esc(m.title)}</div><p>${esc(m.text)}</p>${m.table === 'weapons' ? numbersTable() : ''}${m.keys?.length ? `<p class="mkeys">${keysHtml(m.keys)}</p>` : ''}${canShow?.(m.id) ? '<button type="button" class="act" data-a="show"><span class="a">Show me</span></button>' : ''}` : ''}</article></div></div>`;
     for (const b of el.querySelectorAll('[data-id]')) b.addEventListener('click', () => { sel = b.dataset.id; onOpen?.(sel); fresh = fresh.filter(id => id !== sel); render(); });
     el.querySelector('[data-a="close"]').addEventListener('click', () => onClose());
     el.querySelector('[data-a="show"]')?.addEventListener('click', () => onShowMe?.(sel));

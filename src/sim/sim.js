@@ -1,5 +1,5 @@
-import { ZOMBIES } from '../data/zombies.js';
-import { WEAPONS, GRENADE_KIT, PIERCE_WIDTH, VEHICLE_REACH, SUPPLIES, VETERAN } from '../data/weapons.js';
+import { ZOMBIES, takeOf } from '../data/zombies.js';
+import { WEAPONS, GRENADE_KIT, PIERCE_WIDTH, VEHICLE_REACH, SUPPLIES, VETERAN, dmgClassOf } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
@@ -8,6 +8,8 @@ import { crewRoute, alongPath } from './crew-path.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
 import { emplacement } from './emplace.js';
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight, inArc, RISE_TIME, SETTLE_TIME } from './squad.js';
+import { SANITY, FATIGUE, hasSanity, resilience, fearAt, sanityFactor } from './sanity.js';
+import { housesOf, houseAtKey, houseById, pickWindows, windowSight, DOOR_HP, ASSAULT, BREAK_HIT } from './houses.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 // Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
@@ -23,9 +25,15 @@ export { CELL_LEN } from './cells.js';
 export const COUNTDOWN = 15;        // sekunder från klarad våg till nästa startar av sig själv
 export const EARLY_PER_SEC = 2;     // pengar per sekund som sparas
 export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många sekunder kvarvarande spawn
-// dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg startar så många sekunder efter att
-// föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
-// vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
+// dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg kan komma medan föregående fortfarande är på väg.
+// Annars väntar den tills vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
+// 0.18.1 (speltestet av 0.18.0: Mölnbo dag 5 hade alla fem vågor ute inom fyra minuter, Vikingavägen dag 4 310
+// zombier samtidigt, och då spelade inga val någon roll): förut startade nästa våg dayCfg.overlap sekunder efter att
+// föregående kommit ut, hur det än gick. Nu kommer nästa våg av sig själv först när (1) alla äldre vågor är klara,
+// (2) den senaste har kommit ut helt och (3) OVERLAP_SPENT av den är döda eller framme vid basen, eller
+// dayCfg.overlap sekunder har gått sedan den kom ut (den långa klockan). Sedan en nedräkning på OVERLAP_BEAT s, en
+// paus där de nya verben hinner användas. Utan att spelaren kallar tidigt är alltså högst två vågor igång.
+export const OVERLAP_SPENT = 0.7, OVERLAP_BEAT = 12;
 
 // ---------- debugmenyns reglar (0.12.2) ----------
 // tweaks: multiplikatorer som debugmenyn ändrar live (zombiernas hp och fart, antalet i varje grupp,
@@ -59,13 +67,15 @@ const countdownOf = sim => sim.tweaks?.countdown ?? COUNTDOWN;
 // Dagens data kan ha: preset (enheter som redan står ute när dagen börjar, { type, at: [x, z] }: infanteriet vid
 // bommen och den svetsade pillboxen på E4), late (en enhet av typen kommer först efter vågen wave: E4 dag 1:s
 // andra Ksp 90) och spots (de markerade platserna, [[x, z]]: bara där får nya enheter ställas ut).
-export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1, allow = null }) {
+// 0.18.0: depth (skiva 1): utan allow (proven och provbanorna) är djupets mekaniker av, så att mekanikproven räknar
+// som förut; depth: true slår på alla (provet för djupet), en lista bara de.
+export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1, allow = null, depth = null }) {
   const dayCfg = map.days[day - 1];
   const res = new Set(research);
   const route = routeFor(map);
   const coreMode = Array.isArray(core);
   const sim = {
-    allow: allow ? new Set(allow) : null,
+    allow: allow ? new Set(allow) : null, depth: depth === true ? new Set(DEPTH_FLAGS) : Array.isArray(depth) ? new Set(depth) : null,
     core: coreMode, reserve: coreMode ? core.map(u => ({ ...u })) : null, deployed: [], hpMul, bountyMul, earlyCalls: 0,
     // waveIndex: antal klarade vågor. wavesStarted: antal startade (vågor kan gå samtidigt
     // när nästa kallas tidigt). nextWaveIn: sekunder kvar av nedräkningen, null = väntar på spelaren.
@@ -86,7 +96,8 @@ export function createSim({ map, day, cash, research = [], seed = 1, tweaks = nu
   if (coreMode) setupCore(sim);
   return sim;
 }
-export const allowed = (sim, f) => !sim.allow || sim.allow.has(f);
+export const DEPTH_FLAGS = ['sanity', 'rout', 'overrun', 'garrison', 'crossfire', 'holdFire', 'target', 'fatigue'];
+export const allowed = (sim, f) => (sim.allow ? sim.allow.has(f) : !DEPTH_FLAGS.includes(f) || !!sim.depth?.has(f));
 // Dagens förberedda enheter (preset), de som kommer senare (late) och de markerade platserna (spots).
 function setupCore(sim) {
   const d = sim.dayCfg;
@@ -232,6 +243,7 @@ function launch(sim) {
   sim.wavesStarted++;
   sim.phase = 'wave';
   sim.nextWaveIn = null;
+  sim.waveOutAt = null;
   sim.events.push({ t: 'waveStart', index });
   return index;
 }
@@ -286,7 +298,7 @@ export function earlyBonus(sim) {
   if (sim.nextWaveIn != null) return Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   const q = sim.spawnQueue;
   const spawnLeft = q.length ? Math.max(0, q[q.length - 1].at - sim.time) : 0;
-  return Math.round(((sim.dayCfg.overlap ?? countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
+  return Math.round(((sim.dayCfg.overlap != null ? OVERLAP_BEAT : countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
 // Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
@@ -348,7 +360,36 @@ function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door
     z.lead = true;
   }
   sim.zombies.push(z);
+  (sim.waveSpawned ??= [])[wave] = (sim.waveSpawned[wave] ?? 0) + 1;
   sim.events.push({ t: 'spawn', id: z.id });
+}
+
+// Överlappens grind (0.18.1, se OVERLAP_SPENT): öppen när nästa våg får börja räknas ned på en dag med överlapp.
+// more: hur många till av den senaste vågen som ska ned innan dess (0 när den långa klockan gått ut), wait: sekunder
+// kvar av den långa klockan, older: äldre vågor som inte är klara. Ren funktion av läget.
+// De som står vid basens dörr (map.door, Mölnbo och ishallen) räknas som ute: de är förbi försvaret och tar sig in en i
+// taget. En våg är igång (onRoad) så länge någon av dess zombier inte släppts än eller går levande utanför dörren.
+const onRoad = z => !z.dead && !z.atDoor;
+export function wavesOnRoad(sim) {
+  const on = new Set();
+  for (const q of sim.spawnQueue) on.add(q.wave);
+  for (const z of sim.zombies) if (onRoad(z)) on.add(z.wave);
+  return on;
+}
+export function overlapGate(sim) {
+  const latest = sim.wavesStarted - 1, ov = sim.dayCfg.overlap;
+  if (ov == null || latest < 0) return { open: false, more: 0, wait: null, older: 0 };
+  const on = wavesOnRoad(sim);
+  let older = 0;
+  for (let k = 0; k < latest; k++) if (on.has(k)) older++;
+  let queuedN = 0, alive = 0;
+  for (const q of sim.spawnQueue) if (q.wave === latest) queuedN++;
+  for (const z of sim.zombies) if (onRoad(z) && z.wave === latest) alive++;
+  const queued = queuedN > 0, total = (sim.waveSpawned?.[latest] ?? 0) + queuedN;
+  const more = Math.max(0, alive + queuedN - Math.floor((1 - OVERLAP_SPENT) * total + 1e-9));
+  const wait = queued || sim.waveOutAt == null ? null : Math.max(0, ov - (sim.time - sim.waveOutAt));
+  const open = !older && !queued && (more === 0 || wait === 0);
+  return { open, more: wait === 0 ? 0 : more, wait, older };
 }
 
 function ageCorpses(sim, dt) {
@@ -366,6 +407,9 @@ export function step(sim, dt) {
     runMoves(sim, dt);
     runCivilians(sim, dt);
     landGrenades(sim, dt);
+    runSanity(sim, dt, null);
+    runRetreats(sim);
+    runRecrew(sim, dt, null);
     ageCorpses(sim, dt);
     checkEvac(sim);
     runTrain(sim, dt);
@@ -380,7 +424,8 @@ export function step(sim, dt) {
   // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
   const ov = sim.dayCfg.overlap;
   if (ov != null && hasNextWave(sim) && !sim.spawnQueue.length) {
-    if (sim.nextWaveIn == null) sim.nextWaveIn = ov;
+    sim.waveOutAt ??= sim.time;
+    if (sim.nextWaveIn == null) { if (overlapGate(sim).open) sim.nextWaveIn = OVERLAP_BEAT; }
     else { sim.nextWaveIn -= dt; if (sim.nextWaveIn <= 1e-6) launch(sim); }
   }
   runSoldiers(sim, dt);
@@ -388,10 +433,14 @@ export function step(sim, dt) {
   moveZombies(sim, dt);
   runCivilians(sim, dt);
   const cells = zombieCells(sim);
+  markCrossfire(sim, cells);
   fireWeapons(sim, dt, cells);
   fireLaunchers(sim, dt, cells);
   landGrenades(sim, dt);
   throwGrenades(sim, dt, cells);
+  runSanity(sim, dt, cells);
+  runRetreats(sim);
+  runRecrew(sim, dt, cells);
   ageCorpses(sim, dt);
   if (sim.baseHp <= 0) { lose(sim, 'base'); return; }
   checkEvac(sim);
@@ -426,9 +475,13 @@ function checkCleared(sim) {
   else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, countdownOf(sim)); }
 }
 
+// 0.18.1 (funnet under vågpasset: Mölnbo dag 4 stod 57 zombier i sju minuter och slog på ett hus där hela gruppen
+// redan låg): ett hus med garnison går att storma så länge någon är kvar inne. Är dörren inslagen och alla nere går
+// horden vidare.
+const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every(s => s.down) : g.silent));
 function moveZombies(sim, dt) {
   const hitCells = new Set();
-  const troops = activeSoldiers(sim), hurt = new Set(), others = exposedUnits(sim);
+  const troops = activeSoldiers(sim), hurt = new Set(), others = exposedUnits(sim), crews = crewTargets(sim), held = sim.guns.filter(manned);
   for (const z of sim.zombies) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
@@ -461,6 +514,25 @@ function moveZombies(sim, dt) {
         mul = 0; z.attacking = true; z.foe = [foe.x, foe.z];
         if (foe.civ) hitCivilian(sim, foe.civ, def.hitDamage * dt);
         else hitUnit(sim, foe.g, def.hitDamage * dt, hurt);
+      }
+    }
+    // 0.18.0 (skiva 1): pjäslagen går att slå ner (allow 'overrun'): en zombie i en ruta intill pjäsens slår laget.
+    // Och ett hus med garnison går att storma: den som går förbi intill huset slår på dörren (assaults).
+    if (!z.foe && (crews.length || held.length)) {
+      const p = zombiePos(sim, z), pl = sim.place, k = pl.keyAt(p.x, p.z);
+      const zi = Math.floor((p.x - pl.origin[0]) / pl.size), zj = Math.floor((p.z - pl.origin[1]) / pl.size);
+      let foe = null, fd = Infinity;
+      for (const c of crews) {
+        if (c.g.silent || Math.abs(c.i - zi) > 1 || Math.abs(c.j - zj) > 1) continue;
+        const d = Math.hypot(c.g.x - p.x, c.g.z - p.z);
+        if (d < fd) { fd = d; foe = c.g; }
+      }
+      if (foe) { mul = 0; z.attacking = true; z.foe = [foe.x, foe.z]; hitCrew(sim, foe, def.hitDamage * dt, hurt); }
+      else if (k >= 0) for (const g of held) {
+        if (!g.house || !houseById(sim.map, pl, g.house.id)?.touch.has(k) || !assaults(sim, z)) continue;
+        mul = 0; z.attacking = true; z.foe = [g.house.x, g.house.z];
+        attackHouse(sim, g, def.hitDamage * dt, hurt);
+        break;
       }
     }
     // map.pace (0.10.1, Gnesta Norr): banans takt, alla sorter lika (vägen dit är lång).
@@ -541,11 +613,24 @@ function runSoldiers(sim, dt) {
       if (s.path.d >= s.path.len - 1e-9) { s.path = null; s.run = 0; s.from = null; }
     } else if (s.run > 0) { s.run = Math.max(0, s.run - dt); if (!s.run) s.from = null; }
   }
+  // 0.18.1 (H426): framme vid dörren går gruppen in
+  for (const g of sim.guns) if (g.squad && g.enter && g.soldiers.every(s => s.down || (!s.path && !(s.run > 0)))) enterHouse(sim, g);
+}
+// Gruppen eller laget som sprungit till dörren går in i huset (samma som uppställningens flytt in).
+function enterHouse(sim, g) {
+  const e = g.enter;
+  delete g.enter;
+  if (g.retreat || g.silent || (g.squad && g.soldiers.every(s => s.down))) return;
+  const h = houseById(sim.map, sim.place, e.house);
+  if (!h || (sim.brokenHouses ?? []).includes(h.id) || sim.guns.some(q => q !== g && q.house?.id === h.id)) return;
+  occupyHouse(sim, g, h, g.squad ? g.soldiers.length : 0);
+  g.cell = e.key; g.weapon.targetId = null;
+  sim.events.push({ t: 'enteredHouse', gunId: g.id, house: h.id, x: h.x, z: h.z });
 }
 function activeSoldiers(sim) {
   const out = [];
   const w = sim.place.w;
-  for (const g of sim.guns) if (g.squad) for (const s of g.soldiers) {
+  for (const g of sim.guns) if (g.squad && !g.house) for (const s of g.soldiers) {
     if (s.down) continue;
     if (s.run <= 0) out.push({ g, s, i: s.cell % w, j: Math.floor(s.cell / w) });
     else if (s.from) {
@@ -563,6 +648,7 @@ function hitSoldier(sim, g, s, amount, hurt) {
   if (s.hp <= 0 && !s.down) {
     s.hp = 0; s.down = true; s.targetId = null;
     sim.events.push({ t: 'soldierDown', gunId: g.id, soldier: s.i, x: s.x, z: s.z });
+    shake(sim, g, SANITY.downOwn, s.x, s.z, SANITY.downNear);
   }
 }
 // 0.13.0: pjäser som zombierna kan slå på: ett lag som flyttar sin pjäs (laget har crewHp) och pillboxen
@@ -600,7 +686,11 @@ function squadPlanAt(sim, key, type, count = null) {
   sim.squadPlan = { sig, plan };
   return plan;
 }
-export const squadPreview = (sim, key, type = 'hv') => (sim.place.valid(key) ? squadPlanAt(sim, key, type) : []);
+export const squadPreview = (sim, key, type = 'hv') => {
+  if (!sim.place.valid(key)) return [];
+  const gh = garrisonHouse(sim, key, type);
+  return gh ? houseWindows(sim, gh, type, deployMen(sim, type)) : squadPlanAt(sim, key, type);
+};
 // Ersätter gruppens stupade soldater (panelen): SQUAD.reinforce per soldat. De springer ut från
 // markeringen igen med fullt liv. (Nästa dag börjar alla om ändå.)
 export function reinforce(sim, id) {
@@ -629,15 +719,19 @@ export const deployPhase = sim => sim.phase === 'build' && sim.wavesStarted === 
 // 0.16.0: en enhet som kommer senare (late) är framme när vågen före den är klar, och går då att ställa ut
 // resten av dagen (E4 dag 1: "A second Ksp 90. Place it too.").
 export const arrived = (sim, u) => !u.arrive || sim.waveIndex >= u.arrive;
-export const canDeploy = (sim, u) => !!u && arrived(sim, u) && (deployPhase(sim) || (!!u.arrive && canAct(sim)));
+// 0.18.0: en enhet som vikit eller flytt (rallied) står i reserven och går att ställa ut igen när den samlats (readyAt).
+export const canDeploy = (sim, u) => !!u && arrived(sim, u) && (deployPhase(sim) || ((!!u.arrive || !!u.rallied) && canAct(sim) && !(u.readyAt > sim.time)));
 // Nästa enhet av typen i reserven som är framme: den med uid, annars högst nivå, sedan erfarenhet, sedan flest man.
 export function nextReserve(sim, type, uid = null) {
   if (!sim.reserve) return null;
   if (uid != null) return sim.reserve.find(u => u.uid === uid && u.type === type && arrived(sim, u)) ?? null;
   let best = null;
+  // 0.18.0: mitt i dagen den som går att ställa ut (en samlad enhet) före de som väntar till i morgon; lika nivå,
+  // stjärna och man: den mest utvilade
+  const ready = !deployPhase(sim) && sim.reserve.some(u => u.type === type && canDeploy(sim, u));
   for (const u of sim.reserve) {
-    if (u.type !== type || !arrived(sim, u)) continue;
-    if (!best || u.level > best.level || (u.level === best.level && ((u.vet ?? 0) > (best.vet ?? 0) || ((u.vet ?? 0) === (best.vet ?? 0) && (u.men ?? 0) > (best.men ?? 0))))) best = u;
+    if (u.type !== type || !arrived(sim, u) || (ready && !canDeploy(sim, u))) continue;
+    if (!best || u.level > best.level || (u.level === best.level && ((u.vet ?? 0) > (best.vet ?? 0) || ((u.vet ?? 0) === (best.vet ?? 0) && ((u.men ?? 0) > (best.men ?? 0) || ((u.men ?? 0) === (best.men ?? 0) && (u.fatigue ?? 0) < (best.fatigue ?? 0))))))) best = u;
   }
   return best;
 }
@@ -652,8 +746,12 @@ export const deployMen = (sim, type) => (sim.core ? (nextReserve(sim, type)?.men
 export function gunStats(sim, g) {
   const w = g.weapon, st0 = weaponStats(w.type, w.level, sim.research);
   const st = g.roof && sim.place.perch?.[g.cell] === 3 ? { ...st0, range: st0.range * TOWER_RANGE } : st0;
-  if (!w.vet && !w.ammo) return st;
-  return { ...st, accuracy: Math.min(VETERAN.maxAccuracy, st.accuracy + (w.vet ? VETERAN.accuracy : 0)), rate: st.rate * (w.vet ? VETERAN.rate : 1) * (w.ammo ? SUPPLIES.ammo.rate : 1) };
+  // 0.18.0: sanity (allow 'sanity') och tröttheten (allow 'fatigue') sänker träff och eldtakt
+  const sf = allowed(sim, 'sanity') && g.sanity != null ? sanityFactor(g.sanity) : null;
+  const fat = allowed(sim, 'fatigue') ? w.fatigue | 0 : 0;
+  if (!w.vet && !w.ammo && !fat && (!sf || sf.accuracy === 1)) return st;
+  const acc = Math.min(VETERAN.maxAccuracy, st.accuracy + (w.vet ? VETERAN.accuracy : 0)) * (sf?.accuracy ?? 1) * FATIGUE.accuracy[fat];
+  return { ...st, accuracy: acc, rate: st.rate * (w.vet ? VETERAN.rate : 1) * (w.ammo ? SUPPLIES.ammo.rate : 1) * (sf?.rate ?? 1) * FATIGUE.rate[fat] };
 }
 // Förnödenheter till en utställd enhet (0.14.0): ammunition (alla) och sandsäckar (grupperna: soldaterna
 // tar mindre skada). En gång per enhet och dag.
@@ -677,6 +775,9 @@ export function dayReport(sim) {
   let lostMen = 0, lostUnits = 0;
   for (const d of sim.deployed) {
     const g = sim.guns.find(x => x.weapon.uid === d.uid);
+    // 0.18.0: en enhet som vikit eller flytt tillbaka till reserven lever
+    const back = !g && sim.reserve?.find(u => u.uid === d.uid && u.rallied);
+    if (back) { if (back.men != null) { lostMen += Math.max(0, (d.men ?? back.men) - back.men); units.push({ uid: d.uid, alive: back.men }); if (!back.men) lostUnits++; } else units.push({ uid: d.uid }); continue; }
     if (!g) { units.push({ uid: d.uid, destroyed: true }); lostUnits++; if (d.men) lostMen += d.men; continue; }
     if (g.squad) { const alive = g.soldiers.filter(s => !s.down).length; lostMen += g.soldiers.length - alive; units.push({ uid: d.uid, alive }); if (!alive) lostUnits++; }
     else units.push({ uid: d.uid });
@@ -719,13 +820,15 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   if (!moving && capFull(sim, type)) return { ok: false, reason: sim.core ? 'front' : isSquad(type) ? 'fulltHv' : 'fullt' };
   if (ignore != null) {
     const g = gunOf(sim, ignore);
-    return without(sim, ignore, () => checkSpot(sim, key, type, { moved: g?.squad ? g.soldiers.length : 0 }));
+    return without(sim, ignore, () => checkSpot(sim, key, type, { moved: g?.squad ? g.soldiers.filter(q => !q.down).length || g.soldiers.length : 0 }));
   }
   const p = sim.place;
   if (!p.valid(key)) return { ok: false, reason: 'utanför' };
   // 0.16.0: E4 dag 1, bara de markerade platserna
   if (sim.marked && !moving && !sim.marked.has(key)) return { ok: false, reason: 'markerad' };
   const kind = p.kind[key];
+  // 0.18.0: trupper i hus (allow 'garrison')
+  if (kind === KIND.house && type && !onRoof(sim, key, type)) { const gc = garrisonCheck(sim, key, type, moved); if (gc) return gc; }
   if (kind !== KIND.open && !onRoof(sim, key, type)) return { ok: false, reason: kind === KIND.house && WEAPONS[type]?.roof ? 'kant' : KIND_REASON[kind] || 'okänd' };
   const c = p.center(key);
   if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
@@ -747,6 +850,8 @@ export function sightFor(sim, key, type, facing = null) {
   return withCone(sim, key, type, baseSight(sim, key, type), facing);
 }
 function baseSight(sim, key, type) {
+  const gh = garrisonHouse(sim, key, type);
+  if (gh) return unionSight(sim.place, houseWindows(sim, gh, type, isSquad(type) ? deployMen(sim, type) : 1));
   return isSquad(type) ? unionSight(sim.place, squadPreview(sim, key, type))
     : (onRoof(sim, key, type) ? roofSightFrom : sightFrom)(sim.place, key, weaponStats(type, MAX_LEVEL, sim.research).range * (inTower(sim, key, type) ? TOWER_RANGE : 1));
 }
@@ -776,17 +881,34 @@ export function build(sim, key, type, opts = {}) {
   if (sim.cash < cost) return { ok: false, reason: 'pengar' };
   sim.cash -= cost;
   const level = unit?.level ?? 1;
-  const core = unit ? { uid: unit.uid, ...(unit.vet ? { vet: unit.vet } : {}) } : {};
-  if (unit) { sim.reserve.splice(sim.reserve.indexOf(unit), 1); sim.deployed.push({ uid: unit.uid, type, men: unit.men ?? null }); }
+  // 0.18.0: tröttheten följer med (allow 'fatigue'), och en enhet som samlats efter ett vik har sin sanity
+  const fat = unit && allowed(sim, 'fatigue') ? unit.fatigue | 0 : 0;
+  const core = unit ? { uid: unit.uid, ...(unit.vet ? { vet: unit.vet } : {}), ...(fat ? { fatigue: fat } : {}) } : {};
+  if (unit) {
+    sim.reserve.splice(sim.reserve.indexOf(unit), 1);
+    if (!sim.deployed.some(d => d.uid === unit.uid)) sim.deployed.push({ uid: unit.uid, type, men: unit.men ?? null });
+  }
   const c = sim.place.center(key);
   const id = 'g' + sim.nextGun++;
+  const extra = { sanity: unit?.sanity ?? SANITY.max, tgt: 'first' };
+  if (check.house != null) {
+    const h = houseById(sim.map, sim.place, check.house);
+    const g = { id, x: h.x, z: h.z, y: 0, roof: false, cell: key, ...extra, weapon: { type, level, cooldown: 0, angle: Math.PI, targetId: null, spent: cost, ...core, ...(WEAPONS[type].launcher ? { lCooldown: 0 } : {}) } };
+    if (isSquad(type)) { g.squad = true; g.soldiers = []; }
+    occupyHouse(sim, g, h, isSquad(type) ? (unit ? deployCount(unit, sim, type) : squadSize(level, sim.research, type)) : 0);
+    if (!g.squad) initCrew(g);
+    sim.guns.push(g);
+    sim.squadPlan = null;
+    sim.events.push({ t: 'garrison', gunId: id, house: h.id });
+    return { ok: true, id };
+  }
   // y: takets höjd för en pjäs på ett tak (0 på marken). roof: står på ett tak.
   const roof = onRoof(sim, key, type);
   if (isSquad(type)) {
     // Gruppen: markeringen står i key, soldaterna i sina valda rutor (squad.js).
     const plan = squadPlanAt(sim, key, type, unit ? deployCount(unit, sim, type) : null);
     const soldiers = plan.map((pc, i) => makeSoldier(pc, i, level, c, sim.research, type));
-    sim.guns.push({ id, x: c.x, z: c.z, y: 0, roof: false, cell: key, squad: true, soldiers, sight: unionSight(sim.place, soldiers),
+    sim.guns.push({ id, x: c.x, z: c.z, y: 0, roof: false, cell: key, squad: true, soldiers, sight: unionSight(sim.place, soldiers), ...extra,
       weapon: { type, level, cooldown: 0, angle: soldiers[0]?.face ?? Math.PI, targetId: null, spent: cost, ...core } });
     return { ok: true, id };
   }
@@ -796,11 +918,12 @@ export function build(sim, key, type, opts = {}) {
   const sight = withCone(sim, key, type, base, allowed(sim, 'aim') ? opts.facing ?? null : null);
   // 0.12.0 (H098): värnet på marken vänds mot hordens väg och byggs mot skyddet som redan står där
   const emplace = roof || def.vehicle ? null : emplacement(sim.place, key, sight.keys, hordeWeight(sim));
-  const g = { id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(sight.facing != null ? { facing: sight.facing } : {}), ...(emplace ? { emplace } : {}),
+  const g = { id, x: c.x, z: c.z, y: roof ? roofAt(sim.place, key) : 0, roof, cell: key, sight, ...(def.vehicle ? { tgt: 'first' } : extra), ...(sight.facing != null ? { facing: sight.facing } : {}), ...(emplace ? { emplace } : {}),
     weapon: { type, level, cooldown: 0, angle: sight.facing ?? emplace?.face ?? Math.PI, targetId: null, spent: cost, ...core, ...(def.launcher ? { lCooldown: 0 } : {}) } };
   if (def.cone) g.fullSight = base;
   // 0.13.0 (H135): pillboxen har liv och svetsas ihop i def.build sekunder (före första vågen: direkt)
   if (def.vehicle) { g.hp = g.maxHp = def.hp[level - 1]; if (clock(sim)) g.building = def.build; }
+  else initCrew(g);
   sim.guns.push(g);
   return { ok: true, id };
 }
@@ -904,7 +1027,8 @@ export function checkMove(sim, id, key, via = [], { path = true } = {}) {
   if (key === g.cell) return { ok: false, reason: 'samma' };
   const c = checkSpot(sim, key, g.weapon.type, { ignore: id });
   if (!c.ok) return c;
-  if (path && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
+  // 0.18.1 (H426): in i ett hus går vägen till dörren (moveGun), inte till rutan i huset
+  if (path && c.house == null && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
   return c;
 }
 // Gruppens nya rutor om den flyttas till key (spöket i handen).
@@ -934,6 +1058,55 @@ export function moveGun(sim, id, key, opts = {}) {
   if (!check.ok) return check;
   const g = gunOf(sim, id), type = g.weapon.type, c = sim.place.center(key), def = WEAPONS[type];
   const running = !opts.instant && clock(sim);
+  // 0.18.0: in i ett hus i uppställningen (Reposition) direkt.
+  // 0.18.1 (H426, Olas speltest: Mölnbo dag 2 lär ut husen, men flytten in mitt i en våg nekades): mitt i en våg
+  // springer gruppen, eller laget som bär sin Ksp 90 eller Ksp 58, längs vägen till husets dörr (den gångbara ruta vid
+  // huset som är närmast) i vanlig flyttfart. På vägen skjuter de inte och går att slå på, som vid varje Move. Framme
+  // går de in (enterHouse). Står de döda vid dörren, eller är huset redan inslaget i dag, nekas flytten.
+  if (check.house != null && running) {
+    const h = houseById(sim.map, sim.place, check.house);
+    if ((sim.brokenHouses ?? []).includes(h.id)) return { ok: false, reason: 'hus bruten' };
+    for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(sim.place.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; }
+    const at = g.squad ? (unitPos(g) ?? g) : { x: g.x, z: g.z };
+    let door = -1, dd = Infinity;
+    for (const k of [...h.touch].sort((a, b) => a - b)) { const q = sim.place.center(k), d = Math.hypot(q.x - at.x, q.z - at.z); if (d < dd - 1e-9) { dd = d; door = k; } }
+    const dc = door >= 0 ? sim.place.center(door) : null;
+    if (g.house) g.house = null;
+    if (g.squad) {
+      const speed = def.speed ?? MOVE_RUN;
+      const routes = g.soldiers.map(q => (q.down ? null : crewPathTo(sim, q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z }, door)));
+      if (!dc || g.soldiers.some((q, i) => !q.down && !routes[i])) return { ok: false, reason: 'ingen väg' };
+      g.soldiers.forEach((q, i) => {
+        if (q.down) return;
+        const from = q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z };
+        Object.assign(q, { targetId: null, rise: 0, risen: false, from, path: { ...routes[i], d: 0 }, speed, mv: (q.mv ?? 0) + 1, x: dc.x, z: dc.z, cell: door });
+        q.run = q.runTotal = routes[i].len / speed;
+      });
+      Object.assign(g, { x: dc.x, z: dc.z, cell: door });
+    } else {
+      const path = dc && crewPathTo(sim, { x: g.x, z: g.z }, door);
+      if (!path) return { ok: false, reason: 'ingen väg' };
+      const mi = def.move, crew = mi.crew ?? 0, from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
+      Object.assign(g, { x: dc.x, z: dc.z, y: 0, roof: false, cell: door });
+      delete g.emplace; delete g.turn;
+      g.move = { t: 0, pack: mi.pack, setup: mi.setup, speed: mi.speed, travel: path.len / mi.speed, path, from, crewHp: crew * CREW_HP, crewMax: crew * CREW_HP };
+      g.move.total = g.move.pack + g.move.travel + g.move.setup;
+    }
+    g.enter = { house: h.id, key };
+    g.weapon.targetId = null;
+    sim.squadPlan = null;
+    sim.events.push({ t: 'move', gunId: id, cell: key });
+    return { ok: true, id, entering: h.id };
+  }
+  if (check.house != null) {
+    occupyHouse(sim, g, houseById(sim.map, sim.place, check.house), g.squad ? g.soldiers.length : 0);
+    g.cell = key; g.weapon.targetId = null; delete g.turn; delete g.move; delete g.emplace;
+    sim.squadPlan = null;
+    sim.events.push({ t: 'move', gunId: id, cell: key });
+    return { ok: true, id };
+  }
+  // ut ur huset: gruppen springer från fönstren, pjäsen bärs ut genom dörren
+  if (g.house) g.house = null;
   if (g.squad) {
     const plan = movePreview(sim, id, key);
     if (plan.length < g.soldiers.length) return { ok: false, reason: 'trångt' };
@@ -979,7 +1152,7 @@ function runMoves(sim, dt) {
     if (g.turn) turnStep(sim, g, dt);
     if (!g.move) continue;
     g.move.t += dt;
-    if (g.move.t >= g.move.total - 1e-9) { delete g.move; sim.events.push({ t: 'moveDone', gunId: g.id }); }
+    if (g.move.t >= g.move.total - 1e-9) { delete g.move; sim.events.push({ t: 'moveDone', gunId: g.id }); if (g.enter) enterHouse(sim, g); }
   }
 }
 // Soldatens läge på väg (flytten): längs hans väg.
@@ -1151,14 +1324,16 @@ function fireWeapons(sim, dt, cells) {
     if (s.squad) { fireSquad(sim, dt, cells, s); continue; }
     const w = s.weapon, seen = s.sight.mask;
     // 0.12.0: en pjäs som flyttas skjuter inte. 0.13.0: inte heller medan den vrids (Rotate) eller svetsas ihop.
-    if (s.move || s.turn || s.building > 0) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); s.idle = 0; s.idleOutside = false; continue; }
-    const st = gunStats(sim, s);
+    // 0.18.0: inte heller när den tystnat (laget nere eller flytt), är på väg bakåt eller håller elden
+    if (s.move || s.turn || s.building > 0 || s.silent || s.retreat || (s.hold && !holdBroken(sim, s, cells))) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); s.idle = 0; s.idleOutside = false; continue; }
+    const st = gunStats(sim, s), mode = targetMode(sim, s);
     let target = null, best = -Infinity;
     for (const [z, { p, k }] of cells) {
       if (z.dead || k < 0 || !seen[k]) continue;
-      if (Math.hypot(p.x - s.x, p.z - s.z) > st.range) continue;
-      const pr = sim.route.progress(z);
-      if (pr > best) { best = pr; target = z; }
+      const d = Math.hypot(p.x - s.x, p.z - s.z);
+      if (d > st.range) continue;
+      const sc = targetScore(mode, z, d, sim.route.progress(z));
+      if (sc > best) { best = sc; target = z; }
     }
     w.targetId = target ? target.id : null;
     w.cooldown -= dt;
@@ -1175,11 +1350,12 @@ function fireWeapons(sim, dt, cells) {
       w.angle = Math.abs(d) <= tr * dt ? want : w.angle + Math.sign(d) * tr * dt;
       if (Math.abs(angDiff(w.angle, want)) > AIM_TOL) { w.cooldown = Math.max(w.cooldown, 0); continue; }
     } else w.angle = want;
+    const acc = st.accuracy * perchHit(s, target), cls = dmgClassOf(w.type);
     while (w.cooldown <= 0) {
       w.cooldown += 1 / st.rate;
-      const hit = sim.rng() < st.accuracy;
+      const hit = sim.rng() < acc;
       sim.events.push({ t: 'shot', gunId: s.id, targetId: target.id, hit, x: p.x, z: p.z });
-      if (hit) damage(sim, target, st.damage, p);
+      if (hit) damage(sim, target, st.damage, p, cls, s);
       if (hit && st.pierce > 1) pierce(sim, s, target, p, st, cells);
       if (target.dead) break;
     }
@@ -1187,18 +1363,21 @@ function fireWeapons(sim, dt, cells) {
 }
 // Hemvärnet: varje soldat siktar själv med sin egen sikt och samma regel som pjäserna (den
 // zombie i en synlig ruta inom räckhåll som kommit längst). Stupade och de som springer skjuter inte.
+// 0.18.0: gruppens mål-läge (targetMode), håll eld, och inga skott på väg bakåt.
 function fireSquad(sim, dt, cells, g) {
-  const st = gunStats(sim, g);
+  const st = gunStats(sim, g), mode = targetMode(sim, g);
+  const quiet = g.retreat || (g.hold && !holdBroken(sim, g, cells));
   for (const s of g.soldiers) {
     s.cooldown -= dt;
-    if (s.down || s.run > 0) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); s.rise = 0; s.risen = false; continue; }
+    if (s.down || s.run > 0 || quiet) { s.targetId = null; s.cooldown = Math.max(s.cooldown, 0); s.rise = 0; s.risen = false; continue; }
     const seen = s.sight.mask, prone = s.stance === 'prone' && !s.risen;
     // 0.12.2: den liggande skjuter bara inom bågen runt skyddsriktningen (PRONE_ARC)
     let target = null, best = -Infinity, out = null, bestOut = -Infinity;
     for (const [z, { p, k }] of cells) {
       if (z.dead || k < 0 || !seen[k]) continue;
-      if (Math.hypot(p.x - s.x, p.z - s.z) > st.range) continue;
-      const pr = sim.route.progress(z);
+      const d = Math.hypot(p.x - s.x, p.z - s.z);
+      if (d > st.range) continue;
+      const pr = targetScore(mode, z, d, sim.route.progress(z));
       if (s.stance === 'prone' && !inArc(s, Math.atan2(p.z - s.z, p.x - s.x))) { if (pr > bestOut) { bestOut = pr; out = z; } continue; }
       if (pr > best) { best = pr; target = z; }
     }
@@ -1218,11 +1397,12 @@ function fireSquad(sim, dt, cells, g) {
     if (!target) { s.cooldown = Math.max(s.cooldown, 0); continue; }
     const p = zombiePos(sim, target);
     s.angle = Math.atan2(p.z - s.z, p.x - s.x);
+    const acc = st.accuracy * perchHit(g, target);
     while (s.cooldown <= 0) {
       s.cooldown += 1 / st.rate;
-      const hit = sim.rng() < st.accuracy;
+      const hit = sim.rng() < acc;
       sim.events.push({ t: 'shot', gunId: g.id, soldier: s.i, targetId: target.id, hit, x: p.x, z: p.z, sx: s.x, sz: s.z });
-      if (hit) damage(sim, target, st.damage, p);
+      if (hit) damage(sim, target, st.damage, p, 'small', g);
       if (target.dead) break;
     }
   }
@@ -1243,7 +1423,7 @@ function pierce(sim, s, target, p, st, cells) {
   behind.sort((a, b) => a.along - b.along || a.z.id - b.z.id);
   for (const b of behind.slice(0, st.pierce - 1)) {
     sim.events.push({ t: 'pierce', gunId: s.id, targetId: b.z.id, x: b.q.x, z: b.q.z });
-    damage(sim, b.z, st.damage, b.q);
+    damage(sim, b.z, st.damage, b.q, dmgClassOf(s.weapon.type), s);
   }
 }
 // Granater: ett vapen med granatlåda kastar själv när minst minCount zombier, eller en
@@ -1254,7 +1434,7 @@ function throwGrenades(sim, dt, cells) {
   if (!gs) return;
   for (const s of sim.guns) {
     const w = s.weapon;
-    if (!w.kit || s.move || s.building > 0) continue;
+    if (!w.kit || s.move || s.building > 0 || s.silent || s.retreat || s.hold) continue;
     w.gCooldown = Math.max(0, w.gCooldown - dt);
     if (w.gCooldown > 0) continue;
     const near = [];
@@ -1296,7 +1476,7 @@ function aimClusters(near, radius, count) {
 function fireLaunchers(sim, dt, cells) {
   for (const s of sim.guns) {
     const w = s.weapon;
-    if (w.lCooldown == null || s.move || s.building > 0) continue;
+    if (w.lCooldown == null || s.move || s.building > 0 || s.silent || s.retreat || s.hold) continue;
     w.lCooldown = Math.max(0, w.lCooldown - dt);
     if (w.lCooldown > 0) continue;
     const ls = launcherStats(w.type, w.level, sim.research);
@@ -1327,14 +1507,20 @@ function landGrenades(sim, dt) {
       if (z.dead) continue;
       const p = zombiePos(sim, z);
       const dist = Math.hypot(p.x - g.x, p.z - g.z);
-      if (dist <= g.r) damage(sim, z, g.damage * (1 - g.falloff * dist / g.r), p);
+      if (dist <= g.r) damage(sim, z, g.damage * (1 - g.falloff * dist / g.r), p, 'explosive', null);
     }
   }
 }
 
-function damage(sim, z, amount, p) {
-  z.hp -= amount;
-  sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z });
+// 0.18.0: skadeklassen (cls: 'small', 'heavy', 'explosive') mot zombiens take, korselden (+CROSSFIRE) och bakhållet
+// (src: enheten som skjuter; första salvan efter Håll eld gör HOLD.ambush gånger skadan).
+function damage(sim, z, amount, p, cls = 'small', src = null) {
+  const take = takeOf(z.type, cls);
+  let a = amount * take;
+  if (sim.xf?.has(z.id)) a *= 1 + CROSSFIRE.bonus;
+  if (src && src.ambushUntil > sim.time) a *= HOLD.mul;
+  z.hp -= a;
+  sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z, cls, dmg: a, ...(take < 1 ? { armor: true } : {}) });
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
@@ -1360,7 +1546,7 @@ function obstacleEffect(sim, z, dt, hitCells) {
   for (const i of route.obstacleKeys(sim.obstacles)) {
     const ob = sim.obstacles[i]; if (!ob) continue;
     const o = OBSTACLES[ob.type];
-    if (o.kind === 'slow' && route.inCell(z, i)) {
+    if (o.kind === 'slow' && !def.underWire && route.inCell(z, i)) {
       // slowTaken: hur mycket av inbromsningen zombien känner (1 = hela, bjässen bara en del).
       mul = Math.min(mul, 1 - (1 - o.slow) * (def.slowTaken ?? 1));
       ob.durability -= dt;
@@ -1393,3 +1579,458 @@ function obstacleEffect(sim, z, dt, hitCells) {
   if (mul > 0) z.attacking = false;
   return mul;
 }
+
+// =====================================================================================================================
+// 0.18.0: strategiskt djup, skiva 1 (docs/superpowers/specs/2026-10-18-strategiskt-djup.md, Olas beslut avsnitt 7).
+// Varje mekanik är en flagga i allow (src/meta/unlocks.js), så att balansens policyer spelar samma spel som spelaren:
+//   'sanity'    sanity tär och verkar på träff och eldtakt (src/sim/sanity.js)
+//   'rout'      under SANITY.rout flyr enheten (routed), och Fall back finns som order
+//   'overrun'   pjäslagen går att slå ner; pjäsen tystnar och står kvar tills den bemannas igen (Recrew)
+//   'garrison'  grupper och lätta kulsprutor i hus (src/sim/houses.js)
+//   'crossfire' +CROSSFIRE.bonus skada i två bågar som skiljer minst CROSSFIRE.angle grader
+//   'holdFire'  Håll eld: ingen eld förrän släppt eller horden är nära; första salvan gör dubbel skada
+//   'target'    mål-läget per enhet (First in line, Nearest, Strongest, Weakest)
+//   'fatigue'   tröttheten över dagarna (src/meta/operation.js) sänker träff, eldtakt och sanity
+// Allt är deterministiskt: inga nya slumptal ur sim.rng (stormningen räknas ur zombiens id och fröet).
+// =====================================================================================================================
+
+// ---------- mål-läget (3.10) ----------
+export const TARGETS = ['first', 'nearest', 'strongest', 'weakest'];
+export const TARGET_NAME = { first: 'First in line', nearest: 'Nearest', strongest: 'Strongest', weakest: 'Weakest' };
+const targetMode = (sim, g) => (g.tgt && g.tgt !== 'first' && allowed(sim, 'target') ? g.tgt : 'first');
+// Högre är bättre. First in line: den som kommit längst (som förut). pr är med som delare vid lika.
+function targetScore(mode, z, d, pr) {
+  if (mode === 'nearest') return -d * 1000 + pr * 1e-3;
+  if (mode === 'strongest') return z.hp * 1000 + pr * 1e-3;
+  if (mode === 'weakest') return -z.hp * 1000 + pr * 1e-3;
+  return pr;
+}
+export function setTarget(sim, id, mode) {
+  const g = gunOf(sim, id);
+  if (!g || !TARGETS.includes(mode)) return { ok: false, reason: 'okänd' };
+  if (!allowed(sim, 'target')) return { ok: false, reason: 'låst' };
+  g.tgt = mode;
+  if (g.weapon) g.weapon.targetId = null;
+  return { ok: true, mode };
+}
+export const cycleTarget = (sim, id) => { const g = gunOf(sim, id); return g ? setTarget(sim, id, TARGETS[(TARGETS.indexOf(g.tgt ?? 'first') + 1) % TARGETS.length]) : { ok: false, reason: 'okänd' }; };
+
+// Kryparen är svår att träffa uppifrån (tak, torn, hus).
+const perchHit = (g, z) => ((g.roof || g.house) ? ZOMBIES[z.type].perchHit ?? 1 : 1);
+
+// ---------- korselden (3.5) ----------
+export const CROSSFIRE = { bonus: 0.2, angle: 60 };
+const XF_RAD = CROSSFIRE.angle * Math.PI / 180;
+// Enheterna som kan ge korseld just nu: { x, z, mask, r } (läget, sikten och räckvidden).
+function fireUnits(sim) {
+  const out = [];
+  for (const g of sim.guns) {
+    if (g.silent || g.move || g.retreat || g.building > 0 || g.turn) continue;
+    const at = unitPos(g);
+    if (!at) continue;
+    out.push({ x: at.x, z: at.z, mask: g.sight.mask, r: gunStats(sim, g).range, id: g.id });
+  }
+  return out;
+}
+// Vinklarna (radianer) skiljer minst XF_RAD åt för något par?
+function spread(angles) {
+  for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) if (Math.abs(angDiff(angles[i], angles[j])) >= XF_RAD - 1e-9) return true;
+  return false;
+}
+function markCrossfire(sim, cells) {
+  sim.xf = null;
+  if (!allowed(sim, 'crossfire')) return;
+  const units = fireUnits(sim);
+  if (units.length < 2) return;
+  const xf = new Set(), angles = [];
+  for (const [z, { p, k }] of cells) {
+    if (z.dead || k < 0) continue;
+    angles.length = 0;
+    for (const u of units) if (u.mask[k] && Math.hypot(p.x - u.x, p.z - u.z) <= u.r) angles.push(Math.atan2(p.z - u.z, p.x - u.x));
+    if (angles.length >= 2 && spread(angles)) {
+      // 0.18.1 (speltestet av 0.18.0: korselden syntes inte): första gången zombien hamnar i korselden (eller efter
+      // en stund utanför) en händelse, så att bilden kan visa "+20 %" över den
+      if (z.xfT == null || sim.time - z.xfT > 3) sim.events.push({ t: 'crossfire', id: z.id, x: p.x, z: p.z });
+      xf.add(z.id); z.xfT = sim.time;
+    }
+  }
+  sim.xf = xf;
+}
+// 0.18.1 (speltestet av 0.18.0: "korselden såg jag aldrig"): rutorna där två utställda enheters bågar skiljer minst
+// CROSSFIRE.angle grader, alltid synliga i bygget och mellan vågorna. Gångbara rutor i sikten och inom räckvidd.
+export function crossfireZones(sim) {
+  if (!allowed(sim, 'crossfire')) return [];
+  const units = fireUnits(sim);
+  if (units.length < 2) return [];
+  const seen = new Set(), out = [];
+  for (const g of sim.guns) for (const k of g.sight?.keys ?? []) {
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const q = sim.place.center(k), angles = [];
+    for (const u of units) if (u.mask[k] && Math.hypot(q.x - u.x, q.z - u.z) <= u.r) angles.push(Math.atan2(q.z - u.z, q.x - u.x));
+    if (angles.length >= 2 && spread(angles)) out.push(k);
+  }
+  return out.sort((a, b) => a - b);
+}
+// Förhandsvisningen med en enhet i handen: rutorna som skulle hamna i korseld om enheten ställs i key (vända facing).
+export function crossfirePreview(sim, key, type, facing = null) {
+  if (!allowed(sim, 'crossfire') || !sim.place.valid(key) || !WEAPONS[type]) return [];
+  const sight = sightFor(sim, key, type, facing);
+  const c = garrisonHouse(sim, key, type) ?? sim.place.center(key);
+  const r = weaponStats(type, 1, sim.research).range;
+  const units = fireUnits(sim), out = [];
+  for (const k of sight.keys) {
+    const q = sim.place.center(k), d = Math.hypot(q.x - c.x, q.z - c.z);
+    if (d > r) continue;
+    const mine = Math.atan2(q.z - c.z, q.x - c.x);
+    for (const u of units) {
+      if (!u.mask[k] || Math.hypot(q.x - u.x, q.z - u.z) > u.r) continue;
+      if (Math.abs(angDiff(mine, Math.atan2(q.z - u.z, q.x - u.x))) >= XF_RAD - 1e-9) { out.push(k); break; }
+    }
+  }
+  return out;
+}
+
+// ---------- håll eld (3.6) ----------
+export const HOLD = { close: 6, ambush: 1.2, mul: 2, cooldown: 15 };
+export function checkHold(sim, id) {
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'tom' };
+  if (!allowed(sim, 'holdFire')) return { ok: false, reason: 'låst' };
+  if (g.silent || g.retreat) return { ok: false, reason: 'tyst' };
+  if (!g.hold && g.holdCd > sim.time) return { ok: false, reason: 'nedkylning', left: g.holdCd - sim.time };
+  return { ok: true };
+}
+// on: true håller elden, false släpper den (bakhållet), utan: växlar.
+export function holdFire(sim, id, on = null) {
+  const c = checkHold(sim, id);
+  if (!c.ok) return c;
+  const g = gunOf(sim, id), want = on ?? !g.hold;
+  if (want === !!g.hold) return { ok: true, hold: !!g.hold };
+  if (want) { g.hold = true; if (g.weapon) g.weapon.targetId = null; sim.events.push({ t: 'hold', gunId: id }); }
+  else releaseHold(sim, g, 'order');
+  return { ok: true, hold: !!g.hold };
+}
+function releaseHold(sim, g, why) {
+  g.hold = false;
+  g.ambushUntil = sim.time + HOLD.ambush;
+  g.holdCd = sim.time + HOLD.cooldown;
+  sim.events.push({ t: 'ambush', gunId: g.id, why });
+}
+// Släpps elden av sig själv? En levande zombie i sikte inom HOLD.close m.
+function holdBroken(sim, g, cells) {
+  const at = unitPos(g);
+  if (!at) return false;
+  for (const [z, { p, k }] of cells) {
+    if (z.dead || k < 0 || !g.sight.mask[k]) continue;
+    if (Math.hypot(p.x - at.x, p.z - at.z) <= HOLD.close) { releaseHold(sim, g, 'close'); return true; }
+  }
+  return false;
+}
+
+// ---------- läget för en enhet ----------
+// Gruppen: medelpunkten av de som står (på väg: där de springer). Pjäsen: där den står (på väg: längs vägen).
+export function unitPos(g) {
+  if (!g.squad) return g.move ? gunPos(g) : { x: g.x, z: g.z };
+  let x = 0, z = 0, n = 0;
+  for (const s of g.soldiers) { if (s.down) continue; const q = s.run > 0 ? soldierAt(s) : s; x += q.x; z += q.z; n++; }
+  return n ? { x: x / n, z: z / n } : null;
+}
+
+// ---------- sanity (3.3) ----------
+// En enhet tappar sanity: amount delat med motståndet. Ingen sanity utan allow 'sanity'.
+function loseSanity(sim, g, amount) {
+  if (!allowed(sim, 'sanity') || g.sanity == null || !hasSanity(g)) return;
+  g.sanity = Math.max(0, g.sanity - amount / resilience(allowed(sim, 'fatigue') ? g.weapon : { ...g.weapon, fatigue: 0 }));
+}
+// En kamrat stupar eller ett lag slås ner: own tappar a, andra enheter inom SANITY.nearUnits m tappar near.
+function shake(sim, own, a, x, z, near) {
+  if (!allowed(sim, 'sanity')) return;
+  if (own) loseSanity(sim, own, a);
+  for (const g of sim.guns) {
+    if (g === own) continue;
+    const at = unitPos(g);
+    if (at && Math.hypot(at.x - x, at.z - z) <= SANITY.nearUnits) loseSanity(sim, g, near);
+  }
+}
+function runSanity(sim, dt, cells) {
+  if (!allowed(sim, 'sanity')) return;
+  const fat = allowed(sim, 'fatigue');
+  for (const g of sim.guns) {
+    if (g.sanity == null || !hasSanity(g) || g.silent) continue;
+    const at = unitPos(g);
+    if (!at) continue;
+    let drain = 0, calm = true;
+    if (cells) for (const [z, { p }] of cells) {
+      if (z.dead) continue;
+      const dx = p.x - at.x, dz = p.z - at.z;
+      if (Math.abs(dx) > SANITY.calm || Math.abs(dz) > SANITY.calm) continue;
+      // gruppen: avståndet till närmaste man (de står utspridda runt markeringen)
+      let d = Math.hypot(dx, dz);
+      if (g.squad && d < SANITY.near + SQUAD.radius) for (const s of g.soldiers) { if (s.down) continue; const q = s.run > 0 ? soldierAt(s) : s; const e = Math.hypot(p.x - q.x, p.z - q.z); if (e < d) d = e; }
+      if (d < SANITY.calm) calm = false;
+      drain += fearAt(z.type, d);
+    }
+    const res = resilience(fat ? g.weapon : { ...g.weapon, fatigue: 0 });
+    const cover = g.house ? SANITY.house : !g.squad ? SANITY.dugIn : g.weapon.sandbags ? SANITY.bags : 1;
+    if (drain > 0) g.sanity = Math.max(0, g.sanity - drain * dt * cover / res);
+    else if (calm && !g.retreat) g.sanity = Math.min(SANITY.max, g.sanity + SANITY.recover * dt);
+    if (g.sanity >= SANITY.effectAt) g.wavered = false;
+    if (g.sanity < SANITY.waver && !g.wavered && !g.retreat) { g.wavered = true; const q = unitPos(g); sim.events.push({ t: 'waver', gunId: g.id, x: q.x, z: q.z }); }
+    if (g.sanity < SANITY.rout && !g.retreat && allowed(sim, 'rout')) rout(sim, g);
+  }
+}
+// Enheten bryts: en grupp flyr mot basen (och samlas i reserven), ett pjäslag lämnar pjäsen (den tystnar och står kvar).
+function rout(sim, g) {
+  const at = unitPos(g) ?? { x: g.x, z: g.z };
+  if (!g.squad) { silence(sim, g, 'routed'); sim.events.push({ t: 'routed', gunId: g.id, type: g.weapon.type, x: at.x, z: at.z }); return; }
+  if (!sim.core) return;
+  startRetreat(sim, g, 'rout');
+  sim.events.push({ t: 'routed', gunId: g.id, type: g.weapon.type, x: at.x, z: at.z });
+  shake(sim, null, 0, at.x, at.z, SANITY.downNear);
+}
+
+// ---------- vik och fly (3.3) ----------
+// Platsen de drar sig tillbaka till: den öppna rutan närmast basen.
+export function rallyKey(sim) {
+  if (sim.rallyAt != null) return sim.rallyAt;
+  const p = sim.place, b = sim.route.base;
+  let best = -1, bd = Infinity;
+  for (let k = 0; k < p.n; k++) {
+    if (p.kind[k] !== KIND.open || p.walk[k]) continue;
+    const c = p.center(k), d = Math.hypot(c.x - b.x, c.z - b.z);
+    if (d < bd - 1e-9) { bd = d; best = k; }
+  }
+  sim.rallyAt = best;
+  return best;
+}
+// Tiden en flydd grupp behöver i reserven innan den går att ställa ut igen (en som vikit i ordning: ingen).
+export const RALLY_TIME = 20;
+export function checkFallBack(sim, id) {
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'tom' };
+  if (!allowed(sim, 'rout')) return { ok: false, reason: 'låst' };
+  if (!sim.core || g.weapon.uid == null) return { ok: false, reason: 'depå' };
+  if (g.retreat) return { ok: false, reason: 'viker' };
+  if (g.silent) return { ok: false, reason: 'tyst' };
+  if (g.move || (g.squad && g.soldiers.some(s => s.path))) return { ok: false, reason: 'flyttar' };
+  const def = WEAPONS[g.weapon.type];
+  if (!g.squad && (def.mounted || def.vehicle || !def.move)) return { ok: false, reason: 'fast' };
+  if (rallyKey(sim) < 0) return { ok: false, reason: 'ingen väg' };
+  return { ok: true };
+}
+// Fall back: enheten drar sig tillbaka mot basen i ordning och behåller sin sanity; i reserven går den att ställa ut igen.
+export function fallBack(sim, id) {
+  const c = checkFallBack(sim, id);
+  if (!c.ok) return c;
+  const g = gunOf(sim, id);
+  if (!startRetreat(sim, g, 'fallback')) return { ok: false, reason: 'ingen väg' };
+  const at = unitPos(g) ?? g;
+  sim.events.push({ t: 'fallback', gunId: id, x: at.x, z: at.z });
+  return { ok: true };
+}
+function startRetreat(sim, g, kind) {
+  const rk = rallyKey(sim);
+  if (rk < 0) return false;
+  const c = sim.place.center(rk);
+  if (g.hold) g.hold = false;
+  if (g.squad) {
+    const speed = (WEAPONS[g.weapon.type].speed ?? MOVE_RUN) * (kind === 'rout' ? 1.15 : 1);
+    for (const s of g.soldiers) {
+      if (s.down) continue;
+      const from = s.run > 0 ? soldierAt(s) : { x: s.x, z: s.z };
+      const route = crewPathTo(sim, from, rk);
+      s.targetId = null; s.rise = 0; s.risen = false;
+      if (route) { s.from = from; s.path = { ...route, d: 0 }; s.speed = speed; s.run = s.runTotal = route.len / speed; s.mv = (s.mv ?? 0) + 1; }
+      else { s.path = null; s.from = from; s.run = s.runTotal = Math.max(0.5, Math.hypot(c.x - from.x, c.z - from.z) / speed); }
+      s.x = c.x; s.z = c.z; s.cell = rk;
+    }
+    g.house = null;
+    g.retreat = { kind, at: sim.time };
+    sim.squadPlan = null;
+    return true;
+  }
+  const mi = WEAPONS[g.weapon.type].move, crew = mi.crew ?? 0;
+  const path = crewPathTo(sim, { x: g.x, z: g.z }, rk);
+  if (!path) return false;
+  const from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
+  g.house = null; g.roof = false; g.y = 0; g.x = c.x; g.z = c.z;
+  g.move = { t: 0, pack: mi.pack, setup: 0, speed: mi.speed, travel: path.len / mi.speed, path, from, crewHp: crew * CREW_HP, crewMax: crew * CREW_HP };
+  g.move.total = g.move.pack + g.move.travel;
+  g.retreat = { kind, at: sim.time };
+  return true;
+}
+// Grupper som kommit fram (alla stående har sprungit klart) och pjäser vars flytt bakåt är klar går till reserven.
+function runRetreats(sim) {
+  for (const g of [...sim.guns]) {
+    if (!g.retreat) continue;
+    if (g.squad) { if (g.soldiers.every(s => s.down || (!s.path && !(s.run > 0)))) toReserve(sim, g); }
+    else if (!g.move) toReserve(sim, g);
+  }
+}
+function toReserve(sim, g) {
+  const i = sim.guns.indexOf(g);
+  if (i < 0) return;
+  sim.guns.splice(i, 1);
+  sim.squadPlan = null;
+  const w = g.weapon, kind = g.retreat?.kind ?? 'fallback';
+  const men = g.squad ? g.soldiers.filter(s => !s.down).length : null;
+  if (sim.reserve && w.uid != null && (men == null || men > 0)) {
+    sim.reserve.push({ uid: w.uid, type: w.type, level: w.level, ...(w.vet ? { vet: w.vet } : {}), ...(men != null ? { men } : {}), ...(w.fatigue ? { fatigue: w.fatigue } : {}),
+      sanity: kind === 'rout' ? SANITY.rallied : Math.max(SANITY.rallied, g.sanity ?? SANITY.max), rallied: true, readyAt: sim.time + (kind === 'rout' ? RALLY_TIME : 0) });
+  }
+  sim.events.push({ t: 'unitBack', gunId: g.id, uid: w.uid ?? null, type: w.type, kind, men });
+}
+
+// ---------- överrända pjäser (3.3) ----------
+export const RECREW = { cost: 150, time: 4, squadTime: 8, squadNear: 10, clear: 4, routedBack: 30 };
+function initCrew(g) {
+  const def = WEAPONS[g.weapon.type], n = def.move?.crew ?? def.crew ?? 1;
+  g.crew = { hp: Math.max(1, n) * CREW_HP, max: Math.max(1, n) * CREW_HP };
+}
+// Pjäslagen zombierna kan slå (allow 'overrun'): stående pjäser på marken med ett lag, inte i hus eller på tak.
+function crewTargets(sim) {
+  if (!allowed(sim, 'overrun')) return [];
+  const out = [], w = sim.place.w;
+  for (const g of sim.guns) {
+    if (g.squad || g.roof || g.house || g.silent || g.move || g.retreat || !g.crew || WEAPONS[g.weapon.type].vehicle) continue;
+    out.push({ g, i: g.cell % w, j: Math.floor(g.cell / w) });
+  }
+  return out;
+}
+function hitCrew(sim, g, amount, hurt) {
+  if (!g.crew || g.silent) return;
+  g.crew.hp -= amount;
+  if (!hurt.has(g.id)) { hurt.add(g.id); sim.events.push({ t: 'crewHit', gunId: g.id, x: g.x, z: g.z }); }
+  loseSanity(sim, g, amount * 0.6);
+  if (g.crew.hp <= 0) silence(sim, g, 'overrun');
+}
+// Pjäsen tystnar: laget är nere (overrun) eller har flytt (routed). Den står kvar och kan bemannas igen.
+function silence(sim, g, why) {
+  g.silent = why; g.recrew = null; g.hold = false; g.silentAt = sim.time;
+  if (g.crew) g.crew.hp = 0;
+  g.weapon.targetId = null;
+  sim.events.push({ t: 'gunSilent', gunId: g.id, type: g.weapon.type, why, x: g.x, z: g.z });
+  shake(sim, null, 0, g.x, g.z, SANITY.crewLost);
+}
+export function checkRecrew(sim, id) {
+  if (!canAct(sim)) return { ok: false, reason: 'fel läge' };
+  const g = gunOf(sim, id);
+  if (!g?.silent) return { ok: false, reason: 'bemannad' };
+  if (g.recrew) return { ok: false, reason: 'bemannas' };
+  if (sim.cash < RECREW.cost) return { ok: false, reason: 'pengar' };
+  return { ok: true };
+}
+// Recrew: förnödenheter för ett nytt lag, som är på plats efter RECREW.time s.
+export function recrew(sim, id) {
+  const c = checkRecrew(sim, id);
+  if (!c.ok) return c;
+  const g = gunOf(sim, id);
+  sim.cash -= RECREW.cost;
+  g.recrew = { t: RECREW.time, total: RECREW.time, by: 'supply' };
+  sim.events.push({ t: 'recrewing', gunId: id, by: 'supply' });
+  return { ok: true, cost: RECREW.cost };
+}
+function runRecrew(sim, dt, cells) {
+  for (const g of sim.guns) {
+    if (!g.silent) continue;
+    const near = r => { if (!cells) return false; for (const [z, { p }] of cells) if (!z.dead && Math.hypot(p.x - g.x, p.z - g.z) <= r) return true; return false; };
+    if (!g.recrew) {
+      // en grupp intill skickar folk (gratis, långsammare), eller det flydda laget kommer tillbaka när det lugnat sig
+      if (near(RECREW.clear)) continue;
+      const helper = sim.guns.find(q => q.squad && !q.retreat && !q.house && q.soldiers.some(s => !s.down && !(s.run > 0) && Math.hypot(s.x - g.x, s.z - g.z) <= RECREW.squadNear));
+      if (helper) { g.recrew = { t: RECREW.squadTime, total: RECREW.squadTime, by: helper.id }; sim.events.push({ t: 'recrewing', gunId: g.id, by: 'squad' }); }
+      else if (g.silent === 'routed' && sim.time - (g.silentAt ?? sim.time) >= RECREW.routedBack) { g.recrew = { t: 3, total: 3, by: 'crew' }; sim.events.push({ t: 'recrewing', gunId: g.id, by: 'crew' }); }
+      continue;
+    }
+    g.recrew.t -= dt;
+    if (g.recrew.t > 1e-9) continue;
+    const by = g.recrew.by;
+    g.silent = null; g.recrew = null; g.silentAt = null;
+    if (g.crew) g.crew.hp = g.crew.max;
+    g.sanity = SANITY.rallied; g.wavered = false;
+    sim.events.push({ t: 'recrewed', gunId: g.id, by: by === 'supply' || by === 'crew' ? by : 'squad', x: g.x, z: g.z });
+  }
+}
+
+// ---------- trupper i hus (3.1) ----------
+// Huset i rutan key om typen får ställas där (allow 'garrison', grupperna och Ksp 90/58), annars null.
+function garrisonHouse(sim, key, type) {
+  if (!allowed(sim, 'garrison') || !WEAPONS[type]?.garrison || sim.place.kind[key] !== KIND.house) return null;
+  return houseAtKey(sim.map, sim.place, key);
+}
+// checkSpot för ett hus: null (inget hus för typen, vanliga skäl gäller) eller { ok, reason, house }.
+function garrisonCheck(sim, key, type, moved = null) {
+  const h = garrisonHouse(sim, key, type);
+  if (!h) return null;
+  if (sim.guns.some(g => g.house?.id === h.id)) return { ok: false, reason: 'hus upptaget' };
+  if (isSquad(type) && (moved || deployMen(sim, type)) > h.cap) return { ok: false, reason: 'hus litet' };
+  if ((sim.dayCfg.dormant ?? []).some(d => d.house === h.id && !sim.burst.includes(h.id))) return { ok: false, reason: 'hus vilande' };
+  if ((sim.dayCfg.evac?.groups ?? []).some(q => q.house === h.id)) return { ok: false, reason: 'hus evak' };
+  return { ok: true, house: h.id };
+}
+// Fönstren en enhet tar i huset (count: soldater, en pjäs tar ett).
+function houseWindows(sim, h, type, count) {
+  const r = weaponStats(type, MAX_LEVEL, sim.research).range * (isSquad(type) ? 1.2 : 1);
+  return pickWindows(sim.place, h, Math.max(1, count), r, hordeWeight(sim)).map(w => ({ ...w, cover: 'window', stance: 'kneel' }));
+}
+// Ställer enheten g i huset h: gruppens soldater i fönstren (de springer från dörren), pjäsen i det bästa fönstret.
+function occupyHouse(sim, g, h, men) {
+  const type = g.weapon.type;
+  g.house = { id: h.id, x: h.x, z: h.z, door: DOOR_HP, max: DOOR_HP, broken: false };
+  g.roof = false; g.y = 0;
+  if (g.squad) {
+    const old = g.soldiers;
+    const wins = houseWindows(sim, h, type, men || old.length);
+    const level = g.weapon.level;
+    g.soldiers = wins.slice(0, men || old.length).map((w, i) => {
+      const s = makeSoldier(w, i, level, { x: h.x, z: h.z }, sim.research, type);
+      const o = old[i];
+      if (o) { s.hp = o.hp; s.maxHp = o.maxHp; s.down = o.down; }
+      return s;
+    });
+    g.x = h.x; g.z = h.z;
+    g.sight = unionSight(sim.place, g.soldiers);
+    return;
+  }
+  const [w] = houseWindows(sim, h, type, 1);
+  const def = WEAPONS[type];
+  g.x = w.x; g.z = w.z; g.cell = w.cell;
+  g.fullSight = w.sight;
+  g.sight = def.cone ? coneSight(sim.place, w.cell, w.sight, w.face, def.cone) : w.sight;
+  g.facing = w.face; g.weapon.angle = w.face;
+  delete g.emplace;
+}
+// Stormningen: zombien väljer att slå på dörren (deterministiskt ur id och frö; bjässar och pansrade alltid).
+function assaults(sim, z) {
+  if (z.assault == null) z.assault = z.type === 'brute' || z.type === 'armored' || mix32(mix32((sim.seed ?? 1) | 0, z.id * 977 + 5), 11) < ASSAULT;
+  return z.assault;
+}
+function attackHouse(sim, g, amount, hurt) {
+  const h = g.house;
+  if (!h.broken) {
+    h.door -= amount;
+    if (!hurt.has('h' + g.id)) { hurt.add('h' + g.id); sim.events.push({ t: 'houseHit', gunId: g.id, x: h.x, z: h.z }); }
+    loseSanity(sim, g, amount * 0.08);
+    if (h.door <= 0) breakIn(sim, g);
+    return;
+  }
+  // inne: de slår soldaterna (huset skyddar fortfarande lite) eller laget
+  if (g.squad) { const s = g.soldiers.find(q => !q.down); if (s) hitSoldier(sim, g, s, amount * 0.8, hurt); }
+  else hitCrew(sim, g, amount, hurt);
+}
+function breakIn(sim, g) {
+  const h = g.house;
+  h.broken = true; h.door = 0;
+  // 0.18.1 (H426): ett inslaget hus går inte att springa in i senare samma dag
+  (sim.brokenHouses ??= []).push(h.id);
+  sim.events.push({ t: 'houseBreached', gunId: g.id, x: h.x, z: h.z });
+  loseSanity(sim, g, SANITY.breakIn);
+  const hurt = new Set();
+  if (g.squad) for (const s of g.soldiers) { if (!s.down) hitSoldier(sim, g, s, s.maxHp * BREAK_HIT, hurt); }
+  else if (g.crew) hitCrew(sim, g, g.crew.max * 0.6, hurt);
+}
+export const garrisonHouseAt = (sim, key, type) => garrisonHouse(sim, key, type);
+export const housesFor = sim => housesOf(sim.map, sim.place);

@@ -68,7 +68,15 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // docs/balance-log.md 0.16.4.
 // 0.17.2: avsiktligt (H307, inget på vägarna): Vikingavägens villor och radhus G backar från gångvägarna och bilen vid ishallen
 // står inte på gatan, så Ishallen dag 1 till 5 och Vikingavägen dag 1 till 5 är nya. docs/balance-log.md 0.17.2.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"e9d708ad","gnesta 2":"20874c9c","gnesta 3":"ab318690","gnesta 4":"4b615993","gnesta 5":"ce887d5a","gnesta-norr 1":"5a3ce62d","gnesta-norr 2":"a84f33f6","gnesta-norr 3":"8fa0c810","gnesta-norr 4":"6ed15c6d","gnesta-norr 5":"62d4ad20"};
+// 0.18.0: Ishallen dag 2 till Vikingavägen dag 5 nya, avsiktligt (strategiskt djup, skiva 1): korselden från Ishallen
+// dag 2, sanity från dag 3, tröttheten efter Vikingavägen dag 3 (policyerna vilar de utmattade när det finns
+// likvärdiga), kryparna och mål-läget dag 4, husen dag 5 (den skickliga ställer en grupp i huset som ser mest av
+// hordens väg). E4 och Ishallen dag 1 står kvar. docs/balance-log.md 0.18.0.
+// 0.18.1: Ishallen dag 4 till Vikingavägen dag 5 nya (skilled), Ishallen dag 1 till Vikingavägen dag 5 (normal), avsiktligt:
+// vågornas grind (nästa våg först när 70 % av den förra är nere eller efter dagens långa klocka, högst två ute), förrådets
+// banor (bara stridsbanan går ut, förslaget efter värde och trötthet), husen som stormas slutar när alla där är nere,
+// Vikingavägen dag 2 hp 4,4 till 3,5 och dag 3 4,2 till 3,9. docs/balance-log.md 0.18.1.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"e9d708ad","gnesta 2":"1f306f99","gnesta 3":"ce96f7c9","gnesta 4":"1b2ae109","gnesta 5":"61416be7","gnesta-norr 1":"3a26659c","gnesta-norr 2":"fa0dc529","gnesta-norr 3":"47608c3d","gnesta-norr 4":"0f97d49f","gnesta-norr 5":"628271bd"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

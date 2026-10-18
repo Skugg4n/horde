@@ -971,3 +971,110 @@ Mölnbo, fem seeds:
 Målen ändrade: kartläsaren vinner varje dag på första försöket och dag 4 kostar basen (högst 12 kvar); den som aldrig spärrar klarar dag 3 med prickskyttarna men fastnar på bron dag 4 i fyra av fem seeds (förut dag 3). Dag 4 och 5 var knivseggar och Ola förlorade dag 4 (MB05, H295); de är mjukare nu. Designens strategiska djup (docs/superpowers/specs/2026-10-18-strategiskt-djup.md) får avgöra om naive ska fastna tidigare igen.
 
 Fingeravtrycken, alla nya avsiktligt: mbSmart e3366e99, c9a25d00, ea3c29de, 98f2872d, e730f02a; naive 4e087429, 2065fc1c, c70477a5, 0641acc9, 2df44d12. Kvittona i tests/balance-op-*.test.js: Vikingavägen dag 1 till 5 nya (normal och skilled), Ishallen dag 1 till 5 nya (skilled), E4 orört.
+
+## 0.18.0: strategiskt djup, skiva 1
+
+Varför: Olas feedback på 0.17.1 ("klicka ut trupper längs en väg och vänta, inga riktiga val") och besluten i strategiskt djup avsnitt 7 och kampanjplanen. Skiva 1: skadeklasser och två fiender, sanity med routed, överrända pjäser, Fall back, hus, korseld, Håll eld, trötthet, kvalitativ rekvisition och mål-läget.
+
+Var mekanikerna kommer (allow i src/meta/unlocks.js; kampanjplanens dagar flyttade till dagarna som finns):
+
+| Begrepp | Dag i spelet | Kampanjplanens dag | Varför där |
+|---|---|---|---|
+| Korseld | Ishallen dag 2 | 5 (Ishallen 2) | samma |
+| Sanity (mätaren och verkan) | Ishallen dag 3 | 6 (Ishallen 3) | samma, med Hemvärnet |
+| Trötthet (förrådet) | efter Vikingavägen dag 3 | mellan 9 och 10 | första gången styrkan är större än frontbredden |
+| Krypare + mål-läget (T) | Vikingavägen dag 4 | 7 (The pincer) | Psg 90 har funnits sedan Vikingavägen dag 1 |
+| Trupper i hus | Vikingavägen dag 5 | 10 (Björnlunda) | Björnlunda finns inte; Vikingavägens villagator är närmast. Kräver bara Move och Hemvärnet |
+| Routed och Fall back (G) | Mölnbo dag 1 | 8 (Mölnbo) | samma plats; sanity har funnits i sex dagar |
+| Pansrad (Strongest) | Mölnbo dag 2 | 9 (Mölnbo, sista tåget) | Ksp 88 har funnits sedan E4 dag 3 |
+| Håll eld (H) | Mölnbo dag 4 | 12 (rondellen) | bron är bakhållet |
+| Överrända pjäser och Recrew (N) | Mölnbo dag 5 | 16 (centrum) | sista dagen, hela styrkan ute |
+
+Siffrorna (startgissningar, mätta nedan):
+- Pansrad: hp 95, fart 1,35, 20 % av småkaliber. Krypare: hp 40, fart 0,95, tråden bromsar inte och slits inte, träff från tak, torn och hus 35 %.
+- Sanity: tär 1,0 per sekund och fear-enhet på 0 m, linjärt till 0 vid 8 m (vandrare 1, löpare 1,2, krypare 1,6, pansrad 2, bjässe 3), delat med nerve (civila 0,6, Hemvärnet 1, pjäslagen 1,2 till 1,4, infanteriet 1,5; stjärnan 1,25). Pjäslag bakom sina säckar 60 %, grupper med sandsäckar 75 %, i hus 50 %. En man stupar: 22 i gruppen, 8 för enheter inom 14 m; ett lag nere: 14. Tillbaka 3 per sekund utan zombie inom 12 m. Under 60 sämre träff (ned till 65 %) och eldtakt (ned till 75 %), varning under 35, routed under 18; en flydd grupp är tillbaka i reserven med 55 efter 20 s.
+- Pjäslaget: 30 liv per man (Ksp 90 två, Ksp 58 tre, Ksp 88 två). Recrew 150 i förnödenheter, 4 s; en grupp inom 10 m gratis på 8 s; ett flytt lag kommer tillbaka efter 30 s om det är lugnt.
+- Hus: kapacitet yta/11 m² (4 till 8 soldater) eller en pjäs, dörren 260, 30 % av de som går förbi stormar (bjässar och pansrade alltid), inslagen dörr tar 45 % av livet på varje soldat.
+- Korseld +20 % vid minst 60 grader. Håll eld: släpps inom 6 m, 1,2 s dubbel skada, 15 s nedkylning.
+- Trötthet: träff 100, 95, 88 %; eldtakt 100, 100, 94 %; sanity tär 100, 112, 130 %. Först prövat 92/80 % träff och 88 % eldtakt: kartläsaren fastnade på Mölnbo dag 3 i fem seeds av fem (alla dagar ute gör alla utmattade), också med vila i policyn.
+- Rekvisitionens streck: Firepower efter skada per sekund mot vandrare på nivå 1 (trösklar 15, 25, 38, 50), Range (14, 16, 18, 22 m), Resilience efter nerve (0,8, 1,1, 1,3, 1,45; pillboxen fem), Armour-piercing 5 för tung, 3 med granattillsats, annars 1 (src/ui/statbars.js).
+
+Policyerna (scripts/balance.mjs): rest (skilled, normal, mbSmart) fyller frontbredden med de enheter som är värda mest (rekvisitionspris och nivå gånger 1, 0,95 eller 0,75 för trötthet), resten vilar. depth: true (skilled, mbSmart) ställer Ksp 88 på Strongest när dagen har pansrade eller bjässar, bemannar tysta pjäser med Recrew och ställer en grupp i huset som ser flest rutor av hordens väg (minst 30). depth: 'recrew' (normal) bara Recrew. naive gör inget av det. Första husvalet räknade alla gator och valde ett hus horden aldrig gick förbi; den skickliga förlorade då Vikingavägen dag 5 i tre seeds av fem. Med bara hordens väg vinner hon på första försöket. HORDE_OFF=sanity,fatigue slår av mekaniker vid mätning.
+
+Mätt (fem seeds), med mekanikerna en i taget: utan trötthet vann kartläsaren hela Mölnbo, utan sanity fastnade han på dag 4, utan korseld fastnade han på dag 3. Tröttheten var det tyngsta lagret.
+
+Hagstumosse (tests/balance-op-*.test.js):
+
+    skilled  alla dagar på första försöket i alla seeds
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  1  1  1  3  1  1
+    1         1  1  1  1  1  1  2  2  1  1  3  1  1
+    2         1  1  1  1  1  1  2  2  1  1  2  1  1
+    3         1  1  1  2  1  1  2  1  1  2  2  1  1
+    4         1  1  1  1  1  1  2  2  1  1  2  1  1
+
+Mölnbo (ankomsten är den vanliga spelarens framsteg, src/data/arrival.js omräknad):
+
+    mbSmart  M1 M2 M3 M4 M5
+    alla      1  1  1  1  1   bas dag 4: 1 till 11, topp 205 till 250
+
+    naive    M1 M2 M3 M4 M5
+    0         1  1  x  -  -
+    1         1  1  2  x  -
+    2         1  1  x  -  -
+    3         1  1  x  -  -
+    4         1  1  4  x  -
+
+Ändrat för att hålla målen: Mölnbo dag 4 hp 36 till 34 (35 gav tre försök i två seeds, 33 lät basen stå över 12), dag 4:s sista våg 58 till 46 vandrare, dag 5:s fjärde våg 43 till 36 och femte 43 och 36 till 34 och 30 (toppen var 270 levande, målet 250).
+
+Målen håller: den vanliga spelaren klarar varje dag inom 1 till 3 försök, den skickliga på första, kartläsaren i Mölnbo på första och dag 4 kostar basen, den som aldrig spärrar fastnar på dag 3 eller 4 (förut dag 4), ingen dag över 6. Nytt prov (tests/depth.test.js): den som köper mest eld per krona (fem Ksp 90) förlorar mot 14 pansrade där en Ksp 88 på Strongest och två Ksp 90, billigare, håller.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 till 3 och Ishallen dag 1 (de rör sig inte, som kampanjplanen sa):
+- skilled: gnesta 2 1f306f99, gnesta 3 ce96f7c9, gnesta 4 be55cf8c, gnesta 5 3f05462b, gnesta-norr 1 6c0f73e7, gnesta-norr 2 91754a0f, gnesta-norr 3 c44fb2a7, gnesta-norr 4 958c38e2, gnesta-norr 5 8697e30f
+- normal: gnesta 2 30e441d4, gnesta 3 174fceb0, gnesta 4 0989ad13, gnesta 5 2cb68445, gnesta-norr 1 07d6004f, gnesta-norr 2 0e7ad74e, gnesta-norr 3 bac421f0, gnesta-norr 4 a5ab6f92, gnesta-norr 5 6a048183
+- mbSmart: 56c5cd8e, e2543d9b, f7cf1b9c, 13dece00, 71682133; naive: b67298aa, 595148d1, 60aeead0, f27ce50b, 741638a5
+
+## 0.18.1: vågornas grind, förrådets banor och speltestet av 0.18.0
+
+Varför: speltestet av 0.18.0 (docs/playtests/2026-10-18-0.18.0.md) sa NEJ. På Mölnbo dag 5 var alla fem vågor ute inom fyra minuter och på Vikingavägen dag 4 gick 310 zombier samtidigt; förut startade nästa våg dayCfg.overlap sekunder efter att den förra kommit ut, hur det än gick för försvaret. Då spelar Recrew, Fall back, Håll eld och husen ingen roll, allt tystnar bara.
+
+Regeln (src/sim/sim.js overlapGate): på en dag med överlapp kommer nästa våg av sig själv först när (1) alla äldre vågor är klara, (2) den senaste har kommit ut helt och (3) 70 % av den är nere, eller dayCfg.overlap sekunder har gått sedan den kom ut (den långa klockan, samma tal som förut: 50 i Mölnbo, 60 på Vikingavägen, 100 på Ishallen dag 4 och 5). Sedan 12 s nedräkning. Zombier som står vid basens dörr (Mölnbo och ishallen tar in dem en i taget) räknas som ute. Utan tidigt kall är högst två vågor ute samtidigt; ett nytt prov (tests/wave-overlap.test.js) kör varje dag på varje bana och policyernas loggar har peakWaves (inte i fingeravtrycket).
+
+Förrådets banor (src/meta/operation.js lanes): bara stridsbanan går ut i striden. Förslaget är det policyerna redan valde (rekvisitionspris och nivå gånger 1, 0,95 eller 0,75 för trötthet); en vunnen dag nollställer valen. Det flyttar alla dagar där styrkan är större än taket.
+
+Funnet under passet: på Mölnbo dag 4 stod 57 zombier i sju minuter och slog på ett hus där hela gruppen redan låg (attackHouse gjorde ingenting och de gick aldrig vidare). Ett hus stormas nu bara så länge någon är kvar inne. Utan rättelsen fastnade kartläsaren på våg 3 med grinden.
+
+Tåget i Mölnbo: med grinden kommer vågorna ungefär var 75:e till 90:e sekund (dag 3: 0, 73, 177, 261, 356 s för kartläsaren). Med de gamla avgångarna (330, 340, 360 s) gick tåget innan sista vågen kom, och dag 3 till 5 blev för lätta (bas 18 till 20). Nu 420, 380 och 420 s.
+
+Ändrat för att hålla målen:
+- Vikingavägen dag 2 hp 4,4 till 3,5: med grinden och banorna förlorade den skickliga första försöket i en seed av fem (4,2, 4,0 och 3,8 flyttade bara förlusten till en annan seed).
+- Vikingavägen dag 3 hp 4,2 till 3,9: den skickliga förlorade första försöket i två seeds av fem med banorna.
+- Mölnbo dag 4 hp 34 till 38: med det senare tåget stod basen kvar på 13 till 15 i två seeds; dag 4 ska kosta basen (högst 12). 36 gav 13 i en seed.
+- Dagens längd för den vanliga spelaren: taket 600 till 760 s. Vikingavägen dag 3 till 5 tar nu 580 till 750 s, eftersom vågorna väntar på försvaret. Det är avsikten (varje våg ett andetag), inte ett segt försvar.
+
+Mätt (fem seeds):
+
+    skilled  alla dagar på första försöket i alla seeds
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  3  1  1  1  1  1
+    1         1  1  1  1  1  1  2  3  1  1  1  1  1
+    2         1  1  1  1  1  1  2  2  1  1  1  1  1
+    3         1  1  1  2  1  1  2  1  1  1  1  3  1
+    4         1  1  1  1  1  1  2  3  1  1  1  1  1
+
+    mbSmart  alla dagar på första försöket; bas dag 4: 4, 5, 8, 10, 11; topp 170 till 177 levande
+    naive    M1 M2 M3 klarade, fast på dag 4 i alla seeds; topp 137 till 169
+
+Flest vågor ute samtidigt utan tidigt kall: 2 på varje dag, alla policyer. Toppen i Mölnbo sjönk från 205 till 250 (0.18.0) till 170 till 177.
+
+Ishallen dag 1 (speltestet: vunnen med 5 dödade): mätt utan att ändra. Utan trupp faller sju civila (need 18 av 24) och dagen förloras; med de frivilliga vid ishallens dörr likaså. Den vanliga spelaren skjuter 14 till 15 och räddar 19 till 20, kartläsaren 10 till 12 och räddar 21 till 23. Dagen kräver alltså försvar av korsningarna; få dödade betyder att de frivilliga stod rätt, inte att dagen är gratis. Nytt prov: tests/evac-defence.test.js.
+
+Huvudlöst (scripts/slice1-check.mjs, speltestet hann inte se dem): pansrade tar 23 % av småkaliberns skada per träff jämfört med vandrare och 104 % av Ksp 88:s; kryparna går genom tråden i full fart (vandrarna i 40 %) och sliter den inte; Mölnbo dag 1 till 4 med balansens uppställning vinns med högst två vågor ute; tröttheten och banorna syns i förrådet.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 till 3 (skilled även Ishallen dag 1 till 3; naive Mölnbo dag 5 nås inte):
+- skilled: gnesta 4 1b2ae109, gnesta 5 61416be7, gnesta-norr 1 3a26659c, gnesta-norr 2 fa0dc529, gnesta-norr 3 47608c3d, gnesta-norr 4 0f97d49f, gnesta-norr 5 628271bd
+- normal: gnesta 1 5c904291, gnesta 4 39099584, gnesta 5 88f88ce5, gnesta-norr 1 dbfddd7d, gnesta-norr 2 b1e0a44e, gnesta-norr 3 edf6aaf4, gnesta-norr 4 9cb081a4, gnesta-norr 5 58cf1d44
+- mbSmart: 85aa38eb, 9f8c075d, 5472293e, 2fba89fd, 78964c6b; naive: cfe6db7e, fcf87131, 0054e104, 01cd0974, 741638a5
+- simuleringens kvitto Gnesta North day 2: f734013e (Vikingavägen dag 2:s hp och grinden)

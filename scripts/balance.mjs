@@ -9,18 +9,18 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy } from '../src/sim/sim.js';
+import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { selectMap, mapState } from '../src/meta/progress.js';
 import { newCampaign, opStartConfig, finishDay, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
-import { UPGRADES } from '../src/data/depot.js';
+import { UPGRADES, UNIT_RP } from '../src/data/depot.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
-import { planSquad } from '../src/sim/squad.js';
+import { planSquad, hordeWeight } from '../src/sim/squad.js';
 import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
 import { R as R_MB } from '../src/data/molnbo.js';
@@ -233,7 +233,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];
-  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0;
+  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0, peakWaves = 0;
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < maxTicks) {
     if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
     else if (sim.phase === 'build') {
@@ -255,7 +255,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     blastNow = false;
     if (onSecond && ticks % 30 === 0) onSecond(sim);
     if (trackSquads && ticks % 30 === 0) squads = Math.max(squads, sim.guns.filter(g => g.squad).length);
-    if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; }
+    if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; const w = wavesOnRoad(sim).size; if (w > peakWaves) peakWaves = w; }
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
     if (sim.waveIndex > waveIdx || sim.phase === 'lost' || sim.phase === 'won') {
       if (sim.waveIndex > waveIdx || sim.phase === 'lost') waves.push({ cash: sim.cash, baseHp: Math.max(0, sim.baseHp) });
@@ -266,7 +266,8 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex, lostBy: sim.lostBy ?? null,
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
-    peak, sim, report: dayReport(sim), cashEnd: sim.cash,
+    // 0.18.1: flest vågor ute på vägen samtidigt (src/sim/sim.js wavesOnRoad); inte i fingeravtrycket
+    peak, peakWaves, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash,
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
@@ -623,7 +624,10 @@ const DEPLOY_ORDER = ['m2', 'ksp58', 'epa', 'psg90', 'ak5', 'inf', 'm249', 'hv',
 // Uppställningen: allt i reserven ut på planens platser. Öppningens Ksp 90 först (Gnesta North), Psg 90 på
 // planens tak (sedan marken), pjäserna från den tyngsta på de platser som ser mest av hordens väg, grupperna
 // på sina egna platser. Det som inte får plats på planen provas på de andras platser.
-function deployAll(sim, plan) {
+// 0.18.0 (tröttheten): rest = de utmattade ställs ut sist, när frontbredden har plats kvar (en människa läser förrådets
+// streck och låter dem vila). Inom typen den högsta nivån först, sedan den mest utvilade.
+function deployAll(sim, plan, rest = false) {
+  if (rest && sim.reserve?.some(u => (u.fatigue ?? 0) >= 2)) return deployRested(sim, plan);
   const tryAt = (spots, type, opts = () => ({})) => {
     for (const k of spots) {
       if (sim.guns.some(g => g.cell === k)) continue;
@@ -642,6 +646,72 @@ function deployAll(sim, plan) {
         : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t);
       if (!ok) break;
     }
+  }
+}
+// Värdet en spelare ser i förrådet: rekvisitionens pris och nivåerna, gånger tröttheten (en utmattad Ksp 58 på nivå 3
+// är fortfarande bättre än utvilade frivilliga). Frontbredden fylls med de bästa; resten vilar.
+const FATIGUE_WORTH = [1, 0.95, 0.75];
+const unitWorth = u => (UNIT_RP[u.type] ?? 100) * (1 + 0.6 * (u.level - 1)) * (u.vet ? 1.1 : 1) * FATIGUE_WORTH[u.fatigue ?? 0];
+function deployRested(sim, plan) {
+  const tryAt = (spots, type, opts) => {
+    for (const k of spots) {
+      if (sim.guns.some(g => g.cell === k)) continue;
+      const r = build(sim, k, type, opts(k));
+      if (r.ok) return true;
+      if (r.reason === 'reserv' || r.reason === 'uppställd' || r.reason === 'front') return false;
+    }
+    return false;
+  };
+  const guns = [...plan.guns, ...plan.squads], squads = [...plan.squads, ...plan.guns];
+  const pick = (t, ok) => sim.reserve.filter(u => u.type === t && canDeploy(sim, u) && ok(u))
+    .sort((a, b) => b.level - a.level || (a.fatigue ?? 0) - (b.fatigue ?? 0) || (b.vet ?? 0) - (a.vet ?? 0) || (b.men ?? 0) - (a.men ?? 0) || a.uid - b.uid)[0];
+  if (plan.openerGun != null) { const u = pick('m249', () => true); if (u) tryAt([plan.openerGun], 'm249', () => ({ uid: u.uid })); }
+  const room = frontage(sim) - sim.guns.length;
+  const chosen = new Set(sim.reserve.filter(u => canDeploy(sim, u)).sort((a, b) => unitWorth(b) - unitWorth(a) || a.uid - b.uid).slice(0, room).map(u => u.uid));
+  for (const ok of [u => chosen.has(u.uid), () => true]) {
+    for (const t of DEPLOY_ORDER) {
+      while (sim.guns.length < frontage(sim)) {
+        const u = pick(t, ok);
+        if (!u) break;
+        const done = t === 'psg90' ? tryAt(plan.roofs ?? [], t, k => ({ facing: plan.roofFacing?.[plan.roofs.indexOf(k)], uid: u.uid })) || tryAt(guns, t, () => ({ uid: u.uid }))
+          : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t, () => ({ uid: u.uid }));
+        if (!done) break;
+      }
+    }
+  }
+}
+// ---------- 0.18.0 (skiva 1): djupets verb i policyerna ----------
+// depth: true (den skickliga och kartläsaren i Mölnbo) använder det som är upplåst: tunga kulsprutor på Strongest
+// när det finns pansrade eller bjässar i dagens vågor, Recrew på en tyst pjäs, och en grupp i huset som ser mest av
+// hordens väg (garrison). depth: 'recrew' (den vanliga spelaren) bemannar bara tysta pjäser igen.
+const HEAVY_TARGETS = ['armored', 'brute'];
+function depthVerbs(sim, P) {
+  if (!P.depth) return;
+  if (P.depth === true && allowed(sim, 'target') && sim.dayCfg.waves.some(w => w.groups.some(g => HEAVY_TARGETS.includes(g.type)))) {
+    for (const g of sim.guns) if (g.weapon.type === 'm2' && g.tgt !== 'strongest') setTarget(sim, g.id, 'strongest');
+  }
+  for (const g of sim.guns) if (g.silent && !g.recrew && sim.cash >= RECREW.cost + OBSTACLES.wire.cost) recrew(sim, g.id);
+}
+// Husen som ser mest av hordens väg för en grupp: { key, score }, bäst först.
+export function housePlan(sim, type) {
+  const w = hordeWeight(sim), out = [];
+  for (const h of housesFor(sim)) {
+    const key = h.cells[0];
+    if (!checkSpot(sim, key, type).ok) continue;
+    let score = 0;
+    // bara hordens väg (vikten 2), inte gatorna intill
+    for (const k of sightFor(sim, key, type).keys) if (w[k] >= 2) score++;
+    out.push({ key, score, id: h.id });
+  }
+  return out.sort((a, b) => b.score - a.score || a.key - b.key);
+}
+function garrisonSquads(sim, P) {
+  if (P.depth !== true || !allowed(sim, 'garrison') || !deployPhase(sim) || sim._garrisoned) return;
+  sim._garrisoned = true;
+  for (const t of SQUAD_ORDER) {
+    if (!reserveCount(sim, t) || sim.guns.length >= frontage(sim)) continue;
+    const best = housePlan(sim, t)[0];
+    if (best && best.score >= (P.houseMin ?? 30)) { build(sim, best.key, t); return; }
   }
 }
 // Förnödenheterna utöver hindren och granatlådorna: ammunition till pjäserna, sandsäckar till grupperna,
@@ -671,8 +741,9 @@ function opPlan(map, day, town) {
 // 0.14.0: på Gnesta North är spärren på Vikingavägen med pjäserna där de ser hordens väg bättre än 0.13:s
 // smarta plan (dödszonen, radhustaken) när styrkan är kärntrupper; skilled spelar så där (planBy).
 export const POLICIES = {
-  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true, evacMap: true },
-  normal: { plan: 'naive', blocks: true, early: false, supplies: false },
+  // 0.18.0: rest (tröttheten), depth (djupets verb, depthVerbs ovan)
+  skilled: { plan: 'smart', planBy: { 'gnesta-norr': 'naive' }, blocks: true, early: true, supplies: true, evacMap: true, rest: true, depth: true },
+  normal: { plan: 'naive', blocks: true, early: false, supplies: false, rest: true, depth: 'recrew' },
   naive: { plan: 'naive', blocks: false, early: false, supplies: false },
   // 0.16.2 (speltestet av 0.16.1, Ishallen dag 2): förstagångsspelaren som följer tipsen. Lägger spärren som
   // lektionen säger och ställer sedan pjäserna längs den nya vägen som pilarna visar (followRoute), men läser inte
@@ -730,6 +801,8 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const P0 = typeof policy === 'string' ? POLICIES[policy] : policy;
   const P = { ...P0, plan: P0.planBy?.[mapId] ?? P0.plan };
   const cfg = opStartConfig(progress, day, mapId);
+  // 0.18.0: HORDE_OFF=sanity,fatigue (bara balansarbetet) slår av mekaniker för att mäta vad var och en gör
+  if (typeof process !== 'undefined' && process.env?.HORDE_OFF) { const off = process.env.HORDE_OFF.split(','); cfg.allow = cfg.allow.filter(f => !off.includes(f)); if (off.includes('fatigue')) cfg.core = cfg.core.map(u => ({ ...u, fatigue: 0 })); }
   const sim = createSim({ ...cfg, seed: cfg.seed + seedOffset });
   const map = cfg.map, T = TOWN[mapId], isTown = !!T;
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
@@ -749,8 +822,9 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const think = () => {
     if (evacMap && deployPhase(sim)) evacDeploy(sim);
     if (evacMap) evacReposition(sim);
-    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); deployAll(sim, plan); }
+    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); garrisonSquads(sim, P); deployAll(sim, plan, !!P.rest); }
     else if (lateReady()) deployAll(sim, plan);
+    depthVerbs(sim, P);
     builder();
     if (P.react && !isTown) reactToForetold(sim);
     if (P.supplies) spendSupplies(sim);
@@ -850,7 +924,7 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
           waveBase: r.waveLog.map(w => w.baseHp),
           // 0.14.2: förnödenheterna kvar när dagen tar slut (överskottet); inte heller i fingeravtrycket
-          cashEnd: r.cashEnd });
+          cashEnd: r.cashEnd, peakWaves: r.peakWaves, earlyCalls: r.earlyCalls });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -868,7 +942,7 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
@@ -894,7 +968,7 @@ TOWN.molnbo = {
 };
 HV_POLICY.molnbo = { days: [], gap: [] };
 REQUISITION.molnbo = ['up:psg90:3', 'lvl:psg90:2', 'unit:psg90:4', 'lvl:ksp58:3', 'unit:ksp58:6', 'lvl:inf:2', 'unit:inf:3', 'lvl:m2:3', 'lvl:psg90:3', 'unit:ak5:3', 'lvl:ak5:3', 'unit:m249:6'];
-POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true };
+POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true };
 // Framsteget en vanlig spelare har när Mölnbo öppnar (sparas per seed).
 const mbArrival = new Map();
 export function molnboArrival(seedOffset = 0) {
@@ -909,7 +983,7 @@ export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
 export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function mbPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
   return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
 }
 
@@ -922,7 +996,7 @@ if (IS_MAIN && process.argv[2] === 'molnbo') {
     console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');
     const runs = SEEDS.map(seedOffset => molnboCampaign(policy, { seedOffset, maxAttempts: policy === 'naive' ? 4 : 6 }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${mbAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
-    for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
+    for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
   }
 } else if (IS_MAIN) {
   const only = process.argv[2];

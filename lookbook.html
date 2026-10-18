@@ -130,8 +130,23 @@ const rings = createHealthRings(scene, 32), HEALTH = [1, 0.6, 0.2];
   }
   label(u0, ZV, ZOMBIES[t].name, 'scale ' + ZOMBIES[t].scale + ' · health 100, 60, 20 %', 2.6);
 });
-// till höger: slår mot ett hinder, och faller (om och om igen)
 const poses = [];
+// 0.18.0 (skiva 1): de nya fienderna i en egen rad: den pansrade (kravallutrustning, hjälm, visir, sköld) och kryparen
+const ZV2 = ZV + 5.5;
+[['armored', -16], ['crawler', -3]].forEach(([t, u0]) => {
+  for (let i = 0; i < 3; i++) {
+    const z = zombieModel(t);
+    const u = u0 + (i - 1) * 2.8;
+    z.root.position.copy(at(u, ZV2 + (i % 2) * 0.6));
+    z.root.rotation.y = -Math.PI / 2;
+    z.phase = Math.random() * 6;
+    z.hp = HEALTH[i];
+    scene.add(z.root); zombies.push(z);
+  }
+  label(u0, ZV2, ZOMBIES[t].name, t === 'armored' ? 'small arms 20 % · heavy and explosive full' : 'under the wire · hard to hit from above', 2.6);
+});
+{ const z = zombieModel('armored'); z.root.position.copy(at(8, ZV2)); z.root.rotation.y = -Math.PI / 2; z.act = 'attack'; z.t = 0; z.hp = 0.45; scene.add(z.root); poses.push(z); label(8, ZV2, 'Armoured', 'attacking', 2.6); }
+// till höger: slår mot ett hinder, och faller (om och om igen)
 [['walker', 'attack', 17.5], ['brute', 'attack', 20.5], ['walker', 'fall', 24], ['runner', 'stumble', 30]].forEach(([t, act, u]) => {
   const z = zombieModel(t);
   z.root.position.copy(at(u, ZV));
