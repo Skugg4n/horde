@@ -70,10 +70,11 @@ export function createHealthRings(scene, capacity = 256) {
   let n = 0;
   // Varje bildruta: begin(), sedan add() för varje ring som ska synas, sist end().
   function begin() { n = 0; }
-  function add(x, z, frac, scale = 1) {
+  // y (0.17.0-molnbo): markens höjd under zombien (Mölnbos bro)
+  function add(x, z, frac, scale = 1, y = 0) {
     if (n >= capacity) return;
     const r = RADIUS * scale;
-    m.makeScale(r, 1, r); m.setPosition(x, 0.045, z);
+    m.makeScale(r, 1, r); m.setPosition(x, 0.045 + y, z);
     mesh.setMatrixAt(n, m);
     ring.array[n * 2] = frac; ring.array[n * 2 + 1] = 1;
     n++;

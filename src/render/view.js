@@ -161,7 +161,7 @@ export function createView(scene, initialSim) {
         continue;
       }
       // hälsoringen syns först när zombien tagit skada
-      if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale));
+      if (z.hp < z.maxHp) rings.add(e.x, e.z, z.hp / z.maxHp, Math.min(1.35, parts.scale), liftAt(e.x, e.z));
       // vrider sig mjukt mot gångriktningen (rutnätets svängar blir inte ryck)
       // en zombie som slår en soldat vänder sig mot honom
       const face = z.foe ? Math.atan2(z.foe[0] - e.x, z.foe[1] - e.z) : e.pour ? Math.atan2(P.x - e.x, P.z - e.z) : Math.atan2(P.dirX, P.dirZ);
