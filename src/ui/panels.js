@@ -77,7 +77,10 @@ const REASONS = {
   'hus litet': 'Too small for the whole squad',
   'hus vilande': 'Infected inside',
   'hus evak': 'Civilians are leaving that house',
-  'hus anfall': 'The dead are at that door',
+  'hus anfall': 'Door blocked: the dead are at it',
+  // 0.19.0 (speltestet av 0.18.1): flytten in i ett hus säger varför den inte går
+  'hus dörr': 'Door blocked',
+  'hus ingen väg': 'No path to the door',
   'hus bruten': 'That house was broken into today',
   'viker': 'Already falling back',
   'tyst': 'The gun is silent',

@@ -4,7 +4,7 @@ import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
 import { routeFor } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, maxSquads, MAX_LEVEL, inArsenal } from './stats.js';
-import { crewRoute, alongPath } from './crew-path.js';
+import { crewRoute, alongPath, crewPassable } from './crew-path.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
 import { emplacement } from './emplace.js';
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight, inArc, RISE_TIME, SETTLE_TIME } from './squad.js';
@@ -1027,9 +1027,35 @@ export function checkMove(sim, id, key, via = [], { path = true } = {}) {
   if (key === g.cell) return { ok: false, reason: 'samma' };
   const c = checkSpot(sim, key, g.weapon.type, { ignore: id });
   if (!c.ok) return c;
-  // 0.18.1 (H426): in i ett hus går vägen till dörren (moveGun), inte till rutan i huset
+  // 0.18.1 (H426): in i ett hus går vägen till dörren (moveGun), inte till rutan i huset.
+  // 0.19.0 (speltestet av 0.18.1: "No way there on foot" utan skäl, fast platsen var giltig): vägen till dörren provas
+  // redan här, och skälet säger vad som är fel (dörren blockerad, ingen väg till dörren).
+  if (path && c.house != null && clock(sim)) {
+    const d = doorRoute(sim, g, houseById(sim.map, sim.place, c.house));
+    if (!d.ok) return d;
+  }
   if (path && c.house == null && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
   return c;
+}
+// 0.19.0: vägen in i huset h för enheten g mitt i en våg. Dörren är den gångbara ruta intill huset som alla i enheten
+// når, närmast först (lika: lägst nyckel; högst DOOR_TRIES provas). { ok, door, routes } (en väg per soldat, null för
+// en stupad; för en pjäs en väg), eller { ok: false, reason }: 'hus anfall' (de döda står vid huset), 'hus bruten',
+// 'hus dörr' (ingen ruta vid huset går att gå på) eller 'hus ingen väg' (ingen väg dit). Ren funktion av läget.
+const DOOR_TRIES = 6;
+export function doorRoute(sim, g, h) {
+  if (!h) return { ok: false, reason: 'okänd' };
+  if ((sim.brokenHouses ?? []).includes(h.id)) return { ok: false, reason: 'hus bruten' };
+  for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(sim.place.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; }
+  const p = sim.place, at = g.squad ? (unitPos(g) ?? g) : { x: g.x, z: g.z };
+  const doors = [...h.touch].filter(k => crewPassable(p, k)).map(k => { const q = p.center(k); return { k, d: Math.hypot(q.x - at.x, q.z - at.z) }; })
+    .sort((a, b) => a.d - b.d || a.k - b.k);
+  if (!doors.length) return { ok: false, reason: 'hus dörr' };
+  const starts = g.squad ? g.soldiers.map(q => (q.down ? null : q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z })) : [{ x: g.x, z: g.z }];
+  for (const { k } of doors.slice(0, DOOR_TRIES)) {
+    const routes = starts.map(st => (st ? crewPathTo(sim, st, k) : null));
+    if (starts.every((st, i) => !st || routes[i])) return { ok: true, door: k, routes };
+  }
+  return { ok: false, reason: 'hus ingen väg' };
 }
 // Gruppens nya rutor om den flyttas till key (spöket i handen).
 export const movePreview = (sim, id, key) => {
@@ -1065,17 +1091,12 @@ export function moveGun(sim, id, key, opts = {}) {
   // går de in (enterHouse). Står de döda vid dörren, eller är huset redan inslaget i dag, nekas flytten.
   if (check.house != null && running) {
     const h = houseById(sim.map, sim.place, check.house);
-    if ((sim.brokenHouses ?? []).includes(h.id)) return { ok: false, reason: 'hus bruten' };
-    for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(sim.place.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; }
-    const at = g.squad ? (unitPos(g) ?? g) : { x: g.x, z: g.z };
-    let door = -1, dd = Infinity;
-    for (const k of [...h.touch].sort((a, b) => a - b)) { const q = sim.place.center(k), d = Math.hypot(q.x - at.x, q.z - at.z); if (d < dd - 1e-9) { dd = d; door = k; } }
-    const dc = door >= 0 ? sim.place.center(door) : null;
+    const dr = doorRoute(sim, g, h);
+    if (!dr.ok) return dr;
+    const door = dr.door, dc = sim.place.center(door), routes = dr.routes;
     if (g.house) g.house = null;
     if (g.squad) {
       const speed = def.speed ?? MOVE_RUN;
-      const routes = g.soldiers.map(q => (q.down ? null : crewPathTo(sim, q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z }, door)));
-      if (!dc || g.soldiers.some((q, i) => !q.down && !routes[i])) return { ok: false, reason: 'ingen väg' };
       g.soldiers.forEach((q, i) => {
         if (q.down) return;
         const from = q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z };
@@ -1084,8 +1105,7 @@ export function moveGun(sim, id, key, opts = {}) {
       });
       Object.assign(g, { x: dc.x, z: dc.z, cell: door });
     } else {
-      const path = dc && crewPathTo(sim, { x: g.x, z: g.z }, door);
-      if (!path) return { ok: false, reason: 'ingen väg' };
+      const path = routes[0];
       const mi = def.move, crew = mi.crew ?? 0, from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
       Object.assign(g, { x: dc.x, z: dc.z, y: 0, roof: false, cell: door });
       delete g.emplace; delete g.turn;

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gridFromAscii } from '../src/sim/grid.js';
 import { buildPlace, KIND } from '../src/sim/placement.js';
-import { zombiePos, createSim, startWave, step, build, checkSpot, gunStats, fallBack, recrew, holdFire, setTarget, crossfirePreview, canDeploy, dayReport, RALLY_TIME, RECREW, HOLD, DEPTH_FLAGS, allowed, moveGun, checkMove } from '../src/sim/sim.js';
+import { zombiePos, createSim, startWave, step, build, checkSpot, gunStats, fallBack, recrew, holdFire, setTarget, crossfirePreview, canDeploy, dayReport, RALLY_TIME, RECREW, HOLD, DEPTH_FLAGS, allowed, moveGun, checkMove, housesFor } from '../src/sim/sim.js';
 import { SANITY, FATIGUE, resilience } from '../src/sim/sanity.js';
 import { ZOMBIES, takeOf } from '../src/data/zombies.js';
 import { WEAPONS } from '../src/data/weapons.js';
@@ -17,7 +17,7 @@ function testMap(rows, waves, { house = null } = {}) {
   const grid = gridFromAscii(rows.map((r, j) => (j === 0 ? r : '#'.repeat(r.length))));
   const place = buildPlace({
     w: grid.w, h: grid.h, cellSize: 2, origin: [0, 0],
-    classify(x, z) { const i = Math.floor(x / 2), j = Math.floor(z / 2), ch = rows[j][i]; return j === 0 ? KIND.road : ch === 'H' ? KIND.house : KIND.open; },
+    classify(x, z) { const i = Math.floor(x / 2), j = Math.floor(z / 2), ch = rows[j][i]; return j === 0 ? KIND.road : ch === 'H' ? KIND.house : ch === 'T' ? KIND.thing : KIND.open; },
   });
   const lots = house ? { plots: [{ id: 'h1', house }], edges: [], blocks: [] } : null;
   return { id: 'depth-prov', grid, place, baseHp: 99, lots, unlocks: ['m2', 'inf', 'ksp58', 'psg90', 'ak5', 'epa'], days: [{ n: 1, startCash: 0, waves }] };
@@ -226,6 +226,38 @@ test('trupper i hus mitt i en våg: gruppen springer till dörren, går in och s
   assert.ok(g.soldiers.every(s => s.down || s.cover === 'window'));
   const at = ev.findIndex(e => e.t === 'enteredHouse');
   assert.ok(ev.slice(at).some(e => e.t === 'shot' && e.gunId === g.id), 'skjuter från fönstren');
+});
+
+// 0.19.0 (speltestet av 0.18.1: "No way there on foot" utan skäl): flytten in i ett hus säger varför den inte går, redan
+// när platsen provas (checkMove), och samma skäl som flytten själv
+test('in i ett hus mitt i en våg: skälet när det inte går (ingen väg till dörren, de döda vid dörren)', () => {
+  const rows = [...HOUSE_ROWS, '', '', '', '', ''].map(r => r.padEnd(41, '.').slice(0, 41));
+  // gruppen står i en inhägnad ficka (T = föremål runt om)
+  const put = (j, t) => { rows[j] = rows[j].slice(0, 2) + t + rows[j].slice(2 + t.length); };
+  put(4, 'TTTTTTT'); put(5, 'T.....T'); put(6, 'T.....T'); put(7, 'T.....T'); put(8, 'TTTTTTT');
+  const map = testMap(rows, wave('walker', 6, 3), { house: HOUSE });
+  const sim = createSim({ map, day: 1, cash: 500, seed: 6, allow: ['garrison', 'sanity', 'move'] });
+  sim.maxSquads = 4;
+  assert.ok(build(sim, key(map, 5, 6), 'hv').ok, JSON.stringify(build(sim, key(map, 5, 6), 'hv')));
+  const g = sim.guns[0];
+  run(sim, 3);
+  startWave(sim);
+  run(sim, 1);
+  const k = key(map, 11, 1);
+  assert.equal(checkMove(sim, g.id, k).reason, 'hus ingen väg');
+  assert.equal(moveGun(sim, g.id, k).reason, 'hus ingen väg');
+  // de döda vid dörren
+  const open = createSim({ map: testMap(HOUSE_ROWS.map(r => r.padEnd(41, '.').slice(0, 41)), wave('walker', 1, 1), { house: HOUSE }), day: 1, cash: 500, seed: 6, allow: ['garrison', 'move'] });
+  open.maxSquads = 4;
+  assert.ok(build(open, key(open.map, 4, 3), 'hv').ok);
+  run(open, 3);
+  startWave(open);
+  run(open, 0.5);
+  const z = open.zombies[0];
+  const door = [...housesFor(open).find(h => h.id === 'h1').touch][0], c = open.place.center(door);
+  open.route.advance(z, 0);
+  Object.assign(z, open.route.spawnAt(open.rng, open.route.nearestCell(c.x, c.z), z.id));
+  assert.equal(checkMove(open, open.guns[0].id, key(open.map, 11, 1)).reason, 'hus anfall');
 });
 
 test('korseld: två bågar som skiljer minst 60 grader ger mer skada, och förhandsvisningen visar zonen', () => {
