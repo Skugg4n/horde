@@ -27,7 +27,17 @@ test('ett nytt begrepp per dag: E4 dag 1 har bara pjäsen, starten och basen', (
   assert.ok(featuresFor('gnesta', 3).has('levels') && !featuresFor('gnesta', 3).has('requisition'));
   // 0.16.4 (speltestet av 0.16.2): dag 3 utan nya funktioner, de vilande husen dag 4, Next wave med bonus dag 5,
   // förnödenheterna på enheten Vikingavägen dag 1
-  assert.deepEqual([...featuresFor('gnesta', 3)].filter(f => !featuresFor('gnesta', 2).has(f)).sort(), ['depot', 'levels', 'rp']);
+  // 0.18.0: sanity-mätaren kommer med Hemvärnet (kampanjplanens dag 6)
+  assert.deepEqual([...featuresFor('gnesta', 3)].filter(f => !featuresFor('gnesta', 2).has(f)).sort(), ['depot', 'levels', 'rp', 'sanity']);
+  // 0.18.0 (strategiskt djup, skiva 1): ett begrepp ur djupet per dag, i kampanjplanens ordning på dagarna som finns
+  const fresh = (m, d, pm, pd) => [...featuresFor(m, d)].filter(f => !featuresFor(pm, pd).has(f)).sort();
+  assert.ok(featuresFor('gnesta', 2).has('crossfire') && !featuresFor('gnesta', 1).has('crossfire'));
+  assert.deepEqual(fresh('gnesta-norr', 4, 'gnesta-norr', 3), ['fatigue', 'target']);
+  assert.deepEqual(fresh('gnesta-norr', 5, 'gnesta-norr', 4), ['rout']);
+  assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 5), []);
+  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), ['garrison']);
+  assert.deepEqual(fresh('molnbo', 4, 'molnbo', 3), ['holdFire']);
+  assert.deepEqual(fresh('molnbo', 5, 'molnbo', 4), ['overrun']);
   assert.ok(featuresFor('gnesta', 4).has('dormant') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
   assert.ok(featuresFor('gnesta', 5).has('early') && featuresFor('gnesta', 5).has('upgrades') && !featuresFor('gnesta', 5).has('unitSupplies'));
   assert.ok(featuresFor('gnesta-norr', 1).has('unitSupplies') && featuresFor('gnesta-norr', 2).has('car') && !featuresFor('gnesta-norr', 1).has('car'));

@@ -381,7 +381,7 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   if (!base) return null;
   const d = base.map.days[day - 1];
   const core = unitsIn(p, mapId).filter(u => u.men == null || u.men > 0)
-    .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}) }));
+    .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}), ...(u.fatigue ? { fatigue: u.fatigue } : {}) }));
   // 0.16.0: det som är upplåst i dag (src/meta/unlocks.js). Utan förnödenheter (E4 dag 1) är kassan tom och
   // de dödade ger inget.
   const allow = [...featuresFor(mapId, day)], supplies = allow.includes('supplies');
@@ -427,6 +427,16 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
       u.wins++;
     }
     op.units = op.units.filter(u => u.men == null || u.men > 0);
+    // 0.18.0 (tröttheten, Olas beslut): en vunnen dag ute gör enheten tröttare (Rested, Tired, Exhausted), en dag i
+    // reserven vilar den ett steg. Ett förlorat försök räknas inte. Bara när tröttheten är upplåst (src/meta/unlocks.js).
+    if (featuresFor(mapId, day).has('fatigue')) {
+      const out = new Set((report?.units ?? []).map(d => d.uid));
+      for (const u of op.units) {
+        if (u.sector !== poolOf(mapId)) continue;
+        const f = Math.max(0, Math.min(2, (u.fatigue ?? 0) + (out.has(u.uid) ? 1 : -1)));
+        if (f) u.fatigue = f; else delete u.fatigue;
+      }
+    }
     // tryck: sektorn man försvarade lättar, de andra öppna sektorerna blir svårare
     for (const s of openSectors(q)) {
       if (s === poolOf(mapId)) op.pressure[s] = Math.max(0, (op.pressure[s] ?? 0) - PRESSURE_RELIEF);

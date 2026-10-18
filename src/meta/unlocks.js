@@ -22,6 +22,16 @@
 //   car                  skrotbilarna, North dag 2 (0.16.4, förut efter South dag 2)
 //   return               Return till förrådet, efter South dag 4. ('sectors': vilande, se src/data/depot.js SECTORS)
 //   pings, frontage      minikartans pingar framhävda (North dag 2), frontbredden och reserven (North dag 3)
+// 0.18.0 (strategiskt djup, skiva 1; kampanjplanen avsnitt 3, flyttad till dagarna som finns, se docs/balance-log.md 0.18.0):
+//   crossfire            korselden, Ishallen dag 2 (bildtext med en enhet i handen; kampanjplanens dag 5)
+//   sanity               sanity-mätaren och dess verkan på elden, Ishallen dag 3 med Hemvärnet (dag 6)
+//   fatigue              tröttheten, i förrådet efter Vikingavägen dag 3 (frontbredden: fler enheter än platser)
+//   target               mål-läget (T), Vikingavägen dag 4 med kryparna (dag 7)
+//   rout                 routed och Fall back (G), Vikingavägen dag 5 (dag 8: sanity har funnits i flera dagar)
+//                        (Mölnbo dag 1: de pansrade, ingen flagga; fiendekortet och Strongest)
+//   garrison             trupper i hus, Mölnbo dag 2 (villagatorna; kampanjplanens Björnlunda dag 10)
+//   holdFire             Håll eld (H), Mölnbo dag 4 vid bron (rondellen dag 12)
+//   overrun              överrända pjäser och Recrew (C), Mölnbo dag 5 (centrum dag 16)
 import { MAPS } from '../data/maps.js';
 import { mapState, mapUnlocked } from './progress.js';
 
@@ -33,11 +43,11 @@ export const STAGES = [
   { id: 'e4-3', map: 'riksvagen', day: 3, adds: ['aim', 'rotate', 'speed'] },
   { id: 'after-e4', after: ['riksvagen', 3], adds: ['opmap'] },
   { id: 'gn-1', map: 'gnesta', day: 1, adds: ['evac', 'minimap'] },
-  { id: 'gn-2', map: 'gnesta', day: 2, adds: ['block', 'route'] },
+  { id: 'gn-2', map: 'gnesta', day: 2, adds: ['block', 'route', 'crossfire'] },
   { id: 'after-gn-2', after: ['gnesta', 2], adds: ['rp', 'depot', 'levels'] },
   // 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): dag 3 Hemvärnet och Norra vägen, de vilande husen
   // dag 4, Next wave med bonus dag 5, förnödenheterna på enheten och Psg 90 Vikingavägen dag 1, skrotbilarna dag 2
-  { id: 'gn-3', map: 'gnesta', day: 3, adds: [] },
+  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['sanity'] },
   { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition'] },
   { id: 'gn-4', map: 'gnesta', day: 4, adds: ['dormant'] },
   // 0.16.0: Return till förrådet kommer med uppgraderingarna. Omplaceringen och trycket mellan sektorerna
@@ -49,15 +59,16 @@ export const STAGES = [
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: ['unitSupplies'] },
   { id: 'gnn-2', map: 'gnesta-norr', day: 2, adds: ['pings', 'car'] },
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },
-  { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: [] },
-  { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: [] },
+  { id: 'after-gnn-3', after: ['gnesta-norr', 3], adds: ['fatigue'] },
+  { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: ['target'] },
+  { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: ['rout'] },
   // 0.17.0-molnbo: Mölnbo. Inget nytt i gränssnittet; det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
   { id: 'after-gnn-5', after: ['gnesta-norr', 5], adds: [] },
   { id: 'mb-1', map: 'molnbo', day: 1, adds: [] },
-  { id: 'mb-2', map: 'molnbo', day: 2, adds: [] },
+  { id: 'mb-2', map: 'molnbo', day: 2, adds: ['garrison'] },
   { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train'] },
-  { id: 'mb-4', map: 'molnbo', day: 4, adds: [] },
-  { id: 'mb-5', map: 'molnbo', day: 5, adds: [] },
+  { id: 'mb-4', map: 'molnbo', day: 4, adds: ['holdFire'] },
+  { id: 'mb-5', map: 'molnbo', day: 5, adds: ['overrun'] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];
 export const stageIndex = id => STAGES.findIndex(s => s.id === id);
