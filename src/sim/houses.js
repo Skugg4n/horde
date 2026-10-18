@@ -104,7 +104,7 @@ export function pickWindows(p, h, count, radius, weight) {
     let seen = 0, fx = 0, fz = 0;
     const c = p.center(e.key);
     for (const k of s.keys) { const q = p.center(k), wt = weight ? weight[k] : 1; seen += wt; fx += (q.x - c.x) * wt; fz += (q.z - c.z) * wt; }
-    const x = c.x + e.out[0] * p.size * 0.45, z = c.z + e.out[1] * p.size * 0.45;
+    const x = c.x + e.out[0] * p.size * 0.75, z = c.z + e.out[1] * p.size * 0.75;
     return { cell: e.key, x, z, out: e.out, face: seen ? Math.atan2(fz, fx) : Math.atan2(e.out[1], e.out[0]), sight: s, seen };
   });
   cands.sort((a, b) => b.seen - a.seen || a.cell - b.cell);

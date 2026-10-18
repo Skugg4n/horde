@@ -71,7 +71,14 @@ export function createRig({ camera, map, fill, dom, holding = () => false }) {
   const onWheel = e => {
     if (!canPan || !active) return;
     e.preventDefault();
+    // 0.18.0 (speltestet av 0.17.2: "klocktornet försvann ur bild när jag zoomade på det"): zoomen går mot pekaren.
+    // Punkten på marken under pekaren står kvar på samma ställe på skärmen.
+    const r = dom.getBoundingClientRect(), px = e.clientX - (r.left + r.width / 2), py = e.clientY - (r.top + r.height / 2);
+    const s0 = innerWidth / innerHeight < 1 ? 1.5 : 1;
+    const before = view;
     view = Math.min(zMax, Math.max(zMin, view * Math.exp(e.deltaY * 0.001)));
+    const dk = (before - view) * s0 / innerHeight;
+    if (dk && Number.isFinite(px) && Number.isFinite(py)) target.addScaledVector(R, px * dk).addScaledVector(D, py * dk / PITCH);
     apply();
   };
   const onKey = e => {

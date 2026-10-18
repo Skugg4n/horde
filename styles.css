@@ -337,6 +337,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .panel .info.moving { font-size: 13px; color: #d9a441; margin-top: 8px; letter-spacing: 0.04em; }
 /* 0.17.2 (H305): enhetens panel har fast bredd; text radbryts i stället för att panelen växer (granatlådan) */
 .panel.unit { width: 540px; box-sizing: border-box; }
+/* 0.18.0 (speltestet av 0.17.2: höjden bytte vid köp): fast höjd när panelen har sina knappar */
+.panel.unit.full { height: 372px; display: flex; flex-direction: column; }
+.panel.unit.full .body { flex: 1; overflow-y: auto; min-height: 0; }
+.act.done { opacity: 0.55; cursor: default; }
+.act.done .p { color: #9fc46a; }
 .panel.unit .acts { flex-wrap: wrap; }
 .panel.unit .act { min-width: 0; flex: 1 1 110px; }
 .panel.unit .info, .panel.unit .msg { overflow-wrap: anywhere; }
@@ -977,3 +982,47 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.17.2: Quick jump i debugmenyn */
 #debug .row.quick { gap: 4px; }
 #debug .row.quick > label:first-child { width: 100%; }
+
+/* ---------- 0.18.0 (skiva 1): enheternas läge, sanity, korselden, tabellen i Field manual ---------- */
+.sqtag.inf { color: #c9d6a0; border-color: #c9d6a0; }
+.ustat { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+.ustat.squad { transform: translate(-50%, 6px); }
+.ustat .sbar { position: relative; width: 34px; height: 4px; background: rgba(12,13,11,0.75); border: 1px solid rgba(233,223,201,0.45); border-radius: 1px; overflow: hidden; }
+.ustat .sbar[hidden] { display: none; }
+.ustat .sbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #c9d6a0; transition: width 0.25s, background 0.25s; }
+.ustat .sbar[data-st="shaken"] i { background: #d9b441; }
+.ustat .sbar[data-st="wavering"] i { background: #d77a2c; }
+.ustat .sbar[data-st="breaking"] i { background: #c8452f; }
+.ustat .chips { display: flex; gap: 3px; }
+.ustat .chips b { font: 600 9px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; padding: 0 3px; color: var(--paper); background: rgba(12,13,11,0.78); border: 1px solid rgba(233,223,201,0.35); border-radius: 1px; white-space: nowrap; }
+.ustat .chips b.bad { color: #f0a07a; border-color: #c8452f; }
+.ustat .chips b.hold { color: #9fd3e8; border-color: #6fa8bd; }
+.ustat .chips b.ammo { color: #e3c06a; border-color: #b8933a; }
+.ustat .chips b.tired { color: #b8b0a0; }
+.ustat.waver .sbar { box-shadow: 0 0 6px 1px #d77a2c; }
+.ustat.broke .sbar { animation: ubroke 0.5s steps(2) 5; box-shadow: 0 0 10px 2px #c8452f; }
+@keyframes ubroke { 50% { opacity: 0.2; } }
+.panel .info.ustate { font-size: 13px; color: var(--paper-dim); min-height: 1.3em; margin: 2px 0 6px; }
+.panel .info.ustate.low { color: #f0a07a; }
+.panel .acts.orders { margin: 6px 0; }
+.panel .acts.orders .act { min-width: 100px; }
+.mtab { width: 100%; border-collapse: collapse; margin: 8px 0; font: 500 11px 'IBM Plex Mono', monospace; }
+.mtab th, .mtab td { text-align: left; padding: 2px 6px 2px 0; border-bottom: 1px solid rgba(233,223,201,0.15); white-space: nowrap; }
+.mtab th { color: var(--paper-dim); font-weight: 600; }
+/* rekvisitionens streck och skadeklasser, tröttheten i förrådet */
+.depot .req .bars { grid-column: 1 / span 2; display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 4px; align-items: center; }
+.depot .req .sb { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--paper-dim); letter-spacing: 0.04em; }
+.depot .req .sb em { font-style: normal; }
+.depot .req .sb u { display: inline-flex; gap: 2px; text-decoration: none; }
+.depot .req .sb s { display: inline-block; width: 6px; height: 7px; background: rgba(233,223,201,0.15); text-decoration: none; }
+.depot .req .sb s.on { background: #d9a441; }
+.depot .req .dcls { display: inline-flex; gap: 3px; color: var(--paper); margin-left: auto; }
+.depot .req .dcls svg { width: 14px; height: 14px; }
+.depot .fat { white-space: nowrap; }
+.depot .fat s { display: inline-block; width: 5px; height: 9px; margin-left: 1px; background: #9fc46a; text-decoration: none; vertical-align: -1px; }
+.depot .fat.f1 s:nth-child(3) { background: rgba(233,223,201,0.2); }
+.depot .fat.f1 s { background: #d9b441; }
+.depot .fat.f1 s:nth-child(3) { background: rgba(233,223,201,0.2); }
+.depot .fat.f2 s { background: rgba(233,223,201,0.2); }
+.depot .fat.f2 s:first-of-type { background: #c8452f; }
+.depot .fat.f1, .depot .fat.f2 { color: #e8c48a; }

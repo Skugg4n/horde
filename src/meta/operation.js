@@ -463,7 +463,7 @@ export function debugDepot(p, preset, list = []) {
 }
 // Hoppa till en sektor och dag (debugmenyn): banorna före räknas som klara och sektorns dagar före
 // som vunna, så att leveranserna och trupperna är där en spelare som kommit dit har dem.
-export function debugReach(p, mapId, day) {
+export function debugReach(p, mapId, day, fresh = false) {
   const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];
   const maps = { ...p.maps };
   for (const id of order) {
@@ -473,12 +473,23 @@ export function debugReach(p, mapId, day) {
   }
   const st = mapState(p, mapId);
   maps[mapId] = { ...st, unlockedDay: Math.max(st.unlockedDay, Math.min(day, MAPS[mapId].days.length)) };
-  const q = syncOperation({ ...p, mapId, maps });
+  let q = syncOperation({ ...p, mapId, maps });
+  const pool = poolOf(mapId);
   // 0.17.1: en sektor med en känd ankomst (src/data/arrival.js ARRIVAL_TROOP) får den truppen och forskningen, så att
   // ett hopp dit spelas som balansen räknar (förut nivå 1 rakt igenom)
+  // 0.18.0 (speltestet av 0.17.2: Quick jump till Ishallen efter ett hopp till Mölnbo gav ingen trupp): ett hopp byter
+  // bara truppen i sektorn man hoppar till (förut tog ett hopp till Mölnbo alla andra sektorers trupper). Har sektorn
+  // ingen trupp (leveranserna har redan getts i sparfilen) får den truppen en ny kampanj har där den dagen.
   const t = ARRIVAL_TROOP[mapId];
-  if (!t) return q;
   let uid = q.op.nextUid ?? 1;
+  const others = q.op.units.filter(u => u.sector !== pool);
+  if (!t) {
+    if (fresh || unitsIn(q, mapId).length) return q;
+    const f = debugReach(newCampaign(), mapId, day, true);
+    const units = unitsIn(f, mapId).map(u => ({ ...u, uid: uid++ }));
+    return { ...q, op: { ...q.op, units: [...others, ...units], nextUid: uid } };
+  }
   const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
-  return { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units, nextUid: uid } };
+  q = { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units: [...others, ...units], nextUid: uid } };
+  return q;
 }
