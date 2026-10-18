@@ -12,6 +12,7 @@ import { inArsenal } from '../sim/stats.js';
 import { buyState, inBar } from '../sim/buy.js';
 import { COVER, SQUAD, squadSize } from '../sim/squad.js';
 import { money } from './format.js';
+import { waveLabel } from './hud.js';
 import { movePhase, gunCount, canMoveType, frontage, allowed } from '../sim/sim.js';
 
 const REASONS = {
@@ -524,7 +525,7 @@ export function dayIntro(root, dayCfg, cash, onGo) {
 // 0.16.0 (inlärningen): RP syns först när förrådet öppnar (showRp), på E4 bara VICTORY och radion. next: knappen
 // efter en vunnen dag ('Operations map', eller 'Next day' innan kartan är upplåst). manualHint: efter en förlust
 // ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null }, { onRetry, onOpMap, onMenu, onManual }) {
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
@@ -552,6 +553,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   // 0.14.2 (speltestet: "Waves cleared 1 of 3" på Gnesta trots "Day 1 held"): en evakueringsdag tar slut när
   // de civila är inne, så vågorna räknas inte där; i stället hur många som kom fram.
   const waveFact = evac && won ? `<div><span>Civilians safe</span><b>${evac.safe} of ${evac.total}</b></div>`
+    : wave != null ? `<div><span>Reached</span><b>${waveLabel({ wave, of: waves }, wavesCleared)}</b></div>`
     : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">${next}</span><kbd>Enter</kbd></button>`

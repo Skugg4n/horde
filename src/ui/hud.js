@@ -50,6 +50,13 @@ export function waveCounts(sim) {
   }
   return { wave: i + 1, of: waves.length, total, left, alive, queued: started ? queued : left };
 }
+// 0.17.1 (speltestet av 0.17.0: HUD:en sa "Wave 4 of 5" och resultatet "1 of 5" klarade): EN rad för vågen, som
+// plåten och resultatskylten båda visar. c: waveCounts(sim) (wave, of) och cleared: klarade vågor (sim.waveIndex).
+// Med flera vågor igång samtidigt (överlapp) säger raden också hur många som är klarade.
+export function waveLabel(c, cleared = null) {
+  const base = `Wave ${c.wave} of ${c.of}`;
+  return cleared != null && cleared < c.wave && cleared > 0 ? `${base} · ${cleared} cleared` : base;
+}
 // Vad som ännu kommer från varje ingång: före en våg hela vågens grupper, under vågen de som inte släppts (och
 // med överlapp nästa vågs grupper). Summan över ingångarna plus de vilande i husen är waveCounts().queued.
 // Map ingång -> [[typ, antal], ...] i fast ordning per typ.
@@ -154,7 +161,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   function update(sim) {
     const c = waveCounts(sim);
     set(el.day, String(sim.day).padStart(2, '0'));
-    set(el.wave, `Wave ${c.wave} of ${c.of}`);
+    set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
     // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut
     set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : sim.phase === 'won' && sim.evac && c.left ? 'Civilians safe' : `${c.left} of ${c.total} left`);

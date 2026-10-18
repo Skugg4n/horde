@@ -11,7 +11,7 @@ import { createRig } from './render/camera-rig.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
-import { mountHud, waveText, comingBySpawn } from './ui/hud.js';
+import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
@@ -930,7 +930,8 @@ function handleEvents() {
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
   const ovKey = 'overlap-' + map.id;
   if (sim.dayCfg.overlap != null && sim.phase === 'wave' && sim.nextWaveIn != null && !hintSeen(progress, ovKey)) {
-    note(uiRoot, 'Waves overlap here. Keep the line.');
+    // 0.17.1: en varning (Mölnbo: överlappen kommer först dag 3)
+    note(uiRoot, 'Waves overlap here. Keep the line.', 'warn');
     progress = markHintSeen(progress, ovKey); save();
   }
   // Granattillsatsens små smällar skakar inte bilden, bara granatlådans.
@@ -953,7 +954,14 @@ function handleEvents() {
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
     // 0.17.0-molnbo: tåget går (Mölnbo dag 3 till 5)
-    else if (ev.t === 'trainGone') { scene.userData.molnbo?.depart(); note(uiRoot, ev.last ? 'The last train north is away. Mölnbo held.' : 'The train is away with everyone on board.'); }
+    // 0.17.1 (speltestet av 0.17.0: "själva avgången hann jag aldrig se"): ett ögonblick för sig. Kameran glider till
+    // tåget som rullar ut, raden säger det, och lugnet före VICTORY är längre (TRAIN_PAUSE)
+    else if (ev.t === 'trainGone') {
+      scene.userData.molnbo?.depart();
+      const t = sim.map.x60;
+      if (t && rig) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
+      note(uiRoot, ev.last ? 'The last train north is away. Mölnbo held.' : 'The train is away with everyone on board.', '', { prio: true, ms: 6000 });
+    }
     else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
@@ -1286,7 +1294,10 @@ function updateRoutes() {
       const i = nowPaths.findIndex((q, j) => q.cells.join() !== before[j]?.cells.join());
       if (i >= 0) {
         const street = rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i].cells, nowPaths[i].cells);
-        if (!(routeFlash > 0)) note(uiRoot, street ? `Horde rerouting via ${street}` : 'Horde rerouted', 'warn');
+        // 0.17.1 (speltestet: "barriären går inte att ångra"): efter en egen spärr säger raden hur den rivs
+        const own = Object.keys(sim.obstacles).length > 0 && sim.phase === 'build' && !isSeen(progress, 'tip.removeBlock');
+        if (!(routeFlash > 0)) note(uiRoot, (street ? `Horde rerouting via ${street}.` : 'Horde rerouted.') + (own ? ' Click a barricade to remove it.' : ''), 'warn', own ? { ms: 6000 } : undefined);
+        if (own) { progress = markSeen(progress, 'tip.removeBlock'); save(); }
         routeFlash = 4;
       }
     }
@@ -1949,7 +1960,8 @@ function finishDay() {
   });
   lastResult = {
     won, day, rp: f.rp, attempt: f.attempt, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac } : null,
-    wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lastDay: day >= map.days.length, losses,
+    // 0.17.1: samma våg som plåten uppe till vänster visade (hud.js waveCounts och waveLabel)
+    wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, wave: waveCounts(sim).wave, lastDay: day >= map.days.length, losses,
   };
   showResult();
   // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången
@@ -2176,6 +2188,8 @@ const menu = mountMenu(uiRoot, {
 
 let last = performance.now(), time = 0;
 const VICTORY_PAUSE = 2.6, VICTORY_LINE_AT = 0.7;
+// 0.17.1: tågets avgång (Mölnbo dag 3 till 5): tåget rullar ut, raden står, sedan lugnet och VICTORY
+const TRAIN_PAUSE = 6.5, TRAIN_LINE_AT = 3.2;
 let victoryWait = null;
 const clock = { acc: 0 };
 function tick(now) {
@@ -2192,8 +2206,9 @@ function tick(now) {
   if (mode === 'play' && sim.phase === 'won') {
     if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
     if (!paused) victoryWait.t += frameDt * speed;
-    if (!victoryWait.told && victoryWait.t >= VICTORY_LINE_AT) { victoryWait.told = true; hud.banner('Sector quiet', VICTORY_PAUSE - VICTORY_LINE_AT + 0.4); }
-    if (victoryWait.t >= VICTORY_PAUSE) { victoryWait = null; finishDay(); }
+    const trainBeat = !!sim.train?.gone, pause = trainBeat ? TRAIN_PAUSE : VICTORY_PAUSE, lineAt = trainBeat ? TRAIN_LINE_AT : VICTORY_LINE_AT;
+    if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : 'Sector quiet', pause - lineAt + 0.4); }
+    if (victoryWait.t >= pause) { victoryWait = null; finishDay(); }
   } else if (mode === 'play' && sim.phase === 'lost') finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons();

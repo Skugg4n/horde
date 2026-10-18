@@ -57,3 +57,23 @@ test('evakueringen vinner dagen mitt i en våg: räknaren säger hur många som 
   assert.equal(c.left, alive);
   assert.ok(c.total >= c.left);
 });
+
+// 0.17.1 (speltestet av 0.17.0: plåten sa "Wave 4 of 5" medan resultatet sa 1 of 5 klarade): plåten och resultatet
+// läser samma rad (hud.js waveLabel), också när flera vågor är igång samtidigt och dagen förloras mitt i dem.
+test('en källa för vågen: plåten och resultatet säger samma våg när vågorna överlappar', async () => {
+  const { molnbo } = await import('../src/data/molnbo.js');
+  const { waveLabel } = await import('../src/ui/hud.js');
+  const { createSim: cs, startWave: sw, step: st } = await import('../src/sim/sim.js');
+  const g = (n, spawn) => ({ type: 'walker', count: n, interval: 0.2, delay: 0, spawn });
+  const day = { n: 1, startCash: 0, overlap: 2, waves: [1, 2, 3, 4, 5].map(() => ({ groups: [g(6, 's2')] })) };
+  const sim = cs({ map: { ...molnbo, baseHp: 3, days: [day] }, day: 1, cash: 0 });
+  sw(sim);
+  let plate = null;
+  while (sim.phase !== 'lost' && sim.time < 600) { st(sim, 0.1); if (sim.phase === 'wave') plate = waveLabel(waveCounts(sim), sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null); }
+  assert.equal(sim.phase, 'lost');
+  assert.ok(sim.wavesStarted > sim.waveIndex + 1, `${sim.wavesStarted} igång, ${sim.waveIndex} klarade`);
+  // resultatet (main.js finishDay: wave = waveCounts(sim).wave) och plåten säger samma våg
+  const result = waveLabel({ wave: waveCounts(sim).wave, of: 5 }, sim.waveIndex);
+  assert.equal(result.split(' · ')[0], plate.split(' · ')[0]);
+  assert.match(result, new RegExp(`^Wave ${sim.wavesStarted} of 5`));
+});
