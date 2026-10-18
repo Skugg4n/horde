@@ -25,9 +25,15 @@ export { CELL_LEN } from './cells.js';
 export const COUNTDOWN = 15;        // sekunder från klarad våg till nästa startar av sig själv
 export const EARLY_PER_SEC = 2;     // pengar per sekund som sparas
 export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många sekunder kvarvarande spawn
-// dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg startar så många sekunder efter att
-// föregående våg kommit ut helt, även om dess zombier fortfarande är på väg. Annars väntar den tills
-// vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
+// dayCfg.overlap (0.10.1, banor med långa vägar): nästa våg kan komma medan föregående fortfarande är på väg.
+// Annars väntar den tills vågen är klar (COUNTDOWN). Klaras vågen före är nedräkningen minst COUNTDOWN.
+// 0.18.1 (speltestet av 0.18.0: Mölnbo dag 5 hade alla fem vågor ute inom fyra minuter, Vikingavägen dag 4 310
+// zombier samtidigt, och då spelade inga val någon roll): förut startade nästa våg dayCfg.overlap sekunder efter att
+// föregående kommit ut, hur det än gick. Nu kommer nästa våg av sig själv först när (1) alla äldre vågor är klara,
+// (2) den senaste har kommit ut helt och (3) OVERLAP_SPENT av den är döda eller framme vid basen, eller
+// dayCfg.overlap sekunder har gått sedan den kom ut (den långa klockan). Sedan en nedräkning på OVERLAP_BEAT s, en
+// paus där de nya verben hinner användas. Utan att spelaren kallar tidigt är alltså högst två vågor igång.
+export const OVERLAP_SPENT = 0.7, OVERLAP_BEAT = 12;
 
 // ---------- debugmenyns reglar (0.12.2) ----------
 // tweaks: multiplikatorer som debugmenyn ändrar live (zombiernas hp och fart, antalet i varje grupp,
@@ -237,6 +243,7 @@ function launch(sim) {
   sim.wavesStarted++;
   sim.phase = 'wave';
   sim.nextWaveIn = null;
+  sim.waveOutAt = null;
   sim.events.push({ t: 'waveStart', index });
   return index;
 }
@@ -291,7 +298,7 @@ export function earlyBonus(sim) {
   if (sim.nextWaveIn != null) return Math.ceil(sim.nextWaveIn - 1e-6) * EARLY_PER_SEC;
   const q = sim.spawnQueue;
   const spawnLeft = q.length ? Math.max(0, q[q.length - 1].at - sim.time) : 0;
-  return Math.round(((sim.dayCfg.overlap ?? countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
+  return Math.round(((sim.dayCfg.overlap != null ? OVERLAP_BEAT : countdownOf(sim)) + Math.min(EARLY_MAX_SPAWN, spawnLeft)) * EARLY_PER_SEC);
 }
 
 // Zombier som är kvar av vågorna som är igång: levande plus de som ännu inte kommit fram.
@@ -353,7 +360,36 @@ function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door
     z.lead = true;
   }
   sim.zombies.push(z);
+  (sim.waveSpawned ??= [])[wave] = (sim.waveSpawned[wave] ?? 0) + 1;
   sim.events.push({ t: 'spawn', id: z.id });
+}
+
+// Överlappens grind (0.18.1, se OVERLAP_SPENT): öppen när nästa våg får börja räknas ned på en dag med överlapp.
+// more: hur många till av den senaste vågen som ska ned innan dess (0 när den långa klockan gått ut), wait: sekunder
+// kvar av den långa klockan, older: äldre vågor som inte är klara. Ren funktion av läget.
+// De som står vid basens dörr (map.door, Mölnbo och ishallen) räknas som ute: de är förbi försvaret och tar sig in en i
+// taget. En våg är igång (onRoad) så länge någon av dess zombier inte släppts än eller går levande utanför dörren.
+const onRoad = z => !z.dead && !z.atDoor;
+export function wavesOnRoad(sim) {
+  const on = new Set();
+  for (const q of sim.spawnQueue) on.add(q.wave);
+  for (const z of sim.zombies) if (onRoad(z)) on.add(z.wave);
+  return on;
+}
+export function overlapGate(sim) {
+  const latest = sim.wavesStarted - 1, ov = sim.dayCfg.overlap;
+  if (ov == null || latest < 0) return { open: false, more: 0, wait: null, older: 0 };
+  const on = wavesOnRoad(sim);
+  let older = 0;
+  for (let k = 0; k < latest; k++) if (on.has(k)) older++;
+  let queuedN = 0, alive = 0;
+  for (const q of sim.spawnQueue) if (q.wave === latest) queuedN++;
+  for (const z of sim.zombies) if (onRoad(z) && z.wave === latest) alive++;
+  const queued = queuedN > 0, total = (sim.waveSpawned?.[latest] ?? 0) + queuedN;
+  const more = Math.max(0, alive + queuedN - Math.floor((1 - OVERLAP_SPENT) * total + 1e-9));
+  const wait = queued || sim.waveOutAt == null ? null : Math.max(0, ov - (sim.time - sim.waveOutAt));
+  const open = !older && !queued && (more === 0 || wait === 0);
+  return { open, more: wait === 0 ? 0 : more, wait, older };
 }
 
 function ageCorpses(sim, dt) {
@@ -388,7 +424,8 @@ export function step(sim, dt) {
   // Överlapp: nedräkningen till nästa våg börjar när vågen kommit ut helt.
   const ov = sim.dayCfg.overlap;
   if (ov != null && hasNextWave(sim) && !sim.spawnQueue.length) {
-    if (sim.nextWaveIn == null) sim.nextWaveIn = ov;
+    sim.waveOutAt ??= sim.time;
+    if (sim.nextWaveIn == null) { if (overlapGate(sim).open) sim.nextWaveIn = OVERLAP_BEAT; }
     else { sim.nextWaveIn -= dt; if (sim.nextWaveIn <= 1e-6) launch(sim); }
   }
   runSoldiers(sim, dt);
@@ -438,9 +475,13 @@ function checkCleared(sim) {
   else if (sim.waveIndex === sim.wavesStarted) { sim.phase = 'build'; sim.nextWaveIn = Math.max(sim.nextWaveIn ?? 0, countdownOf(sim)); }
 }
 
+// 0.18.1 (funnet under vågpasset: Mölnbo dag 4 stod 57 zombier i sju minuter och slog på ett hus där hela gruppen
+// redan låg): ett hus med garnison går att storma så länge någon är kvar inne. Är dörren inslagen och alla nere går
+// horden vidare.
+const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every(s => s.down) : g.silent));
 function moveZombies(sim, dt) {
   const hitCells = new Set();
-  const troops = activeSoldiers(sim), hurt = new Set(), others = exposedUnits(sim), crews = crewTargets(sim), held = sim.guns.filter(g => g.house);
+  const troops = activeSoldiers(sim), hurt = new Set(), others = exposedUnits(sim), crews = crewTargets(sim), held = sim.guns.filter(manned);
   for (const z of sim.zombies) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
@@ -572,6 +613,19 @@ function runSoldiers(sim, dt) {
       if (s.path.d >= s.path.len - 1e-9) { s.path = null; s.run = 0; s.from = null; }
     } else if (s.run > 0) { s.run = Math.max(0, s.run - dt); if (!s.run) s.from = null; }
   }
+  // 0.18.1 (H426): framme vid dörren går gruppen in
+  for (const g of sim.guns) if (g.squad && g.enter && g.soldiers.every(s => s.down || (!s.path && !(s.run > 0)))) enterHouse(sim, g);
+}
+// Gruppen eller laget som sprungit till dörren går in i huset (samma som uppställningens flytt in).
+function enterHouse(sim, g) {
+  const e = g.enter;
+  delete g.enter;
+  if (g.retreat || g.silent || (g.squad && g.soldiers.every(s => s.down))) return;
+  const h = houseById(sim.map, sim.place, e.house);
+  if (!h || (sim.brokenHouses ?? []).includes(h.id) || sim.guns.some(q => q !== g && q.house?.id === h.id)) return;
+  occupyHouse(sim, g, h, g.squad ? g.soldiers.length : 0);
+  g.cell = e.key; g.weapon.targetId = null;
+  sim.events.push({ t: 'enteredHouse', gunId: g.id, house: h.id, x: h.x, z: h.z });
 }
 function activeSoldiers(sim) {
   const out = [];
@@ -973,7 +1027,8 @@ export function checkMove(sim, id, key, via = [], { path = true } = {}) {
   if (key === g.cell) return { ok: false, reason: 'samma' };
   const c = checkSpot(sim, key, g.weapon.type, { ignore: id });
   if (!c.ok) return c;
-  if (path && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
+  // 0.18.1 (H426): in i ett hus går vägen till dörren (moveGun), inte till rutan i huset
+  if (path && c.house == null && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
   return c;
 }
 // Gruppens nya rutor om den flyttas till key (spöket i handen).
@@ -1003,9 +1058,47 @@ export function moveGun(sim, id, key, opts = {}) {
   if (!check.ok) return check;
   const g = gunOf(sim, id), type = g.weapon.type, c = sim.place.center(key), def = WEAPONS[type];
   const running = !opts.instant && clock(sim);
-  // 0.18.0: in i ett hus bara i uppställningen (Reposition); mitt i en våg ställs en enhet i ett hus ur reserven
+  // 0.18.0: in i ett hus i uppställningen (Reposition) direkt.
+  // 0.18.1 (H426, Olas speltest: Mölnbo dag 2 lär ut husen, men flytten in mitt i en våg nekades): mitt i en våg
+  // springer gruppen, eller laget som bär sin Ksp 90 eller Ksp 58, längs vägen till husets dörr (den gångbara ruta vid
+  // huset som är närmast) i vanlig flyttfart. På vägen skjuter de inte och går att slå på, som vid varje Move. Framme
+  // går de in (enterHouse). Står de döda vid dörren, eller är huset redan inslaget i dag, nekas flytten.
+  if (check.house != null && running) {
+    const h = houseById(sim.map, sim.place, check.house);
+    if ((sim.brokenHouses ?? []).includes(h.id)) return { ok: false, reason: 'hus bruten' };
+    for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(sim.place.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; }
+    const at = g.squad ? (unitPos(g) ?? g) : { x: g.x, z: g.z };
+    let door = -1, dd = Infinity;
+    for (const k of [...h.touch].sort((a, b) => a - b)) { const q = sim.place.center(k), d = Math.hypot(q.x - at.x, q.z - at.z); if (d < dd - 1e-9) { dd = d; door = k; } }
+    const dc = door >= 0 ? sim.place.center(door) : null;
+    if (g.house) g.house = null;
+    if (g.squad) {
+      const speed = def.speed ?? MOVE_RUN;
+      const routes = g.soldiers.map(q => (q.down ? null : crewPathTo(sim, q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z }, door)));
+      if (!dc || g.soldiers.some((q, i) => !q.down && !routes[i])) return { ok: false, reason: 'ingen väg' };
+      g.soldiers.forEach((q, i) => {
+        if (q.down) return;
+        const from = q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z };
+        Object.assign(q, { targetId: null, rise: 0, risen: false, from, path: { ...routes[i], d: 0 }, speed, mv: (q.mv ?? 0) + 1, x: dc.x, z: dc.z, cell: door });
+        q.run = q.runTotal = routes[i].len / speed;
+      });
+      Object.assign(g, { x: dc.x, z: dc.z, cell: door });
+    } else {
+      const path = dc && crewPathTo(sim, { x: g.x, z: g.z }, door);
+      if (!path) return { ok: false, reason: 'ingen väg' };
+      const mi = def.move, crew = mi.crew ?? 0, from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
+      Object.assign(g, { x: dc.x, z: dc.z, y: 0, roof: false, cell: door });
+      delete g.emplace; delete g.turn;
+      g.move = { t: 0, pack: mi.pack, setup: mi.setup, speed: mi.speed, travel: path.len / mi.speed, path, from, crewHp: crew * CREW_HP, crewMax: crew * CREW_HP };
+      g.move.total = g.move.pack + g.move.travel + g.move.setup;
+    }
+    g.enter = { house: h.id, key };
+    g.weapon.targetId = null;
+    sim.squadPlan = null;
+    sim.events.push({ t: 'move', gunId: id, cell: key });
+    return { ok: true, id, entering: h.id };
+  }
   if (check.house != null) {
-    if (!opts.instant) return { ok: false, reason: 'hus flytt' };
     occupyHouse(sim, g, houseById(sim.map, sim.place, check.house), g.squad ? g.soldiers.length : 0);
     g.cell = key; g.weapon.targetId = null; delete g.turn; delete g.move; delete g.emplace;
     sim.squadPlan = null;
@@ -1059,7 +1152,7 @@ function runMoves(sim, dt) {
     if (g.turn) turnStep(sim, g, dt);
     if (!g.move) continue;
     g.move.t += dt;
-    if (g.move.t >= g.move.total - 1e-9) { delete g.move; sim.events.push({ t: 'moveDone', gunId: g.id }); }
+    if (g.move.t >= g.move.total - 1e-9) { delete g.move; sim.events.push({ t: 'moveDone', gunId: g.id }); if (g.enter) enterHouse(sim, g); }
   }
 }
 // Soldatens läge på väg (flytten): längs hans väg.
@@ -1427,7 +1520,7 @@ function damage(sim, z, amount, p, cls = 'small', src = null) {
   if (sim.xf?.has(z.id)) a *= 1 + CROSSFIRE.bonus;
   if (src && src.ambushUntil > sim.time) a *= HOLD.mul;
   z.hp -= a;
-  sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z, ...(take < 1 ? { armor: true } : {}) });
+  sim.events.push({ t: 'hit', id: z.id, x: p.x, z: p.z, cls, dmg: a, ...(take < 1 ? { armor: true } : {}) });
   if (z.hp <= 0 && !z.dead) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
@@ -1554,9 +1647,30 @@ function markCrossfire(sim, cells) {
     if (z.dead || k < 0) continue;
     angles.length = 0;
     for (const u of units) if (u.mask[k] && Math.hypot(p.x - u.x, p.z - u.z) <= u.r) angles.push(Math.atan2(p.z - u.z, p.x - u.x));
-    if (angles.length >= 2 && spread(angles)) { xf.add(z.id); z.xfT = sim.time; }
+    if (angles.length >= 2 && spread(angles)) {
+      // 0.18.1 (speltestet av 0.18.0: korselden syntes inte): första gången zombien hamnar i korselden (eller efter
+      // en stund utanför) en händelse, så att bilden kan visa "+20 %" över den
+      if (z.xfT == null || sim.time - z.xfT > 3) sim.events.push({ t: 'crossfire', id: z.id, x: p.x, z: p.z });
+      xf.add(z.id); z.xfT = sim.time;
+    }
   }
   sim.xf = xf;
+}
+// 0.18.1 (speltestet av 0.18.0: "korselden såg jag aldrig"): rutorna där två utställda enheters bågar skiljer minst
+// CROSSFIRE.angle grader, alltid synliga i bygget och mellan vågorna. Gångbara rutor i sikten och inom räckvidd.
+export function crossfireZones(sim) {
+  if (!allowed(sim, 'crossfire')) return [];
+  const units = fireUnits(sim);
+  if (units.length < 2) return [];
+  const seen = new Set(), out = [];
+  for (const g of sim.guns) for (const k of g.sight?.keys ?? []) {
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const q = sim.place.center(k), angles = [];
+    for (const u of units) if (u.mask[k] && Math.hypot(q.x - u.x, q.z - u.z) <= u.r) angles.push(Math.atan2(q.z - u.z, q.x - u.x));
+    if (angles.length >= 2 && spread(angles)) out.push(k);
+  }
+  return out.sort((a, b) => a - b);
 }
 // Förhandsvisningen med en enhet i handen: rutorna som skulle hamna i korseld om enheten ställs i key (vända facing).
 export function crossfirePreview(sim, key, type, facing = null) {
@@ -1910,6 +2024,8 @@ function attackHouse(sim, g, amount, hurt) {
 function breakIn(sim, g) {
   const h = g.house;
   h.broken = true; h.door = 0;
+  // 0.18.1 (H426): ett inslaget hus går inte att springa in i senare samma dag
+  (sim.brokenHouses ??= []).push(h.id);
   sim.events.push({ t: 'houseBreached', gunId: g.id, x: h.x, z: h.z });
   loseSanity(sim, g, SANITY.breakIn);
   const hurt = new Set();

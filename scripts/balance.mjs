@@ -9,7 +9,7 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
+import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
@@ -233,7 +233,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];
-  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0;
+  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0, peakWaves = 0;
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < maxTicks) {
     if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
     else if (sim.phase === 'build') {
@@ -255,7 +255,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     blastNow = false;
     if (onSecond && ticks % 30 === 0) onSecond(sim);
     if (trackSquads && ticks % 30 === 0) squads = Math.max(squads, sim.guns.filter(g => g.squad).length);
-    if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; }
+    if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; const w = wavesOnRoad(sim).size; if (w > peakWaves) peakWaves = w; }
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
     if (sim.waveIndex > waveIdx || sim.phase === 'lost' || sim.phase === 'won') {
       if (sim.waveIndex > waveIdx || sim.phase === 'lost') waves.push({ cash: sim.cash, baseHp: Math.max(0, sim.baseHp) });
@@ -266,7 +266,8 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     won: sim.phase === 'won', intelEarned: sim.intelEarned, baseHp: Math.max(0, sim.baseHp), waves: sim.waveIndex, lostBy: sim.lostBy ?? null,
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
-    peak, sim, report: dayReport(sim), cashEnd: sim.cash,
+    // 0.18.1: flest vågor ute på vägen samtidigt (src/sim/sim.js wavesOnRoad); inte i fingeravtrycket
+    peak, peakWaves, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash,
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
@@ -923,7 +924,7 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
           waveBase: r.waveLog.map(w => w.baseHp),
           // 0.14.2: förnödenheterna kvar när dagen tar slut (överskottet); inte heller i fingeravtrycket
-          cashEnd: r.cashEnd });
+          cashEnd: r.cashEnd, peakWaves: r.peakWaves, earlyCalls: r.earlyCalls });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -941,7 +942,7 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
@@ -982,7 +983,7 @@ export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
 export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function mbPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, ...r }) => (void waveBase, void cashEnd, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
   return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
 }
 
@@ -995,7 +996,7 @@ if (IS_MAIN && process.argv[2] === 'molnbo') {
     console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');
     const runs = SEEDS.map(seedOffset => molnboCampaign(policy, { seedOffset, maxAttempts: policy === 'naive' ? 4 : 6 }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${mbAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
-    for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
+    for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
   }
 } else if (IS_MAIN) {
   const only = process.argv[2];

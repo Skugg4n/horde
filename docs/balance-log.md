@@ -1034,3 +1034,47 @@ Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 till 3 och Ishallen dag 1 (de
 - skilled: gnesta 2 1f306f99, gnesta 3 ce96f7c9, gnesta 4 be55cf8c, gnesta 5 3f05462b, gnesta-norr 1 6c0f73e7, gnesta-norr 2 91754a0f, gnesta-norr 3 c44fb2a7, gnesta-norr 4 958c38e2, gnesta-norr 5 8697e30f
 - normal: gnesta 2 30e441d4, gnesta 3 174fceb0, gnesta 4 0989ad13, gnesta 5 2cb68445, gnesta-norr 1 07d6004f, gnesta-norr 2 0e7ad74e, gnesta-norr 3 bac421f0, gnesta-norr 4 a5ab6f92, gnesta-norr 5 6a048183
 - mbSmart: 56c5cd8e, e2543d9b, f7cf1b9c, 13dece00, 71682133; naive: b67298aa, 595148d1, 60aeead0, f27ce50b, 741638a5
+
+## 0.18.1: vågornas grind, förrådets banor och speltestet av 0.18.0
+
+Varför: speltestet av 0.18.0 (docs/playtests/2026-10-18-0.18.0.md) sa NEJ. På Mölnbo dag 5 var alla fem vågor ute inom fyra minuter och på Vikingavägen dag 4 gick 310 zombier samtidigt; förut startade nästa våg dayCfg.overlap sekunder efter att den förra kommit ut, hur det än gick för försvaret. Då spelar Recrew, Fall back, Håll eld och husen ingen roll, allt tystnar bara.
+
+Regeln (src/sim/sim.js overlapGate): på en dag med överlapp kommer nästa våg av sig själv först när (1) alla äldre vågor är klara, (2) den senaste har kommit ut helt och (3) 70 % av den är nere, eller dayCfg.overlap sekunder har gått sedan den kom ut (den långa klockan, samma tal som förut: 50 i Mölnbo, 60 på Vikingavägen, 100 på Ishallen dag 4 och 5). Sedan 12 s nedräkning. Zombier som står vid basens dörr (Mölnbo och ishallen tar in dem en i taget) räknas som ute. Utan tidigt kall är högst två vågor ute samtidigt; ett nytt prov (tests/wave-overlap.test.js) kör varje dag på varje bana och policyernas loggar har peakWaves (inte i fingeravtrycket).
+
+Förrådets banor (src/meta/operation.js lanes): bara stridsbanan går ut i striden. Förslaget är det policyerna redan valde (rekvisitionspris och nivå gånger 1, 0,95 eller 0,75 för trötthet); en vunnen dag nollställer valen. Det flyttar alla dagar där styrkan är större än taket.
+
+Funnet under passet: på Mölnbo dag 4 stod 57 zombier i sju minuter och slog på ett hus där hela gruppen redan låg (attackHouse gjorde ingenting och de gick aldrig vidare). Ett hus stormas nu bara så länge någon är kvar inne. Utan rättelsen fastnade kartläsaren på våg 3 med grinden.
+
+Tåget i Mölnbo: med grinden kommer vågorna ungefär var 75:e till 90:e sekund (dag 3: 0, 73, 177, 261, 356 s för kartläsaren). Med de gamla avgångarna (330, 340, 360 s) gick tåget innan sista vågen kom, och dag 3 till 5 blev för lätta (bas 18 till 20). Nu 420, 380 och 420 s.
+
+Ändrat för att hålla målen:
+- Vikingavägen dag 2 hp 4,4 till 3,5: med grinden och banorna förlorade den skickliga första försöket i en seed av fem (4,2, 4,0 och 3,8 flyttade bara förlusten till en annan seed).
+- Vikingavägen dag 3 hp 4,2 till 3,9: den skickliga förlorade första försöket i två seeds av fem med banorna.
+- Mölnbo dag 4 hp 34 till 38: med det senare tåget stod basen kvar på 13 till 15 i två seeds; dag 4 ska kosta basen (högst 12). 36 gav 13 i en seed.
+- Dagens längd för den vanliga spelaren: taket 600 till 760 s. Vikingavägen dag 3 till 5 tar nu 580 till 750 s, eftersom vågorna väntar på försvaret. Det är avsikten (varje våg ett andetag), inte ett segt försvar.
+
+Mätt (fem seeds):
+
+    skilled  alla dagar på första försöket i alla seeds
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  3  1  1  1  1  1
+    1         1  1  1  1  1  1  2  3  1  1  1  1  1
+    2         1  1  1  1  1  1  2  2  1  1  1  1  1
+    3         1  1  1  2  1  1  2  1  1  1  1  3  1
+    4         1  1  1  1  1  1  2  3  1  1  1  1  1
+
+    mbSmart  alla dagar på första försöket; bas dag 4: 4, 5, 8, 10, 11; topp 170 till 177 levande
+    naive    M1 M2 M3 klarade, fast på dag 4 i alla seeds; topp 137 till 169
+
+Flest vågor ute samtidigt utan tidigt kall: 2 på varje dag, alla policyer. Toppen i Mölnbo sjönk från 205 till 250 (0.18.0) till 170 till 177.
+
+Ishallen dag 1 (speltestet: vunnen med 5 dödade): mätt utan att ändra. Utan trupp faller sju civila (need 18 av 24) och dagen förloras; med de frivilliga vid ishallens dörr likaså. Den vanliga spelaren skjuter 14 till 15 och räddar 19 till 20, kartläsaren 10 till 12 och räddar 21 till 23. Dagen kräver alltså försvar av korsningarna; få dödade betyder att de frivilliga stod rätt, inte att dagen är gratis. Nytt prov: tests/evac-defence.test.js.
+
+Huvudlöst (scripts/slice1-check.mjs, speltestet hann inte se dem): pansrade tar 23 % av småkaliberns skada per träff jämfört med vandrare och 104 % av Ksp 88:s; kryparna går genom tråden i full fart (vandrarna i 40 %) och sliter den inte; Mölnbo dag 1 till 4 med balansens uppställning vinns med högst två vågor ute; tröttheten och banorna syns i förrådet.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 till 3 (skilled även Ishallen dag 1 till 3; naive Mölnbo dag 5 nås inte):
+- skilled: gnesta 4 1b2ae109, gnesta 5 61416be7, gnesta-norr 1 3a26659c, gnesta-norr 2 fa0dc529, gnesta-norr 3 47608c3d, gnesta-norr 4 0f97d49f, gnesta-norr 5 628271bd
+- normal: gnesta 1 5c904291, gnesta 4 39099584, gnesta 5 88f88ce5, gnesta-norr 1 dbfddd7d, gnesta-norr 2 b1e0a44e, gnesta-norr 3 edf6aaf4, gnesta-norr 4 9cb081a4, gnesta-norr 5 58cf1d44
+- mbSmart: 85aa38eb, 9f8c075d, 5472293e, 2fba89fd, 78964c6b; naive: cfe6db7e, fcf87131, 0054e104, 01cd0974, 741638a5
+- simuleringens kvitto Gnesta North day 2: f734013e (Vikingavägen dag 2:s hp och grinden)

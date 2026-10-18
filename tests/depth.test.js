@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gridFromAscii } from '../src/sim/grid.js';
 import { buildPlace, KIND } from '../src/sim/placement.js';
-import { zombiePos, createSim, startWave, step, build, checkSpot, gunStats, fallBack, recrew, holdFire, setTarget, crossfirePreview, canDeploy, dayReport, RALLY_TIME, RECREW, HOLD, DEPTH_FLAGS, allowed } from '../src/sim/sim.js';
+import { zombiePos, createSim, startWave, step, build, checkSpot, gunStats, fallBack, recrew, holdFire, setTarget, crossfirePreview, canDeploy, dayReport, RALLY_TIME, RECREW, HOLD, DEPTH_FLAGS, allowed, moveGun, checkMove } from '../src/sim/sim.js';
 import { SANITY, FATIGUE, resilience } from '../src/sim/sanity.js';
 import { ZOMBIES, takeOf } from '../src/data/zombies.js';
 import { WEAPONS } from '../src/data/weapons.js';
@@ -201,6 +201,31 @@ test('trupper i hus: gruppen tar fönstren, skjuter därifrån; dörren stormas 
   const ev = run(sim, 120);
   assert.ok(ev.some(e => e.t === 'shot' && e.gunId === g.id), 'skjuter från fönstren');
   assert.ok(ev.some(e => e.t === 'houseHit'), 'stormar dörren');
+});
+
+// 0.18.1 (H426, Olas speltest): mitt i en våg springer gruppen till husets dörr, går in och skjuter från fönstren.
+test('trupper i hus mitt i en våg: gruppen springer till dörren, går in och skjuter från fönstren', () => {
+  const map = testMap(HOUSE_ROWS.map(r => r.padEnd(41, '.').slice(0, 41)), wave('walker', 6, 3), { house: HOUSE });
+  const sim = createSim({ map, day: 1, cash: 500, seed: 6, allow: ['garrison', 'sanity', 'move'] });
+  sim.maxSquads = 4;
+  assert.ok(build(sim, key(map, 4, 3), 'hv').ok);
+  const g = sim.guns[0];
+  run(sim, 3);
+  startWave(sim);
+  run(sim, 2);
+  assert.equal(sim.phase, 'wave');
+  const k = key(map, 11, 1);
+  assert.ok(checkMove(sim, g.id, k).ok, JSON.stringify(checkMove(sim, g.id, k)));
+  const r = moveGun(sim, g.id, k);
+  assert.ok(r.ok && r.entering === 'h1', JSON.stringify(r));
+  assert.ok(!g.house, 'inte inne än: de springer');
+  assert.ok(g.soldiers.some(s => s.path), 'på väg längs en väg');
+  const ev = run(sim, 60);
+  assert.equal(g.house?.id, 'h1', 'inne i huset');
+  assert.ok(ev.some(e => e.t === 'enteredHouse' && e.gunId === g.id));
+  assert.ok(g.soldiers.every(s => s.down || s.cover === 'window'));
+  const at = ev.findIndex(e => e.t === 'enteredHouse');
+  assert.ok(ev.slice(at).some(e => e.t === 'shot' && e.gunId === g.id), 'skjuter från fönstren');
 });
 
 test('korseld: två bågar som skiljer minst 60 grader ger mer skada, och förhandsvisningen visar zonen', () => {

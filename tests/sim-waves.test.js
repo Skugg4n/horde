@@ -114,19 +114,23 @@ test('nedräkningen mellan vågorna är 15 s, och en hel nedräkning är värd u
   assert.ok(COUNTDOWN * EARLY_PER_SEC >= 25 && COUNTDOWN * EARLY_PER_SEC <= 35);
 });
 
-// Överlapp (0.10.1): på en dag med overlap startar nästa våg så många sekunder efter att föregående
-// kommit ut helt, även om den fortfarande är på väg; klaras den före får spelaren minst COUNTDOWN.
+// Överlapp (0.10.1): på en dag med overlap kan nästa våg starta medan föregående fortfarande är på väg; klaras den
+// före får spelaren minst COUNTDOWN.
+// 0.18.1 (speltestet av 0.18.0, vågorna staplades): nästa våg börjar räknas ned först när vågen kommit ut och 70 % av
+// den är nere (eller den långa klockan dayCfg.overlap gått ut), och nedräkningen är OVERLAP_BEAT s. Mer i
+// tests/wave-overlap.test.js.
 const overlapMap = ov => ({ ...map, days: [{ ...map.days[0], overlap: ov,
   waves: [{ groups: [{ type: 'walker', count: 3, interval: 1, delay: 0 }] }, { groups: [{ type: 'walker', count: 2, interval: 1, delay: 0 }] }, { groups: [{ type: 'walker', count: 1, interval: 1, delay: 0 }] }] }] });
-test('overlap: nästa våg startar efter att vågen kommit ut, medan zombierna går', () => {
+test('overlap: nästa våg startar efter den långa klockan, medan zombierna går', async () => {
+  const { OVERLAP_BEAT } = await import('../src/sim/sim.js');
   const s = createSim({ map: overlapMap(6), day: 1, cash: 0, seed: 1 });
   startWave(s);
   while (s.spawnQueue.length) step(s, DT);
-  assert.equal(s.nextWaveIn, 6, 'vågen har kommit ut: nedräkningen börjar');
-  assert.equal(earlyBonus(s), 6 * EARLY_PER_SEC);
-  run(s, 5.9);
-  assert.equal(s.wavesStarted, 1);
-  run(s, 0.3);
+  assert.equal(s.nextWaveIn, null, 'vågen har kommit ut men ingen är nere: grinden är stängd');
+  run(s, 6.1);
+  assert.ok(Math.abs(s.nextWaveIn - OVERLAP_BEAT) < 0.2, `den långa klockan: nedräkningen ${s.nextWaveIn}`);
+  assert.equal(earlyBonus(s), Math.ceil(s.nextWaveIn - 1e-6) * EARLY_PER_SEC);
+  run(s, OVERLAP_BEAT + 0.2);
   assert.equal(s.wavesStarted, 2, 'våg 2 startade med våg 1 på vägen');
   assert.ok(s.zombies.some(z => !z.dead && z.wave === 0));
   assert.equal(s.nextWaveIn, null);
@@ -135,10 +139,11 @@ test('overlap: klaras vågen före nedräkningen är slut får spelaren minst CO
   const s = createSim({ map: overlapMap(3), day: 1, cash: 0, seed: 1 });
   startWave(s);
   while (s.spawnQueue.length) step(s, DT);
-  assert.equal(s.nextWaveIn, 3);
+  run(s, 3.1);
+  assert.ok(s.nextWaveIn != null);
   clearNow(s);
   assert.equal(s.phase, 'build');
-  assert.ok(Math.abs(s.nextWaveIn - COUNTDOWN) < 1e-9);
+  assert.ok(s.nextWaveIn >= COUNTDOWN - 1e-9);
 });
 
 // 0.10.2 (tempot): en grupp med lead har redan gått så många sekunder när den kommer, högst halva vägen.
