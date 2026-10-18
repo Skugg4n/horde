@@ -346,13 +346,34 @@ export function furniture(b, M, r) {
   }
 }
 // Parkerad bil, längd längs x.
+// 0.17.2 (Olas önskan): var fjärde parkerad bil är en fyrkantig Volvo-kombi (240-stil), på alla banor
+let carN = 0;
 export function car(b, M, color) {
+  if (++carN % 4 === 0) { volvoEstate(b, M, color); return; }
   b.box(M, 0, 0.62, 0, 4.3, 0.72, 1.82, color, 'paint');
   b.box(M, -0.25, 1.28, 0, 2.3, 0.62, 1.66, color, 'paint');
   b.box(M, -0.25, 1.28, 0, 2.08, 0.5, 1.7, GP.carGlass, 'glass');
   b.box(M, 0.98, 1.24, 0, 0.2, 0.46, 1.6, GP.carGlass, 'glass', 0, 0, -0.6);
   for (const [wx, wz] of [[-1.35, 0.84], [1.35, 0.84], [-1.35, -0.84], [1.35, -0.84]])
     b.put(UNIT.wheel, M, wx, 0.36, wz, 0.72, 0.26, 0.72, GP.tire, 'matte', 0, Math.PI / 2);
+}
+// Volvo 240 kombi: lång, fyrkantig, platt tak ända bak, rak baklucka, svarta stötfångare, grill med sned ribba
+// och fyrkantiga lyktor, takräcke. Samma fotavtryck som car (4,3 x 1,82 m), fram mot +x. o.burnt: utbränd.
+export function volvoEstate(b, M, color, o = {}) {
+  const body = o.burnt ? '#2a2623' : color, k = o.burnt ? 'matte' : 'paint', glass = o.burnt ? '#1c1a18' : GP.carGlass;
+  b.box(M, 0.02, 0.6, 0, 4.12, 0.62, 1.74, body, k);
+  b.box(M, -0.42, 1.2, 0, 2.95, 0.58, 1.66, body, k);
+  b.box(M, -0.42, 1.21, 0, 2.75, 0.44, 1.7, glass, o.burnt ? 'matte' : 'glass');
+  b.box(M, -0.42, 1.21, 0, 0.12, 0.46, 1.71, body, k);
+  b.box(M, 1.1, 1.18, 0, 0.18, 0.5, 1.56, glass, o.burnt ? 'matte' : 'glass', 0, 0, -0.55);
+  b.box(M, -1.92, 1.2, 0, 0.06, 0.42, 1.44, glass, o.burnt ? 'matte' : 'glass');
+  b.box(M, 2.1, 0.66, 0, 0.04, 0.24, 1.0, '#26262a');
+  b.box(M, 2.11, 0.66, 0, 0.02, 0.04, 1.04, '#b9b6ad', 'metal', 0, 0.26);
+  for (const z of [-0.64, 0.64]) b.box(M, 2.1, 0.68, z, 0.04, 0.18, 0.26, '#e6dfc4');
+  for (const x of [2.13, -2.1]) b.box(M, x, 0.4, 0, 0.14, 0.14, 1.78, '#1f1f1d');
+  for (const z of [-0.62, 0.62]) b.box(M, -0.5, 1.52, z, 2.4, 0.04, 0.05, '#2a2a28', 'metal');
+  for (const [wx, wz] of [[-1.38, 0.82], [1.32, 0.82], [-1.38, -0.82], [1.32, -0.82]])
+    b.put(UNIT.wheel, M, wx, 0.34, wz, 0.68, 0.24, 0.68, o.burnt ? '#1c1a18' : GP.tire, 'matte', 0, Math.PI / 2);
 }
 // Släpkärra, dragstången mot +x.
 export function trailer(b, M) {

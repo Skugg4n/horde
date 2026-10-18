@@ -9,7 +9,6 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { fileURLToPath } from 'node:url';
 import { gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
@@ -762,6 +761,21 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   return { ...rest, plan };
 }
 
+// 0.17.2 (debugmenyns Quick jump, Olas önskan): balanspolicyns uppställning på en dag som just startats, så att striden
+// kan börja direkt. Samma plan som playOpDay (skilled, på Mölnbo mbSmart): spärrarna, pjäserna, taken och lådorna.
+export function autoDeploy(sim, policy = sim.map.id === 'molnbo' ? 'mbSmart' : 'skilled') {
+  const P0 = POLICIES[policy], map = sim.map, day = sim.day, T = TOWN[map.id], isTown = !!T;
+  const P = { ...P0, plan: P0.planBy?.[map.id] ?? P0.plan };
+  sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
+  const canBlock = !sim.allow || sim.allow.has('block');
+  const plan = !isTown ? opPlan(map, day, null) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
+  if (P.evacMap && sim.dayCfg.evac) evacDeploy(sim);
+  if (canBlock) lay(sim, plan.lines ?? [], 'block');
+  deployAll(sim, plan);
+  if (isTown) (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]); else greedyBuild(sim, plan.guns);
+  return { ok: true, guns: sim.guns.length };
+}
+
 // Rekvisitionen mellan försöken: mål i ordning per sektor. 'unit:T:N' (minst N av typen i sektorn),
 // 'lvl:T:L' (alla av typen minst nivå L, lägsta först), 'up:X:N' (förrådets uppgradering X till nivå N).
 // Ett mål som inte är uppfyllt köps mot; går det inte att betala sparas RP till det (inget längre ned
@@ -900,7 +914,9 @@ export function mbPrints(log) {
 }
 
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
-if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === 'molnbo') {
+// 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
+const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
+if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'naive']) {
     console.log(`\n=== Mölnbo, ${policy} ===`);
     console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');
@@ -908,7 +924,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === 'm
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${mbAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
     for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
   }
-} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
+} else if (IS_MAIN) {
   const only = process.argv[2];
   const name = { riksvagen: 'E4', gnesta: 'South', 'gnesta-norr': 'North' };
   for (const policy of only ? [only] : ['skilled', 'normal']) {

@@ -405,56 +405,63 @@ export function weaponModel(type, level = 1, { kit = false, roof = false, emplac
 // En gammal A-traktor (en nedkortad bil) med svetsade plåtar i olika färger, rost, svetsfogar,
 // skottgluggar runt hytten och en Ksp 58 i takluckan med skytten upp till midjan. LGF-triangeln sitter
 // kvar bak. Origo mitt under bilen, fronten mot +x (pjäsens lokala riktning, som de andra). R: frö.
+// 0.17.2 (Olas önskan): pillboxen läses som en svensk A-traktor (EPA). En gammal fyrkantig Volvo med flaket
+// kapat bakom framsätet: motorhuven med den sneda grillribban och de fyrkantiga lyktorna, hytten med vindrutan
+// igensvetsad till en glugg, ett lågt flak bak med påsvetsade plåtar, och den orangeröda LGF-triangeln på bakluckan.
+// Kulsprutan står på flaket med skytten bakom en sköld. Lokal +x framåt.
 function epaModel(level, R) {
   const group = new THREE.Group(), body = new THREE.Group(), bags = new THREE.Group();
   group.add(body, bags);
   const plate = () => mat(P.epaBody[Math.floor(R() * P.epaBody.length)]);
   const rust = mat(P.rust), weld = mat(P.weld), dark = mat(P.gunDark), metal = mat(P.gunMetal, METAL);
-  // chassi och hjul
-  body.add(box(3.9, 0.3, 1.5, dark, 0, 0.5, 0));
-  for (const [x, z, r] of [[1.25, 0.82, 0.36], [1.25, -0.82, 0.36], [-1.2, 0.82, 0.42], [-1.2, -0.82, 0.42]]) {
-    const w = mesh(geo('cylinder', r, r, 0.26, 10), mat(P.tire), x, r, z); w.rotation.x = Math.PI / 2; body.add(w);
-    const hub = mesh(geo('cylinder', r * 0.45, r * 0.45, 0.28, 6), metal, x, r, z); hub.rotation.x = Math.PI / 2; body.add(hub);
+  const paint = mat(P.epaPaint[Math.floor(R() * P.epaPaint.length)], { roughness: 0.75 });
+  const chrome = mat('#b9b6ad', METAL), glass = mat('#2b3236', { roughness: 0.3, metalness: 0.3 }), lamp = mat('#e6dfc4');
+  // chassi och hjul (bilens hjul, lite bredare bak där flaket bär)
+  body.add(box(3.9, 0.22, 1.5, dark, 0, 0.42, 0));
+  for (const [x, z, r] of [[1.3, 0.8, 0.34], [1.3, -0.8, 0.34], [-1.25, 0.8, 0.36], [-1.25, -0.8, 0.36]]) {
+    const w = mesh(geo('cylinder', r, r, 0.24, 10), mat(P.tire), x, r, z); w.rotation.x = Math.PI / 2; body.add(w);
+    const hub = mesh(geo('cylinder', r * 0.45, r * 0.45, 0.26, 6), metal, x, r, z); hub.rotation.x = Math.PI / 2; body.add(hub);
   }
-  // nedre skrovet: plåtar sida vid sida, olika färger, lite förskjutna
-  for (let i = 0; i < 4; i++) for (const side of [-1, 1]) {
-    const x = -1.55 + i * 1.0 + (R() - 0.5) * 0.06;
-    body.add(box(0.98, 0.72 + (R() - 0.5) * 0.08, 0.06, plate(), x, 0.98, side * 0.86));
-  }
-  body.add(box(3.7, 0.08, 1.7, plate(), 0, 1.36, 0));                                   // skrovets tak
-  // motorhuven framåt, sluttande, och en plåt för grillen
-  const hood = box(1.3, 0.12, 1.6, plate(), 1.45, 1.45, 0); hood.rotation.z = -0.18; body.add(hood);
-  body.add(box(0.08, 0.72, 1.62, plate(), 2.0, 1.0, 0));
-  for (const z of [-0.3, 0, 0.3]) body.add(box(0.03, 0.06, 0.22, dark, 2.05, 1.12, z));  // gluggar i grillplåten
-  // hytten: plåtlåda med skottgluggar på alla sidor
-  const cab = new THREE.Group(); cab.position.set(-0.35, 1.4, 0); body.add(cab);
-  cab.add(box(1.9, 0.78, 1.62, plate(), 0, 0.39, 0));
-  cab.add(box(1.95, 0.07, 1.68, plate(), 0, 0.8, 0));
-  for (const [x, z, ry] of [[0.96, 0, 0], [-0.96, 0, 0], [0, 0.82, Math.PI / 2], [0, -0.82, Math.PI / 2], [0.5, 0.82, Math.PI / 2], [-0.5, -0.82, Math.PI / 2]]) {
-    const slit = box(0.04, 0.07, 0.42, dark, x, 0.5, z); slit.rotation.y = ry; cab.add(slit);
-  }
+  // Volvons kaross fram: låg fyrkantig sidkaross, platt motorhuv, grill med sned ribba, fyrkantiga lyktor, svart stötfångare
+  body.add(box(2.35, 0.55, 1.66, paint, 0.85, 0.82, 0));
+  body.add(box(1.25, 0.08, 1.62, paint, 1.4, 1.12, 0));
+  body.add(box(0.05, 0.3, 1.0, dark, 2.03, 0.86, 0));
+  const rib = box(0.02, 0.04, 1.05, chrome, 2.06, 0.86, 0); rib.rotation.x = 0.28; body.add(rib);
+  for (const z of [-0.62, 0.62]) body.add(box(0.04, 0.2, 0.3, lamp, 2.04, 0.88, z));
+  body.add(box(0.16, 0.14, 1.72, dark, 2.06, 0.55, 0));
+  // hytten: taket kvar, vindrutan igensvetsad med en glugg, sidorutorna täckta av plåt
+  const cab = new THREE.Group(); cab.position.set(0.1, 1.1, 0); body.add(cab);
+  cab.add(box(1.2, 0.62, 1.6, paint, 0, 0.31, 0));
+  cab.add(box(1.25, 0.06, 1.62, paint, -0.02, 0.64, 0));
+  const ws = box(0.06, 0.6, 1.5, plate(), 0.64, 0.33, 0); ws.rotation.z = -0.38; cab.add(ws);
+  const slit = box(0.03, 0.07, 0.6, glass, 0.7, 0.42, 0); slit.rotation.z = -0.38; cab.add(slit);
+  for (const side of [-1, 1]) { cab.add(box(0.95, 0.42, 0.04, plate(), 0, 0.36, side * 0.81)); cab.add(box(0.5, 0.06, 0.03, dark, 0.05, 0.4, side * 0.835)); }
+  // flaket bakom hytten: kapad kaross, lågt flak med plåtsidor och bakluckan
+  body.add(box(0.06, 0.95, 1.64, plate(), -0.52, 1.18, 0));
+  body.add(box(1.75, 0.08, 1.66, plate(), -1.42, 0.98, 0));
+  for (const side of [-1, 1]) for (let i = 0; i < 2; i++) body.add(box(0.86, 0.5 + (R() - 0.5) * 0.06, 0.05, plate(), -0.98 - i * 0.88 + (R() - 0.5) * 0.04, 1.27, side * 0.83));
+  body.add(box(0.06, 0.55, 1.64, plate(), -2.3, 1.22, 0));
+  body.add(box(0.12, 0.14, 1.7, dark, -2.36, 0.62, 0));
   // svetsfogar och rost
-  for (let i = 0; i < 9; i++) { const f = sbox(0.03, 0.04, 0.5 + R() * 0.6, weld, -1.6 + R() * 3.2, 0.7 + R() * 0.9, (R() < 0.5 ? -1 : 1) * 0.89); f.rotation.x = (R() - 0.5) * 0.3; f.castShadow = false; body.add(f); }
-  for (let i = 0; i < 10; i++) { const r0 = sbox(0.12 + R() * 0.3, 0.08 + R() * 0.2, 0.012, rust, -1.7 + R() * 3.4, 0.7 + R() * 0.6, (R() < 0.5 ? -1 : 1) * 0.895); r0.castShadow = false; body.add(r0); }
-  // LGF-skylten bak: orange triangel med röd kant, spetsen uppåt
+  for (let i = 0; i < 8; i++) { const f = sbox(0.03, 0.04, 0.4 + R() * 0.5, weld, -2.1 + R() * 2.6, 1.05 + R() * 0.4, (R() < 0.5 ? -1 : 1) * 0.86); f.rotation.x = (R() - 0.5) * 0.3; f.castShadow = false; body.add(f); }
+  for (let i = 0; i < 8; i++) { const r0 = sbox(0.12 + R() * 0.25, 0.08 + R() * 0.15, 0.012, rust, -1.9 + R() * 3.6, 0.65 + R() * 0.5, (R() < 0.5 ? -1 : 1) * 0.845); r0.castShadow = false; body.add(r0); }
+  // LGF-skylten bak: orangeröd triangel med röd kant, spetsen uppåt, på bakluckan
   const tri = (r, m, x) => { const t = new THREE.Mesh(new THREE.CircleGeometry(r, 3), m); t.position.set(x, 1.2, 0); t.rotation.set(0, -Math.PI / 2, Math.PI / 2); body.add(t); };
-  tri(0.34, mat(P.lgfRim), -1.98); tri(0.26, mat(P.lgf), -1.99);
-  body.add(box(0.06, 0.9, 1.62, plate(), -1.92, 0.95, 0));
-  // takluckan och kulsprutan med skytten upp till midjan
-  const ring = mesh(geo('cylinder', 0.42, 0.42, 0.1, 10), metal, -0.35, 2.25, 0); body.add(ring);
-  const pivot = new THREE.Group(); pivot.position.set(-0.35, 2.55, 0);
+  tri(0.3, mat(P.lgfRim), -2.34); tri(0.23, mat(P.lgf), -2.345);
+  // kulsprutan på flaket, skytten står bakom skölden
+  const pivot = new THREE.Group(); pivot.position.set(-1.25, 1.95, 0);
   const muzzle = new THREE.Object3D();
   muzzle.position.set(ksp58Gun(pivot, metal), 0.03, 0);
   pivot.add(muzzle);
-  gunShield(pivot, { x: 0.55, w: 0.9, h: 0.5, y: 0.08 });
+  gunShield(pivot, { x: 0.55, w: 0.9, h: 0.55, y: 0.06 });
   const gunner = soldier();
-  gunner.root.rotation.y = Math.PI / 2; gunner.root.position.set(-0.55, -1.2, 0);
+  gunner.root.rotation.y = Math.PI / 2; gunner.root.position.set(-0.5, -1.0, 0);
   gunner.shL.rotation.set(-1.15, 0, 0.1); gunner.shR.rotation.set(-1.05, 0, -0.1); gunner.elL.rotation.x = -0.45; gunner.elR.rotation.x = -0.6;
   pivot.add(gunner.root);
   group.add(pivot);
-  // nivå 2: sandsäckar på motorhuven; nivå 3: extra plåt på sidorna och en ammolåda på taket
-  if (level >= 2) sandbagArc(bags, { r: 0.55, layers: 1, n: 5, arc: 0.9, size: 0.6, y0: 1.45 }, { R });
-  if (level >= 3) { for (const side of [-1, 1]) body.add(box(2.4, 0.5, 0.05, plate(), 0, 1.0, side * 0.93)); crate(body, -1.3, 1.4, 0.3, 0.2); }
+  // nivå 2: sandsäckar på motorhuven; nivå 3: extra plåt på dörrarna och en ammolåda på flaket
+  if (level >= 2) sandbagArc(bags, { r: 0.5, layers: 1, n: 5, arc: 0.9, size: 0.55, y0: 1.72 }, { R });
+  if (level >= 3) { for (const side of [-1, 1]) body.add(box(1.6, 0.45, 0.05, plate(), 0.6, 0.85, side * 0.88)); crate(body, -2.0, 1.02, 0.45, 0.2); }
   return { group, pivot, muzzle, gunner, bags, body };
 }
 

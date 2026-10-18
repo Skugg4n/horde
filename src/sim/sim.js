@@ -913,13 +913,27 @@ export const movePreview = (sim, id, key) => {
   if (!g?.squad || !sim.place.valid(key)) return [];
   return without(sim, id, () => planSquad(sim, key, { type: g.weapon.type, count: g.soldiers.length }));
 };
-// opts: { facing, via }. via: waypoints (rutnycklar) i ordning.
+// 0.17.2 (Olas önskan): i uppställningen (byggfasen, ingen levande zombie: före första vågen och mellan vågorna) går en
+// utställd enhet att lyfta och ställa någon annanstans direkt och gratis, också en monterad pjäs och före Move är
+// upplåst. Mitt i en våg gäller Move med sin väg och tid som förut.
+export const canReposition = sim => canAct(sim) && sim.phase === 'build' && !sim.zombies.some(z => !z.dead);
+export function checkReposition(sim, id, key) {
+  const g = gunOf(sim, id);
+  if (!g) return { ok: false, reason: 'tom' };
+  if (!canReposition(sim)) return { ok: false, reason: 'fel läge' };
+  if (g.move || (g.squad && g.soldiers.some(s => s.path))) return { ok: false, reason: 'flyttar' };
+  if (key === g.cell) return { ok: false, reason: 'samma' };
+  return checkSpot(sim, key, g.weapon.type, { ignore: id });
+}
+export const repositionGun = (sim, id, key, opts = {}) => moveGun(sim, id, key, { ...opts, instant: true });
+// opts: { facing, via, instant }. via: waypoints (rutnycklar) i ordning. instant: uppställningens fria flytt
+// (checkReposition), pjäsen står på den nya platsen direkt.
 export function moveGun(sim, id, key, opts = {}) {
-  const via = opts.via ?? [];
-  const check = checkMove(sim, id, key, via);
+  const via = opts.instant ? [] : opts.via ?? [];
+  const check = opts.instant ? checkReposition(sim, id, key) : checkMove(sim, id, key, via);
   if (!check.ok) return check;
   const g = gunOf(sim, id), type = g.weapon.type, c = sim.place.center(key), def = WEAPONS[type];
-  const running = clock(sim);
+  const running = !opts.instant && clock(sim);
   if (g.squad) {
     const plan = movePreview(sim, id, key);
     if (plan.length < g.soldiers.length) return { ok: false, reason: 'trångt' };

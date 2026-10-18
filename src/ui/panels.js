@@ -274,6 +274,8 @@ export function upgradeState(s, g, { noRoom = false } = {}) {
   return { ...base, ok: true, text: money(cost), why: '' };
 }
 
+// 0.17.2: Reposition i uppställningen (före vågen och mellan vågorna): lyft enheten och ställ den någon annanstans
+const REPOS_BTN = '<button type="button" class="act" data-a="repos" title="Pick it up and set it down somewhere else. Free and instant until the wave comes. Or drag the unit."><span class="a">Reposition</span><span class="p">Free</span><kbd>M</kbd></button>';
 // Panelen för en utställd pjäs: uppgradera, granatlåda, sälj. Sikten visas av main.js.
 export function gunPanel(root, gunId, sim, actions) {
   const ui = shell(root, actions);
@@ -281,7 +283,7 @@ export function gunPanel(root, gunId, sim, actions) {
   ui.el.classList.add('unit');
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
-  const keyOf = (s, g) => `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
+  const keyOf = (s, g) => (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -302,15 +304,17 @@ export function gunPanel(root, gunId, sim, actions) {
     const minimal = core && !can('rotate');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
-      canMoveType(w.type) && can('move') ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : '',
+      // 0.17.2: i uppställningen flyttas enheten fritt och direkt (Reposition), annars Move med väg och tid
+      actions.canReposition?.() ? REPOS_BTN : canMoveType(w.type) && can('move') ? `<button type="button" class="act" data-a="move" title="${def.vehicle ? 'Crawls along the roads and grass. No fire while moving.' : 'Pack up, carry it along the way you show and set up. No fire while moving; the team can be caught.'}"><span class="a">Move</span><span class="p">${moveText(w.type)}</span><kbd>M</kbd></button>` : '',
       def.cone && can('rotate') ? `<button type="button" class="act" data-a="rotate" title="Turn the ${def.cone}° arc. It turns at its own speed and does not fire meanwhile."><span class="a">Rotate</span><kbd>R</kbd></button>` : '',
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
-    ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}`
+    ui.body.innerHTML = minimal ? `${def.vehicle ? '<p class="info armour" data-armour></p>' : ''}${actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : ''}`
       : `${can('rotate') ? outside : ''}${statLine(gunStats(s, g), !!w.ammo)}${suppliedRows(w)}
       ${acts ? `<div class="acts">${acts}</div>` : ''}${def.mounted && (!core || can('move')) ? `<p class="info mounted">${core ? "Mounted, can't move." : "Mounted, can't move. Sell it to free the spot."}</p>` : ''}${def.vehicle ? `<p class="info armour" data-armour></p>` : ''}${movingRow(g)}${can('unitSupplies') ? `<div class="acts kitrow">${kitRow}${supplyRow(w, false)}</div>` : ''}`;
     const up = ui.body.querySelector('[data-a="up"]'), sell = ui.body.querySelector('[data-a="sell"]');
     wireSupplies();
+    ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     const kit = ui.body.querySelector('[data-a="kit"]');
     const own = () => { const gg = gunOf(cur); if (gg) showRange(gg, weaponStats(gg.weapon.type, gg.weapon.level, cur.research).range); };
     if (kit) {
@@ -370,15 +374,16 @@ export function gunPanel(root, gunId, sim, actions) {
     const can = f => allowed(s, f), minimal = core && !can('rotate');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up" title="${next}"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
-      can('move') ? '<button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>' : '',
+      actions.canReposition?.() ? REPOS_BTN : can('move') ? '<button type="button" class="act" data-a="move" title="The squad runs to a new spot along the way you show. They can be caught on the way."><span class="a">Move</span><span class="p">Run</span><kbd>M</kbd></button>' : '',
       core ? '' : `<button type="button" class="act" data-a="sell"><span class="a">Sell</span><span class="p" data-p></span></button>`,
     ].join('');
     const gst = gunStats(s, g);
-    ui.body.innerHTML = minimal ? '' : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Rate <b${w.ammo ? ' class="up"' : ''}>${rateText(gst.rate)}/s</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>${suppliedRows(w)}
+    ui.body.innerHTML = minimal ? (actions.canReposition?.() ? `<div class="acts">${REPOS_BTN}</div>` : '') : `<div class="st"><span>Damage <b>${Math.round(st.damage)}</b></span><span>Range <b>${Math.round(st.range)} m</b></span><span>Rate <b${w.ammo ? ' class="up"' : ''}>${rateText(gst.rate)}/s</b></span><span>${gunName} <b>×${g.soldiers.length}</b></span></div>${suppliedRows(w)}
       <ul class="men">${men}</ul>
       ${acts ? `<div class="acts">${acts}</div>` : ''}${!core && standing < g.soldiers.length ? `<div class="acts kitrow"><button type="button" class="act" data-a="reinforce"><span class="a">Reinforce</span><span class="p" data-p></span></button></div>` : ''}${can('unitSupplies') ? `<div class="acts kitrow">${supplyRow(w, true)}</div>` : ''}`;
     const upB = ui.body.querySelector('[data-a="up"]'), sellB = ui.body.querySelector('[data-a="sell"]'), rf = ui.body.querySelector('[data-a="reinforce"]');
     wireSupplies();
+    ui.body.querySelector('[data-a="repos"]')?.addEventListener('click', () => actions.startReposition?.(gunId));
     upB?.addEventListener('click', () => { const r = actions.upgrade(gunId); if (!r.ok) ui.say(reasonText(r.reason)); });
     sellB?.addEventListener('click', () => {
       const r = actions.sell(gunId);
