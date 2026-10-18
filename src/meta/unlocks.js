@@ -27,11 +27,12 @@
 //   sanity               sanity-mätaren och dess verkan på elden, Ishallen dag 3 med Hemvärnet (dag 6)
 //   fatigue              tröttheten, i förrådet efter Vikingavägen dag 3 (frontbredden: fler enheter än platser)
 //   target               mål-läget (T), Vikingavägen dag 4 med kryparna (dag 7)
-//   rout                 routed och Fall back (G), Vikingavägen dag 5 (dag 8: sanity har funnits i flera dagar)
-//                        (Mölnbo dag 1: de pansrade, ingen flagga; fiendekortet och Strongest)
-//   garrison             trupper i hus, Mölnbo dag 2 (villagatorna; kampanjplanens Björnlunda dag 10)
+//   garrison             trupper i hus, Vikingavägen dag 5 (villagatorna; kampanjplanens Björnlunda dag 10, som inte
+//                        är byggd: närmaste karta med villagator. Kräver bara Move och Hemvärnet, som finns sedan länge)
+//   rout                 routed och Fall back (G), Mölnbo dag 1 (kampanjplanens dag 8 är Mölnbo)
+//                        (Mölnbo dag 2: de pansrade, ingen flagga; fiendekortet och Strongest, kampanjplanens dag 9)
 //   holdFire             Håll eld (H), Mölnbo dag 4 vid bron (rondellen dag 12)
-//   overrun              överrända pjäser och Recrew (C), Mölnbo dag 5 (centrum dag 16)
+//   overrun              överrända pjäser och Recrew (N), Mölnbo dag 5 (centrum dag 16)
 import { MAPS } from '../data/maps.js';
 import { mapState, mapUnlocked } from './progress.js';
 
@@ -61,11 +62,11 @@ export const STAGES = [
   { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },
   { id: 'after-gnn-3', after: ['gnesta-norr', 3], adds: ['fatigue'] },
   { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: ['target'] },
-  { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: ['rout'] },
+  { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: ['garrison'] },
   // 0.17.0-molnbo: Mölnbo. Inget nytt i gränssnittet; det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
   { id: 'after-gnn-5', after: ['gnesta-norr', 5], adds: [] },
-  { id: 'mb-1', map: 'molnbo', day: 1, adds: [] },
-  { id: 'mb-2', map: 'molnbo', day: 2, adds: ['garrison'] },
+  { id: 'mb-1', map: 'molnbo', day: 1, adds: ['rout'] },
+  { id: 'mb-2', map: 'molnbo', day: 2, adds: [] },
   { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train'] },
   { id: 'mb-4', map: 'molnbo', day: 4, adds: ['holdFire'] },
   { id: 'mb-5', map: 'molnbo', day: 5, adds: ['overrun'] },

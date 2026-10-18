@@ -53,4 +53,14 @@ export const ICONS = {
     <circle cx="14" cy="10" r="4"/><path d="M14 14 V24 M8 18 H20"/><circle cx="28" cy="10" r="4"/><path d="M28 14 V24 M22 18 H34"/>
     <path d="M40 17 H52 M48 13 L52 17 L48 21"/><circle cx="64" cy="10" r="4"/><path d="M64 14 V24 M58 18 H70"/><path d="M74 8 L84 22 M84 8 L74 22"/>
     <path d="M92 17 H100 M97 13 L100 17 L97 21"/><path d="M106 10 H116 V24 H106 Z M111 13 V21 M107 17 H115"/></g></svg>`,
+  // 0.18.0 (skiva 1): sanity (ett huvud och en darrande linje) och skadeklasserna som små tecken på korten
+  sanity: `<svg viewBox="0 0 120 34"><g ${S} stroke-width="2.2">
+    <path d="M30 28 V22 Q18 20 20 12 Q22 4 32 4 Q42 4 42 13 L45 18 H41 V23 H36 V28"/><path d="M52 17 H62 L66 9 L72 26 L77 12 L81 21 L85 17 H108"/></g></svg>`,
+};
+// Skadeklasserna (src/data/weapons.js DMG_CLASSES): en liten kula, en stor kula, en smäll.
+const D = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"';
+export const DMG_ICONS = {
+  small: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M9 20 V10 Q9 5 12 3 Q15 5 15 10 V20 Z"/><path d="M9 16 H15"/></g></svg>`,
+  heavy: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M6 22 V9 Q6 2 12 1 Q18 2 18 9 V22 Z"/><path d="M6 17 H18 M6 19.5 H18"/></g></svg>`,
+  explosive: `<svg viewBox="0 0 24 24" class="dmg"><g ${D}><path d="M12 2 L14 8 L20 5 L16 11 L22 13 L15.5 15 L18 21 L12 17 L6 21 L8.5 15 L2 13 L8 11 L4 5 L10 8 Z"/></g></svg>`,
 };

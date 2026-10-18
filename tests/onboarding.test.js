@@ -33,9 +33,9 @@ test('ett nytt begrepp per dag: E4 dag 1 har bara pjäsen, starten och basen', (
   const fresh = (m, d, pm, pd) => [...featuresFor(m, d)].filter(f => !featuresFor(pm, pd).has(f)).sort();
   assert.ok(featuresFor('gnesta', 2).has('crossfire') && !featuresFor('gnesta', 1).has('crossfire'));
   assert.deepEqual(fresh('gnesta-norr', 4, 'gnesta-norr', 3), ['fatigue', 'target']);
-  assert.deepEqual(fresh('gnesta-norr', 5, 'gnesta-norr', 4), ['rout']);
-  assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 5), []);
-  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), ['garrison']);
+  assert.deepEqual(fresh('gnesta-norr', 5, 'gnesta-norr', 4), ['garrison']);
+  assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 5), ['rout']);
+  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), []);
   assert.deepEqual(fresh('molnbo', 4, 'molnbo', 3), ['holdFire']);
   assert.deepEqual(fresh('molnbo', 5, 'molnbo', 4), ['overrun']);
   assert.ok(featuresFor('gnesta', 4).has('dormant') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
