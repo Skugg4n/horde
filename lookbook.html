@@ -51,6 +51,8 @@ import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
 import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost, crewCarryModel } from './src/render/models.js';
 import { SQUAD } from './src/sim/squad.js';
+import { bridge as mbBridge, stairTower, track, platform as mbPlatform, shelter, departureSign, catenaryPortal, meshFence, x60, folketsHus, stationHouse, cafeHarmoni,
+  missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn } from './src/render/molnbo-kit.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
 const OVERVIEW = 44, GAME = 25;
@@ -485,6 +487,50 @@ const campMen = [];
   { const p = at(4, LV + 82); gantryFrame(b, frame(null, p.x, 0, p.z, Math.PI / 4), [-6, 6], 6.6);
     scene.add(roadSign({ x: p.x, z: p.z, ry: Math.PI / 4, kind: 'green', lines: ['137 S LÄSTRINGE', 'GNESTA'], exit: true, mount: 'gantry', scale: 1.35, y0: 6.85 - 1.9 * 1.35 })); }
   label(4, LV + 82, 'Gantry', 'exit sign over the E4', 8);
+  b.flush(scene);
+}
+
+// Mölnbo (0.17.0-molnbo): bron och gångbron med trapptornen, spåret, perrongen med väntkur, avgångsskylt och
+// kontaktledning, SL:s X60, och husen som känns igen (Folkets hus, stationshuset, caféet Harmoni, Missionshuset,
+// det gula huset, kedjehusen, det vita huset, Hembygdsgården, Kvarnen, hyreshuset), trafikljus och bergskärning.
+// Samma byggsats som banan (src/render/molnbo-kit.js).
+{
+  const MV = -125, b = createBatch(), r = seeded(1018);
+  const F = (u, v, ry = -Math.PI / 4) => { const p = at(u, v); return frame(null, p.x, 0, p.z, ry); };
+  // järnvägen: lokal x längs spåret (åt höger i bilden), bron tvärs över
+  const RM = F(-6, MV + 6);
+  for (const v of [-5.5, -1, 3.8]) track(b, RM, -26, 26, v);
+  meshFence(b, RM, -26, 26, -8.5); meshFence(b, RM, -26, 26, 1.4, 1.2); meshFence(b, RM, -26, 26, 8);
+  mbBridge(b, RM, { a: [8, 16], b: [14, -16], width: 9, deck: 7, ramp: 15 }, 4.4, { corridor: [-8, 8] });
+  mbBridge(b, RM, { a: [-6, 16], b: [0, -16], width: 3.2, deck: 7, ramp: 15 }, 4.4, { foot: true, corridor: [-8, 8] });
+  stairTower(b, frame(RM, -6.5, 0, -10.5), 3.6, 5.6);
+  catenaryPortal(b, RM, -22, [-8.2, 7.6]); catenaryPortal(b, RM, 24, [-8.2, 7.6]);
+  label(-6, MV + 6, 'Road bridge, footbridge, stair tower', 'grey concrete, glass and steel railings, 4.4 m', 9);
+  // perrongen med väntkur, lampor, avgångsskylt och namnskylt
+  const PM = F(-6, MV + 34);
+  mbPlatform(b, PM, { u0: -14, u1: 14, v0: -2.5, v1: 2.5, h: 0.9 }, { edge: 1, back: true });
+  shelter(b, frame(PM, -6, 0, -0.8), 0.9);
+  scene.add(departureSign(b, frame(PM, 4, 0, 0.6), 0.9));
+  { const M = frame(PM, 10, 0, -1.6); b.box(M, -1.4, 2.1, 0, 0.12, 2.6, 0.12, '#2e3133', 'metal'); b.box(M, 1.4, 2.1, 0, 0.12, 2.6, 0.12, '#2e3133', 'metal');
+    scene.add(placeIn(signMesh('Mölnbo', 3.2, 0.7, { bg: '#2c3033', fg: '#e8e6df', font: 'Arial, sans-serif', weight: 600 }), M, 0, 3.1, 0.08)); }
+  label(-6, MV + 34, 'Platform', 'glass shelter, blue LED departure sign, red plank fence', 5);
+  // X60
+  { const M = F(-4, MV + 50); for (const v of [0]) track(b, M, -16, 16, v); x60(b, M, { w: 30, cars: 2 }); }
+  label(-4, MV + 50, 'SL X60', 'white, blue band, SL roundel', 5.5);
+  // husen
+  scene.add(folketsHus(b, F(-30, MV + 20, Math.PI * 0.75), { len: 20, wid: 13, wallH: 6.2, doors: [-3.6, -0.8, 0.8, 3.6] }));
+  label(-30, MV + 20, 'Folkets hus', 'the base: red, white corners, gable sign', 13);
+  stationHouse(b, F(-30, MV + 46), { w: 15, d: 8 }); label(-30, MV + 46, 'Stationshuset', 'red, glazed waiting room', 8);
+  for (const m of cafeHarmoni(b, F(18, MV + 20), { w: 14, d: 9 })) scene.add(m); label(18, MV + 20, 'Harmoni café', 'grey panel, veranda, deck, CAFÉ', 10);
+  missionHouse(b, F(18, MV + 44), { w: 13, d: 9 }); label(18, MV + 44, 'Missionshuset', 'white, belfry', 12);
+  yellowHouse(b, F(36, MV + 30), { w: 11, d: 9 }); label(36, MV + 30, 'Yellow house', 'gingerbread trim, glazed veranda', 9);
+  whiteHouse(b, F(36, MV + 50), { w: 11, d: 9 }); label(36, MV + 50, 'Old white house', 'two storeys, broken roof', 10);
+  chainHouses(b, F(-30, MV + 66), { w: 26, d: 8, units: 3 }); label(-30, MV + 66, 'Chain houses', 'red, steep gables', 7);
+  hembygdsgard(b, F(0, MV + 70), { w: 12, d: 7 }); logFence(b, F(0, MV + 70), [[-9, -6], [9, -6], [9, 6], [-9, 6], [-9, -1]]); label(0, MV + 70, 'Hembygdsgården', 'log fence', 7);
+  kvarnen(b, F(26, MV + 70), { w: 12, d: 10 }); label(26, MV + 70, 'Kvarnen', 'mill on a stone foot', 11);
+  apartment(b, F(50, MV + 70), { w: 24, d: 11 }); label(50, MV + 70, 'Apartments', 'by Kvarnen', 10);
+  { const M = F(48, MV + 12); trafficLight(b, M, 0); trafficLight(b, frame(M, 3, 0, 0), 2); } label(48, MV + 12, 'Traffic lights', 'at the café junction', 4.5);
+  { const M = F(50, MV + 0); rockCut(b, M, 18, 2.6, 3.2, r); roadRail(b, M, -9, 9, -6); } label(50, MV, 'Granite rock cut', 'and railing along Fagernäsvägen', 4.5);
   b.flush(scene);
 }
 
