@@ -1,5 +1,27 @@
 # Ändringslogg
 
+## 0.18.1: speltestet av 0.18.0 (2026-10-18)
+
+Speltestet sa NEJ: kommandona fungerade var för sig, men korselden och sanity gick inte att upptäcka, och vågorna staplades så att de svåra dagarna slutade med att allt tystnade. docs/playtests/2026-10-18-0.18.0.md.
+
+Vågorna i takt med försvaret. På dagarna med överlapp kommer nästa våg av sig själv först när alla äldre vågor är klara och 70 % av den senaste är nere (skjutna eller framme vid basen), eller när dagens långa klocka gått ut sedan den kom ut helt. Sedan en nedräkning på 12 s, en paus för Recrew, Fall back, Håll eld och husen. Utan att spelaren kallar tidigt är högst två vågor ute samtidigt (nytt prov på varje dag på varje bana). Kallar man tidigt staplas de som förut, det är spelarens val. Knappen säger "Next wave after N more". Tåget i Mölnbo går senare (dag 3 420 s, dag 4 380 s, dag 5 420 s) så att dagens vågor hinner komma.
+
+Korselden syns. I bygget och mellan vågorna står svaga guldrutor där två utställda bågar korsas, utan att något hålls i handen. I striden stiger "+20 %" över en zombie som hamnar i korselden. Ishallen dag 2 lär ut den före första vågen: finns en korseld pekar lektionen på den ("Two angles on one street: they take more damage."), annars ber den om en andra enhet från en annan vinkel.
+
+Sanity går att läsa. Stapeln är större och blå (inte hälsans färger), har ett vitt streck där enheten bryts och blir röd nära gränsen. Panelen säger "Sanity 62 / Holds above 18". När en enhet bryts: banderollen ("Hemvärnet squad breaks!"), en ping på minikartan och ett pjäslag som springer från pjäsen. Ishallen dag 3:s lektion kommer när en enhets sanity verkligen sjunker och pekar på just den enheten.
+
+Förrådet i zoner (Olas skärmbild). ROSTER med två banor sida vid sida, "Into battle (x / 10)" och "Reserve · resting": dra korten eller klicka "→ Battle" / "→ Rest", över taket nekar stridsbanan med ett skäl. Korten visar typ, nivå, stjärna, män och tröttheten i färg med straffet i ord ("Exhausted: −12 % accuracy, −6 % fire rate"); i reserven vad en dags vila ger. Förrådet föreslår banan (värde och trötthet), spelaren ändrar, och bara stridsbanan går ut i striden. Requisition och Upgrades är egna zoner med rubrik och undertext, uppgraderingarna säger hur mycket RP som fattas. INTEL om nästa strid ur dagens vågor: kända typer med antal eller spann, ingångarna med väderstreck, och det okända som okänt ("Later waves: Unconfirmed", "No reports from the east"). Kvaliteten per dag (known, partial, unknown); E4 dag 1 känd, Vikingavägen dag 4 och Mölnbo dag 2 okända.
+
+Mölnbo dag 2: lektionen pekar på villorna längs Stenbyvägen ("Put a squad in a house on each side of Stenbyvägen. They shoot down the street from the windows.") och introt säger samma sak; tåget som skydd är borta. Move in i ett hus går mitt i en våg (H426): gruppen, eller laget med sin Ksp 90 eller Ksp 58, springer till dörren och går in.
+
+Gränssnittet: enhetspanelen hamnar aldrig över dagrutan, tågklockan, de civilas ruta eller SUPPLIES/BASE (en markering bakom kameran gav NaN och skickade panelen upp till vänster), flyttas om en klocka dyker upp under den, ligger över enheternas etiketter och är kompaktare i låga fönster. "1 cleared216 of 255" har luft. Notiserna radbryts i stället för att gå in under SUPPLIES.
+
+Rättat på vägen: zombier som stormade ett hus där hela gruppen redan låg stod kvar och slog på dörren för alltid (Mölnbo dag 4).
+
+Ishallen dag 1 kräver ett riktigt försvar: utan trupp, eller med de frivilliga vid dörren, faller för många civila (nytt prov). Vikingavägen dag 2 hp 4,4 till 3,5 och dag 3 4,2 till 3,9, Mölnbo dag 4 hp 34 till 38. docs/balance-log.md 0.18.1.
+
+Verktyg: npm run layout provar panelen mot klockorna, staplade vågor i dagens plåt och text som står ihop utan luft. scripts/slice1-check.mjs har fem scener till: skadeklasserna mot pansrade, krypare under tråden, Mölnbo dag 1 till 4, det som ska synas (korseld, sanity, banderollen) och förrådets banor.
+
 ## 0.18.0: strategiskt djup, skiva 1 (2026-10-18)
 
 Spelet får verb mitt i striden och fiender som kräver rätt vapen (docs/superpowers/specs/2026-10-18-strategiskt-djup.md, Olas beslut i avsnitt 7). Varje mekanik kommer på en dag i kampanjen, ett begrepp per dag, med en lektion på högst 12 ord och ett uppslag i Field manual.

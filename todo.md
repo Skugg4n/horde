@@ -362,7 +362,25 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H423 | ux | Köpradens rubrik bytte mellan DEPLOY och DEFENCES; nu DEPLOY och UNITS hela dagen.
 - [x] H424 | ux | Zoomen går mot pekaren.
 - [ ] H425 | speltest | Skiva 1 genom human-ux-tester och sedan Ola: känns autovik som att spelet tar över? Läses sanity-stapeln? Hittar man husen?
-- [ ] H426 | spel | Move in i ett hus mitt i en våg (nu bara i uppställningen eller ur reserven).
+- [x] H426 | spel | Move in i ett hus mitt i en våg (0.18.1: gruppen eller laget springer till dörren och går in).
 - [ ] H427 | balans | Kryparna gör lite på Vikingavägen dag 4 och 5; mät om de ska vara fler eller ha ett eget hot.
 - [ ] H428 | spel | Soldaterna i husen syns dåligt (de står vid fasaden); fönster med mynningsflammor vore tydligare.
 
+
+## Speltestet av 0.18.0 (docs/playtests/2026-10-18-0.18.0.md)
+
+- [x] H429 | ux | Korselden syns utan kort i handen (zoner i bygget, "+20 %" i striden), Ishallen dag 2 före våg 1. (0.18.1)
+- [x] H430 | ux | Sanity läsbar: större blå stapel, rött nära gränsen, "Sanity 62 / Holds above 18", banderoll, ping och flykt; tipset pekar på rätt enhet. (0.18.1)
+- [x] H431 | balans | Vågorna staplades: grinden (70 % nere eller lång klocka, högst två ute utan tidigt kall). (0.18.1)
+- [x] H432 | ux | Enhetspanelen över tågklockan; "1 cleared216 of 255". (0.18.1)
+- [x] H433 | balans | Ishallen dag 1 med 5 dödade: mätt, dagen kräver försvar (prov). (0.18.1)
+- [x] H434 | ux | Förrådet i zoner: banorna Into battle / Reserve · resting, Requisition, Upgrades, INTEL. (0.18.1)
+- [x] H435 | ux | Mölnbo dag 2: husen längs Stenbyvägen i stället för "tåget är skydd". (0.18.1)
+- [ ] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6).
+- [ ] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7).
+- [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
+- [ ] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9).
+- [ ] H440 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10).
+- [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
+- [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12).
+- [ ] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
