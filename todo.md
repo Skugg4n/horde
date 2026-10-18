@@ -329,3 +329,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H307 | molnbo | Hus och stenar ligger på vägen; stenmur korsar väg.
 - [ ] H308 | molnbo | Fylligare: fler träd, trädgårdar, häckar (se refs/molnbo/satellit-vid-sodra.jpg).
 - [ ] H309 | bugg | Hus längst ner på skärmen blir genomskinliga vid scroll (kamerans klipp/dimma).
+- [ ] H310 | design | NATT ibland (bryter mot tidigt beslut "aldrig natt", Ola ändrade 2026-10-18). Lysraketer som förmåga, mynningsflammor och gatlyktor som ljus, begränsad sikt, sanity tar mer stryk i mörker. Måste testas fram så man ser lagom mycket och det blir snyggt. Prototyp först: en kvällsdag i skymning, sedan en natt.
