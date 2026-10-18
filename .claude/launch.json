@@ -36,6 +36,18 @@
         "/Users/olabelin/Projects/horde-play"
       ],
       "port": 8143
+    },
+    {
+      "name": "horde-bjornlunda",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8152",
+        "--directory",
+        "/Users/olabelin/Projects/horde-bjornlunda"
+      ],
+      "port": 8152
     }
   ]
 }
