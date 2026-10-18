@@ -108,7 +108,7 @@ async function buildMapWorld(m) {
   w.sim = createSim(withTweaks(opStartConfig(progress, d, m.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
   w.day = d;
   w.view = createView(w.scene, w.sim);
-  w.routeLines = createRouteLines(w.scene);
+  w.routeLines = createRouteLines(w.scene, { heightAt: m.groundY ?? null });   // 0.17.0-molnbo: vägen följer bron
   const tBuild = performance.now() - t0;
   showLoading(m.name, 'Mixing the paint', 0.7);
   await nextFrame();

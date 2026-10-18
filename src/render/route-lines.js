@@ -40,10 +40,12 @@ function soften(pts, rounds = 3) {
 }
 
 // Band längs en linje: två hörn per punkt, v längs bandet (för streckningen i skuggningen).
-function ribbon(lines, width, y) {
+// heightAt (0.17.0-molnbo, Mölnbos bro): banans höjd under linjen; linjen delas då i bitar om högst 1,5 m.
+function ribbon(lines, width, y, heightAt = null) {
   const pos = [], uv = [], idx = [];
   let base = 0;
-  for (const pts of lines) {
+  for (const pts0 of lines) {
+    const pts = heightAt ? densify(pts0, 1.5) : pts0;
     if (pts.length < 2) continue;
     let acc = 0;
     for (let i = 0; i < pts.length; i++) {
@@ -51,7 +53,8 @@ function ribbon(lines, width, y) {
       const [ax, az] = pts[Math.max(0, i - 1)], [bx, bz] = pts[Math.min(pts.length - 1, i + 1)];
       let dx = bx - ax, dz = bz - az; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
       if (i) acc += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]);
-      pos.push(x - dz * width / 2, y, z + dx * width / 2, x + dz * width / 2, y, z - dx * width / 2);
+      const yy = heightAt ? y + heightAt(x, z) : y;
+      pos.push(x - dz * width / 2, yy, z + dx * width / 2, x + dz * width / 2, yy, z - dx * width / 2);
       uv.push(0, acc, 1, acc);
       if (i) idx.push(base + 2 * i - 2, base + 2 * i - 1, base + 2 * i, base + 2 * i - 1, base + 2 * i + 1, base + 2 * i);
     }
@@ -98,9 +101,17 @@ function chevrons(color, opacity, period) {
   });
 }
 
+function densify(pts, step) {
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / step));
+    for (let k = 1; k <= n; k++) out.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]);
+  }
+  return out;
+}
 // 0.14.1 (speltestet av 0.14.0: "jag såg aldrig en enda civil"): de civilas väg till ishallen, gula pilar
 const THREAT = 0xc2321c, PREVIEW = 0xe8823a, EVAC = 0xf2c46b, DANGER = 0xff4a22;
-export function createRouteLines(scene) {
+export function createRouteLines(scene, { heightAt = null } = {}) {
   const layers = {
     now: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(THREAT, 0.55, 2.6)),
     preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PREVIEW, 0.85, 2.0)),
@@ -118,7 +129,7 @@ export function createRouteLines(scene) {
     if (key === keys[layer]) return;
     keys[layer] = key;
     m.geometry.dispose();
-    m.geometry = ribbon(paths.map(p => soften(p)), WIDTH[layer], Y[layer]);
+    m.geometry = ribbon(paths.map(p => soften(p)), WIDTH[layer], Y[layer], heightAt);
   }
   function update(dt) { for (const m of Object.values(layers)) m.material.uniforms.uTime.value += dt * 0.6; }
   // 0.11.0 (H090, speltestet av 0.10.2: en inre gata syntes knappt före vågen): 1 före vågen, då
