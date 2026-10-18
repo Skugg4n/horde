@@ -46,7 +46,8 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
     assert.ok(x.firstShot != null && x.firstShot <= 60, `${where}: första skottet ${x.firstShot}`);
     // 0.18.1 (vågornas grind): nästa våg väntar tills det mesta av den förra är nere, så dagarna med överlapp blir längre;
     // taket 600 till 760 s (docs/balance-log.md 0.18.1). Och utan tidigt kall högst två vågor ute samtidigt.
-    if (x.won) { const min = x.mapId === 'riksvagen' ? 120 : 200; assert.ok(x.time >= min && x.time <= 760, `${where}: ${x.time} s`); }
+    // 0.19.0: taket 760 till 780 s (löparna 5 % långsammare när snubblet blev sällsynt; Vikingavägen dag 4 762 s i en seed)
+    if (x.won) { const min = x.mapId === 'riksvagen' ? 120 : 200; assert.ok(x.time >= min && x.time <= 780, `${where}: ${x.time} s`); }
     assert.ok(x.peakWaves <= 2, `${where}: ${x.peakWaves} vågor ute samtidigt`);
   }
 });
@@ -84,7 +85,10 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // vågornas grind (nästa våg först när 70 % av den förra är nere eller efter dagens långa klocka, högst två ute), förrådets
 // banor (bara stridsbanan går ut, förslaget efter värde och trötthet), husen som stormas slutar när alla där är nere,
 // Vikingavägen dag 2 hp 4,4 till 3,5 och dag 3 4,2 till 3,9. docs/balance-log.md 0.18.1.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"5c904291","gnesta 2":"30e441d4","gnesta 3":"174fceb0","gnesta 4":"39099584","gnesta 5":"88f88ce5","gnesta-norr 1":"dbfddd7d","gnesta-norr 2":"b1e0a44e","gnesta-norr 3":"edf6aaf4","gnesta-norr 4":"9cb081a4","gnesta-norr 5":"58cf1d44"};
+// 0.19.0: alla steg utom E4 dag 1 nya, avsiktligt: löparnas snubbel sällsynt och utlöst (förut samma tärning för alla) och
+// farten 3,4 till 3,22, stormningens tärning rättad (30 % i stället för alla), vågens svans, bjässarna och skrotbilarna.
+// docs/balance-log.md 0.19.0.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"986b0d39","riksvagen 3":"317daa74","gnesta 1":"96f58429","gnesta 2":"5951f597","gnesta 3":"fcbce262","gnesta 4":"720b0848","gnesta 5":"e9668299","gnesta-norr 1":"106cddff","gnesta-norr 2":"bc6d5c4b","gnesta-norr 3":"de320769","gnesta-norr 4":"eb822697","gnesta-norr 5":"cc3c2361"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

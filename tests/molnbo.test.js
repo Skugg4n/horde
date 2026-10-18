@@ -51,7 +51,7 @@ test('norr om spåret: enda vägen är bron. Stängs båda broarna slår horden 
   const span = (u, v) => { const [x, z] = R(u, v); return route.span(route.cellAt(x, z)); };
   const obs = {};
   for (const k of span(uOn(BRIDGE, 22), 22)) obs[k] = { type: 'block' };
-  // bara vägbron stängd: Krokvägen går över gångbron
+  // bara vägbron stängd: Norrbacken (0.19.0, förut Krokvägen) går över gångbron
   let pa = route.paths(['s4'], obs)[0];
   assert.ok(pa.reaches && pa.through == null);
   assert.ok(pa.cells.some(k => { const [u, v] = toRail(...g.center(k)); return Math.abs(v) < 5 && Math.abs(u - uOn(FOOT, v)) < 3; }), 'över gångbron');
@@ -123,7 +123,8 @@ test('broarna: med båda broarna spärrade finns ingen väg från norr runt spä
     for (const k of span(BRIDGE, vb)) obs[k] = { type: 'block' };
     for (const k of span(FOOT, vf)) obs[k] = { type: 'block' };
     // banvallen (dag 5) når gångbron genom trappan från norra perrongen, söder om LINK (v -9,4)
-    const north = vf > -8 ? ['s4', 's4n', 's5'] : ['s4', 's4n'];
+    // 0.19.0 (H450): norr om spåret är väg 57 (s1) och Norrbacken (s4)
+    const north = vf > -8 ? ['s1', 's4', 's5'] : ['s1', 's4'];
     for (const pa of route.paths(north, obs)) { assert.ok(pa.through != null, `${pa.id} förbi spärrarna (vägbron ${vb}, gångbron ${vf})`); n++; }
   }
   assert.ok(n > 1500, `${n} fall`);
@@ -143,11 +144,11 @@ test('broarna: en lucka i spärren märks, och raden säger gatan horden tar', (
   assert.ok(Object.values(sim.obstacles).filter(o => o.line !== broken.line).every(o => !o.breached), 'den andra spärren står');
   const c = route.cellCenter(broken.cell);
   assert.match(streetAt(molnbo, c.x, c.z), /^(Gångbron|Väg 57)$/);
-  // Stenbyvägen spärrad vid Missionshuset: horden från Gnestavägen tar Kvarnvägen, och raden säger det
+  // Stenbyvägen spärrad vid Missionshuset: horden norrifrån (0.19.0, H450) tar Fagernäsvägen, och raden säger det
   const before = route.paths(['s1'])[0].cells, obs = {};
   { const [x, z] = R(-1.5, 56); for (const k of route.span(route.cellAt(x, z))) obs[k] = { type: 'block' }; }
   const after = route.paths(['s1'], obs)[0].cells;
-  assert.equal(rerouteStreet(molnbo, k => g.center(k), before, after), 'Kvarnvägen');
+  assert.equal(rerouteStreet(molnbo, k => g.center(k), before, after), 'Fagernäsvägen');
 });
 
 test('prickskyttelägen: trapptornen, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
@@ -246,7 +247,8 @@ test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och
   // (MB05, H295: dag 4 och 5 var knivseggar, Ola förlorade dag 4; dag 4 hp 31 till 36, docs/balance-log.md 0.17.2)
   for (const [i, r] of smart.entries()) {
     const d4 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 4 && x.won)[0];
-    assert.ok(d4 && d4.baseHp <= 12, `seed ${i}: dag 4 bas ${d4?.baseHp}`);
+    // 0.19.0: högst 14 (hp 32 så att balansens uppställning utan ordrar, Quick jump, också håller; docs/balance-log.md 0.19.0)
+    assert.ok(d4 && d4.baseHp <= 14, `seed ${i}: dag 4 bas ${d4?.baseHp}`);
   }
 });
 
@@ -296,10 +298,13 @@ test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => 
 // 0.18.1: alla dagar nya, avsiktligt: ankomsten från Hagstumosse (omräknad), vågornas grind och tåget senare (dag 3 330
 // till 420 s, dag 4 340 till 380 och hp 34 till 38, dag 5 360 till 420), förrådets banor och husen som slutar stormas när
 // alla där är nere. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.18.1.
+// 0.19.0: alla dagar nya, avsiktligt: horden från Järna (H450), gruppen söderifrån (H451), pendeltåget dag 4 i fjärde
+// vågen och hp 38 till 32 (H452), kartläsaren flyttar en grupp vid signalen och spärrar inte Kvarnvägen, snubblet, stormningens
+// tärning, vågens svans och bjässarna mot skrotbilarna. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.19.0.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '85aa38eb', 'molnbo 2': '9f8c075d', 'molnbo 3': '5472293e', 'molnbo 4': '2fba89fd', 'molnbo 5': '78964c6b' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'cfe6db7e', 'molnbo 2': 'fcf87131', 'molnbo 3': '0054e104', 'molnbo 4': '01cd0974', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '9dc4609e', 'molnbo 2': '59bca231', 'molnbo 3': 'b8d99010', 'molnbo 4': 'f7072057', 'molnbo 5': '40f8ba59' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c4418990', 'molnbo 2': '8cb11324', 'molnbo 3': 'b8edeaab', 'molnbo 4': '839ed928', 'molnbo 5': '741638a5' });
 });
 
 // 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").

@@ -5,7 +5,9 @@ export const ZOMBIES = {
   // ett snubbel, gap: minst så många meter mellan två, trigger: chansen vid en tung träff, i taggtråden och i en skarp
   // sväng (turn: grader på en meter). variants: w vikten, time sekunder, speed farten genom snubblet [u, fart] (aldrig
   // noll: farten framåt behålls), fall: varianten faller (en tung träff fäller).
-  runner: { id: 'runner', name: 'Runner', fear: 1.2, hp: 18, speed: 3.4, bounty: 6, intel: 1, baseDamage: 1, hitDamage: 6, scale: 0.95,
+  // 0.19.0: fart 3,4 till 3,22. Snubblet var förut var 50:e meter och kostade cirka 1 s (ungefär 6 % av farten); nu är
+  // det sällsynt, så farten sänks lika mycket för att hålla tempot (docs/balance-log.md 0.19.0).
+  runner: { id: 'runner', name: 'Runner', fear: 1.2, hp: 18, speed: 3.22, bounty: 6, intel: 1, baseDamage: 1, hitDamage: 6, scale: 0.95,
     stumble: { every: [40, 90], chance: 0.2, gap: 12, turn: 55, trigger: { heavy: 0.5, wire: 0.35, turn: 0.25 },
       variants: [
         { id: 'trip', w: 0.6, time: 0.6, speed: [[0, 1], [0.35, 0.55], [1, 1]] },

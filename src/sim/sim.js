@@ -372,14 +372,14 @@ export function fogFactor(map, x, z) {
   return 1 + (FOG_SPEED - 1) * t * t * (3 - 2 * t);
 }
 // group.hp (0.11.0): gruppens egen hp-faktor i stället för dagens (Gnesta Norrs öppning: eftersläntrare).
-function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1, toast = null }) {
+function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door = null, cell = -1, toast = null, train = false }) {
   if (toast) sim.events.push({ t: 'groupToast', text: toast, wave });
   const id = sim.nextId++;
   const hp = ZOMBIES[type].hp * (hpK ?? sim.dayCfg.hp ?? 1) * (sim.hpMul ?? 1) * (sim.tweaks?.hp ?? 1);
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
   // 0.19.0 (H452): de som kliver ur pendeltåget kommer ut på perrongen vid dörren (cell)
   const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : cell >= 0 ? sim.route.spawnAt(sim.rng, cell, id) : sim.route.spawn(sim.rng, spawnId, id);
-  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false, ...(ZOMBIES[type].shove ? { shove: true } : {}) };
+  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false, ...(ZOMBIES[type].shove ? { shove: true } : {}), ...(train ? { train: true } : {}) };
   if (lead > 0) {
     const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
@@ -513,8 +513,9 @@ const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every
 // 0.19.0 (speltestet av 0.18.1, fynd 5: fem krypare kröp i cirka 100 s efter att resten dött, "5 of 91 left" stod still): vågens
 // svans. När alla grupper har kommit ut (inget kvar att släppa) och högst TAIL.n lever, och så har det varit i TAIL.after
 // sekunder, går eftersläntrarna fortare mot basen: krypare och de som har mer än TAIL.far av vägen kvar, TAIL.mul
-// gånger sin fart. Deterministiskt (bara läget och klockan). sim.tail: sekunder som svansen pågått.
-export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5 };
+// gånger sin fart. Bjässar och pansrade (TAIL.keep) går i sin egen takt: de är svansens hot, inte dess väntan.
+// Deterministiskt (bara läget och klockan). sim.tail: sekunder som svansen pågått.
+export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5, keep: ['brute', 'armored'] };
 function tailHurry(sim, dt) {
   const alive = sim.spawnQueue.length ? Infinity : sim.zombies.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
   sim.tail = alive > 0 && alive <= TAIL.n ? (sim.tail ?? 0) + dt : 0;
@@ -580,7 +581,7 @@ function moveZombies(sim, dt) {
     const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
     if (def.stumble && mul > 0) mul *= stumble(sim, z, def.stumble, dt, fog);
     // vågens svans: eftersläntrarna går fortare (krypare och de långt bort)
-    if (hurry && mul > 0 && (z.type === 'crawler' || sim.route.fraction(z) < 1 - TAIL.far)) { mul *= TAIL.mul; z.hurry = true; }
+    if (hurry && mul > 0 && !TAIL.keep.includes(z.type) && (z.type === 'crawler' || sim.route.fraction(z) < 1 - TAIL.far)) { mul *= TAIL.mul; z.hurry = true; }
     const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed;
     z.run = (z.run ?? 0) + speed * dt;

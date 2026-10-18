@@ -71,11 +71,12 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.16.4: alla tre nya, avsiktligt: löparna snubblar ibland (src/sim/sim.js stumble, cirka 1 s per snubbel; utan
 // snubblet står E4 dag 2 och North dag 2 kvar på bfc5d385 och b50f3d9a), och South dag 3 har nya vågor (39 / 60 / 84,
 // hp 2,7, inga vilande hus). docs/balance-log.md 0.16.4.
+// 0.19.0: alla tre nya, avsiktligt: löparnas snubbel (sällsynt, utlöst, en tärning per zombie) och farten 3,22, och vågens
+// svans (docs/balance-log.md 0.19.0).
 const RECEIPTS = {
-  'E4 day 2': 'c6ff18ea',
-  'Gnesta South day 3': '1b4eff89',
-  // 0.18.1: avsiktligt, Vikingavägen dag 2 hp 4,4 till 3,5 och vågornas grind (docs/balance-log.md 0.18.1)
-  'Gnesta North day 2': 'f734013e',
+  'E4 day 2': 'a4f9fd50',
+  'Gnesta South day 3': '7007da68',
+  'Gnesta North day 2': '5a8260b6',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

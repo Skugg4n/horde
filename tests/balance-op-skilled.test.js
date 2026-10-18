@@ -76,7 +76,10 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // vågornas grind (nästa våg först när 70 % av den förra är nere eller efter dagens långa klocka, högst två ute), förrådets
 // banor (bara stridsbanan går ut, förslaget efter värde och trötthet), husen som stormas slutar när alla där är nere,
 // Vikingavägen dag 2 hp 4,4 till 3,5 och dag 3 4,2 till 3,9. docs/balance-log.md 0.18.1.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"ab9d7060","riksvagen 3":"8854b790","gnesta 1":"e9d708ad","gnesta 2":"1f306f99","gnesta 3":"ce96f7c9","gnesta 4":"1b2ae109","gnesta 5":"61416be7","gnesta-norr 1":"3a26659c","gnesta-norr 2":"fa0dc529","gnesta-norr 3":"47608c3d","gnesta-norr 4":"0f97d49f","gnesta-norr 5":"628271bd"};
+// 0.19.0: alla steg utom E4 dag 1 nya, avsiktligt: löparnas snubbel sällsynt och utlöst (förut samma tärning för alla) och
+// farten 3,4 till 3,22, stormningens tärning rättad (30 % i stället för alla), vågens svans, bjässarna och skrotbilarna.
+// docs/balance-log.md 0.19.0.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"986b0d39","riksvagen 3":"317daa74","gnesta 1":"37f66ccc","gnesta 2":"5d91f1c0","gnesta 3":"d24affa8","gnesta 4":"75fcf705","gnesta 5":"6fa8785c","gnesta-norr 1":"43503f5f","gnesta-norr 2":"487c969f","gnesta-norr 3":"3e37492a","gnesta-norr 4":"05ff05d0","gnesta-norr 5":"71752939"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

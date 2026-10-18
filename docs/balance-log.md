@@ -1078,3 +1078,41 @@ Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 till 3 (skilled även Ishalle
 - normal: gnesta 1 5c904291, gnesta 4 39099584, gnesta 5 88f88ce5, gnesta-norr 1 dbfddd7d, gnesta-norr 2 b1e0a44e, gnesta-norr 3 edf6aaf4, gnesta-norr 4 9cb081a4, gnesta-norr 5 58cf1d44
 - mbSmart: 85aa38eb, 9f8c075d, 5472293e, 2fba89fd, 78964c6b; naive: cfe6db7e, fcf87131, 0054e104, 01cd0974, 741638a5
 - simuleringens kvitto Gnesta North day 2: f734013e (Vikingavägen dag 2:s hp och grinden)
+
+## 0.19.0: Mölnbo-passet
+
+Varför: Olas Mölnbo-lista (H450 till H459) och speltestet av 0.18.1 (docs/playtests/2026-10-18-0.18.1.md).
+
+Ändringar i simuleringen som flyttar alla dagar:
+- Löparnas snubbel (H454, H455): chansen 0,6 var 20 till 40 m blev 0,2 var 40 till 90 m plus utlöst snubbel (tung träff 0,5, taggtråd 0,35, skarp sväng 0,25), tre varianter som behåller farten. Förut kostade snubblet cirka 1 s var 50:e meter, ungefär 6 % av löparens tempo; nu nästan inget. Löparens fart 3,4 till 3,22 för att hålla tempot. Utan sänkningen förlorade naive Ishallen dag 1 två gånger i en seed (evakueringen).
+- Tärningen i snubblet och i stormningen av hus var trasig (ett tal 0..1 i en heltalshash, så det inre anropet blev 0): alla zombier fick samma tal. Stormningen gav 0,26 under ASSAULT 0,3, så varje zombie som gick förbi ett hus med garnison stormade det. Nu stormar 30 % som tänkt (bjässar och pansrade alltid).
+- Vågens svans (speltestet, fynd 5): när inget mer ska ut och högst 5 lever i 15 s går krypare och de som har mer än 40 % av vägen kvar 2,5 gånger fortare. Inte bjässar och pansrade: med dem i svansen bröts inte gruppen i provet för routed.
+- Bjässarna knuffar undan skrotbilar på 2 s (H456) och har ett eget flöde där en bilruta bara är en liten omväg.
+
+Mölnbo (H450 till H452):
+- Ingångarna vända: väg 57 norrifrån (S1), Fagernäsvägen österifrån (S3), Norrbacken (S4), en mindre grupp söderifrån (S2, dag 2 våg 2: 18 i stället för 36, resten från S1), banvallen västerifrån dag 5. Gruppernas storlekar är desamma, bara ingångarna bytta.
+- Kartläsaren spärrar inte längre Kvarnvägen (spärren var mot horden från Gnestavägen). Den flyttar en grupp, eller en Ksp 58, mot gångbrons södra fot när pendeltåget signalerar; naive håller.
+- Pendeltåget med 50 (34 vandrare, 10 löpare, 6 krypare) i tredje vågen med hp 38 tog basen i alla fem seeds för kartläsaren (före 330 s). Prövat: utan tåget vinner kartläsaren med bas 2 till 10; hp 30 med tåget i tredje vågen och hp 32 med 40 i tåget förlorade båda försök 1 i en seed. Valt: tåget 30 s in i fjärde vågen ("Brutes at the bridge!"). Med hp 34 vann kartläsaren (bas 6 till 11), men balansens uppställning utan policyns ordrar (Quick jump, scripts/slice1-check.mjs) förlorade dag 4 också utan tåget; med hp 32 vinner den med bas 3. Valt hp 38 till 32. Kartläsarens bas dag 4: 9, 10, 14, 6, 11; provets gräns 12 till 14.
+- Vikingavägen dag 4 tog 762 s i ett försök för den vanliga spelaren (löparna långsammare); dagens tak i provet 760 till 780 s.
+
+Mätt (fem seeds):
+
+    skilled  alla dagar på första försöket i alla seeds
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  1  1  1  2  2  1
+    1         1  1  1  1  1  1  2  3  1  1  1  1  1
+    2         1  1  1  1  1  1  2  2  1  1  1  1  1
+    3         1  1  1  1  1  1  2  1  1  1  1  2  1
+    4         1  1  1  1  1  1  2  2  1  1  1  1  1
+
+    mbSmart  alla dagar på första försöket; bas dag 4: 9, 10, 14, 6, 11; topp 179 till 183 levande
+    naive    M1 M2 klarade i alla, fast på dag 3 (två seeds) eller dag 4 (tre); topp 157 till 205
+
+H457 (Olas Mölnbo dag 2): ingen bugg i flödesfältet; husen ingår aldrig i flödets kostnader. Gruppen söderifrån kommer ut söder om Kvarnvägens korsning, så med Kvarnvägen stängd var skrotbilarna på Stenbyvägen söder om Folkets hus dess enda väg (reproducerat i 0.18.1:s simulering med kartläsarens spärrar). Provet i tests/molnbo.test.js.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 (och naive Mölnbo dag 5 som inte nås):
+- skilled: riksvagen 2 986b0d39, riksvagen 3 317daa74, gnesta 1 37f66ccc, gnesta 2 5d91f1c0, gnesta 3 d24affa8, gnesta 4 75fcf705, gnesta 5 6fa8785c, gnesta-norr 1 43503f5f, gnesta-norr 2 487c969f, gnesta-norr 3 3e37492a, gnesta-norr 4 05ff05d0, gnesta-norr 5 71752939
+- normal: riksvagen 2 986b0d39, riksvagen 3 317daa74, gnesta 1 96f58429, gnesta 2 5951f597, gnesta 3 fcbce262, gnesta 4 720b0848, gnesta 5 e9668299, gnesta-norr 1 106cddff, gnesta-norr 2 bc6d5c4b, gnesta-norr 3 de320769, gnesta-norr 4 eb822697, gnesta-norr 5 cc3c2361
+- mbSmart: 9dc4609e, 59bca231, b8d99010, f7072057, 40f8ba59; naive: c4418990, 8cb11324, b8edeaab, 839ed928, 741638a5
+- simuleringens kvitto: E4 day 2 a4f9fd50, Gnesta South day 3 7007da68, Gnesta North day 2 5a8260b6

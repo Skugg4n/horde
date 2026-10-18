@@ -63,7 +63,8 @@ test('varje zombie från en ingång dyker upp utanför den aktiva kartan, varje 
         if (ev.t !== 'spawn' || seen.has(ev.id)) continue;
         seen.add(ev.id);
         const z = sim.zombies.find(q => q.id === ev.id);
-        if (z.house) continue;
+        // de vilande i husen och (0.19.0, H452) de som kliver ur pendeltåget i Mölnbo kommer inte från en ingång
+        if (z.house || z.train) continue;
         if (m.grid) {
           const o = outside(m.surroundings.crisp, z.x, z.z);
           assert.ok(o >= 6, `${m.id} dag ${d.n} våg ${z.wave + 1}: ${z.type} ${ev.id} vid (${z.x.toFixed(1)}, ${z.z.toFixed(1)}), ${o.toFixed(1)} m utanför`);

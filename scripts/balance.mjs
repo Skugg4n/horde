@@ -788,6 +788,20 @@ function e4SpawnPlan(id) {
   const cells = route.paths([id]).flatMap(q => q.cells).filter(k => { const q = p.center(k); return q.x >= c.x0 && q.x <= c.x1 && q.z >= c.z0 && q.z <= c.z1; });
   return coveragePlan(map, cells, { range: E4_RANGE, cacheKey: 'e4only:' + id });
 }
+// 0.19.0 (H452): pendeltåget som rullar in (Mölnbo dag 4). Kartläsaren (P.trainReact) flyttar vid förvarningen sin
+// närmaste grupp, eller annars en Ksp 58, till gångbrons södra fot, där de som kliver ur tåget kommer ner; den som inte
+// läser kartan håller sin linje. Spelarens val: flytta mot perrongen eller hålla.
+const TRAIN_STAND = R_MB(-21, 22);
+function reactToTrain(sim) {
+  if (!sim.arrival?.warned || sim._trainReact) return;
+  sim._trainReact = true;
+  const [tx, tz] = TRAIN_STAND, d = g => Math.hypot(g.x - tx, g.z - tz);
+  const cands = sim.guns.filter(g => !g.move && !g.retreat && !g.silent && !g.house && (g.squad || g.weapon.type === 'ksp58') && !(g.squad && g.soldiers.some(q => q.path))).sort((a, b) => (b.squad ? 1 : 0) - (a.squad ? 1 : 0) || d(a) - d(b) || a.id.localeCompare(b.id));
+  const p = sim.place, keys = [];
+  for (let k = 0; k < p.n; k++) { const c = p.center(k); const r = Math.hypot(c.x - tx, c.z - tz); if (r < 12 && p.kind[k] === KIND.open) keys.push([r, k]); }
+  keys.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  for (const g of cands.slice(0, 2)) for (const [, k] of keys.slice(0, 40)) if (checkMove(sim, g.id, k).ok && moveGun(sim, g.id, k).ok) return;
+}
 function reactToForetold(sim) {
   const ids = sim.dayCfg.foretell ?? [];
   if (!ids.length || sim.waveIndex < 1 || sim._reacted) return;
@@ -827,6 +841,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
     depthVerbs(sim, P);
     builder();
     if (P.react && !isTown) reactToForetold(sim);
+    if (P.trainReact && sim.dayCfg.arrival) reactToTrain(sim);
     if (P.supplies) spendSupplies(sim);
   };
   const r = runDay(sim, think, P.early, onSecond, T?.maxTicks ?? MAX_TICKS, isTown);
@@ -949,15 +964,16 @@ export function stepPrints(log) {
 // ---------- Mölnbo (0.17.0-molnbo) ----------
 // Spelaren kommer från Hagstumosse med det en vanlig spelare har där (opCampaign('normal'): trupperna, nivåerna,
 // förrådets uppgraderingar och RP). Två spelare i Mölnbo:
-//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset och Kvarnvägen (horden från Gnestavägen måste runt
-//             genom rutnätet söder om spåret), gångbron när horden kommer norr om spåret (dag 4 och 5: allt därifrån
-//             måste över vägbron, flaskhalsen), Psg 90 på trapptornen och taken, grupperna bakom tåget.
+//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset (0.19.0: horden norrifrån runt via Fagernäsvägen),
+//             gångbron dag 4 och 5 (allt norrifrån måste över vägbron, flaskhalsen), Psg 90 på trapptornen och taken,
+//             grupperna bakom tåget; flyttar en grupp mot gångbrons fot när pendeltåget signalerar (dag 4).
 //   naive   : samma trupper och köp, ställer allt efter sin egen väg och spärrar aldrig.
 // Mål (uppdraget): mbSmart vinner dag 1 till 3 inom 2 försök och dag 4 och 5 inom 3 till 4, naive förlorar från dag 3,
 // högst cirka 250 levande zombier. docs/balance-log.md, Mölnbo.
-// Stenbyvägen vid Missionshuset, och Kvarnvägen förbi hyreshusen (annars går horden från Gnestavägen den vägen,
-// söder om Folkets hus, och aldrig förbi stationen)
-const MB_STENBY = [R_MB(-1.5, 56), R_MB(-90, 71)];
+// Stenbyvägen vid Missionshuset (horden norrifrån tar Fagernäsvägen och Genvägen, förbi stationsgrusplanen och husen
+// där).
+// 0.19.0 (H450): horden kommer från Järna; Kvarnvägen-spärren (mot horden från Gnestavägen) behövs inte längre.
+const MB_STENBY = [R_MB(-1.5, 56)];
 // Gångbrons södra ramp: horden norrifrån måste över vägbron, där tornen och caféets parkering ser dem. Prövat
 // (balansloggen): spärren på vägbron i stället (horden tar gångbron) och en tyngd på pjäserna vid broarna var sämre.
 const MB_FOOT = [R_MB(-17.5, 22)];
@@ -968,7 +984,7 @@ TOWN.molnbo = {
 };
 HV_POLICY.molnbo = { days: [], gap: [] };
 REQUISITION.molnbo = ['up:psg90:3', 'lvl:psg90:2', 'unit:psg90:4', 'lvl:ksp58:3', 'unit:ksp58:6', 'lvl:inf:2', 'unit:inf:3', 'lvl:m2:3', 'lvl:psg90:3', 'unit:ak5:3', 'lvl:ak5:3', 'unit:m249:6'];
-POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true };
+POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true, trainReact: true };
 // Framsteget en vanlig spelare har när Mölnbo öppnar (sparas per seed).
 const mbArrival = new Map();
 export function molnboArrival(seedOffset = 0) {

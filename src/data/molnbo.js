@@ -678,9 +678,11 @@ export const DAYS = [
              { groups: [g('walker', 60, 0.28, 0, 's3'), g('walker', 50, 0.3, 4, 's1'), tell('Runners along Fagernäsvägen!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
              { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('armored', 5, 2, 14, 's1'), g('brute', 5, 2.5, 10, 's3')] } ] },
   // 0.19.0 (H450): norr om spåret från Norrbacken; (H452) pendeltåget som rullar in fullt.
-  // arrival (H452): 30 s in i tredje vågen står pendeltåget vid norra perrongen; förvarningen 9 s före. 50 kliver ut.
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 38, overlap: 50, train: { at: 380 },
-    arrival: { wave: 2, at: 30, warn: 9, doors: INBOUND.doors,
+  // arrival (H452): 30 s in i fjärde vågen ("Brutes at the bridge!") står pendeltåget vid norra perrongen; förvarningen
+  // 9 s före. 50 kliver ut. hp 38 till 32 (tåget i tredje vågen med hp 38 tog basen i alla seeds, och balansens
+  // uppställning utan policyns ordrar förlorade dag 4 med 34; docs/balance-log.md 0.19.0).
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 32, overlap: 50, train: { at: 380 },
+    arrival: { wave: 3, at: 30, warn: 9, doors: INBOUND.doors,
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
     intro: { title: 'Day 4: North side', text: 'More of them north of the tracks. Close the bridges.' },
     objective: 'Hold Folkets hus until the train leaves.',

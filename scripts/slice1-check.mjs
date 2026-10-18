@@ -150,12 +150,13 @@ const scenes = {
       const spId = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id, sp = sim.route.spawns.find(q => q.id === spId) ?? sim.route.spawns[0];
       const cr = sim.map.surroundings?.crisp, inCrisp = q => !cr || (q.x > cr.x0 + 6 && q.x < cr.x1 - 6 && q.z > cr.z0 + 6 && q.z < cr.z1 - 6);
       const pathCells = sim.route.paths([sp.id])[0].cells.map(k => sim.route.cellCenter(k)).filter(inCrisp);
-      const c0 = pathCells[Math.floor(pathCells.length * 0.25)], p = sim.place;
+      // 0.19.0 (H450): horden kommer norrifrån över bron; en bit förbi bron finns öppen mark vid gatan
+      const c0 = pathCells[Math.floor(pathCells.length * 0.35)], p = sim.place;
       let at = null, bd = Infinity;
       // 0.18.1: förrådets banor (de frivilliga vilar ofta i reserven): scenen ger dagen en grupp frivilliga
       if (!sim.reserve.some(u => u.type === 'civ')) sim.reserve.push({ uid: 9001, type: 'civ', level: 1, vet: 0, men: 4 });
       const sq = 'civ';
-      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 9 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
+      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 14 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
       if (at == null) return { ok: false, why: 'ingen plats' };
       const b = S.build(sim, at, sq);
       const civ = sim.guns.find(g => g.id === b.id);
@@ -362,12 +363,13 @@ const scenes = {
       const spId = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
       const cr = sim.map.surroundings?.crisp, inCrisp = q => !cr || (q.x > cr.x0 + 6 && q.x < cr.x1 - 6 && q.z > cr.z0 + 6 && q.z < cr.z1 - 6);
       const pathCells = sim.route.paths([spId])[0].cells.map(k => sim.route.cellCenter(k)).filter(inCrisp);
-      const c0 = pathCells[Math.floor(pathCells.length * 0.25)], p = sim.place;
+      // 0.19.0 (H450): horden kommer norrifrån över bron; en bit förbi bron finns öppen mark vid gatan
+      const c0 = pathCells[Math.floor(pathCells.length * 0.35)], p = sim.place;
       let at = null, bd = Infinity;
       // 0.18.1: förrådets banor (de frivilliga vilar ofta i reserven): scenen ger dagen en grupp frivilliga
       if (!sim.reserve.some(u => u.type === 'civ')) sim.reserve.push({ uid: 9001, type: 'civ', level: 1, vet: 0, men: 4 });
       const sq = 'civ';
-      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 9 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
+      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 14 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
       if (at != null) S.build(sim, at, sq);
       B.autoDeploy(sim);
       for (let i = 0; i < 12 && H.lesson; i++) H.release();
