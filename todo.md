@@ -309,3 +309,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] MB04 | sim | Siktlinjer med brodäcket (simuleringen är platt, bara bilden lyfter).
 - [ ] MB05 | balans | Dag 4 och 5 är knivseggar; mjuka upp efter speltestet.
 - [ ] MB06 | ljud | Tåget, avgångsskylten och trafikljusen.
+
+## Efter speltest 0.17.1 (2026-10-18)
+- [ ] H290 | ux | Dra i kartan med kort i handen placerar enheten (drag-för-sikte uppfattas som panorering). Beslut behövs: kräva kort håll innan drag blir sikte, eller sikte bara med höger/Alt.
+- [ ] H291 | ux | Esc: beteendet beror på om kortet ligger kvar efter förra placeringen. Släpp kortet efter varje placering (utom Shift) så Esc blir förutsägbar.
+- [ ] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left").
+- [ ] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo).
+- [ ] H294 | molnbo | Dag 4 har ny tågklocka fast dag 3 hette "The last train". Berättelsen per dag måste hänga ihop.
+- [ ] H295 | molnbo | Dag 4 svår (förlorad i speltest, policyn vinner med bas 1). Resultatrutan täcker tågets avgång. Över $1 000 kvar varje dag.
