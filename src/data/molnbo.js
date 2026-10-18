@@ -550,7 +550,7 @@ export const DAYS = [
              { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 29, 0.35, 4, 's2'), g('brute', 4, 3, 14, 's4')] },
              { groups: [g('runner', 36, 0.25, 0, 's4'), g('walker', 36, 0.3, 4, 's1'), g('walker', 29, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
              { groups: [g('walker', 58, 0.22, 0, 's4'), g('runner', 29, 0.3, 8, 's2'), g('brute', 4, 3, 14, 's4')] } ] },
-  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16, overlap: 50, train: { at: 360, last: true },
+  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 15, overlap: 50, train: { at: 360, last: true },
     intro: { title: 'Day 5: Along the tracks', text: 'The last train north. Everyone who can, gets on.' },
     objective: 'Hold Folkets hus until the last train leaves.',
     waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('walker', 7, 0.7, 4, 's2')] }),

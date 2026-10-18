@@ -915,3 +915,32 @@ Resultat (försök till vinst per dag, seed 0 till 4):
 Målen håller: kartläsaren vinner dag 1 till 3 på första försöket, dag 4 inom 2, dag 5 inom 3 (målet 4). Naive vinner dag 1 och 2 och fastnar på dag 3. Topp 195 levande zombier (målet under cirka 250). Provet skärpt: dag 4 inom 2 försök (var 4).
 
 Fingeravtrycken (tests/molnbo.test.js), alla nya avsiktligt: mbSmart e1b56ac5, 6b6b4e1d, 2d092c0b, 5aabef35, 95c03dc5; naive 33af5c85, 8eeb29b5, 4da49be3 (dag 4 och 5 oförändrade, naive når dem inte). Dag 1 och 2 ändrades bara av ankomsten och snubblet, inte av datan. E4:s och Hagstumosses kvitto (tests/balance-op-*.test.js) är 0.16.4:s, orört.
+
+## Mölnbo 0.17.1: efter speltestet av 0.17.0
+
+Varför: speltestet (docs/playtests/2026-10-18-0.17.0.md) vann inte dag 1 på två försök. Vågorna var 14, 56 och 88 med överlapp 60 s, så våg 2 och 3 låg på varandra inom ett par minuter. Policyerna vann ändå dag 1 på första försöket, eftersom de varken staplar vågor av misstag eller lägger en spärr som leder horden runt hela försvaret.
+
+Ändrat, bara i Mölnbos data (src/data/molnbo.js):
+- dag 1: vågorna 14, 30 och 43 (var 14, 56 och 88), med 1 bjässe i stället för 2. Ingen överlapp: nästa våg väntar tills den förra är klar.
+- dag 2: ingen överlapp (var 60 s). Överlappen kommer dag 3 med tåget, och dag 3:s första rad varnar ("From today the next wave will not wait for this one.").
+- dag 5 hp 16 till 15: med de andra ändringarna behövde kartläsaren 5 försök på dag 5 i seed 0 (målet högst 3).
+
+Ändrat i kartan, som också flyttar kvittot: trapptornen är 7,2 m höga (var 5,6, prickskytten ser längre från taket), och rutor under broarnas däck går inte att ställa något på (KIND.bridge).
+
+Prövat: dag 5 hp 16 (seed 0 behövde 5 försök).
+
+Resultat (försök till vinst per dag, seed 0 till 4):
+
+    mbSmart  M1 M2 M3 M4 M5   topp
+    0         1  1  1  1  2   187
+    1         1  1  1  1  1   187
+    2         1  1  1  1  1   193
+    3         1  1  1  1  2   190
+    4         1  1  1  1  1   191
+
+    naive    M1 M2 M3 M4 M5
+    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 163 till 166)
+
+Målen håller: kartläsaren vinner dag 1 till 3 på första försöket, dag 4 på första och dag 5 inom 2 (målen 1 till 2, 1 till 2 och högst 3). Naive vinner dag 1 med basen hel och dag 2, och fastnar på dag 3. Topp 193 levande zombier (målet under cirka 250). Dag 4 är fortfarande en knivsegg: seed 0 vinner med bas 1.
+
+Fingeravtrycken (tests/molnbo.test.js), alla nya avsiktligt: mbSmart fc06f1e8, 2a41adb3, 6b126d51, f7e1072b, 0feb3169; naive 014058cf, aa17bc8e, 7aba3768 (dag 4 och 5 oförändrade, naive når dem inte). E4:s och Hagstumosses kvitto (tests/balance-op-*.test.js) är orört.

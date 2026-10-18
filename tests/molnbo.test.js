@@ -205,16 +205,17 @@ const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const smart = SEEDS.map(s => molnboCampaign('mbSmart', { seedOffset: s, maxAttempts: 6 }));
 const naive = SEEDS.map(s => molnboCampaign('naive', { seedOffset: s, maxAttempts: 4 }));
 
-test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och dag 5 inom 4', () => {
+// 0.17.1 (efter speltestet av 0.17.0): dag 5 inom 3 försök (var 4), och dag 1 till 3 inom 2.
+test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och dag 5 inom 3', () => {
   for (const [i, r] of smart.entries()) {
     const a = mbAttempts(r.log);
     assert.equal(r.stuck, null, `seed ${i}: ${a}`);
     for (let d = 0; d < 3; d++) assert.ok(a[d] <= 2, `seed ${i} dag ${d + 1}: ${a}`);
     assert.ok(a[3] <= 2, `seed ${i} dag 4: ${a}`);
-    assert.ok(a[4] <= 4, `seed ${i} dag 5: ${a}`);
+    assert.ok(a[4] <= 3, `seed ${i} dag 5: ${a}`);
   }
-  // dag 4 och 5 kostar försök i de flesta seeds (bron och sista tåget är svåra)
-  assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2 || mbAttempts(r.log)[4] >= 2).length >= 3);
+  // sista tåget kostar ändå försök i några seeds
+  assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2 || mbAttempts(r.log)[4] >= 2).length >= 2);
 });
 
 test('balans: den som aldrig spärrar förlorar från dag 3', () => {
@@ -234,8 +235,10 @@ test('balans: högst cirka 250 levande zombier samtidigt', () => {
 // 0.17.0-molnbo: första kvittot.
 // 0.17.0 (sammanslagen med 0.16.4): alla steg nya, avsiktligt. Löparnas snubbel och 0.16.4:s ändringar i simuleringen
 // flyttar varje dag; dag 3 till 5 omtrimmade (docs/balance-log.md, Mölnbo 0.17.0).
+// 0.17.1 (speltestet av 0.17.0): alla dagar nya, avsiktligt. Dag 1 jämnare vågor och ingen överlapp dag 1 och 2,
+// trapptornen 7,2 m, ingen enhet under broarna, dag 5 hp 16 till 15 (docs/balance-log.md, Mölnbo 0.17.1).
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'e1b56ac5', 'molnbo 2': '6b6b4e1d', 'molnbo 3': '2d092c0b', 'molnbo 4': '5aabef35', 'molnbo 5': '95c03dc5' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '33af5c85', 'molnbo 2': '8eeb29b5', 'molnbo 3': '4da49be3', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'fc06f1e8', 'molnbo 2': '2a41adb3', 'molnbo 3': '6b126d51', 'molnbo 4': 'f7e1072b', 'molnbo 5': '0feb3169' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '014058cf', 'molnbo 2': 'aa17bc8e', 'molnbo 3': '7aba3768', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
 });
