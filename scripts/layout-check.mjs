@@ -98,6 +98,17 @@ function auditHud(scope) {
     if (a.o === b.o) continue;
     if (hit(glyphs(a.r), glyphs(b.r))) out.push(`${scope}: "${a.text}" (${a.o.sel}) över "${b.text}" (${b.o.sel})`);
   }
+  // 0.18.1 (speltestet av 0.18.0: "Wave 4 of 5 · 1 cleared216 of 255 left"): två textrader i samma flexrad (syskon)
+  // som ligger ihop utan luft emellan läses som en text
+  for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) {
+    const a = texts[i], b = texts[j];
+    if (a.o !== b.o || a.el === b.el || a.el.parentElement !== b.el.parentElement) continue;
+    if (!/flex|grid/.test(getComputedStyle(a.el.parentElement).display)) continue;
+    const vy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+    if (vy < Math.min(a.r.height, b.r.height) * 0.5) continue;
+    const gap = a.r.left < b.r.left ? b.r.left - a.r.right : a.r.left - b.r.right;
+    if (gap < 4) out.push(`${scope}: "${a.text}" och "${b.text}" (${a.o.sel}) står ihop utan luft (${Math.round(gap)} px)`);
+  }
   // text över en annan ägares plåt (etiketten bakom tågets ruta, raden över DAY-rutan)
   for (const t of texts) for (const o of owners) {
     if (o === t.o || o.el.contains(t.el) || t.o.el.contains(o.el)) continue;
@@ -190,7 +201,17 @@ async function run() {
       await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
       await page.waitForTimeout(200);
     };
+    // 0.18.1: enhetspanelen och klockorna. I 1024 x 614 ryms panelen inte fri från allt (etiketterna trängs), så där
+    // provas bara att den aldrig täcker dagrutan, tågklockan, de civilas ruta eller SUPPLIES/BASE; från 1440 hela provet
+    const checkPanel = async scope => {
+      await page.waitForTimeout(700);
+      const hits = await ev(`(() => { const p = document.querySelector('.panel'); if (!p) return ['ingen panel']; const a = p.getBoundingClientRect(); return ['#day', '#res', '#train', '#evac'].filter(sel => { const n = document.querySelector(sel); if (!n || n.hidden || n.closest('[hidden]')) return false; const b = n.getBoundingClientRect(); return b.width && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom; }); })()`);
+      for (const h of hits) errors.push(`${scope} @${W}: panelen täcker ${h}`);
+      checked++;
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${scope}-${W}.png` });
+    };
     const checkHud = async scope => {
+      if (W < 1440 && scope.includes('-panel-')) return checkPanel(scope);
       await page.waitForTimeout(700);
       const r = await page.evaluate(auditHud, `${scope} @${W}`);
       errors = errors.concat(r.errors); checked++;
@@ -210,12 +231,34 @@ async function run() {
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); })()`);
     await clearLessons();
     await checkHud('hud-molnbo-4-build');
+    // 0.18.1 (speltestet av 0.18.0: enhetspanelen över tågklockan): en panel öppen i bygget får inte hamna över
+    // dagrutan eller tågklockan, inte heller när klockan dyker upp när vågen startar
+    await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
+    if (!(await ev('window.__horde.sim.guns.length'))) errors.push(`hud-molnbo-4-panel-build @${W}: inga enheter utställda`);
+    await ev(`(() => { const H = window.__horde, g = H.sim.guns.find(x => !x.preset) ?? H.sim.guns[0]; if (g) H.open({ kind: 'gun', id: g.id }); })()`);
+    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-4-panel-build @${W}: panelen öppnades inte`);
+    await checkHud('hud-molnbo-4-panel-build');
+    // panelen stängs före vågen (i 1024 tränger den ingångarnas etiketter); vågens panel provas nedan
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     // första trycket säger till om enheter i reserven, nästa startar vågen
     for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
     await page.waitForTimeout(2500);
     await clearLessons();
     if (await ev('window.__horde.sim.phase') !== 'wave') errors.push(`hud-molnbo-4-wave @${W}: vågen startade inte`);
     await checkHud('hud-molnbo-4-wave');
+    await ev(`(() => { const H = window.__horde, gs = H.sim.guns; for (const g of gs.slice(0, 3)) H.open({ kind: 'gun', id: g.id }); })()`);
+    await page.waitForTimeout(600);
+    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-4-panel-wave @${W}: panelen öppnades inte`);
+    await checkHud('hud-molnbo-4-panel-wave');
+    // fyra vågor igång och en klarad: "Wave 4 of 5 · 1 cleared" och "216 of 255 left" i dagens plåt. Pausat (pausmenyn,
+    // HUD:en ritas ändå) så att simuleringen inte klarar vågorna innan provet läser plåten
+    await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+    if (!(await ev(`!!document.querySelector('.pausesheet')`))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
+    await ev(`(() => { const s = window.__horde.sim; s.wavesStarted = 4; s.waveIndex = 1; s.cleared = [true]; })()`);
+    await checkHud('hud-molnbo-4-stacked');
+    const plate = await ev(`document.querySelector('#day .row').textContent`);
+    if (!/cleared/.test(plate)) errors.push(`hud-molnbo-4-stacked @${W}: plåten visar inte staplade vågor (${plate})`);
+    await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     if (pageErrors.length) errors.push(...pageErrors.map(e => `@${W} konsolfel: ${e}`));

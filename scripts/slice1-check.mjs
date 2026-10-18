@@ -6,6 +6,12 @@
 //   4 rout        en grupp frivilliga bryts av bjässar (Mölnbo dag 1)
 //   5 overrun     en Ksp 90 blir överränd och bemannas igen med Recrew (Mölnbo dag 5)
 //   6 fatigue     tröttheten i förrådet och rekvisitionens streck
+// 0.18.1 (speltestet av 0.18.0 hann inte se dem):
+//   7 classes     pansrade mot lätta och tunga vapen: skada per träff per skadeklass (Mölnbo dag 2)
+//   8 crawlers    krypare under taggtråden: farten i trådens rutor och trådens slitage (Mölnbo dag 4)
+//   9 molnbo      Mölnbo dag 1 till 4 spelade med balansens uppställning: utfall, flest vågor ute samtidigt
+//  10 readable    korseldens zoner utan kort i handen, "+20 %" i striden, sanity-stapeln och banderollen när en enhet bryts
+//  11 depot       förrådets banor (Into battle / Reserve · resting) och INTEL
 //
 //   node scripts/slice1-check.mjs [--port 8154] [--only rout]
 //
@@ -146,13 +152,18 @@ const scenes = {
       const pathCells = sim.route.paths([sp.id])[0].cells.map(k => sim.route.cellCenter(k)).filter(inCrisp);
       const c0 = pathCells[Math.floor(pathCells.length * 0.25)], p = sim.place;
       let at = null, bd = Infinity;
-      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 9 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, 'civ').ok) { bd = d; at = k; } }
+      // 0.18.1: förrådets banor (de frivilliga vilar ofta i reserven): scenen ger dagen en grupp frivilliga
+      if (!sim.reserve.some(u => u.type === 'civ')) sim.reserve.push({ uid: 9001, type: 'civ', level: 1, vet: 0, men: 4 });
+      const sq = 'civ';
+      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 9 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
       if (at == null) return { ok: false, why: 'ingen plats' };
-      const b = S.build(sim, at, 'civ');
+      const b = S.build(sim, at, sq);
       const civ = sim.guns.find(g => g.id === b.id);
       B.autoDeploy(sim);
       for (let i = 0; i < 12 && H.lesson; i++) H.release();
       S.startWave(sim);
+      // 0.18.1: stridsbanan är truppens starkaste, så bjässarna får fyra gånger hp (bara i scenen) för att nå fram
+      sim.tweaks.hp = 4;
       S.debugSpawn(sim, { type: 'brute', count: 8, spawn: sp.id });
       H.rig.skipTour(); H.rig.focus(c0.x, c0.z, 30);
       let broke = null;
@@ -176,6 +187,8 @@ const scenes = {
     const r = await page.evaluate(async () => {
       const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js'), B = await import('./scripts/balance.mjs');
       sim.cash = 2000;
+      // 0.18.1: förrådets banor (en Ksp 90 kan vila i reserven): scenen ger dagen en
+      if (!sim.reserve.some(u => u.type === 'm249')) sim.reserve.push({ uid: 9002, type: 'm249', level: 1, vet: 0 });
       // en Ksp 90 ställs vid gatan där horden kommer in, vänd bort från den (den skjuter inte; laget slås ner)
       const sp = sim.route.spawns[0], c0 = sim.route.cellCenter(sp.key), p = sim.place;
       let at = null;
@@ -231,6 +244,170 @@ const scenes = {
     });
     await sleep(300);
     return { ...r, shot: await shot('fatigue-depot', { x: 0, y: 0, width: 1280, height: 800 }) };
+  },
+  // 7. Skadeklasserna mot pansrade: Mölnbo dag 2 med balansens uppställning, skada per träff på pansrade per klass
+  async classes() {
+    await page.evaluate(async () => { await window.__horde.quickJump('molnbo', 2); });
+    await clearLessons();
+    const r = await page.evaluate(async () => {
+      const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js');
+      // fler pansrade direkt, så att både Ksp 88 och småkalibern hinner träffa dem
+      if (sim.phase === 'build') S.startWave(sim);
+      S.debugSpawn(sim, { type: 'armored', count: 10, spawn: 's2' });
+      S.debugSpawn(sim, { type: 'walker', count: 20, spawn: 's2' });
+      const per = {}, walker = {};
+      for (let i = 0; i < 30 * 240 && sim.phase === 'wave'; i++) {
+        S.step(sim, 1 / 30);
+        for (const e of sim.events) if (e.t === 'hit' && e.dmg != null) {
+          const z = sim.zombies.find(q => q.id === e.id), b = z?.type === 'armored' ? per : z?.type === 'walker' ? walker : null;
+          if (b) { (b[e.cls] ??= { n: 0, dmg: 0 }); b[e.cls].n++; b[e.cls].dmg += e.dmg; }
+        }
+        sim.events = [];
+        if (per.small?.n > 40 && (per.heavy?.n > 10 || per.explosive?.n > 5) && walker.small?.n > 40) break;
+      }
+      const avg = b => Object.fromEntries(Object.entries(b).map(([k, v]) => [k, { hits: v.n, perHit: Math.round(v.dmg / v.n * 10) / 10 }]));
+      const A = avg(per), Wk = avg(walker);
+      const ratio = k => (A[k] && Wk[k] ? Math.round(A[k].perHit / Wk[k].perHit * 100) / 100 : null);
+      return { ok: !!A.small && (!!A.heavy || !!A.explosive), armored: A, walker: Wk, smallVsWalker: ratio('small'), heavyVsWalker: ratio('heavy') };
+    });
+    return r;
+  },
+  // 8. Krypare under taggtråden: Mölnbo dag 4, tråd tvärs över vägen, krypare och vandrare genom den
+  async crawlers() {
+    await day('molnbo', 4);
+    const r = await page.evaluate(async () => {
+      const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js'), { ZOMBIES } = await import('./src/data/zombies.js');
+      sim.cash = 5000;
+      const sp = sim.route.spawns.find(q => q.id === 's1'), cells = sim.route.paths(['s1'])[0].cells;
+      const cr = sim.map.surroundings?.crisp, inCrisp = q => q.x > cr.x0 + 8 && q.x < cr.x1 - 8 && q.z > cr.z0 + 8 && q.z < cr.z1 - 8;
+      let laid = null;
+      for (const k of cells.slice(Math.floor(cells.length * 0.2))) { const c = sim.route.cellCenter(k); if (!inCrisp(c)) continue; const res = S.placeAcross(sim, sim.place.keyAt(c.x, c.z), 'wire'); if (res.ok) { laid = c; break; } }
+      if (!laid) return { ok: false, why: 'ingen tråd' };
+      const wires = Object.entries(sim.obstacles).filter(([, o]) => o.type === 'wire');
+      const dur = () => wires.map(([k]) => Math.round((sim.obstacles[k]?.durability ?? 0) * 10) / 10);
+      const hp0 = dur();
+      sim.guns.length = 0;
+      S.startWave(sim);
+      sim.spawnQueue.length = 0;
+      S.debugSpawn(sim, { type: 'crawler', count: 6, spawn: 's1' });
+      const minRatio = { crawler: Infinity, walker: Infinity };
+      let afterCrawlers = null;
+      for (let i = 0; i < 30 * 200 && sim.phase === 'wave'; i++) {
+        // först bara kryparna (trådens slitage), sedan vandrarna
+        if (i === 30 * 90) { afterCrawlers = dur(); S.debugSpawn(sim, { type: 'walker', count: 6, spawn: 's1' }); }
+        S.step(sim, 1 / 30); sim.events = [];
+        for (const z of sim.zombies) {
+          if (z.dead || !(z.type in minRatio)) continue;
+          const p = S.zombiePos(sim, z);
+          if (Math.hypot(p.x - laid.x, p.z - laid.z) > 4 || z.attacking) continue;
+          const base = ZOMBIES[z.type].speed * (sim.map.pace ?? 1);
+          minRatio[z.type] = Math.min(minRatio[z.type], z.v / base);
+        }
+      }
+      const hp1 = dur();
+      return { ok: minRatio.crawler > 0.9 && minRatio.walker < 0.9 && JSON.stringify(afterCrawlers) === JSON.stringify(hp0), slowest: { crawler: Math.round(minRatio.crawler * 100) / 100, walker: Math.round(minRatio.walker * 100) / 100 }, wireBefore: hp0, wireAfterCrawlers: afterCrawlers, wireAfterWalkers: hp1 };
+    });
+    return r;
+  },
+  // 9. Mölnbo dag 1 till 4, var för sig: balansens uppställning (Quick jump) och sedan bara klockan
+  async molnbo() {
+    const out = {};
+    for (const d of [1, 2, 3, 4]) {
+      await page.evaluate(async d => { await window.__horde.quickJump('molnbo', d); }, d);
+      await clearLessons();
+      out['day' + d] = await page.evaluate(async () => {
+        const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js');
+        if (sim.phase === 'build' && sim.nextWaveIn == null) S.startWave(sim);
+        let most = 0, routs = 0, silent = 0, xf = 0;
+        for (let i = 0; i < 30 * 900 && (sim.phase === 'wave' || sim.phase === 'build'); i++) {
+          if (sim.phase === 'build' && sim.nextWaveIn == null) S.startWave(sim);
+          S.step(sim, 1 / 30);
+          for (const e of sim.events) { if (e.t === 'routed') routs++; else if (e.t === 'gunSilent') silent++; else if (e.t === 'crossfire') xf++; }
+          sim.events = [];
+          if (i % 15 === 0) most = Math.max(most, S.wavesOnRoad(sim).size);
+        }
+        return { phase: sim.phase, base: Math.max(0, sim.baseHp), waves: sim.waveIndex, of: sim.dayCfg.waves.length, time: Math.round(sim.time), wavesOutAtOnce: most, routs, silent, crossfire: xf, kills: sim.kills };
+      });
+      await page.evaluate(() => { const H = window.__horde; if (H.mode !== 'play') return; });
+    }
+    return { ok: Object.values(out).every(x => x.wavesOutAtOnce <= 2 && x.phase === 'won'), ...out };
+  },
+  // 10. Det som ska synas: korseldens zoner utan kort i handen, "+20 %", sanity-stapeln och banderollen vid flykt
+  async readable() {
+    await day('gnesta', 2);
+    const zones = await page.evaluate(async () => {
+      const H = window.__horde, sim = H.sim, B = await import('./scripts/balance.mjs');
+      B.autoDeploy(sim);
+      return true;
+    });
+    await frames(); await sleep(200); await frames();
+    const z = await page.evaluate(() => { const H = window.__horde; const m = H.scene.getObjectByName('crossfire-zones'); const g = H.sim.guns[0]; H.rig.skipTour(); if (g) H.rig.focus(g.x, g.z, 40); return { zoneTiles: m?.count ?? 0, held: !!H.placing }; });
+    const zshot = await shot('crossfire-zones');
+    const flash = await page.evaluate(async () => {
+      const H = window.__horde, S = await import('./src/sim/sim.js');
+      S.startWave(H.sim);
+      // "+20 %" kommer ur händelsen crossfire (main.js handleEvents, som advance går genom); räkna raderna i DOM
+      let seen = 0, text = null;
+      const mo = new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('xf')) { seen++; text ??= n.textContent; } });
+      mo.observe(document.querySelector('#ui') ?? document.body, { childList: true, subtree: true });
+      for (let t = 0; t < 120 && H.sim.phase === 'wave' && !seen; t += 2) { H.advance(2); await new Promise(r => setTimeout(r, 0)); }
+      mo.disconnect();
+      return { flashes: seen, text };
+    });
+    // sanity och flykten: Mölnbo dag 1, bjässar mot en grupp frivilliga
+    await day('molnbo', 1);
+    const rout = await page.evaluate(async () => {
+      const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js'), B = await import('./scripts/balance.mjs');
+      // som scenen rout: de frivilliga vid gatan där bjässarna kommer in
+      const spId = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
+      const cr = sim.map.surroundings?.crisp, inCrisp = q => !cr || (q.x > cr.x0 + 6 && q.x < cr.x1 - 6 && q.z > cr.z0 + 6 && q.z < cr.z1 - 6);
+      const pathCells = sim.route.paths([spId])[0].cells.map(k => sim.route.cellCenter(k)).filter(inCrisp);
+      const c0 = pathCells[Math.floor(pathCells.length * 0.25)], p = sim.place;
+      let at = null, bd = Infinity;
+      // 0.18.1: förrådets banor (de frivilliga vilar ofta i reserven): scenen ger dagen en grupp frivilliga
+      if (!sim.reserve.some(u => u.type === 'civ')) sim.reserve.push({ uid: 9001, type: 'civ', level: 1, vet: 0, men: 4 });
+      const sq = 'civ';
+      for (let k = 0; k < p.n; k++) { const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z); if (d < 9 && d < bd && p.kind[k] === 0 && S.checkSpot(sim, k, sq).ok) { bd = d; at = k; } }
+      if (at != null) S.build(sim, at, sq);
+      B.autoDeploy(sim);
+      for (let i = 0; i < 12 && H.lesson; i++) H.release();
+      S.startWave(sim);
+      sim.tweaks.hp = 4;
+      S.debugSpawn(sim, { type: 'brute', count: 8, spawn: spId });
+      H.rig.skipTour(); H.rig.focus(c0.x, c0.z, 30);
+      let banner = null, bar = null;
+      for (let t = 0; t < 240 && sim.phase === 'wave' && !banner; t += 0.5) {
+        H.advance(0.5);
+        const b = document.querySelector('#banner'); if (b && !b.hidden && /breaks!/.test(b.textContent)) banner = b.textContent;
+        if (!bar && t % 4 === 0) { await new Promise(r => requestAnimationFrame(() => r())); const s = document.querySelector('.ustat .sbar:not([hidden])'); if (s) { const r = s.getBoundingClientRect(); bar = { w: Math.round(r.width), h: Math.round(r.height), color: getComputedStyle(s.firstChild).backgroundColor }; } }
+      }
+      const red = [...document.querySelectorAll('.ustat .sbar[data-st="wavering"], .ustat .sbar[data-st="breaking"]')].length;
+      return { banner, bar, redBars: red, pings: true };
+    });
+    const rshot = await shot('rout-banner');
+    return { ok: z.zoneTiles > 0 && !z.held && flash.flashes > 0 && !!rout.banner && rout.bar?.w >= 40, zones: z, zshot, flash, rout, rshot };
+  },
+  // 11. Förrådet: banorna och INTEL (Mölnbo dag 4, fler enheter än taket)
+  async depot() {
+    await day('molnbo', 4);
+    const r = await page.evaluate(() => {
+      const H = window.__horde, p = H.progress;
+      const units = p.op.units.map((u, i) => ({ ...u, fatigue: i % 3 }));
+      H.setProgress({ ...p, rp: 300, op: { ...p.op, units } });
+      H.showDepot('molnbo', 'opmap', { day: 4 });
+      const q = s => document.querySelectorAll(s).length;
+      const lanes = { battle: q('.depot .lane.battle .ucard'), rest: q('.depot .lane.rest .ucard'), cnt: document.querySelector('.depot .lane.battle .cnt')?.textContent };
+      // klick: en från reserven till striden när banan är full ger ett skäl
+      document.querySelector('.depot .lane.rest .ucard [data-a="lane"]')?.click();
+      const refusal = document.querySelector('.depot .dmsg')?.textContent.trim();
+      document.querySelector('.depot .lane.battle .ucard [data-a="lane"]')?.click();
+      const after = { battle: q('.depot .lane.battle .ucard'), rest: q('.depot .lane.rest .ucard') };
+      const intel = [...document.querySelectorAll('.depot .intel .foe-row b')].map(n => n.textContent);
+      const fat = [...document.querySelectorAll('.depot .fatb')].slice(0, 3).map(n => n.textContent);
+      return { ok: lanes.battle > 0 && lanes.battle <= 10 && /full/.test(refusal ?? '') && after.battle === lanes.battle - 1 && intel.length > 0, lanes, refusal, after, intel, fatigue: fat, quality: document.querySelector('.depot .intel .iq')?.textContent };
+    });
+    await sleep(300);
+    return { ...r, shot: await shot('depot-lanes', { x: 0, y: 0, width: 1280, height: 800 }) };
   },
 };
 for (const [k, fn] of Object.entries(scenes)) {
