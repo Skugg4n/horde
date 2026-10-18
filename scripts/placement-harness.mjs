@@ -7,8 +7,9 @@
 // Varje försök loggas med utfallet: placed (enheten står), reason (ett skäl visades vid pekaren),
 // silent (enheten i handen, inget hände, inget skäl). Invarianten: silent ska vara 0.
 //
-// 0.17.1: sist provas gesterna (src/ui/gesture.js) med riktiga pekarhändelser: dra med vänster, höger och mitten
-// panorerar och ställer aldrig ut något, högerklick lägger tillbaka, vänster-dra från en giltig plats siktar.
+// 0.17.1: sist provas gesterna (src/ui/gesture.js) med riktiga pekarhändelser.
+// 0.17.2 (H300, Olas beslut): med kort i handen ställer ett klick ut, tryck-håll-dra och höger- eller Alt-dra siktar,
+// en vänsterdragning utan att hålla gör ingenting, mitten och kanten panorerar; utan kort panorerar vänster-dra.
 //
 //   node scripts/placement-harness.mjs [--port 8144] [--fps 1.5] [--n 60] [--seed 1] [--verbose] [--map molnbo --day 1]
 //
@@ -167,52 +168,104 @@ async function run() {
   process.exit(fails || errors.length ? 1 : 0);
 }
 
-// ---------- gesterna (0.17.1, speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten") ----------
+// ---------- gesterna (0.17.1, 0.17.2: H300) ----------
 // Reglerna i src/ui/gesture.js, med riktiga pekarhändelser i låg bildtakt, på första scenen:
-//   pan-left    kort i handen, vänster-dra från en plats där det inte får stå: kameran flyttas, inget ställs ut, kortet kvar
-//   pan-right   kort i handen, höger-dra från en giltig plats: kameran flyttas, inget ställs ut, kortet kvar
-//   pan-middle  samma med mittknappen
-//   right-click kort i handen, högerklick utan dragning: kortet läggs tillbaka
-//   aim-valid   Psg 90 i handen, vänster-dra från en giltig plats: den ställs ut där trycket var, vänd mot pekaren
+//   pan-nocard    inget i handen, vänster-dra: kameran flyttas, inget ställs ut
+//   quick-drag    kort i handen, vänster-dra direkt (utan att hålla) från en giltig plats: inget händer, kortet kvar
+//   pan-middle    kort i handen, mitten-dra: kameran flyttas, inget ställs ut, kortet kvar
+//   pan-edge      kort i handen, pekaren vid skärmens vänsterkant: kameran flyttas, kortet kvar
+//   right-click   kort i handen, högerklick utan dragning: kortet läggs tillbaka
+//   click-place   kort i handen, ett klick på en giltig plats: enheten står, kortet släpps (Esc förutsägbar)
+//   hold-aim      en pjäs med skjutvinkel i handen (Psg 90 om den finns), tryck, håll och dra: den ställs ut där trycket var, vänd mot pekaren
+//   right-aim     samma med höger-dra (utan att hålla)
+//   alt-aim       samma med Alt och vänster-dra (utan att hålla)
 async function gestures(page) {
   const sc = SCENES[0], pass = [], fail = [];
-  const state = () => page.evaluate(() => { const H = window.__horde, s = H.sim; return { n: s.guns.length + Object.keys(s.obstacles).length, holding: H.placing?.type ?? null, tx: H.rig.target.x, tz: H.rig.target.z, last: s.guns[s.guns.length - 1] ?? null }; });
-  const fresh = async type => {
-    await page.evaluate(async ({ sc, type }) => {
+  const state = () => page.evaluate(() => { const H = window.__horde, s = H.sim, g = s.guns[s.guns.length - 1]; return { n: s.guns.length + Object.keys(s.obstacles).length, holding: H.placing?.type ?? null, tx: H.rig.target.x, tz: H.rig.target.z, last: g ? { type: g.weapon.type, x: g.x, z: g.z, facing: g.facing } : null }; });
+  // siktet är upplåst från E4 dag 3: siktgesterna provas där
+  const aimSc = { map: 'riksvagen', day: 3 };
+  const fresh = async (type, sc = SCENES[0], force = false) => {
+    await page.evaluate(async ({ sc, type, force }) => {
       const H = window.__horde;
-      if (H.sim?.map.id !== sc.map || H.sim?.day !== sc.day || H.sim.guns.length > 6 || H.mode !== 'play') await H.jump(sc.map, sc.day);
+      if (force || H.sim?.map.id !== sc.map || H.sim?.day !== sc.day || H.sim.guns.length > 6 || H.mode !== 'play') await H.jump(sc.map, sc.day);
+      // lektionsplåtar och fiendekort som står i vägen släpps (gesterna gäller kartan), och tipsen stängs av
+      const P = H.progress; if (P.lessons?.mode !== 'off') H.setProgress({ ...P, lessons: { ...P.lessons, mode: 'off' } });
+      for (let i = 0; i < 8 && H.lesson; i++) H.release();
       H.stopPlacing(); H.sim.cash = Math.max(H.sim.cash, 2000); H.rig.goHome?.();
-      H.startPlacing(type);
-    }, { sc, type });
+      if (type) H.startPlacing(type);
+    }, { sc, type, force });
     await sleep(FRAME * 2);
+    await page.evaluate(() => { const H = window.__horde; for (let i = 0; i < 8 && H.lesson; i++) H.release(); });
+    await sleep(FRAME * 1.2);
   };
   // en punkt på kartan där det man håller får stå (want = true) eller inte: pekaren dit, en bildruta, spöket säger
   const find = async want => {
     const cands = await page.evaluate(() => { const out = []; for (let y = 160; y < innerHeight - 180; y += 37) for (let x = 120; x < innerWidth - 300; x += 53) { const el = document.elementFromPoint(x, y); if (el === window.__horde.renderer.domElement) out.push([x, y]); } return out; });
+    if (!cands.length) { console.log('gest: ingen punkt på kartan, under mitten:', await page.evaluate(() => { const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return e?.id + '.' + e?.className + '<' + e?.tagName; })); return null; }
     for (let i = 0; i < 80; i++) {
       const [x, y] = cands[Math.floor(rnd() * cands.length)];
       await page.mouse.move(x, y); await sleep(FRAME * 1.6);
       const ok = await page.evaluate(() => window.__horde.spot?.ok ?? null);
-      if (ok === want) return [x, y];
+      if (ok === want || want == null) return [x, y];
     }
     return null;
   };
-  const drag = async ([x, y], button, dx = 140, dy = 70) => {
+  // hold: hur länge knappen hålls still innan pekaren rör sig (ms, riktig tid)
+  const drag = async ([x, y], button, { dx = 140, dy = 70, hold = 0, alt = false } = {}) => {
     await page.mouse.move(x, y); await sleep(FRAME * 1.2);
+    if (alt) await page.keyboard.down('Alt');
     await page.mouse.down({ button });
-    for (let k = 1; k <= 4; k++) { await page.mouse.move(x + dx * k / 4, y + dy * k / 4); await sleep(FRAME * 0.6); }
-    await page.mouse.up({ button }); await sleep(FRAME * 2.5);
+    if (hold) await sleep(hold);
+    for (let k = 1; k <= 4; k++) { await page.mouse.move(x + dx * k / 4, y + dy * k / 4); await sleep(Math.min(FRAME * 0.6, hold ? FRAME * 0.6 : 40)); }
+    await page.mouse.up({ button });
+    if (alt) await page.keyboard.up('Alt');
+    await sleep(FRAME * 2.5);
   };
   const check = (name, ok, info) => { (ok ? pass : fail).push(name); if (!ok || VERBOSE) console.log(`gest ${name}: ${ok ? 'ok' : 'FEL'} ${JSON.stringify(info)}`); };
-  const card = await page.evaluate(() => [...document.querySelectorAll('#buildbar .card.buy')].filter(b => !b.classList.contains('off')).map(b => b.dataset.id).find(id => id !== 'psg90'));
-  for (const [name, button, want, type] of [['pan-left', 'left', false, card], ['pan-left-cone', 'left', false, 'psg90'], ['pan-right', 'right', true, 'psg90'], ['pan-middle', 'middle', true, card]]) {
-    await fresh(type);
-    const at = await find(want);
-    if (!at) { check(name, false, { reason: 'ingen punkt' }); continue; }
+  const moved = (a, b) => Math.hypot(b.tx - a.tx, b.tz - a.tz) > 1;
+  await fresh(null);
+  const ids = await page.evaluate(() => [...document.querySelectorAll('#buildbar .card.buy')].filter(b => !b.classList.contains('off')).map(b => b.dataset.id));
+  // en pjäs att ställa ut, och en med skjutvinkel att sikta med (Psg 90 om den finns i dag)
+  const card = ids.find(id => !['wire', 'block', 'car'].includes(id));
+  const coned = ['psg90', 'm2', 'ksp58', 'm249'].find(id => ids.includes(id));
+  {
+    const at = await find(null);
     const a = await state();
-    await drag(at, button);
+    if (at) await drag(at, 'left');
     const b = await state();
-    check(name, b.n === a.n && b.holding === type && Math.hypot(b.tx - a.tx, b.tz - a.tz) > 1, { a, b });
+    check('pan-nocard', b.n === a.n && moved(a, b), { a, b });
+  }
+  {
+    await fresh(coned);
+    const at = await find(true);
+    if (!at) check('quick-drag', false, { reason: 'ingen punkt' });
+    else {
+      const a = await state();
+      await drag(at, 'left');
+      const b = await state();
+      check('quick-drag', b.n === a.n && b.holding === coned && !moved(a, b), { a, b });
+    }
+  }
+  {
+    await fresh(card);
+    const at = await find(true);
+    if (!at) check('pan-middle', false, { reason: 'ingen punkt' });
+    else {
+      const a = await state();
+      await drag(at, 'middle');
+      const b = await state();
+      check('pan-middle', b.n === a.n && b.holding === card && moved(a, b), { a, b });
+    }
+  }
+  {
+    await fresh(card);
+    const a = await state();
+    const y = await page.evaluate(() => innerHeight * 0.45);
+    await page.mouse.move(60, y, { steps: 2 }); await page.mouse.move(3, y, { steps: 2 });
+    await sleep(Math.max(1200, FRAME * 3));
+    await page.mouse.move(400, y, { steps: 2 }); await sleep(FRAME * 1.5);
+    const b = await state();
+    check('pan-edge', b.n === a.n && b.holding === card && moved(a, b), { a, b });
   }
   {
     await fresh(card);
@@ -226,18 +279,28 @@ async function gestures(page) {
     }
   }
   {
-    await fresh('psg90');
+    await fresh(card);
     const at = await find(true);
-    if (!at) check('aim-valid', false, { reason: 'ingen punkt' });
+    if (!at) check('click-place', false, { reason: 'ingen punkt' });
     else {
       const a = await state();
-      await drag(at, 'left', 160, 0);
+      await page.mouse.move(...at); await sleep(FRAME * 1.2); await page.mouse.down(); await page.mouse.up(); await sleep(FRAME * 2.5);
       const b = await state();
-      // vänd ungefär åt höger på skärmen: inte samma vinkel som spelet valde av sig själv (kontrolleras via userFacing)
-      check('aim-valid', b.n === a.n + 1 && b.holding === null && Math.hypot(b.tx - a.tx, b.tz - a.tz) < 0.01, { a, b: { ...b, last: b.last && { facing: b.last.facing, x: b.last.x, z: b.last.z } } });
+      check('click-place', b.n === a.n + 1 && b.holding === null && !moved(a, b), { a, b });
     }
+  }
+  for (const [name, button, opts] of [['hold-aim', 'left', { hold: 420 }], ['right-aim', 'right', {}], ['alt-aim', 'left', { alt: true }]]) {
+    await fresh(coned, aimSc, true);
+    const at = await find(true);
+    if (!at) { check(name, false, { reason: 'ingen punkt' }); continue; }
+    const a = await state();
+    await drag(at, button, { dx: 160, dy: 0, ...opts });
+    const b = await state();
+    // vänd ungefär åt höger på skärmen; kameran står still och kortet är släppt
+    const userAimed = await page.evaluate(() => (window.__horde.placeLog ?? []).slice(-3).some(e => e.out === 'aimed'));
+    check(name, b.n === a.n + 1 && b.holding === null && !moved(a, b) && userAimed, { a, b });
   }
   return { pass, fail };
 }
 
-run().catch(e => { console.error(e); process.exit(2); });
+run().catch(e => { console.error(e.stack ?? e); process.exit(2); });

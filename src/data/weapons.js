@@ -20,7 +20,7 @@ export const WEAPONS = {
   ak5:   { id: 'ak5', name: 'Ak 5 + granattillsats', short: 'Ak 5 + Grt', desc: 'Assault rifle with a 40 mm grenade launcher. Steady shots, a grenade every few seconds.',
            cost: 450, range: 17, rate: 2.5, damage: 7, accuracy: 0.85, upgradeCost: [350, 550],
            launcher: { range: 18, cooldown: 4.5, damage: 55, radius: 2.6, falloff: 0.6, flight: 0.6, minCount: 2 }, traverse: 3, move: { pack: 1.5, setup: 1.5, speed: 3.8, crew: 1 } },
-  psg90: { id: 'psg90', name: 'Psg 90', desc: 'Sniper rifle. Slow, deadly, very long range. Pierces two in a line. Flat roofs, a ridge by a chimney or a tall building; click and drag to aim its sector.',
+  psg90: { id: 'psg90', name: 'Psg 90', desc: 'Sniper rifle. Slow, deadly, very long range. Pierces two in a line. Flat roofs, a ridge by a chimney, tall buildings and towers; hold and drag to aim its sector.',
            cost: 700, range: 34, rate: 0.6, damage: 90, accuracy: 0.95, pierce: 2, roof: true, cone: 75, traverse: 1.2, upgradeCost: [500, 750], move: { pack: 2, setup: 2, speed: 1.6, crew: 2 } },
   // 0.12.0 (H108): cone: skjutsektorn i grader, vald när den ställs ut (placement.js CONE).
   // 0.9.0: Hemvärnet, en grupp soldater med Ak 4 (7,62 mm). Siffrorna gäller per soldat; gruppen

@@ -13,7 +13,7 @@ import { mountTrain } from './ui/train.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
-import { pressKind, releaseAction, isDrag, BUTTON } from './ui/gesture.js';
+import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
@@ -105,7 +105,7 @@ async function buildMapWorld(m) {
   buildWorld(w.scene, m);
   showLoading(m.name, 'Raising the houses', 0.45);
   await nextFrame();
-  w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement });
+  w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement, holding: () => mode === 'play' && (!!placing || !!rotating) });
   w.rig.active = false;
   const d = Math.min(mapState(progress, m.id).unlockedDay, m.days.length);
   // Vakt: hittas ingen dag (konstig sparfil) byggs dag 1 i stället för att spelet kraschar.
@@ -341,46 +341,54 @@ function groundAt(cx, cy) {
   groundRay.setFromCamera(groundNdc, camera);
   return groundRay.ray.intersectPlane(mmPlane, groundHit) ? { x: groundHit.x, z: groundHit.z } : null;
 }
+// 0.17.2 (H300, Olas beslut efter speltestet av 0.17.1): med något i handen ställer ett klick ut (riktningen mot
+// vägen), tryck-håll-dra siktar, höger- eller Alt-dra siktar direkt, ett högerklick lägger tillbaka. En vänsterdragning
+// som börjar innan man hållit klart gör ingenting. Reglerna i src/ui/gesture.js.
 renderer.domElement.addEventListener('pointerdown', e => {
   suppressClick = false;           // ett gammalt släpp utan klick ska inte äta nästa klick
-  if (e.button !== 0 || mode !== 'play') return;
-  if (rotating) { aim = { rotate: true, sx: e.clientX, sy: e.clientY, drag: false }; rig.panLock = true; return; }
-  // 0.16.0: sikta-dra är upplåst från E4 dag 3; före det ger ett klick riktningen mot vägen
-  // 0.17.1 (speltestet av 0.17.0: "dra för att panorera med ett kort i handen placerade enheten"): bara ett tryck på en
-  // giltig plats siktar (src/ui/gesture.js). Annars panorerar dragningen och släppet ställer inte ut något.
-  if (placing?.move && e.shiftKey) return;
+  if (mode !== 'play' || (e.button !== BUTTON.left && e.button !== BUTTON.right)) return;
+  if (rotating) {
+    if (e.button === BUTTON.left) { aim = { rotate: true, kind: 'aim', button: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false }; rig.panLock = true; }
+    else aim = { rotate: true, kind: 'hand', button: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false };
+    return;
+  }
+  if (!placing) return;
+  if (placing.move && e.shiftKey && e.button === BUTTON.left) return;   // Shift-klick: en waypoint (plockaren)
   const here = hasCone() ? picker.pickAt(e.clientX, e.clientY) : null;
   const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
-  if (pressKind({ button: e.button, holding: !!placing, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0 }) !== 'aim') return;
-  spot = sp;
-  aim = { sp: spot, x: spot.x, z: spot.z, sx: e.clientX, sy: e.clientY, drag: false };
+  const kind = pressKind({ button: e.button, holding: true, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0, alt: e.altKey });
+  if (kind === 'aim' || kind === 'hold') spot = sp;
+  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
   if (!aim) return;
-  if (!aim.drag && !isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
-  aim.drag = true;
-  if (aim.rotate || !placing) return;
+  if (!aim.moved) {
+    if (!isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
+    aim.moved = true;
+    aim.drag = dragAims(aim.kind, performance.now() - aim.t0);
+    // en vänsterdragning innan man hållit klart: inget sikte, ingen panorering; säg hur det görs
+    if (!aim.drag && aim.kind === 'hold' && placing) flashTip('Hold, then drag to aim');
+  }
+  if (!aim.drag || aim.rotate || !placing) return;
   const g = groundAt(e.clientX, e.clientY);
   if (g && Math.hypot(g.x - aim.x, g.z - aim.z) > 0.5) { placing.facing = Math.atan2(g.z - aim.z, g.x - aim.x); placing.userFacing = true; }
 });
-addEventListener('pointerup', () => {
-  if (!aim) return;
-  const a = aim; aim = null; rig.panLock = false;
-  if (!a.drag) return;            // ett vanligt klick: plockaren sköter det
-  suppressClick = true;
-  if (a.rotate) { commitRotate(); return; }
-  if (placing && releaseAction({ kind: 'aim', button: 0, moved: true }) === 'place-aimed') { spot = a.sp; placeHere(a.sp.key); }
-});
-// 0.17.1: högerknappen. Dra panorerar (camera-rig.js), ett högerklick utan dragning lägger tillbaka det man håller.
-// Webbläsarens meny visas aldrig över kartan (på macOS kommer den redan vid trycket, så beslutet tas vid släppet).
-let rightDown = null;
-renderer.domElement.addEventListener('pointerdown', e => { if (e.button === BUTTON.right) rightDown = { x: e.clientX, y: e.clientY }; });
 addEventListener('pointerup', e => {
-  if (e.button !== BUTTON.right || !rightDown) return;
-  const moved = isDrag(e.clientX - rightDown.x, e.clientY - rightDown.y);
-  rightDown = null;
-  if (mode === 'play' && releaseAction({ kind: 'pan', button: BUTTON.right, moved, holding: !!placing || !!rotating }) === 'cancel') { stopPlacing(); rotating = null; }
+  if (!aim || e.button !== aim.button) return;
+  const a = aim; aim = null; rig.panLock = false;
+  if (mode !== 'play') return;
+  const act = releaseAction({ kind: a.kind, button: a.button, moved: a.moved, holding: !!placing || !!rotating, aimed: a.drag });
+  if (a.rotate) {
+    if (act === 'cancel') rotating = null;
+    else if (a.moved && a.button === BUTTON.left) { suppressClick = true; commitRotate(); }
+    return;
+  }
+  if (act === 'cancel') { stopPlacing(); return; }
+  // ett vanligt klick: plockaren sköter det (vänsterknappen); en dragning som inte siktade släpps utan att något händer
+  if (act === 'click') return;
+  if (a.moved && a.button === BUTTON.left) suppressClick = true;
+  if (act === 'place-aimed' && placing) { spot = a.sp; logPlace({ out: 'aimed', key: a.sp.key }); placeHere(a.sp.key); }
 });
 const takeSuppress = () => { const s0 = suppressClick; suppressClick = false; return s0; };
 const aimTip = document.createElement('div');
