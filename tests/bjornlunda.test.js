@@ -51,3 +51,23 @@ test('inga tankstreck i Björnlundas filer', () => {
   for (const f of ['../src/data/bjornlunda.js', '../src/data/osm-map.js', '../src/render/osm-world.js', '../src/render/bjornlunda-kit.js', '../bjornlunda.html', '../scripts/osm-to-map.mjs', '../scripts/osm-places/bjornlunda.mjs'])
     assert.doesNotMatch(readFileSync(new URL(f, import.meta.url), 'utf8'), /\u2014/, f);
 });
+
+test('väg 57/223 är mjuk: inga sågtänder (vinkeln mellan två led under 25 grader), en bredd hela vägen', () => {
+  const main = ROADS.filter(r => r.cls === 'A');
+  assert.ok(main.length >= 1);
+  for (const rd of ROADS.filter(r => r.cls === 'A' || r.cls === 'B')) for (let i = 2; i < rd.pts.length; i++) {
+    const [a, b, c] = [rd.pts[i - 2], rd.pts[i - 1], rd.pts[i]];
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.3) continue;
+    let d = Math.abs(Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(b[1] - a[1], b[0] - a[0])); if (d > Math.PI) d = 2 * Math.PI - d;
+    assert.ok(d < 25 * Math.PI / 180, `${rd.id} vid ${b}`);
+  }
+  assert.equal(new Set(main.map(r => r.width)).size, 1);
+});
+
+test('östra kanten är landsbygd: inga gångstigar, grusvägarna i två bredder med diken, korsningarna har mynningar', () => {
+  const rural = ROADS.filter(r => r.rural);
+  assert.ok(rural.length > 3);
+  assert.ok(!rural.some(r => r.cls === 'E'));
+  for (const r of rural.filter(r => r.surface === 'gravel')) { assert.ok([3, 4.2].includes(r.width), r.id); assert.ok(r.ditch, r.id); }
+  assert.ok(bjornlunda.joins.some(j => ROADS.find(r => r.id === j.major)?.cls === 'A'));
+});

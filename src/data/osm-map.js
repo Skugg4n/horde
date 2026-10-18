@@ -42,7 +42,7 @@ export function smooth(pts, step = 1.5) {
 // (samma regler som Gnesta och Mölnbo). Vägarnas mjuka linjer läggs på map.roads (rd.line) för ritningen.
 // Järnvägen och husen är aldrig väg; plankorsningen är gångbar för att vägen går över.
 export function osmGrid(map, bounds, cellSize = 2) {
-  for (const rd of map.roads) rd.line ??= rd.pts.length > 2 ? smooth(rd.pts) : rd.pts.map(p => [...p]);
+  for (const rd of map.roads) rd.line ??= rd.smoothed || rd.pts.length <= 2 ? rd.pts.map(p => [...p]) : smooth(rd.pts);
   const { x0, z0, x1, z1 } = bounds;
   const gw = Math.round((x1 - x0) / cellSize), gh = Math.round((z1 - z0) / cellSize);
   const walk = new Uint8Array(gw * gh), terrain = new Uint8Array(gw * gh);

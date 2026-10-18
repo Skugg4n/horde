@@ -7,13 +7,16 @@ export default {
   name: 'Björnlunda',
   out: 'src/data/bjornlunda.js',
   exportName: 'bjornlunda',
-  version: '0.1.0',
+  version: '0.2.0',
   // Utsnittet: bykärnan med Stationsvägen, Villavägen, Smedjevägen, Gästgivarevägen, ICA, gamla stationsläget,
   // järnvägen och väg 57/223 i öster. Pastorsexpeditionen (kyrkans roll) ryms i sydväst.
   crop: { x0: -310, x1: 250, y0: -330, y1: 345 },
   scale: 0.5,           // avstånden: halv verklig skala, som Gnesta och Mölnbo
   buildingScale: 0.72,  // husen krymps mindre än avstånden så att de läses bredvid zombierna
   seed: 1953,
+  // Östra sidan av väg 57/223 hör till spelytan (norra ingången går förbi där, åkrarna ger lång sikt), men som en
+  // lugn landsbygdskant: åker, gårdar och grusvägar. Gränsen följer riksvägen 16 m öster om den, sedan norr om väg 57.
+  rural: [{ name: 'Östra kanten', poly: [[-54, 377.5], [132, 7.5], [250, -228.5], [570, -228.5], [570, 607.5], [-54, 607.5]] }],
   // Hur villorna ser ut: 1950- till 70-tal, faluröda, gula och vita, några ljusa putsade och tegel.
   facades: [['red', 30], ['yellow', 24], ['white', 24], ['beige', 7], ['grey', 5], ['brick', 6], ['blueGrey', 4]],
   roofs: [['black', 30], ['charcoal', 20], ['tile', 35], ['slate', 15]],

@@ -71,6 +71,8 @@ function paintLand(map, { bounds, ppm, fadeEdges = false, detail = true }) {
     asphalt: pat(pattern(256, GP.asphalt, ['#2d2a25', '#5a554b', '#3a3630', '#6b6456'], 6000, 1.2)),
     sand: pat(pattern(64, GP.sand, ['#a89870', '#d0c19a'], 300, 1)),
     pitch: '#6f8044',
+    rock: pat(pattern(128, '#77756c', ['#8d8a80', '#5f5d56', '#9a978c', '#6d6a5f'], 1400, 2.2)),
+    paving: pat(pattern(128, GP.paving, ['#a39d8e', '#857f72', '#b0aa9b', '#7a7468'], 2200, 0.9)),
   };
   const poly = (pts, fill, blur = 0) => {
     g.save(); if (blur) g.filter = `blur(${blur}px)`;
@@ -100,6 +102,8 @@ function paintLand(map, { bounds, ppm, fadeEdges = false, detail = true }) {
   for (const p of G.pitch) poly(p, P.pitch, 1);
   for (const p of G.sand) poly(p, P.sand, 2);
   for (const p of G.gravel) poly(p, P.gravel, 1);
+  for (const p of G.rock ?? []) poly(p, P.rock, 3);
+  for (const p of G.square ?? []) poly(p, P.paving, 1);
   for (const p of G.paved) poly(p, P.asphalt, 1);
   // tomterna: klippt gräs runt villorna
   if (detail) for (const h of map.buildings) {
@@ -114,14 +118,46 @@ function paintLand(map, { bounds, ppm, fadeEdges = false, detail = true }) {
     line(R.pts, R.half * 2 + 1, 'rgba(60,55,45,0.25)', { cap: 'butt', blur: 3 });
     for (const s of R.sidings) line(s, 4, P.ballast);
   }
-  // vägarna: grus först, asfalt sist, mörkare kant under
+  // vatten: sjön med mörkare djup ut från stranden, strandkant i grus, bäckarna som smala band
+  for (const p of G.water ?? []) { poly(p, '#6f6b55', 3); }
+  for (const p of G.water ?? []) { poly(p, '#3f5560', 2); g.save(); g.filter = `blur(${6 * ppm}px)`; g.beginPath(); p.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.closePath(); g.clip(); g.lineWidth = 9 * ppm; g.strokeStyle = 'rgba(120,140,130,0.55)'; g.stroke(); g.restore(); }
+  for (const s of map.streams ?? []) { line(s.pts, 2.4, '#5a5a44', { blur: 2, alpha: 0.6 }); line(s.pts, 1.4, '#3f5560'); }
+  // vägarna: grus först, asfalt sist, mörkare kant under. Grusvägar på landet har diken (mörkare gräsband).
   const order = { gravel: 0, asphalt: 1 };
   const roads = map.roads.filter(rd => rd.paint !== false).sort((a, b) => order[a.surface] - order[b.surface] || (a.cls < b.cls ? 1 : -1));
+  // trottoarer: gator med kantsten får plattor på båda sidor
+  for (const rd of roads) if (rd.curbs) line(rd.line, rd.width + 4.6, P.paving, { cap: 'butt' });
+  for (const rd of roads) if (rd.ditch) line(rd.line, rd.width + 3.0, 'rgba(52,62,30,0.32)', { blur: 3 });
   for (const rd of roads) if (rd.surface === 'asphalt') line(rd.line, rd.width + 0.5, '#8d887a'); else line(rd.line, rd.width + 1.2, GP.gravelDark, { blur: 2, alpha: 0.5 });
+  // korsningarna: avrundade mynningar (en kvartscirkel på var sida) i den mindre vägens beläggning
+  const fillet = (j, fill, grow = 0) => {
+    const R = (j.wMinor >= 4 ? 3.2 : j.wMinor >= 3 ? 1.8 : 0.8) + grow, hw = j.wMajor / 2 - 0.2, mw = j.wMinor / 2 + grow;
+    const at = (a, b) => [j.at[0] + j.u[0] * a + j.n[0] * b, j.at[1] + j.u[1] * a + j.n[1] * b];
+    const pts = [at(-mw - R, hw), at(-mw - R, 0), at(mw + R, 0), at(mw + R, hw)];
+    g.save(); g.beginPath();
+    g.moveTo(X(pts[0][0]), Z(pts[0][1])); g.lineTo(X(pts[1][0]), Z(pts[1][1])); g.lineTo(X(pts[2][0]), Z(pts[2][1])); g.lineTo(X(pts[3][0]), Z(pts[3][1]));
+    let c = at(mw, hw), e = at(mw, hw + R); g.quadraticCurveTo(X(c[0]), Z(c[1]), X(e[0]), Z(e[1]));
+    e = at(-mw, hw + R); g.lineTo(X(e[0]), Z(e[1]));
+    c = at(-mw, hw); g.quadraticCurveTo(X(c[0]), Z(c[1]), X(pts[0][0]), Z(pts[0][1]));
+    g.closePath(); g.fillStyle = fill; g.fill(); g.restore();
+  };
+  const joins = map.joins ?? [];
+  for (const j of joins) if (j.surface === 'asphalt') fillet(j, '#8d887a', 0.25);
   for (const rd of roads) line(rd.line, rd.width, rd.surface === 'asphalt' ? P.asphalt : P.gravel);
-  // mittlinje, och kantlinjer på riksvägen (läses som den större vägen)
-  for (const rd of map.roads.filter(x => x.center)) line(rd.line, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
-  for (const rd of map.roads.filter(x => x.cls === 'A')) for (const side of [-1, 1]) line(offsetLine(rd.line, side * (rd.width / 2 - 0.35)), 0.14, 'rgba(225,218,200,0.55)', { cap: 'butt' });
+  for (const j of joins) fillet(j, j.surface === 'asphalt' ? P.asphalt : P.gravel);
+  // den större vägen ligger överst i korsningen (asfalt över grus), sedan linjerna
+  const majorIds = new Set(joins.filter(j => j.surface !== 'asphalt').map(j => j.major));
+  for (const rd of roads) if (rd.surface === 'asphalt' && majorIds.has(rd.id)) line(rd.line, rd.width, P.asphalt);
+  // mittlinje, och kantlinjer på riksvägen (läses som den större vägen), brutna där en väg mynnar
+  const gap = (rd, side) => joins.filter(j => j.major === rd.id && (side === 0 || Math.sign(j.n[0] * -j.u[1] + j.n[1] * j.u[0]) === side))
+    .map(j => ({ x: j.at[0], z: j.at[1], r: j.wMinor / 2 + (j.wMinor >= 4 ? 3.2 : 1.8) + 0.6 }));
+  const broken = (pts, holes) => { const out = []; let cur = []; for (const p of pts) { if (holes.some(h => Math.hypot(p[0] - h.x, p[1] - h.z) < h.r + 3)) { if (cur.length > 1) out.push(cur); cur = []; } else cur.push(p); } if (cur.length > 1) out.push(cur); return out; };
+  const dense = pts => { const o = []; for (let i = 1; i < pts.length; i++) { const [ax, az] = pts[i - 1], [bx, bz] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 0.8)); for (let k = 0; k < n; k++) o.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]); } o.push(pts[pts.length - 1]); return o; };
+  for (const rd of map.roads.filter(x => x.center)) for (const seg of broken(dense(rd.line), gap(rd, 0))) line(seg, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
+  for (const rd of map.roads.filter(x => x.cls === 'A')) for (const side of [-1, 1]) {
+    const off = offsetLine(dense(rd.line), side * (rd.width / 2 - 0.35));
+    for (const seg of broken(off, gap(rd, -side).map(h => ({ ...h, r: h.r - 2.4 })))) line(seg, 0.14, 'rgba(225,218,200,0.55)', { cap: 'butt' });
+  }
   if (fadeEdges) {
     const F = 18 * ppm;
     g.globalCompositeOperation = 'destination-out';
@@ -155,10 +191,26 @@ export function buildOsmWorld(scene, map, opts = {}) {
   beyond.rotation.x = -Math.PI / 2; beyond.position.y = -0.1; scene.add(beyond);
 
   const b = createBatch(), fb = createBatch(), r = seeded(1953);
+  // delarna (stora kartor): en batch per del, så att kameran över en del bara ritar den delens instanser
+  // (InstancedMesh skärs bort per batch mot synfältet). b tar det som ligger mellan delarna.
+  const parts = (map.parts ?? []).map(p => ({ ...p, batch: createBatch() }));
+  const inPart = (p, x, z) => x >= p.bounds.x0 && x <= p.bounds.x1 && z >= p.bounds.z0 && z <= p.bounds.z1;
   const signs = new THREE.Group(); signs.name = 'osm-signs'; scene.add(signs);
-  const addSigns = arr => { if (arr) for (const s of arr) signs.add(s); };
+  const addSigns = arr => { if (Array.isArray(arr)) for (const s of arr) signs.add(s); };
   const inC = (x, z, pad = 0) => x >= crisp.x0 - pad && x <= crisp.x1 + pad && z >= crisp.z0 - pad && z <= crisp.z1 + pad;
-  const pickB = (x, z) => (outsideD(crisp, x, z) < NEAR ? b : fb);
+  // omgivningen i diset i fyra fjärdedelar och (stora kartor) resten av spelytan i rutor: samma skäl, kameran ritar
+  // bara de bitar den ser
+  const fq = [0, 1, 2, 3].map(() => createBatch()), CX = (crisp.x0 + crisp.x1) / 2, CZ = (crisp.z0 + crisp.z1) / 2;
+  const farB = (x, z) => fq[(x > CX ? 1 : 0) + (z > CZ ? 2 : 0)];
+  const TILE = 110, tiles = new Map();
+  const restB = (x, z) => {
+    if (!parts.length) return b;
+    const k = `${Math.floor((x - crisp.x0) / TILE)},${Math.floor((z - crisp.z0) / TILE)}`;
+    if (!tiles.has(k)) tiles.set(k, createBatch());
+    return tiles.get(k);
+  };
+  const pickB = (x, z) => { if (outsideD(crisp, x, z) >= NEAR) return farB(x, z); for (const p of parts) if (inPart(p, x, z)) return p.batch; return restB(x, z); };
+  const isFar = bb => fq.includes(bb);
   const reach = (x, z) => outsideD(crisp, x, z) <= REACH;
   const roads = map.roads;
   const rail = map.rail;
@@ -167,6 +219,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
   // ---------- järnvägen ----------
   if (rail) {
     const crossAt = (map.props ?? []).filter(p => p.kind === 'levelCrossing').map(p => p.at);
+    const platAt = (map.props ?? []).filter(p => p.kind === 'platforms').map(p => [...p.at, p.length ?? 60]);
     const roadOver = (x, z) => roads.some(rd => distPolyline(x, z, rd.line) < rd.width / 2 + 1.2);
     const portals = [];
     let acc = 0, nextPortal = 15;
@@ -181,7 +234,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
         // staketen, utom där en väg går över
         for (let s = u0; s < u1; s += 4) {
           const s1 = Math.min(u1, s + 4), sx = ax + (bx - ax) * (s + s1) / 2 / L, sz = az + (bz - az) * (s + s1) / 2 / L;
-          if (roadOver(sx, sz) || crossAt.some(([cx, cz]) => Math.hypot(cx - sx, cz - sz) < 7)) continue;
+          if (roadOver(sx, sz) || crossAt.some(([cx, cz]) => Math.hypot(cx - sx, cz - sz) < 7) || platAt.some(([cx, cz, L]) => Math.hypot(cx - sx, cz - sz) < L / 2 + 3)) continue;
           for (const v of [-(rail.half - 0.3), rail.half - 0.3]) meshFence(bb, M, s, s1, v, 1.4);
         }
       }
@@ -242,7 +295,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
       for (let i = 1; i < pts.length; i++) {
         const [sx, sz] = pts[i - 1], [ex, ez] = pts[i];
         if (!inC((sx + ex) / 2, (sz + ez) / 2, 8) || onOther((sx + ex) / 2, (sz + ez) / 2, rd, 0.25)) continue;
-        curb(b, sx, sz, ex, ez);
+        curb(pickB(sx, sz), sx, sz, ex, ez);
       }
     }
     if (!rd.lamps) continue;
@@ -253,9 +306,69 @@ export function buildOsmWorld(scene, map, opts = {}) {
         const dx = (bx - ax) / L, dz = (bz - az) / L, nlx = dz, nlz = -dx, off = rd.width / 2 + 0.75, side = rd.lamps.side;
         const x = ax + dx * s + nlx * off * side, z = az + dz * s + nlz * off * side;
         if (!inC(x, z, 6) || onOther(x, z, rd, 1.4) || map.buildings.some(o => Math.abs(o.x - x) < 14 && Math.abs(o.z - z) < 14 && inRect(o, x, z, 0.6))) continue;
-        lamp(b, frame(null, x, 0, z, Math.atan2(nlz * side, -nlx * side)));
+        lamp(pickB(x, z), frame(null, x, 0, z, Math.atan2(nlz * side, -nlx * side)));
       }
       acc = ((acc - L) % rd.lamps.step + rd.lamps.step) % rd.lamps.step;
+    }
+  }
+
+  // ---------- gatulivet (map.streets): kantstensparkering, gatuträd, bänkar och cykelställ ----------
+  const ST = map.streets ?? {};
+  let parked = 0;
+  if (opts.street) {
+    const S = opts.street;
+    const freeAt = (x, z, self, pad) => !roads.some(o => o !== self && o.cls !== 'E' && distPolyline(x, z, o.line) < o.width / 2 + pad)
+      && !map.buildings.some(o => Math.abs(o.x - x) < 30 && Math.abs(o.z - z) < 30 && inRect(o, x, z, 0.8));
+    const taken = [];
+    const clear = (x, z, d) => !taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < d);
+    const walkLine = (rd, step, off, fn) => {
+      let acc = step * 0.5;
+      for (let i = 1; i < rd.line.length; i++) {
+        const [ax, az] = rd.line[i - 1], [bx, bz] = rd.line[i], L = Math.hypot(bx - ax, bz - az);
+        for (let s = acc; s < L; s += step) { const dx = (bx - ax) / L, dz = (bz - az) / L; fn(ax + dx * s, az + dz * s, dx, dz); }
+        acc = ((acc - L) % step + step) % step;
+      }
+    };
+    for (const rd of roads) {
+      const cfg = ST[rd.name]; if (!cfg) continue;
+      for (const side of [-1, 1]) {
+        if (cfg.parking) walkLine(rd, 6.2, 0, (x, z, dx, dz) => {
+          const off = rd.width / 2 - 1.1, px = x + dz * off * side, pz = z - dx * off * side;
+          if (r() > cfg.parking || !inC(px, pz, -2) || !freeAt(px, pz, rd, 3.5) || !clear(px, pz, 5)) return;
+          taken.push([px, pz]); const bb = pickB(px, pz); S.car(bb, frame(null, px, 0, pz, Math.atan2(-dz, dx) + (r() < 0.5 ? 0 : Math.PI)), r); parked++;
+        });
+        if (cfg.trees) walkLine(rd, cfg.trees, 0, (x, z, dx, dz) => {
+          const off = rd.width / 2 + 2.2, px = x + dz * off * side, pz = z - dx * off * side;
+          if (!inC(px, pz, 4) || !freeAt(px, pz, rd, 2.2) || !clear(px, pz, 4)) return;
+          taken.push([px, pz]); S.tree(pickB(px, pz), px, pz, r);
+        });
+        if (cfg.benches && side > 0) walkLine(rd, cfg.benches, 0, (x, z, dx, dz) => {
+          const off = rd.width / 2 + 1.6, px = x + dz * off * side, pz = z - dx * off * side;
+          if (!inC(px, pz) || !freeAt(px, pz, rd, 1.2) || !clear(px, pz, 3)) return;
+          taken.push([px, pz]); const M = frame(null, px, 0, pz, Math.atan2(-dz, dx) + Math.PI);
+          if (r() < 0.6) S.bench(pickB(px, pz), M); else S.planter(pickB(px, pz), M, r);
+        });
+        if (cfg.bikes && side < 0) walkLine(rd, cfg.bikes, 0, (x, z, dx, dz) => {
+          const off = rd.width / 2 + 1.5, px = x + dz * off * side, pz = z - dx * off * side;
+          if (!inC(px, pz) || !freeAt(px, pz, rd, 1.2) || !clear(px, pz, 3)) return;
+          taken.push([px, pz]);
+          for (let k = 0; k < 4; k++) { const M = frame(null, px + dx * (k - 1.5) * 0.8, 0, pz + dz * (k - 1.5) * 0.8, Math.atan2(-dz, dx) + Math.PI / 2); S.rack(pickB(px, pz), M); if (r() < 0.6) S.bike(pickB(px, pz), M, r.pick(['#2f4a6a', '#7a2e24', '#2a2b2c', '#c9c4b6', '#3e4a3c'])); }
+        });
+      }
+    }
+  }
+
+  // ---------- broarna: räcken längs vägar med bridge ----------
+  for (const rd of roads) {
+    if (!rd.bridge) continue;
+    for (const side of [-1, 1]) {
+      const pts = offsetLine(rd.line, side * (rd.width / 2 + 0.15));
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, az] = pts[i - 1], [bx, bz] = pts[i], L = Math.hypot(bx - ax, bz - az); if (L < 0.05) continue;
+        const bb = pickB(ax, az), ry = -Math.atan2(bz - az, bx - ax);
+        bb.box(null, (ax + bx) / 2, 0.55, (az + bz) / 2, L + 0.05, 1.1, 0.3, '#9d9a92', 'matte', ry);
+        bb.box(null, (ax + bx) / 2, 1.15, (az + bz) / 2, L + 0.05, 0.08, 0.12, '#5b5d5c', 'metal', ry);
+      }
     }
   }
 
@@ -272,14 +385,25 @@ export function buildOsmWorld(scene, map, opts = {}) {
     const f = opts.kit?.[p.kind];
     if (!f) continue;
     const M = frame(null, p.at[0], 0, p.at[1], p.ry ?? 0);
+    if (p.free || p.to) { addSigns(f(pickB(...p.at), M, p, { rail, map, r })); continue; }
     if (p.kind === 'levelCrossing') addSigns(f(b, M, p.road ?? 5, rail?.half ?? 6, rail?.tracks));
     else if (p.kind === 'oldStation') addSigns(f(b, frame(M, 0, 0, 0, p.side < 0 ? Math.PI : 0)));
     else addSigns(f(pickB(...p.at), frame(M, 0, 0, map.roads.find(x => x.id === p.road) ? (map.roads.find(x => x.id === p.road).width / 2 + 2.4) * -1 : 0, Math.PI)));
   }
+  // torgen (ground.square): planteringar, bänkar och träd i ett glest raster
+  if (opts.street) for (const p of map.ground.square ?? []) {
+    const xs = p.map(q => q[0]), zs = p.map(q => q[1]);
+    for (let z = Math.min(...zs) + 3; z < Math.max(...zs) - 2; z += 7) for (let x = Math.min(...xs) + 3; x < Math.max(...xs) - 2; x += 7) {
+      const px = x + r.range(-1.5, 1.5), pz = z + r.range(-1.5, 1.5);
+      if (!inPoly(px, pz, p) || map.buildings.some(o => Math.abs(o.x - px) < 30 && Math.abs(o.z - pz) < 30 && inRect(o, px, pz, 1.2)) || roads.some(o => o.cls !== 'E' && distPolyline(px, pz, o.line) < o.width / 2 + 1)) continue;
+      const k = r(), M = frame(null, px, 0, pz, r() * Math.PI);
+      if (k < 0.35) opts.street.planter(pickB(px, pz), M, r); else if (k < 0.65) opts.street.bench(pickB(px, pz), M); else opts.street.tree(pickB(px, pz), px, pz, r);
+    }
+  }
   // lekplatserna (OSM leisure=playground) inne i spelytan
   for (const p of map.ground.sand) {
     const cx = p.reduce((s, q) => s + q[0], 0) / p.length, cz = p.reduce((s, q) => s + q[1], 0) / p.length;
-    if (inC(cx, cz)) playground(b, frame(null, cx, 0, cz, r() * 0.4));
+    if (inC(cx, cz)) playground(pickB(cx, cz), frame(null, cx, 0, cz, r() * 0.4));
   }
   // parkerade bilar på asfaltsytorna (ICA-parkeringen och de andra), fria från gator och hus
   const blockedCar = (x, z) => roads.some(o => distPolyline(x, z, o.line) < o.width / 2 + 1.6) || map.buildings.some(o => Math.abs(o.x - x) < 30 && Math.abs(o.z - z) < 30 && inRect(o, x, z, 1.4));
@@ -289,7 +413,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
     if (!inC((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...zs) + Math.max(...zs)) / 2)) continue;
     for (let z = Math.min(...zs) + 3; z < Math.max(...zs) - 2; z += 5.6) for (let x = Math.min(...xs) + 2; x < Math.max(...xs) - 1; x += 2.7) {
       if (r() > 0.32 || !inPoly(x, z, p) || !inPoly(x + 2.2, z, p) || !inPoly(x - 2.2, z, p) || blockedCar(x, z)) continue;
-      b.tag = { kind: 'car', x, z }; car(b, frame(null, x, 0, z, Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI)), GP.car[(r() * GP.car.length) | 0]); b.tag = null; cars++;
+      b.tag = { kind: 'car', x, z }; { const F = frame(null, x, 0, z, Math.PI / 2 + (r() < 0.5 ? 0 : Math.PI)); if (opts.street) opts.street.car(pickB(x, z), F, r); else car(pickB(x, z), F, GP.car[(r() * GP.car.length) | 0]); } b.tag = null; cars++;
     }
   }
 
@@ -302,7 +426,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
     for (let z = Math.min(...zs); z < Math.max(...zs); z += 3.8) for (let x = Math.min(...xs); x < Math.max(...xs); x += 3.8) {
       const px = x + r.range(-1.5, 1.5), pz = z + r.range(-1.5, 1.5);
       if (!reach(px, pz) || !inPoly(px, pz, poly) || blocked(px, pz)) continue;
-      const o = outsideD(crisp, px, pz), bb = o < 6 ? b : fb, k = r(), hgt = r.range(9, 15);
+      const o = outsideD(crisp, px, pz), bb = o < 6 ? (isFar(pickB(px, pz)) ? b : pickB(px, pz)) : farB(px, pz), k = r(), hgt = r.range(9, 15);
       if (bb === b) b.tag = { kind: 'tree', x: px, z: pz };
       if (k < 0.45) spruce(bb, px, pz, hgt, r); else if (k < 0.75) pine(bb, px, pz, hgt, r); else birch(bb, px, pz, hgt * 0.85, r);
       b.tag = null; trees++;
@@ -313,14 +437,17 @@ export function buildOsmWorld(scene, map, opts = {}) {
     const xs = p.map(q => q[0]), zs = p.map(q => q[1]);
     for (let i = 0; i < 5; i++) {
       const x = r.range(Math.min(...xs), Math.max(...xs)), z = r.range(Math.min(...zs), Math.max(...zs));
-      if (inPoly(x, z, p) && !inC(x, z, 4) && reach(x, z) && !blocked(x, z)) hayBale(fb, x, z, r() * 3);
+      if (inPoly(x, z, p) && !inC(x, z, 4) && reach(x, z) && !blocked(x, z)) hayBale(farB(x, z), x, z, r() * 3);
     }
   }
 
   // ---------- ut i scenen ----------
   const meshes = b.flush(scene);
+  const partMeshes = {};
+  for (const p of parts) { const g = new THREE.Group(); g.name = `part-${p.id}`; partMeshes[p.id] = p.batch.flush(g); scene.add(g); meshes.push(...partMeshes[p.id]); }
   const farGroup = new THREE.Group(); farGroup.name = 'osm-far';
-  const farMeshes = fb.flush(farGroup);
+  const farMeshes = [fb, ...fq].flatMap(q => q.flush(farGroup));
+  for (const [k, t] of tiles) { const g = new THREE.Group(); g.name = `tile-${k}`; meshes.push(...t.flush(g)); scene.add(g); }
   const mats = new Map();
   for (const m of farMeshes) {
     const key = m.material.uuid;
@@ -331,7 +458,7 @@ export function buildOsmWorld(scene, map, opts = {}) {
   scene.add(farGroup);
   return {
     ground, update() {},
-    stats: { instancedMeshes: meshes.length + farMeshes.length, instances: meshes.reduce((n, m) => n + m.count, 0) + farMeshes.reduce((n, m) => n + m.count, 0), houses, trees, cars, signs: signs.children.length },
+    stats: { parked, instancedMeshes: meshes.length + farMeshes.length, instances: meshes.reduce((n, m) => n + m.count, 0) + farMeshes.reduce((n, m) => n + m.count, 0), houses, trees, cars, signs: signs.children.length },
   };
 }
 
@@ -371,8 +498,13 @@ export function sketchOverlay(map, gridPath) {
     routes.push({ id: s.id, cells: path?.length ?? 0, metres: path ? Math.round(path.length * g.cellSize) : null });
   });
   if (sk.base) { disc(...sk.base.at, 4, '#b5532a'); }
-  const DC = { sniper: '#e9dfc9', 'squad-house': '#7fd06a', mg: '#d8b23a', block: '#8a8c88', 'base-alt': '#b5532a' };
-  for (const d of sk.defence) disc(...d.at, 1.6, DC[d.kind] ?? '#ffffff', 0.4);
+  // linjerna mellan försvarspunkterna (triangeln): streckade band
+  for (const l of sk.links ?? []) {
+    const L = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), n = Math.max(1, Math.floor(L / 6));
+    for (let i = 0; i < n; i += 1) { const t0 = i / n, t1 = (i + 0.55) / n; poly([[l.a[0] + (l.b[0] - l.a[0]) * t0, l.a[1] + (l.b[1] - l.a[1]) * t0], [l.a[0] + (l.b[0] - l.a[0]) * t1, l.a[1] + (l.b[1] - l.a[1]) * t1]], '#f0e6cf', 0.5, 1.4); }
+  }
+  const DC = { sniper: '#e9dfc9', 'squad-house': '#7fd06a', mg: '#d8b23a', block: '#8a8c88', 'base-alt': '#b5532a', point: '#b5532a' };
+  for (const d of sk.defence) disc(...d.at, d.kind === 'point' ? 5 : 1.6, DC[d.kind] ?? '#ffffff', d.kind === 'point' ? 0.38 : 0.4);
   grp.visible = false;
   return { group: grp, routes };
 }
