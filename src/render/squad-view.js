@@ -13,6 +13,8 @@ import { PALETTE } from './kit.js';
 import { KIND } from '../sim/placement.js';
 import { runTime } from '../sim/squad.js';
 import { soldierAt } from '../sim/sim.js';
+import { houseById } from '../sim/houses.js';
+import { createHouseWindows, facadePoint, windowY } from './house-windows.js';
 
 const angleDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 // 0.12.2 (speltestet: "de ligger och snurrar på marken"): den liggande vrider sig runt höften, högst
@@ -52,6 +54,11 @@ export function createSquadView(scene) {
   edges.count = 0; edges.frustumCulled = false; edges.renderOrder = 5; edges.castShadow = false; edges.name = 'hv-marks-edge';
   scene.add(edges, marks);
   const mm = new THREE.Matrix4();
+  // 0.19.0 (H459): de som ligger i ett hus syns i fönstren (house-windows.js), inte på marken
+  const wins = createHouseWindows(scene);
+  const winKey = (gunId, i) => gunId + ':' + i;
+  const houseOf = g => (g.house ? houseById(sim.map, sim.place, g.house.id) : null);
+  function windowOf(h, x, z) { const f = facadePoint(h, x, z); f.y = windowY(h); return f; }
 
   function lean(e, p, s) {
     // åt vilket håll han lutar sig ut: bort från huset eller bilen bredvid (sett från hans håll)
@@ -93,16 +100,30 @@ export function createSquadView(scene) {
   function sync(next, dt) {
     sim = next;
     horde.begin();
+    wins.begin();
     const alive = new Set();
     let nm = 0;
     for (const g of sim.guns) {
-      if (!g.squad) continue;
+      // 0.19.0 (H459): en Ksp 90 eller Ksp 58 i ett hus: skytten i det bästa fönstret, ingen pjäs på marken
+      if (!g.squad) {
+        const h = !g.move && !g.silent && houseOf(g);
+        if (h) { const f = windowOf(h, g.x, g.z); wins.add({ key: winKey(g.id, 0), ...f, aim: g.weapon.targetId != null ? g.weapon.angle : null, kind: 'mg' }); }
+        continue;
+      }
       alive.add(g.id);
       let sq = squads.get(g.id);
       if (!sq) { sq = { men: new Map() }; squads.set(g.id, sq); }
+      const h = houseOf(g);
       for (const s of g.soldiers) {
         let e = sq.men.get(s.i);
         if (!e) { e = addMan(g, s); sq.men.set(s.i, e); }
+        // 0.19.0 (H459): i huset: en halvkropp i fönstret (ingen ring, ingen kropp på gräset). Den stupade syns inte.
+        if (h && !s.path) {
+          e.inHouse = true; e.wasDown = s.down; e.mv = s.mv; e.run = null;
+          if (!s.down) { const f = windowOf(h, s.x, s.z); e.x = f.x; e.z = f.z; wins.add({ key: winKey(g.id, s.i), ...f, aim: s.targetId != null ? s.angle : null, kind: g.weapon.type === 'inf' ? 'inf' : g.weapon.type === 'civ' ? 'civ' : 'hv' }); }
+          continue;
+        }
+        if (e.inHouse) { e.inHouse = false; e.x = s.x; e.z = s.z; if (s.down) e.down = 1; }
         // ersatt: springer ut från markeringen igen
         if (e.wasDown && !s.down) { e.down = 0; e.x = g.x; e.z = g.z; e.run = { t: 0, dur: runTime(Math.hypot(s.x - g.x, s.z - g.z)) }; }
         e.wasDown = s.down;
@@ -205,10 +226,14 @@ export function createSquadView(scene) {
     marks.count = edges.count = nm; marks.instanceMatrix.needsUpdate = true; edges.instanceMatrix.needsUpdate = true; marks.instanceColor.needsUpdate = true;
     for (const [id, sq] of squads) if (!alive.has(id)) { for (const e of sq.men.values()) horde.release(e.parts); squads.delete(id); }
     horde.end();
+    wins.end(dt);
   }
   const man = (gunId, i) => squads.get(gunId)?.men.get(i) ?? null;
   // Mynningen för skottet (världsmatrisen är från förra bildrutans pose) och en stöt bakåt.
   function fire(gunId, i) {
+    // i ett hus: skottet går från fönstret (det lyser upp)
+    const w = wins.fire(winKey(gunId, i));
+    if (w) return w;
     const e = man(gunId, i);
     if (!e || e.run || e.down) return null;
     e.recoil = 1; e.shots++; e.rl = 0;
@@ -233,19 +258,20 @@ export function createSquadView(scene) {
   const tm = new THREE.Matrix4();
   function show(g, range, selected) {
     if (!g?.squad) { lines.visible = false; rings.count = 0; return; }
-    let n = 0;
+    let n = 0, nr = 0;
+    // 0.19.0 (H459): i ett hus går sikten från fönstret, och ingen ring ligger på gräset
+    const h = houseOf(g);
     for (const s of g.soldiers) {
       if (n >= LINES_MAX) break;
       const e = man(g.id, s.i);
-      const x = e?.x ?? s.x, z = e?.z ?? s.z;
-      tm.makeTranslation(x, 0.075, z);
-      rings.setMatrixAt(n, tm);
+      const x = e?.x ?? s.x, z = e?.z ?? s.z, y = h && !s.path ? windowY(h) : 0.3;
+      if (!(h && !s.path)) { tm.makeTranslation(x, 0.075, z); rings.setMatrixAt(nr++, tm); }
       const a = s.targetId != null ? s.angle : s.face;
       const len = s.down ? 0 : range;
-      linePos.set([x, 0.3, z, x + Math.cos(a) * len, 0.3, z + Math.sin(a) * len], n * 6);
+      linePos.set([x, y, z, x + Math.cos(a) * len, y, z + Math.sin(a) * len], n * 6);
       n++;
     }
-    rings.count = n; rings.instanceMatrix.needsUpdate = true;
+    rings.count = nr; rings.instanceMatrix.needsUpdate = true;
     lineGeo.setDrawRange(0, n * 2); lineGeo.attributes.position.needsUpdate = true;
     lines.visible = n > 0;
     ringM.color.set(selected ? PALETTE.rust : PALETTE.paper);
@@ -257,6 +283,7 @@ export function createSquadView(scene) {
     runners.length = 0;
     horde.clear();
     lines.visible = false; rings.count = 0; marks.count = 0; edges.count = 0;
+    wins.clear();
   }
   return { sync, fire, position, show, clear, flee, horde, marks };
 }

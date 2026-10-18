@@ -63,7 +63,7 @@ export function housesOf(map, p) {
     if (!edge.length) continue;
     const H = p.height ? Math.max(...cells.map(k => p.height[k])) : 5;
     const cap = Math.max(CAP_MIN, Math.min(CAP_MAX, Math.round(h.w * h.d / AREA_PER_MAN)));
-    out.push({ id: plot.id, x: h.x, z: h.z, ry: h.ry, w: h.w, d: h.d, kind: h.kind ?? 'house', cells, edge, touch, cap, eye: Math.min(FLOOR_EYE, H * 0.6), height: H });
+    out.push({ id: plot.id, x: h.x, z: h.z, ry: h.ry, w: h.w, d: h.d, kind: h.kind ?? 'house', cells, edge, touch, cap, eye: Math.min(FLOOR_EYE, H * 0.6), height: H, eave: h.eave ?? H * 0.6 });
   }
   cache.set(map, out);
   return out;

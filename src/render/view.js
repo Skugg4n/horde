@@ -7,7 +7,7 @@ import { createHealthRings } from './rings.js';
 import { createHorde } from './horde.js';
 import { crewCarryModel, hvRun, weaponModel, obstacleModel, setObstacleWear, zombieModel, zombieWalk, zombieAttack, zombieFall, zombieStumble, seedZombie, weaponGhost, obstacleGhost, setGhostTone, disposeModel, baseModel, roadblockModel, setBaseGlow, rinkEntranceModel, setBaseDamage } from './models.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { CELL_LEN, movePhase, gunPos, stumbleOf } from '../sim/sim.js';
+import { CELL_LEN, movePhase, gunPos, stumbleOf, housesFor } from '../sim/sim.js';
 import { WEAPONS } from '../data/weapons.js';
 import { alongPath as alongPathAt } from '../sim/crew-path.js';
 import { createSquadView } from './squad-view.js';
@@ -26,6 +26,7 @@ const STEP_PHASE = 2.6;          // gångfas per meter
 const HIT_GEO = new THREE.CircleGeometry(2.4, 24);
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
 const HIT_MAN = new THREE.CircleGeometry(1.1, 12);     // Hemvärnet: en träffskiva per soldat
+const HIT_BOX = new THREE.BoxGeometry(1, 1, 1);        // 0.19.0: enheten i ett hus, huset självt
 
 // Zombiens läge och riktning frågas av rutten (E4: väglinjen, Gnesta: rutnätet).
 function place(out, sim, z) {
@@ -191,15 +192,37 @@ export function createView(scene, initialSim) {
   // Varje pjäs får userData.pick och en osynlig träffskiva, så att den går att klicka på även
   // när en liten pjäs står där. Byggs om när vapen, nivå eller låda ändras.
   // 0.13.0: värnet byggs om när Rotate vänt det (emplace.face)
-  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.weapon.ammo ? ':ammo' : '') + (s.weapon.sandbags ? ':bags' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : '') + (s.emplace ? ':' + s.emplace.face.toFixed(2) : ''); }
+  function slotKey(s) { return s.weapon.type + ':' + s.weapon.level + (s.weapon.kit ? ':kit' : '') + (s.weapon.ammo ? ':ammo' : '') + (s.weapon.sandbags ? ':bags' : '') + (s.roof ? ':roof' : '') + (s.squad ? ':' + s.soldiers.length : '') + (s.emplace ? ':' + s.emplace.face.toFixed(2) : '') + (s.house ? ':h' + s.house.id : ''); }
   // Modellen byggs om när vapnet ändras, och efter en flytt när pjäsen ställs upp på den nya platsen
   // (medan den packas och bärs är det den gamla platsens värn).
   function wantKey(s, e) {
     const at = s.move && movePhase(s) !== 'setup' && e?.cellKey != null ? e.cellKey : s.cell;
     return slotKey(s) + '@' + at;
   }
+  // 0.19.0 (H459): en enhet i ett hus ritas i fönstren (squad-view.js, house-windows.js). Här bara en osynlig
+  // träffkropp över huset, så att ett klick på huset öppnar enhetens panel.
+  function houseHit(group, s) {
+    const h = s.house && sim.place ? housesFor(sim).find(q => q.id === s.house.id) : null;
+    if (!h) return;
+    const hit = new THREE.Mesh(HIT_BOX, HIT_MAT);
+    hit.scale.set(h.w, Math.max(2, h.eave), h.d);
+    hit.position.set(h.x - s.x, Math.max(2, h.eave) / 2, h.z - s.z);
+    hit.rotation.y = h.ry;
+    group.add(hit);
+  }
   function buildSlot(s, old) {
-    if (old) disposeModel(old.group);
+    if (old) { dropCrew(old); disposeModel(old.group); }
+    if (s.house && !s.squad && !s.move) {
+      const group = new THREE.Group();
+      group.position.set(s.x, 0, s.z);
+      houseHit(group, s);
+      group.userData.pick = { kind: 'gun', id: s.id };
+      scene.add(group);
+      group.updateMatrixWorld(true);
+      const e = { key: wantKey(s, old), cellKey: s.cell, group, model: null, house: true, angle: 0, look: SHOT_LOOK[s.weapon.type] || SHOT_LOOK.m249 };
+      slots.set(s.id, e); slotObjects.set(s.id, group);
+      return e;
+    }
     if (s.squad) {
       // Gruppen: ingen modell här (soldaterna ritas i squad-view.js), bara en träffskiva under
       // varje soldat, så att ett klick på vilken soldat som helst öppnar gruppens panel.
@@ -209,8 +232,9 @@ export function createView(scene, initialSim) {
         hit.rotation.x = -Math.PI / 2; hit.position.set(m.x - s.x, 0.1, m.z - s.z);
         group.add(hit);
       }
-      // 0.17.2 (H306): sandsäckarna framför varje soldat och ammolådorna mitt i gruppen
-      if (s.weapon.ammo || s.weapon.sandbags) group.add(suppliesModel({ ammo: !!s.weapon.ammo, at: [0, 0], sandbags: !!s.weapon.sandbags, seed: s.cell,
+      // 0.17.2 (H306): sandsäckarna framför varje soldat och ammolådorna mitt i gruppen (0.19.0: inte i ett hus)
+      if (s.house) houseHit(group, s);
+      else if (s.weapon.ammo || s.weapon.sandbags) group.add(suppliesModel({ ammo: !!s.weapon.ammo, at: [0, 0], sandbags: !!s.weapon.sandbags, seed: s.cell,
         men: s.soldiers.filter(m => !m.down).map(m => ({ x: m.x - s.x + Math.cos(m.face) * 0.55, z: m.z - s.z + Math.sin(m.face) * 0.55, face: m.face })) }));
       group.userData.pick = { kind: 'gun', id: s.id };
       group.position.set(s.x, 0, s.z);
@@ -368,7 +392,8 @@ export function createView(scene, initialSim) {
     occluded.clear();
     for (const g of sim.guns) {
       let hit = null;
-      if (g.squad) {
+      if (g.house) { /* 0.19.0: i huset syns de i fönstren, ingen siluett */ }
+      else if (g.squad) {
         // gruppen: skymd när alla stående soldater skyms
         const men = g.soldiers.filter(s => !s.down);
         if (men.length && men.every(s => hidden(s.x, 1.3, s.z))) hit = { x: men.reduce((a, s) => a + s.x, 0) / men.length, y: 1.8, z: men.reduce((a, s) => a + s.z, 0) / men.length };
@@ -396,7 +421,7 @@ export function createView(scene, initialSim) {
     // Skyttar på taken röjer ingenting på marken.
     // 0.12.0 (H102): en pjäs som flyttas befäster den nya platsen först när den ställs upp där; den gamla
     // platsens skador ligger kvar.
-    for (const s of sim.guns) if (!s.roof && !s.squad && !dug.has(s.cell) && (!s.move || movePhase(s) === 'setup')) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
+    for (const s of sim.guns) if (!s.roof && !s.squad && !s.house && !dug.has(s.cell) && (!s.move || movePhase(s) === 'setup')) { dug.set(s.cell, { x: s.x, z: s.z, key: s.cell }); added = true; }
     if (added) scene.userData.fortify?.setPositions([...dug.values()], { road: onRoad });
   }
   function syncSlots(dt) {
@@ -407,7 +432,7 @@ export function createView(scene, initialSim) {
       alive.add(s.id);
       let e = slots.get(s.id);
       if (!e || e.key !== wantKey(s, e)) e = buildSlot(s, e);
-      if (e.squad) continue;
+      if (e.squad || e.house) continue;
       const w = s.weapon;
       placeSlot(e, s, dt);
       // 0.13.0: pipan följer simuleringens vridning (vridfarten), och Rotate vrider hela pjäsen
@@ -794,6 +819,26 @@ export function createView(scene, initialSim) {
     (r.via ?? []).slice(0, 12).forEach(([x, z], i) => { tm.makeTranslation(x, 0.12, z); wps.setMatrixAt(i, tm); wps.count = i + 1; });
     wps.instanceMatrix.needsUpdate = true;
   }
+  // 0.19.0 (H459, speltestet av 0.18.1: "i flyttläget visar hovring över ett hus samma markspöke som på marken"): med
+  // en enhet i handen över ett hus som går att besätta, och för en vald enhet i ett hus, lyser huset: en ram runt
+  // huset och en ton över taket (grön går, röd går inte, ljus vald). ui.houseHi = { id, tone }.
+  const HH_TONE = { ok: '#79e06c', bad: PALETTE.rust, paper: PALETTE.paper };
+  const hhEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthTest: false }));
+  const hhFill = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.22, depthWrite: false }));
+  hhEdges.renderOrder = 9; hhFill.renderOrder = 8; hhEdges.visible = hhFill.visible = false; hhEdges.frustumCulled = hhFill.frustumCulled = false;
+  scene.add(hhEdges, hhFill);
+  let hhKey = '';
+  function syncHouseHi() {
+    const hi = ui.houseHi;
+    const key = hi ? hi.id + ':' + hi.tone : '';
+    if (key === hhKey) return;
+    hhKey = key;
+    const h = hi ? housesFor(sim).find(q => q.id === hi.id) : null;
+    hhEdges.visible = hhFill.visible = !!h;
+    if (!h) return;
+    const top = Math.max(2.4, h.height) + 0.15;
+    for (const m of [hhEdges, hhFill]) { m.scale.set(h.w + 0.5, top, h.d + 0.5); m.position.set(h.x, top / 2, h.z); m.rotation.set(0, h.ry, 0); m.material.color.set(HH_TONE[hi.tone] ?? HH_TONE.paper); }
+  }
   function syncUi() {
     // ring under en byggd pjäs som är vald eller pekas på
     const ringFor = ui.selected?.kind === 'gun' ? ui.selected : ui.hover?.kind === 'gun' ? ui.hover : null;
@@ -801,7 +846,8 @@ export function createView(scene, initialSim) {
     // Hemvärnet: en ring under varje soldat och hans siktlinje i stället för pjäsens ring
     const sq = e?.squad ? sim.guns.find(g => g.id === ringFor.id) : null;
     squadView.show(sq, sq ? ui.squadRange ?? 15 : 0, ringFor === ui.selected);
-    selRing.visible = !!e && !e.squad;
+    selRing.visible = !!e && !e.squad && !e.house;
+    syncHouseHi();
     if (selRing.visible) {
       selRing.position.x = e.group.position.x; selRing.position.z = e.group.position.z;
       const sel = ringFor === ui.selected;
@@ -810,7 +856,7 @@ export function createView(scene, initialSim) {
     range.visible = !!ui.range;
     if (ui.range) { range.position.set(ui.range.x, 0, ui.range.z); range.scale.setScalar(ui.range.r); }
   }
-  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, route: null, valid: null, snap: null, ...next }; }
+  function setUi(next) { ui = { selected: null, hover: null, range: null, tiles: null, ghost: null, cover: null, obGhost: null, marks: false, squadRange: null, sector: null, route: null, valid: null, snap: null, houseHi: null, ...next }; }
   function pickTargets() {
     const out = [];
     for (const [id, e] of slots) out.push({ kind: 'gun', id, object: e.group });
@@ -948,6 +994,16 @@ export function createView(scene, initialSim) {
           }
           const e = slots.get(ev.gunId); if (!e) break;
           const sc = zombieScale(ev.targetId);
+          if (e.house) {
+            // 0.19.0 (H459): kulsprutan i huset skjuter ut genom fönstret
+            const mz = squadView.fire(ev.gunId, 0); if (!mz) break;
+            mz.getWorldPosition(from);
+            const sp = ev.hit ? 0.3 : 1.4;
+            to.set(ev.x + rnd(-sp, sp), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-sp, sp));
+            if (!ev.hit) to.sub(from).multiplyScalar(1.4).add(from);
+            fx.tracer(from, to, e.look.tracer); fx.flash(mz, ev.gunId, e.look.flash);
+            break;
+          }
           e.model.muzzle.getWorldPosition(from);
           const spread = ev.hit ? 0.3 : 1.4;
           to.set(ev.x + rnd(-spread, spread), (ev.hit ? 1.2 : rnd(0.4, 2.2)) * sc, ev.z + rnd(-spread, spread));
@@ -994,7 +1050,7 @@ export function createView(scene, initialSim) {
         case 'crewLost': fx.gibs(ev.x, 0.7, ev.z, 10); fx.splat(ev.x, ev.z, rnd(1.4, 2)); break;
         case 'soldierDown': fx.gibs(ev.x, 0.7, ev.z, 8); fx.splat(ev.x + rnd(-0.4, 0.4), ev.z + rnd(-0.4, 0.4), rnd(1.2, 1.8)); break;
         case 'grenade': {
-          const e = slots.get(ev.gunId); if (!e) break;
+          const e = slots.get(ev.gunId); if (!e?.model) break;
           e.model.gunner.root.getWorldPosition(from);
           from.y += 1.5;
           to.set(ev.x, 0.15, ev.z);
@@ -1003,7 +1059,7 @@ export function createView(scene, initialSim) {
         }
         case 'launch': {
           // granattillsatsen: granaten lämnar röret under pipan i en flack båge
-          const e = slots.get(ev.gunId); if (!e) break;
+          const e = slots.get(ev.gunId); if (!e?.model) break;
           e.model.muzzle.getWorldPosition(from);
           to.set(ev.x, 0.15, ev.z);
           fx.grenade(from, to, ev.flight);

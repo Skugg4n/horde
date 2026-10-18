@@ -539,6 +539,10 @@ function placementUi() {
     const cells = obstacleCells(spot.key, placing.type);
     return { ghost: null, cover: null, range: null, obGhost: { type: placing.type, cells, ok: spot.ok }, tiles: { cells: cells.map(c => c.key), tone: spot.ok ? 'ok' : 'bad' } };
   }
+  // 0.19.0 (H459, speltestet av 0.18.1): över ett hus som enheten kan gå in i lyser huset (grönt går, rött inte), inget
+  // markspöke
+  const inHouse = placing && spot && spot.key >= 0 ? garrisonHouseAt(sim, spot.key, placing.type) : null;
+  if (inHouse) return { ghost: null, cover: null, range: null, houseHi: { id: inHouse.id, tone: spot.ok ? 'ok' : 'bad' } };
   if (placing && isSquad(placing.type)) {
     // Hemvärnet: markeringens ring, var soldaterna skulle ta skydd och vad de tillsammans ser
     if (!spot || spot.key < 0) return { ghost: null, cover: null, range: null };
@@ -565,14 +569,15 @@ function placementUi() {
   const g = at && sim.guns.find(x => x.id === at.id);
   if (!g) return { ghost: null, cover: null, range: null };
   const rng = (at === selected && panelRange) || rangeFor(at);
+  const houseHi = g.house ? { id: g.house.id, tone: 'paper' } : null;
   if (g.squad) {
     // gruppens samlade sikt: varje soldats egna rutor inom gevärets räckvidd (stupade ser inget)
     const r = weaponStats(g.weapon.type, g.weapon.level, sim.research).range;
     const men = g.soldiers.filter(s => !s.down);
-    return { ghost: null, range: rng, squadRange: r, cover: { id: g.id + ':' + g.weapon.level + ':' + men.length, x: g.x, z: g.z, r: 1e9, keys: squadKeys(men, r), tone: 'paper' } };
+    return { ghost: null, houseHi, range: g.house ? null : rng, squadRange: r, cover: { id: g.id + ':' + g.weapon.level + ':' + men.length, x: g.x, z: g.z, r: 1e9, keys: squadKeys(men, r), tone: 'paper' } };
   }
   const sector = g.facing != null ? { x: g.x, y: g.y ?? 0, z: g.z, facing: g.facing, cone: WEAPONS[g.weapon.type].cone, r: rng.r } : null;
-  return { ghost: null, range: sector ? null : rng, sector, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
+  return { ghost: null, houseHi, range: sector || g.house ? null : rng, sector, cover: { id: g.id, x: g.x, z: g.z, r: rng.r, keys: g.sight.keys, tone: 'paper' } };
 }
 // Rutorna en grupp ser tillsammans: varje soldats synliga rutor inom räckvidden från honom.
 function squadKeys(men, r) {
@@ -594,11 +599,13 @@ function flashTip(text) { tipFlash = { text, until: performance.now() + 1800, x:
 function updateGhostTip() {
   const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
   const show = !!flash || (placing && spot && !spot.ok);
-  const where = placing && placing.kind === 'gun' && WEAPONS[placing.type]?.roof && spot && spot.key >= 0;
+  // 0.19.0 (H459): över ett hus som enheten kan gå in i: INTO HOUSE
+  const intoHouse = placing && placing.kind === 'gun' && spot && spot.key >= 0 && spot.ok && !!garrisonHouseAt(sim, spot.key, placing.type);
+  const where = placing && placing.kind === 'gun' && (intoHouse || WEAPONS[placing.type]?.roof) && spot && spot.key >= 0;
   ghostWhere.hidden = !where;
   if (where) {
     // 0.17.2 (H301): ett torn (trapptornen, missionskyrkans klocktorn) säger TOWER
-    const t = !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : 'ROOF';
+    const t = intoHouse ? 'INTO HOUSE' : !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : 'ROOF';
     if (ghostWhere.textContent !== t) ghostWhere.textContent = t;
     ghostWhere.classList.toggle('roof', !!spot.roof);
     ghostWhere.style.left = pointer.x + 'px'; ghostWhere.style.top = pointer.y + 'px';
@@ -880,7 +887,10 @@ function updateSquadTags() {
     // 0.18.0: de som springer (flytt, vik, flykt) räknas där de är just nu
     const up = g.soldiers.filter(q => !q.down).map(q => (q.run > 0 ? soldierAt(q) : q));
     const cx = up.reduce((a, q) => a + q.x, 0) / (up.length || 1), cz = up.reduce((a, q) => a + q.z, 0) / (up.length || 1);
-    tmpV.set(up.length ? cx : g.x, g.house ? 6.2 : 2.4, up.length ? cz : g.z).project(camera);
+    // 0.19.0 (H459): en grupp i ett hus har lappen på taket
+    const ht = houseTop(g);
+    if (ht) tmpV.set(ht.x, ht.y + 1.7, ht.z).project(camera);
+    else tmpV.set(up.length ? cx : g.x, 2.4, up.length ? cz : g.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     const n = String(up.length) + (g.house ? ' \u2302' : '');
     const ni = el.querySelector('i'); if (ni.textContent !== n) ni.textContent = n;
@@ -893,11 +903,18 @@ function updateSquadTags() {
 // Under varje grupp och över varje pjäs: sanity som en smal stapel (när den är upplåst) och ett eller två ord om
 // läget: tyst, bemannas, viker, flydd, i hus, håller eld, trött, ammolådan. När en enhet bryts blinkar stapeln rött.
 const unitTags = new Map(), unitFlash = new Map();
+// 0.19.0 (H459): taket på huset en enhet ligger i (där lapparna står), eller null
+function houseTop(g) {
+  const h = g.house && housesFor(sim).find(q => q.id === g.house.id);
+  return h ? { x: h.x, z: h.z, y: Math.max(2.4, h.height) } : null;
+}
 function unitChips(g) {
   const out = [];
   if (g.retreat) out.push([g.retreat.kind === 'rout' ? 'ROUTED' : 'FALLING BACK', 'bad']);
   else if (g.silent) out.push([g.recrew ? `MANNING ${Math.ceil(g.recrew.t)}` : 'SILENT', 'bad']);
   else {
+    // 0.19.0: en kulspruta i ett hus syns inte på marken, så lappen säger vad det är
+    if (g.house && !g.squad) out.push([(WEAPONS[g.weapon.type]?.name ?? '').toUpperCase(), '']);
     if (g.house) out.push([g.house.broken ? 'HOUSE BROKEN' : 'IN HOUSE', g.house.broken ? 'bad' : '']);
     if (g.hold) out.push(['HOLD', 'hold']);
     else if (g.ambushUntil > sim.time) out.push(['AMBUSH', 'hold']);
@@ -934,8 +951,9 @@ function updateUnitStatus() {
     const f = unitFlash.get(g.id);
     el.classList.toggle('broke', !!f && f.until > time && f.kind === 'broke');
     el.classList.toggle('waver', !!f && f.until > time && f.kind === 'waver');
-    const at = g.squad ? (unitPos(g) ?? g) : g.move ? gunPos(g) : g;
-    tmpV.set(at.x, g.squad ? (g.house ? 6.2 : 2.4) : (g.y ?? 0) + (g.house ? 4.2 : 2.2), at.z).project(camera);
+    const at = g.squad ? (unitPos(g) ?? g) : g.move ? gunPos(g) : g, ht = houseTop(g);
+    if (ht) tmpV.set(ht.x, ht.y + 0.6, ht.z).project(camera);
+    else tmpV.set(at.x, g.squad ? 2.4 : (g.y ?? 0) + 2.2, at.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.classList.toggle('squad', !!g.squad && !!SQUAD_TAG[g.weapon.type]);
   }
@@ -2306,7 +2324,7 @@ const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.
 if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { startRotate, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
@@ -2521,7 +2539,7 @@ function tick(now) {
   view.setUi({ selected: rot ? { kind: 'gun', id: rotating.id } : selected, hover: placing ? (placing.kind === 'obstacle' && spot?.key >= 0 ? { kind: 'cell', id: spot.key } : null) : hovered,
     range: rot ? null : pu.range || panelRange || rangeFor(hovered) || rangeFor(selected), tiles: pu.tiles || (placing ? null : tiles),
     ghost: pu.ghost, cover: rot ? null : pu.cover, obGhost: pu.obGhost, sector: rot ?? pu.sector ?? (pu.ghost?.cone ? pu.ghost : null), marks: placing?.kind === 'obstacle', squadRange: pu.squadRange ?? null,
-    route: aimLine() ?? moveRoute(), valid: validTint(), xf: xfPreview(), xfZone: xfZones(),
+    route: aimLine() ?? moveRoute(), valid: validTint(), houseHi: pu.houseHi ?? null, xf: xfPreview(), xfZone: xfZones(),
     snap: placing && spot?.ok && spot.fx != null && !aim?.drag ? { from: [spot.fx, spot.fz], to: [spot.x, spot.z] } : null });
   view.setZoom(rig.view);
   view.sync(vdt);

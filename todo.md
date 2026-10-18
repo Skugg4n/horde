@@ -353,7 +353,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H456 | spel | Bjässar och skrotbilar som regel (Ola 2026-10-18): bjässen går inte runt skrotbilar utan knuffar undan dem (snabbt); betongen respekterar den. Kortet: "Brutes shove them aside." Tips första gången det händer: "A brute shoved the cars aside. Concrete holds." Field manual. Balans + fingeravtryck.
 - [ ] H457 | spel | Utred Olas fall på Mölnbo dag 2: spärr av skrotbilar, horden gick rätt bana, efter våg X krossade bjässar spärren och alla vände. Var det en ny ingång där bilarna låg på enda vägen, eller en bugg i flödesfältet (garnisonshus som "tjock" ruta som stängde den andra vägen)? Repro i sim.
 - [ ] H458 | ui | Varning när man ställer spärren som stänger sista vägen ("This shuts every road. They will smash through.") och hela vägvyn visas då.
-- [ ] H459 | spel | (skärper H428) Soldaterna "in house" står UTANFÖR huset vid fasaden och i trädgården (Olas skärmbild Mölnbo 2026-10-18), Ksp 58 med sandsäckar på gräsmattan. De ska synas I huset: halvkroppar i fönsterkarmarna, mynningsflammor och ljus i fönstret som skjuter, inga ringar på gräset, trupplappen på taket.
+- [x] H459 | spel | (skärper H428) Soldaterna "in house" står UTANFÖR huset vid fasaden och i trädgården (Olas skärmbild Mölnbo 2026-10-18), Ksp 58 med sandsäckar på gräsmattan. De ska synas I huset: halvkroppar i fönsterkarmarna, mynningsflammor och ljus i fönstret som skjuter, inga ringar på gräset, trupplappen på taket.
 - [ ] H460 | karta | Battle for Laxne (Ola 2026-10-18): byn norr om Gnesta vid väg 223. Horden från norr (223/Laxnevägen), vill söderut mot Gnesta (223 förbi skolan, Hebyvägen). Sjön som flank. Underlag i horde-refs/laxne (OSM, plan, Olas karta + satellit, beskrivning). Placera i kampanjplanen (docs/superpowers/specs/2026-10-18-kampanjplan.md) och bygg förhandsvisning som Björnlunda.
 
 ## Skiva 1 och speltestet av 0.17.2 (2026-10-18)
@@ -376,7 +376,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H425 | speltest | Skiva 1 genom human-ux-tester och sedan Ola: känns autovik som att spelet tar över? Läses sanity-stapeln? Hittar man husen?
 - [x] H426 | spel | Move in i ett hus mitt i en våg (0.18.1: gruppen eller laget springer till dörren och går in).
 - [ ] H427 | balans | Kryparna gör lite på Vikingavägen dag 4 och 5; mät om de ska vara fler eller ha ett eget hot.
-- [ ] H428 | spel | Soldaterna i husen syns dåligt (de står vid fasaden); fönster med mynningsflammor vore tydligare.
+- [x] H428 | spel | Soldaterna i husen syns dåligt (de står vid fasaden); fönster med mynningsflammor vore tydligare.
 
 
 ## Speltestet av 0.18.0 (docs/playtests/2026-10-18-0.18.0.md)
