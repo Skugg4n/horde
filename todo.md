@@ -266,3 +266,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H250 | grafik | Inget gräs på asfalten (tidigt i apokalypsen). (0.16.3)
 - [x] H233 | ux | Huvudmenyn trång och konstig: luftig plåt, Continue på en rad, statusrad, New operation som sekundär knapp, versionen i hörnet. (0.16.3)
 - [ ] H234 | grafik | Skyltarnas osynliga fotavtryck från 0.16.2 står kvar i placeringen (bl.a. på väg 800:s asfalt före korsningen). Flytta dem till de nya platserna när balansen ändå räknas om.
+
+## Mölnbo (0.17.0-molnbo, gren feature/molnbo)
+
+- [ ] MB01 | speltest | Mölnbo dag 1 till 5 med Ola, särskilt bron dag 4 och sista tåget dag 5.
+- [ ] MB02 | design | Olas svar på de öppna frågorna (gångbron, passager, Trollvägen, Kvarnvägen, perrongerna, finalen); antagandena i docs/superpowers/specs/2026-10-18-molnbo-build-notes.md.
+- [ ] MB03 | spel | De civila från Folkets hus till tåget över gångbron (designens evakuering).
+- [ ] MB04 | sim | Siktlinjer med brodäcket (simuleringen är platt, bara bilden lyfter).
+- [ ] MB05 | balans | Dag 4 och 5 är knivseggar; mjuka upp efter speltestet.
+- [ ] MB06 | ljud | Tåget, avgångsskylten och trafikljusen.

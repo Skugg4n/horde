@@ -1,5 +1,33 @@
 # Ändringslogg
 
+## 0.17.0-molnbo (2026-10-18)
+
+Ny sektor: Mölnbo, stationen och bron (docs/superpowers/specs/2026-10-17-molnbo-design.md). Gren feature/molnbo, byggd ovanpå 0.16.3; versionsnumret i src/version.js är oförändrat (sätts vid sammanslagningen). Antagandena om Olas öppna frågor och det som är kvar: docs/superpowers/specs/2026-10-18-molnbo-build-notes.md.
+
+Kartan (src/data/molnbo.js):
+- Ritad ur kulturmiljökartan, satellitbilden och Street View i järnvägens ram (spåret 21 grader mot öster-nordost), avstånden ungefär halv skala som Gnesta, tvärsnittet (spår, perronger, tåget) och husen nära verklig storlek. Stationshuset och Fagernäs ligger i dimkanten.
+- Järnvägen är stängd mark: tre spår, två perronger, staket. Enda vägen över är vägbron (väg 57) och gångbron väster om den, med ett trapptorn vid varje perrong. Norra perrongen och banvallen västerut är gångbara men når resten bara via trappan till gångbron (dag 5:s överraskning).
+- Ingångarna S1 till S5 (Gnestavägen, Stenbyvägen, Fagernäs, Krokvägen och väg 57 norrifrån, banvallen) ligger 14 m ute i diset.
+- Basen är Folkets hus, med dörrarna och grusplanen mot kameran. Vapenplatserna i designen (caféets parkering, Folkets hus plan, stationens grusplan, stationsparkeringen) är byggbar mark.
+- Prickskyttelägen: trapptornens platta tak, stationstaket och tågtaket. Södra perrongen bakom tåget är skydd för grupperna (som tegelmurarna på Vikingavägen).
+- Omgivningen i diset: villor, gårdar, åkrar, skog och Lillsjön, med diset inbakat som på E4.
+
+Byggsatsen (src/render/molnbo-kit.js, molnbo-world.js): betongbron med pelare, glas- och stålräcken och belysning, gångbron, trapptornen, perrongerna med väntkurer, lampor och den blå avgångsskylten, kontaktledningens portaler och linor, SL X60 (vit med blått band och SL-märket), Folkets hus med gavelskylten, stationshuset med den inglasade väntsalen, caféet Harmoni (ljusgrå panel, veranda, trädäck, CAFÉ), Missionshuset, det gula huset med snickarglädje, de röda kedjehusen, det gamla vita huset, Hembygdsgården med gärdsgård, Kvarnen, hyreshusen, trafikljusen vid korsningen och bergskärningen längs Fagernäsvägen. Allt i lookbook.html under Mölnbo.
+
+Bron i bilden: däcket ligger 4,4 m upp med ramper. Simuleringen är platt (broarna är vanliga rutor); bilden lyfter zombierna, deras hälsoringar och hordens väg efter banans höjd (map.groundY).
+
+Dagarna (en ny idé per dag): 1 Mölnbo station (höjden: Psg 90 på trapptornen), 2 Stenbyvägen (tåget som skydd), 3 Sista tåget (tågklockan: håll tills tåget går), 4 Norra sidan (horden norr om spåret, bron som flaskhals), 5 Längs spåret (horden på banvallen, sista tåget norrut). Introna och lektionerna högst 12 ord; nytt uppslag i Field manual: The last train.
+
+Tågklockan (src/sim/sim.js, src/ui/train.js): dayCfg.train = { at }. Klockan går från första vågen; när den når noll går tåget och dagen är vunnen om basen står, också med zombier kvar. Plåten uppe till vänster visar avgången, och tåget rullar ut ur stationen.
+
+Kampanjen: Mölnbo är en sektor på operationskartan och öppnar när Hagstumosse · Vikingavägen dag 5 är vunnen ("Hagstumosse holds. Mölnbo station is the last way north for hundreds. Command sends you to hold it."). Ledningens första leverans flyttar truppen dit (adopt) och nollställer trycket. Fem leveranser med lager. ?debug&jump=molnbo:2 hoppar direkt till en dag.
+
+Balansen: scripts/balance.mjs molnbo (mbSmart och naive från en vanlig spelares ankomst efter Hagstumosse), fingeravtryck i tests/molnbo.test.js, loggen i docs/balance-log.md under Mölnbo. Kampanjens kvitto för E4 och Hagstumosse är oförändrat.
+
+Övrigt: placeringsprovet tar --map och --day (npm run placement -- --map molnbo --day 1) och trycker ackordtangenter ('2-8'); 0 tysta klick av 60 och 64 på Mölnbo dag 1 och 2. Ingångens etikett tar aldrig klick (den låg mitt i spelytan och åt två klick).
+
+Bilder: docs/molnbo-oversikt.png, docs/molnbo-bron.png, docs/molnbo-x60.png, docs/molnbo-folkets-hus.png.
+
 ## 0.16.3 (2026-10-17)
 
 E4 vid Lästringe: omgivningen, skyltarna och asfalten (Olas "absolut potential, men det får inte se så superkonstigt ut utanför"), todo H230 till H232, och en lugnare huvudmeny. Bara det som syns: simuleringen, rutnätet, placeringen och balansen är oförändrade (placeringens fingeravtryck och kampanjens kvitto är desamma som i 0.16.2).
