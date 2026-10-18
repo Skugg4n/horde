@@ -60,6 +60,8 @@ Allt byggs i kod, inga bildfiler. Läs stilbibeln i [docs/art-bible.md](docs/art
 
 Björnlunda (`bjornlunda.html`, förhandsvisning) bygger på OpenStreetMap: Map data © OpenStreetMap contributors (ODbL), https://www.openstreetmap.org/copyright. `scripts/osm-to-map.mjs <plats>` gör om en plan.json ur `~/Projects/horde-refs/<plats>/` till en kartmodul i `src/data/` (inställningarna i `scripts/osm-places/`).
 
+Gnesta centrum (`gnesta-centrum.html`, förhandsvisning) bygger på samma konverterare och OpenStreetMap: Map data © OpenStreetMap contributors (ODbL). En stor karta i fyra delar (1-4 hoppar till en del, 0 visar hela); husens karaktär efter Gnesta kommuns kulturmiljöanalys (2023) och Commons-fotona i `~/Projects/horde-refs/gnesta-centrum/`.
+
 ## Ändringar
 
 Se [CHANGELOG.md](CHANGELOG.md).
