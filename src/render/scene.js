@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { PALETTE as P } from './kit.js';
 import { fitShadow } from './camera-rig.js';
+import { EYE, FOG_SHIFT, NEAR, FAR } from './camera-eye.js';
 
 export function createRenderer(container) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -23,12 +24,13 @@ export function createScene(container, map, opts = {}) {
   const HAZE = new THREE.Color(P.haze);
   const scene = new THREE.Scene();
   scene.background = HAZE;
-  scene.fog = new THREE.Fog(HAZE, 70, 120);
+  // 0.17.2 (H309): kameran står FOG_SHIFT meter längre bort (camera-eye.js), diset räknas från samma punkt som förut
+  scene.fog = new THREE.Fog(HAZE, 70 + FOG_SHIFT, 120 + FOG_SHIFT);
 
   const [tx, tz] = map.camera.target;
   const VIEW = map.camera.view;
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
-  camera.position.set(tx + 40, 46, tz + 40);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, NEAR, FAR);
+  camera.position.set(tx + EYE[0], EYE[1], tz + EYE[2]);
   camera.lookAt(tx, 0, tz);
 
   function resize() {
@@ -62,8 +64,7 @@ export function createScene(container, map, opts = {}) {
 
   // Stor bana: längre dis (kameran står längre ut) och skuggan över hela spelytan.
   if (map.grid) {
-    scene.fog.near = 95; scene.fog.far = 210;
-    camera.far = 600; camera.updateProjectionMatrix();
+    scene.fog.near = 95 + FOG_SHIFT; scene.fog.far = 210 + FOG_SHIFT;
     sun.shadow.mapSize.set(4096, 4096);
     const g = map.grid, x0 = g.origin[0], z0 = g.origin[1];
     fitShadow(sun, map.shadowBounds ?? { x0, x1: x0 + g.w * g.cellSize, z0, z1: z0 + g.h * g.cellSize });
