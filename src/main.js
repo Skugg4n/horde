@@ -84,9 +84,12 @@ loading.id = 'loading'; loading.className = 'plate'; loading.hidden = true;
 loading.innerHTML = '<div class="t">Loading</div><div class="bar"><i></i></div><div class="s"></div>';
 uiRoot.appendChild(loading);
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+// 0.17.1 (speltestet av 0.17.0: "Loading Hagstumosse · Ishallen" när Mölnbo öppnades): skylten säger alltid banan
+// spelaren väntar på (loadTarget), också medan en annan bana byggs färdigt före den.
+let loadTarget = null;
 function showLoading(name, step, frac) {
   loading.hidden = false;
-  loading.querySelector('.t').textContent = 'Loading ' + name;
+  loading.querySelector('.t').textContent = 'Loading ' + (loadTarget ?? name);
   loading.querySelector('.s').textContent = step;
   loading.querySelector('.bar i').style.width = Math.round(frac * 100) + '%';
 }
@@ -125,10 +128,19 @@ function texturesOf(sc) {
   sc.traverse(o => { for (const mt of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) for (const v of Object.values(mt)) if (v && v.isTexture) out.add(v); });
   return out;
 }
+let loadingId = null;
 async function loadMap(id) {
   const m = MAPS[id] ?? MAPS.riksvagen;
-  if (map && map.id === m.id) return;
-  if (loadingMap) return loadingMap;
+  // 0.17.1: en bana som byggs färdigt först, sedan den som efterfrågades (förut lämnades den nya begäran bort och
+  // den gamla banans namn stod kvar på skylten)
+  while (loadingMap) {
+    if (loadingId === m.id) return loadingMap;
+    loadTarget = m.name;
+    if (!loading.hidden) loading.querySelector('.t').textContent = 'Loading ' + m.name;
+    try { await loadingMap; } catch { /* den förra banan; den här provas ändå */ }
+  }
+  if (map && map.id === m.id) { if (loadTarget === m.name) loadTarget = null; return; }
+  loadingId = m.id; loadTarget = m.name;
   loadingMap = (async () => {
     let w = worlds.get(m.id);
     if (!w) { w = await buildMapWorld(m); worlds.set(m.id, w); }
@@ -145,7 +157,7 @@ async function loadMap(id) {
     await nextFrame();
     loading.hidden = true;
   })();
-  try { await loadingMap; } finally { loadingMap = null; }
+  try { await loadingMap; } finally { loadingMap = null; loadingId = null; if (loadTarget === m.name) loadTarget = null; }
 }
 const routeKeys = { now: null, preview: null, evac: null };
 
