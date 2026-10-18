@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horde · Gnesta centrum</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<style>
+  #stage { cursor: grab; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .street { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 600 12px 'Oswald', sans-serif;
+            letter-spacing: 0.18em; text-transform: uppercase; color: rgba(240,232,212,0.62); text-shadow: 0 1px 3px rgba(20,14,8,0.7); }
+  .sk { position: absolute; transform: translate(-50%, -140%); white-space: nowrap; font: 600 11px 'Oswald', sans-serif; letter-spacing: 0.08em;
+        padding: 1px 6px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 2px; display: none; }
+  #labels.sketch .sk { display: block; }
+  #labels.off .street { display: none; }
+  #head { position: fixed; top: 14px; left: 14px; padding: 8px 14px 10px; max-width: 420px; }
+  #head .t { font-family: 'Saira Stencil One', sans-serif; font-size: 26px; line-height: 1.1; }
+  #head .s { font-size: 12px; color: var(--paper-dim); letter-spacing: 0.06em; margin-top: 2px; }
+  #head .k { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-top: 6px; line-height: 1.5; }
+  #info { position: fixed; right: 10px; bottom: 6px; font: 11px 'IBM Plex Mono', monospace; opacity: .5; text-align: right; }
+  #credit { position: fixed; left: 10px; bottom: 24px; font: 10px 'IBM Plex Mono', monospace; opacity: .45; }
+  #part { position: fixed; top: 14px; right: 14px; padding: 6px 12px 8px; font: 600 13px 'Oswald', sans-serif; letter-spacing: 0.08em; text-align: right; }
+  #part .p { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-top: 3px; letter-spacing: 0; }
+  .lm { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 600 11px 'Oswald', sans-serif; letter-spacing: 0.12em;
+        text-transform: uppercase; color: rgba(255,226,170,0.78); text-shadow: 0 1px 3px rgba(20,14,8,0.8); }
+  #labels.off .lm { display: none; }
+  .sk.pt { font-size: 15px; padding: 2px 9px; background: #b5532a; color: #f6eedc; border-color: #f0e6cf; }
+</style>
+</head><body>
+<div id="stage" class="grade"></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+<div id="labels"></div>
+<div id="head" class="plate">
+  <div class="t">GNESTA CENTRUM</div>
+  <div class="s">Storgatan, the station, the school on the hill and the harbour. One big map in four parts. Map preview, no gameplay.</div>
+  <div class="k">drag / WASD / arrows: pan · wheel: zoom<br>1-4: the parts · 0: the whole map · H: home<br>L: names · G: walk grid · R: defence sketch</div>
+</div>
+<div id="part" class="plate"><div class="n"></div><div class="p"></div></div>
+<div id="ver"></div>
+<div id="info"></div>
+<div id="credit">Map data © OpenStreetMap contributors (ODbL) · building character after Gnesta kommun, kulturmiljöanalys 2023</div>
+<script type="module">
+import * as THREE from 'three';
+import { VERSION } from './src/version.js';
+import { gnestaCentrum as map, GNESTA_CENTRUM_VERSION } from './src/data/gnesta-centrum.js';
+import { gridPath } from './src/data/osm-map.js';
+import { createScene } from './src/render/scene.js';
+import { gridOverlay } from './src/render/gnesta-world.js';
+import { buildOsmWorld, sketchOverlay } from './src/render/osm-world.js';
+import { frame } from './src/render/gnesta-kit.js';
+import * as K from './src/render/gnesta-centrum-kit.js';
+
+// Förhandsvisningen har inget ljud.
+document.getElementById('ver').textContent = `Gnesta centrum ${GNESTA_CENTRUM_VERSION} · v${VERSION}`;
+const { renderer, scene, camera, sun, fill } = createScene(document.getElementById('stage'), map);
+sun.shadow.mapSize.set(4096, 4096);
+
+// Husen: generiska efter ålder och användning, landmärkena egna (gnesta-centrum-kit.js)
+const KIT = {
+  townBlock: K.townBlock, shopBlock: K.shopBlock, stenstad: K.stenstad, lamell: K.lamell, centrumhus: K.centrumhus,
+  supermarket: K.supermarket, fireStation: K.fireStation, elektron: K.elektron, kommunhus: K.kommunhus,
+  gnestaStation: K.gnestaStation, tingshus: K.tingshus, waterTower: K.waterTower, school: K.school, gymHall: K.gymHall,
+  kindergarten: K.kindergarten, brewery: K.brewery, redCottage: K.redCottage, holmenApt: K.holmenApt,
+  // saker utan OSM-byggnad
+  pier: (b, M, p, { r }) => { const L = Math.hypot(p.to[0] - p.at[0], p.to[1] - p.at[1]); K.pier(b, M, L, r); },
+  statue: (b, M) => K.statue(b, M),
+  fireTruck: (b, M, p) => K.fireTruck(b, M, !!p.small),
+  bus: (b, M) => K.bus(b, M),
+  platforms: (b, M, p, { rail }) => {
+    // järnvägens ram vid punkten: närmaste segment på mittlinjen
+    let best = null;
+    for (let i = 1; i < rail.pts.length; i++) {
+      const [ax, az] = rail.pts[i - 1], [bx, bz] = rail.pts[i], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+      const t = Math.max(0, Math.min(1, ((p.at[0] - ax) * dx + (p.at[1] - az) * dz) / l2)), x = ax + dx * t, z = az + dz * t, d = Math.hypot(p.at[0] - x, p.at[1] - z);
+      if (!best || d < best.d) best = { d, x, z, ry: Math.atan2(-dz, dx) };
+    }
+    return K.stationPlatforms(b, frame(null, best.x, 0, best.z, best.ry), p.length ?? 70, rail.tracks);
+  },
+};
+const STREET = { car: K.parkedCar, tree: K.streetTree, bench: K.bench, planter: K.planter, rack: K.bikeRack, bike: K.bike };
+const t0 = performance.now();
+const world = buildOsmWorld(scene, map, { kit: KIT, street: STREET });
+const buildMs = Math.round(performance.now() - t0);
+const grid = gridOverlay(map.grid); grid.visible = false; scene.add(grid);
+const sketch = sketchOverlay(map, gridPath); scene.add(sketch.group);
+
+// ---------- kamera: samma vinkel som Gnesta och Mölnbo, går att panorera ----------
+const OFFSET = new THREE.Vector3(40, 46, 40);
+const SUN = new THREE.Vector3(-34, 30, 26);
+const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
+const HOME = new THREE.Vector3(map.camera.target[0], 0, map.camera.target[1]);
+const WHOLE = { x: (map.surroundings.crisp.x0 + map.surroundings.crisp.x1) / 2, z: (map.surroundings.crisp.z0 + map.surroundings.crisp.z1) / 2 };
+const target = HOME.clone();
+const LIMIT = map.camera.pan;
+const [ZMIN, ZMAX] = map.camera.zoom;
+let view = map.camera.view;
+function applyCamera() {
+  target.x = Math.min(LIMIT.x1, Math.max(LIMIT.x0, target.x));
+  target.z = Math.min(LIMIT.z1, Math.max(LIMIT.z0, target.z));
+  const a = innerWidth / innerHeight, v = a < 1 ? view * 1.5 : view;
+  camera.left = -v * a / 2; camera.right = v * a / 2; camera.top = v / 2; camera.bottom = -v / 2;
+  // utzoomad: kameran backar längs samma linje (bilden är densamma) så att närplanet inte klipper marken nertill
+  const back = Math.max(1, view / 45);
+  camera.position.copy(target).addScaledVector(OFFSET, back); camera.lookAt(target);
+  camera.far = 500 + back * 140;
+  camera.updateProjectionMatrix();
+  fill.position.copy(target).add(OFFSET); fill.target.position.copy(target);
+  // skuggkameran följer med och täcker det som syns
+  sun.position.copy(target).add(SUN); sun.target.position.copy(target);
+  const half = Math.min(110, Math.max(34, view * a * 0.95));
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 240 });
+  sun.shadow.camera.updateProjectionMatrix();
+  // diset följer zoomen så att en översikt inte drunknar
+  const extra = (back - 1) * OFFSET.length();
+  scene.fog.near = 95 + extra + Math.max(0, view - 60) * 1.2; scene.fog.far = 210 + extra + Math.max(0, view - 60) * 1.6;
+}
+addEventListener('resize', applyCamera); applyCamera();
+
+let drag = null;
+const stage = document.getElementById('stage');
+const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; stage.style.cursor = 'grabbing'; });
+addEventListener('pointerup', () => { drag = null; stage.style.cursor = ''; });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = view / innerHeight;
+  target.addScaledVector(R, -(e.clientX - drag.x) * k).addScaledVector(D, -(e.clientY - drag.y) * k / PITCH);
+  drag = { x: e.clientX, y: e.clientY }; applyCamera();
+});
+stage.addEventListener('wheel', e => { e.preventDefault(); view = Math.min(ZMAX, Math.max(ZMIN, view * Math.exp(e.deltaY * 0.001))); applyCamera(); }, { passive: false });
+
+const keys = new Set();
+const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
+addEventListener('keydown', e => {
+  if (PAN[e.code]) { keys.add(e.code); e.preventDefault(); }
+  if (e.code === 'KeyL') labelsEl.classList.toggle('off');
+  if (e.code === 'KeyG') grid.visible = !grid.visible;
+  if (e.code === 'KeyR') { sketch.group.visible = !sketch.group.visible; labelsEl.classList.toggle('sketch', sketch.group.visible); }
+  if (e.code === 'KeyH') { target.copy(HOME); view = map.camera.view; showPart(null); applyCamera(); }
+  const dig = /^Digit([0-4])$/.exec(e.code);
+  if (dig) goPart(+dig[1]);
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+// ---------- delarna: 1-4 hoppar till en del, 0 visar hela kartan ----------
+const partEl = document.getElementById('part');
+function showPart(p, whole = false) {
+  partEl.querySelector('.n').textContent = whole ? 'The whole map · parts A-D' : p ? p.name : 'Gnesta centrum';
+  const B = p?.bounds;
+  partEl.querySelector('.p').textContent = B ? `${Math.round(B.x1 - B.x0)} × ${Math.round(B.z1 - B.z0)} m · key ${p.key}` : whole ? 'key 0 · 1-4 for a part' : '1-4: parts · 0: whole map';
+}
+function goPart(k) {
+  if (k === 0) { target.set(WHOLE.x, 0, WHOLE.z); view = Math.min(ZMAX, (map.surroundings.crisp.x1 - map.surroundings.crisp.x0) * 0.78); showPart(null, true); }
+  else { const p = map.parts.find(q => q.key === String(k)); if (!p) return; target.set(p.home[0], 0, p.home[1]); view = p.view; showPart(p); }
+  applyCamera();
+}
+showPart(null);
+
+// ---------- namn: gatorna och landmärkena; skissernas namn syns med R ----------
+const labelsEl = document.getElementById('labels');
+const mk = (text, at, cls) => {
+  const el = document.createElement('div'); el.className = cls; el.textContent = text;
+  labelsEl.appendChild(el);
+  return { el, p: new THREE.Vector3(at[0], 0.3, at[1]) };
+};
+const LANDMARK = new Set(['Brandstationen', 'Elektron', 'Kommunhuset', 'Stationen', 'Stora torget', 'Strömmentorget', 'Tingshuset', 'Vattentornet', 'Frejaskolan', 'Frejahallen', 'Bryggeriholmen', 'Småbåtshamnen', 'Frösjön']);
+const labels = [
+  ...map.labels.map(l => mk(l.text, l.at, LANDMARK.has(l.text) ? 'lm' : 'street')),
+  ...map.sketch.defence.filter(d => d.kind === 'point').map(d => mk(d.name, d.at, 'sk pt')),
+  ...map.sketch.spawns.map(s => mk(s.name, s.field ?? s.at, 'sk')),
+  ...(map.sketch.base ? [mk(map.sketch.base.name, map.sketch.base.at, 'sk')] : []),
+];
+
+// ---------- loopen ----------
+const info = document.getElementById('info');
+const v3 = new THREE.Vector3();
+let last = performance.now(), time = 0, frames = 0, fpsT = 0, fps = 0;
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.05); last = now; time += dt;
+  if (keys.size) {
+    let ux = 0, uy = 0;
+    for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
+    const sp = view * 0.9 * dt;
+    target.addScaledVector(R, ux * sp).addScaledVector(D, uy * sp / PITCH);
+    applyCamera();
+  }
+  world.update(dt, time);
+  renderer.render(scene, camera);
+  for (const l of labels) {
+    v3.copy(l.p).project(camera);
+    l.el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px';
+    l.el.style.top = ((1 - v3.y) / 2 * innerHeight) + 'px';
+  }
+  frames++; fpsT += dt;
+  if (fpsT > 0.5) {
+    fps = Math.round(frames / fpsT); frames = 0; fpsT = 0;
+    const r = renderer.info.render;
+    info.textContent = `calls ${r.calls} · tris ${(r.triangles / 1000).toFixed(0)}k · ${fps} fps · built in ${buildMs} ms`;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+// för felsökning och provkörningar: window.__gnesta
+window.__gnesta = { goPart, buildMs, renderer, scene, camera, map, world, sketch, target, setView(v) { view = v; applyCamera(); }, focus(x, z, v) { target.set(x, 0, z); if (v) view = v; showPart(map.parts.find(p => x >= p.bounds.x0 && x <= p.bounds.x1 && z >= p.bounds.z0 && z <= p.bounds.z1) ?? null); applyCamera(); },
+  toggle(k) { dispatchEvent(new KeyboardEvent('keydown', { code: k })); } };
+</script>
+</body></html>

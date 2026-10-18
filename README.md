@@ -56,6 +56,12 @@ Simuleringen körs utan grafik, så både tester och balanssimulering går i Nod
 
 Allt byggs i kod, inga bildfiler. Läs stilbibeln i [docs/art-bible.md](docs/art-bible.md) innan du lägger till något, och visa nya modeller på visningssidan (`lookbook.html`) först. Skärmbilden för 0.2.2 ligger i [docs/lookbook-0.2.2.png](docs/lookbook-0.2.2.png).
 
+## Kartdata
+
+Björnlunda (`bjornlunda.html`, förhandsvisning) bygger på OpenStreetMap: Map data © OpenStreetMap contributors (ODbL), https://www.openstreetmap.org/copyright. `scripts/osm-to-map.mjs <plats>` gör om en plan.json ur `~/Projects/horde-refs/<plats>/` till en kartmodul i `src/data/` (inställningarna i `scripts/osm-places/`).
+
+Gnesta centrum (`gnesta-centrum.html`, förhandsvisning) bygger på samma konverterare och OpenStreetMap: Map data © OpenStreetMap contributors (ODbL). En stor karta i fyra delar (1-4 hoppar till en del, 0 visar hela); husens karaktär efter Gnesta kommuns kulturmiljöanalys (2023) och Commons-fotona i `~/Projects/horde-refs/gnesta-centrum/`.
+
 ## Ändringar
 
 Se [CHANGELOG.md](CHANGELOG.md).
