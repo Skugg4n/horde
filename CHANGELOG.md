@@ -1,5 +1,35 @@
 # Ändringslogg
 
+## 0.19.0: Mölnbo-passet (2026-10-19)
+
+Speltestet av 0.18.1 (docs/playtests/2026-10-18-0.18.1.md) och Olas Mölnbo-lista (H428, H443, H450 till H459).
+
+Trupperna i husen syns i husen (H459, H428). En grupp, Ksp 90 eller Ksp 58 i ett hus står inte längre ute vid fasaden: en mörk fönsteröppning i husets riktiga fasad och en halvkropp i karmen med vapnet ut genom fönstret. Fönstret lyser upp och mynningen blixtrar när just den skytten skjuter. Inga ringar, sandsäckar eller pjäser på gräset; lappen (INF 5 ⌂, KSP 58 · IN HOUSE) står på taket. Med ett kort i handen eller i Move lyser huset (ram och ton, grönt går, rött inte) och pekaren säger INTO HOUSE, inget markspöke. Billigt: fem instansbuffertar för alla fönster.
+
+Flytten in i ett hus säger varför den inte går: "Door blocked", "Door blocked: the dead are at it" eller "No path to the door", redan när pekaren står över huset. Dörren är den närmaste ruta vid huset som alla i enheten når.
+
+Mölnbo åt rätt håll (H450, H451). Horden kommer från Järna och Södertälje i nordost och drar mot Gnesta: dag 1 väg 57 norrifrån över bron, dag 3 Fagernäsvägen österifrån längs spåret, dag 4 Norrbacken norr om spåret. En mindre grupp söderifrån upp Stenbyvägen dag 2 (och dag 5). Banvallen västerifrån dag 5 är de som gått runt. Introna säger varifrån. Tåget heter inte längre "north" och rullar ut västerut.
+
+Pendeltåget (H452). Mölnbo dag 4, 30 s in i tredje vågen, rullar ett X60 in från Järna och stannar vid norra perrongen. 9 s före: signalen och raden "Train incoming. It's not empty." och en ping på perrongen. Dörrarna slås upp och 50 väller ut på perrongen och tar trappan upp till gångbron. Deterministiskt i dagens data; räknas till vågen. Kartläsaren i balansen flyttar en grupp mot gångbrons fot vid signalen, den andra håller.
+
+Löparnas snubbel (H454, H455). Sällsynt och oregelbundet (chansen 0,2 var 40 till 90 m), och utlöst av en tung träff, taggtråden eller en skarp sväng. Farten behålls i tre varianter: snavar och fångar sig (vanligast), faller och glider, kravlar upp på alla fyra medan den rör sig, med sned kropp och en arm först. Löparnas fart 3,4 till 3,22 så att tempot är som förut.
+
+Bjässar och skrotbilar (H456). Bjässen går inte runt skrotbilar, den knuffar undan dem på 2 s (vraken glider undan); betongen håller som förut. Kortet: "Wrecks pushed across the street. Brutes shove them aside." Tipset första gången och ett uppslag i Field manual.
+
+H457 utrett: ingen bugg i flödesfältet (husen ingår aldrig i flödets kostnader). Gruppen söderifrån kommer ut söder om Kvarnvägens korsning, så med Kvarnvägen stängd var skrotbilarna söder om Folkets hus dess enda väg; de slog sig igenom och hela horden tog luckan. H458: stänger spärren i handen den sista vägen för någon av dagens ingångar, också de som kommer senare, visas hela vägvyn och pekaren säger "This shuts every road. They will smash through." Spärren går att lägga ändå.
+
+Speltestet av 0.18.1:
+- Korsellektionen på Ishallen dag 2 kommer före våg 1 också när barriärsteget hoppas över med Esc.
+- Förrådet ryms i fönstret (Deploy klipptes vid 800 px), korten står i fast ordning och det flyttade kortet lyser, skälet för en full stridsbana står under kortet.
+- Vågens svans: när högst fem lever och inget mer ska ut går krypare och de långt bort 2,5 gånger fortare efter 15 s (inte bjässar och pansrade).
+- Sanity-lapparna krockar inte och ritas aldrig över köpraden. Banderollen när en enhet bryts är röd och överst bland raderna.
+
+Mölnbo dag 2 (H443): lektionen "Squads in houses on both sides of Stenbyvägen. They must walk it." och introt "Armoured ones on Stenbyvägen. Put squads in the houses on both sides.", båda högst tolv ord; provets undantag borta. Lektionen pekar på husen längs Stenbyvägen mellan korsningen och Folkets hus.
+
+Rättat på vägen: tärningen i snubblet och i stormningen av hus gav alla zombier samma tal (ett tal 0..1 i en heltalshash). Alla löpare snubblade likadant, och varje zombie som gick förbi ett hus med garnison stormade det (tänkt: 30 %).
+
+Mölnbo dag 4 hp 38 till 32 (tåget och Norrbacken). Balansen: docs/balance-log.md 0.19.0.
+
 ## 0.18.1: speltestet av 0.18.0 (2026-10-18)
 
 Speltestet sa NEJ: kommandona fungerade var för sig, men korselden och sanity gick inte att upptäcka, och vågorna staplades så att de svåra dagarna slutade med att allt tystnade. docs/playtests/2026-10-18-0.18.0.md.
