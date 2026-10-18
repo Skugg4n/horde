@@ -821,38 +821,43 @@ Kvar att se: dag 2 är nu lätt för en spelare som läser kartan (skilled 14 ti
 
 ## Mölnbo (0.17.0-molnbo)
 
-Ny sektor efter Hagstumosse (src/data/molnbo.js). Mätt med `node scripts/balance.mjs molnbo` över fem seeds. Spelaren kommer med det en vanlig spelare har efter Hagstumosse: `opCampaign('normal')` hela vägen genom E4, Ishallen och Vikingavägen, med trupperna, nivåerna, förrådets uppgraderingar och RP (`molnboArrival`). Därifrån spelas Mölnbo dag för dag med försök och rekvisition mellan försöken (`molnboCampaign`, REQUISITION.molnbo).
+Ny sektor efter Hagstumosse (src/data/molnbo.js). Mätt med `node scripts/balance.mjs molnbo` över fem seeds. Spelaren kommer med det en vanlig spelare har efter Hagstumosse: `opCampaign('normal')` hela vägen genom E4, Ishallen och Vikingavägen, med trupperna (20 enheter), nivåerna, förrådets uppgraderingar och RP (`molnboArrival`). Därifrån spelas Mölnbo dag för dag med försök och rekvisition mellan försöken (`molnboCampaign`, REQUISITION.molnbo). Frontbredden är 10.
 
 Policyerna:
 - mbSmart (kartläsaren): spärrar Stenbyvägen vid Missionshuset, så att horden från Gnestavägen och Kvarnen måste runt genom rutnätet söder om spåret (Fagernäsvägen, Genvägen, Trollvägen, Skolvägen). Dag 4 och 5 spärrar hon också gångbrons södra ramp, så att allt norrifrån måste över vägbron. Psg 90 på tak (trapptornen, stationen, tåget), pjäserna där de ser mest av den tvingade vägen, ammunition och sandsäckar.
 - naive: samma trupper och köp, allt efter sin egen väg, aldrig en spärr.
 
+Kartan ändrades under passet (det ändrade allt):
+- Parkeringarna och grusplanerna (stationsparkeringen, caféets parkering, Folkets hus plan, stationens grusplan) var gångbara ytor. Nu är de byggbara (vapenplatserna A, B, D och E i designen) med en körgata genom stationsparkeringen. Skäl: prickskyttarna på trapptornen vändes mot den stora gångbara parkeringen i stället för mot hordens väg (placement.js bestFacing väger alla gångbara rutor), och i speltestet i webbläsaren sköt de inte ett skott dag 1.
+- Kvarnvägen (förbi hyreshusen) gick in på Stenbyvägen norr om Folkets hus och var en genväg: horden från Gnestavägen gick aldrig förbi stationen. Nu går den in söder om Kvarnen, i dimkanten, och är en omväg.
+
 Prövat och förkastat:
 - Spärren på vägbron (horden norrifrån tar gångbron) i stället för på gångbron: dag 4 med hp 15 förlorades i alla fem seeds, sämre än naive. Med spärren på gångbron vann hon med bas 2 till 3.
-- En tyngd på pjäserna vid broarna (focus) dag 4: drog bort pjäserna från rutnätet i söder, bas 1 i stället för 2 till 3.
+- En tyngd på pjäserna vid broarna (focus) dag 4: drog bort pjäserna från rutnätet i söder.
 - Båda broarna stängda (horden slår sig igenom): planen i balansskriptet tillåter inte en stängd väg (gnestaPlan), så det är inte mätt. En människa kan göra det; det är dödszonen i designen.
+- Första gissningen (hp 4,6 till 5,6) var alldeles för lätt: kartläsaren vann allt på första försöket med full bas.
+- Dag 4 och 5 med fler zombier och högre hp: topparna gick över 250 (260 till 273). Vågorna dag 4 och 5 är nu 72 % av första gissningen (bjässarna orörda) och hp högre.
 
-Siffrorna (hp-faktor per dag, trycket från Hagstumosse nollställs när truppen kommer, se nedan):
-- dag 1 hp 18, dag 2 hp 17, dag 3 hp 15 (tåget efter 330 s), dag 4 hp 17 (340 s), dag 5 hp 7,1 (360 s, fler och större vågor, det sista tåget).
-- Första gissningen (hp 4,6 till 5,6) var alldeles för lätt: kartläsaren vann allt på första försöket med full bas, naive förlorade bara dag 5. Spelaren kommer med 20 enheter och frontbredd 10.
-- Dag 5 är en knivsegg: hp 7,25 ger en seed som aldrig vinner (basen faller 10 till 15 s före tåget i alla sex försöken), 7,1 ger vinst på första försöket med bas 3. Rekvisitionen mellan försöken hjälper lite dag 5: lagret är nästan tomt och nivåerna köpta.
+Siffrorna (hp-faktor per dag):
+- dag 1 hp 18, dag 2 hp 12, dag 3 hp 18 (tåget efter 330 s), dag 4 hp 37 (340 s), dag 5 hp 28,2 (360 s, det sista tåget).
+- Dag 4 och 5 är knivseggar. Rekvisitionen mellan försöken hjälper lite (lagret är nästan tomt, nivåerna köpta, en förlust ger cirka 60 RP), så kurvan per försök är platt: dag 4 hp 36 vinns på första försöket i alla seeds, hp 38 ger 1 till 5 försök, hp 40 2 till 6. Dag 5 hp 28 ger 1 till 2, hp 28,5 1 till 6, hp 30 en seed som aldrig vinner.
 
 Resultat (försök till vinst per dag, seed 0 till 4):
 
     mbSmart  M1 M2 M3 M4 M5   topp
-    0         1  1  1  2  1   182
-    1         1  1  1  3  1   185
-    2         1  1  1  3  1   178
-    3         1  1  1  4  1   182
-    4         1  1  1  4  1   197
+    0         1  1  1  1  1   210
+    1         1  1  1  2  3   216
+    2         1  1  1  2  1   214
+    3         1  1  1  1  1   212
+    4         1  1  1  1  2   216
 
     naive    M1 M2 M3 M4 M5
-    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 135 till 144)
+    alla      1  1  x  -  -   (fast på dag 3 efter fyra försök, topp 163 till 172)
 
-Målen: kartläsaren vinner dag 1 till 3 inom 2 försök (alla på första) och dag 4 och 5 inom 4 (dag 4 2 till 4, dag 5 1). Naive förlorar från dag 3. Flest levande zombier samtidigt 197 (målet under cirka 250).
+Målen: kartläsaren vinner dag 1 till 3 inom 2 försök (alla på första) och dag 4 och 5 inom 4 (1 till 3). Naive vinner dag 1 och 2 (dag 2 med bas 2 till 7) och förlorar från dag 3. Flest levande zombier samtidigt 216 (målet under cirka 250).
 
-Kampanjen: när Vikingavägen dag 5 är vunnen räknade finishDay Mölnbo som öppen och underbemannad, så sektorn började med tryck 2 (hp gånger 1,12). Ledningens första leverans till Mölnbo (mb-1, adopt) flyttar truppen dit och nollställer trycket: en ny sektor börjar utan tryck. Det ändrade bara dag 1:s fingeravtryck.
+Kampanjen: när Vikingavägen dag 5 är vunnen räknade finishDay Mölnbo som öppen och underbemannad, så sektorn började med tryck 2 (hp gånger 1,12). Ledningens första leverans till Mölnbo (mb-1, adopt) flyttar truppen dit och nollställer trycket: en ny sektor börjar utan tryck.
 
 Fingeravtrycken per dag: tests/molnbo.test.js. Hela kampanjens kvitto (tests/balance-op-*.test.js) är oförändrat: Mölnbo spelas inte i opCampaign:s standardordning (SECTOR_ORDER).
 
-Kvar: speltest med Ola. Dag 5 är smal; en människa som inte spärrar Stenbyvägen förlorar redan dag 3, vilket är meningen, men dag 4 och 5 kan behöva mjukas upp efter speltestet.
+Kvar: speltest med Ola. Hp-faktorerna här är höga jämfört med Hagstumosse (12 där) eftersom truppen är stor; en människa som inte spärrar Stenbyvägen förlorar dag 3, vilket är meningen. Dag 4 och 5 kan behöva mjukas upp efter speltestet.

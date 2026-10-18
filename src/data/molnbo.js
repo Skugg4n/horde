@@ -107,12 +107,14 @@ const ROADS_RAIL = [
   { id: 'folkbak', surface: 'gravel', width: 3.4, pts: [[50, 113], [44, 116], [38, 116]] },
   { id: 'fagpath', name: 'Fagernäs', surface: 'gravel', width: 3.4, pts: [[50, 100], [75, 97], [104, 90], [128, 78], [138, 70]] },
   { id: 'kvarn', name: 'Kvarnvägen', surface: 'asphalt', width: 4.5, curbs: false,
-    pts: [[4, 124], [-25, 128], [-58, 116], [-82, 84], [-98, 50], [-104, 27]] },
-  { id: 'parkin', name: 'Mölnbo station', surface: 'asphalt', width: 5, curbs: true, pts: [[-2, -32], [8, -42], [19, -46]] },
+    pts: [[-8, 150], [-30, 146], [-58, 128], [-82, 90], [-98, 52], [-104, 27]] },
+  { id: 'parkin', name: 'Mölnbo station', surface: 'asphalt', width: 5, curbs: true, pts: [[2, -30], [8, -42], [19, -46]] },
+  // körgatan genom stationsparkeringen (parkeringen själv går att bygga på: vapenplats E)
+  { id: 'parklane', name: 'Mölnbo station', surface: 'asphalt', width: 4.5, curbs: false, pts: [[-42, -30], [-20, -30.5], [2, -30]] },
   { id: 'krok', name: 'Krokvägen', surface: 'asphalt', width: 4.5, curbs: false,
     pts: [[-42, -30], [-70, -28], [-96, -32], [-126, -40], [-160, -46], [-200, -50], [-240, -54]] },
   { id: 'petter', name: 'Petterslundsvägen', surface: 'asphalt', width: 4.5, curbs: false,
-    pts: [[-26, -40], [-34, -62], [-42, -90], [-70, -96], [-96, -86], [-110, -60], [-114, -43]] },
+    pts: [[-26, -30.5], [-30, -45], [-34, -62], [-42, -90], [-70, -96], [-96, -86], [-110, -60], [-114, -43]] },
   { id: 'bank', surface: 'gravel', width: 2.6, paint: false, pts: [[RAIL.platformN.u0 + 1, RAIL.bank.v], [-120, RAIL.bank.v], [-180, RAIL.bank.v], [-240, RAIL.bank.v]] },
   // gångväg upp till gula huset på norra sidan (ritas, ingår inte i rutnätet)
   { id: 'yellowIn', surface: 'gravel', width: 2.4, walk: false, pts: [[24, -58], [30, -56]] },
@@ -124,7 +126,8 @@ export const ROADS = ROADS_RAIL.map(r => {
 });
 export const road = id => ROADS.find(r => r.id === id);
 
-// Ytor som är gångbara utöver vägarna (polygoner i järnvägens ram).
+// Ytor (polygoner i järnvägens ram): målas som asfalt eller grus men är inte gångbara. Där står vapenplatserna i
+// designen: A caféets parkering, B Folkets hus grusplan, D stationshusets grusplan, E stationsparkeringen.
 const AREAS_RAIL = {
   parking: [[-46, -18], [4, -18], [4, -40], [-46, -40]],
   plaza: [[21, 110], [39, 110], [39, 121], [21, 121]],    // Folkets hus grusplan
@@ -168,7 +171,7 @@ const HOUSES = [
   B0('white', 'white', [-42, 41], 11, 9, [0, -1], { eave: 5.6, ridge: 8.4 }),
   B0('yellow', 'yellow', [36, -55], 11, 9, [-1, 0], { eave: 4.9, ridge: 7.6 }),
   B0('hembygd', 'hembygd', [-104, 40], 12, 7, [0, -1], { eave: 3.0, ridge: 5.6 }),
-  B0('kvarn', 'kvarn', [-24, 150], 12, 10, [1, 0], { eave: 6.0, ridge: 9.2 }),
+  B0('kvarn', 'kvarn', [-22, 134], 12, 10, [0, 1], { eave: 6.0, ridge: 9.2 }),
   B0('chain1', 'chain', [66, 69], 30, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 4 }),
   B0('chain2', 'chain', [72, 89], 26, 8, [0, -1], { eave: 2.9, ridge: 5.0, units: 3 }),
   B0('apt1', 'apartment', [-38, 108], 26, 11, [0, 1], { eave: 6.2, ridge: 8.8 }),
@@ -315,12 +318,10 @@ export function molnboGrid(cellSize = 2) {
   const walk = new Uint8Array(gw * gh), terrain = new Uint8Array(gw * gh);
   const walkRoads = ROADS.filter(r => r.walk);
   const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
-  const areas = Object.values(AREAS);
   const linkPoly = RS([[LINK.u0, LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v + LINK.w / 2], [LINK.u0, LINK.v + LINK.w / 2]]);
   // Rutor som aldrig är gångbara: tornen och tåget (även om en väglinje passerar nära).
   const solid = (x, z) => TOWERS.some(t => { const [u, v] = toRail(x, z); return Math.abs(u - t.at[0]) <= t.size / 2 && Math.abs(v - t.at[1]) <= t.size / 2; });
-  const open = (x, z) => walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25) || areas.some(a => inPoly(x, z, a))
-    || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
+  const open = (x, z) => walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25) || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const x = cx(i), z = cz(j);
     if (!open(x, z) || solid(x, z)) continue;
@@ -507,12 +508,12 @@ export const DAYS = [
     waves: [ say('Along Gnestavägen, from Gnesta.', { groups: [g('walker', 10, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              { groups: [g('walker', 40, 0.4, 0, 's1'), g('runner', 16, 0.5, 10, 's1')] },
              { groups: [g('walker', 56, 0.32, 0, 's1'), tell('Runners behind them!', g('runner', 30, 0.35, 16, 's1')), g('brute', 2, 4, 24, 's1')] } ] },
-  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 17, overlap: 60, intro: { title: 'Day 2: Stenbyvägen', text: 'The abandoned train is cover. Squads behind it, a sniper on top.' },
+  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 60, intro: { title: 'Day 2: Stenbyvägen', text: 'The abandoned train is cover. Squads behind it, a sniper on top.' },
     waves: [ say('Gnestavägen again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              say('From the south, up Stenbyvägen!', { groups: [g('walker', 36, 0.45, 0, 's2'), g('walker', 30, 0.45, 4, 's1')] }),
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's2'), g('brute', 3, 3.5, 20, 's2')] },
              { groups: [g('walker', 50, 0.3, 0, 's2'), g('walker', 46, 0.3, 0, 's1'), tell('Brutes on Gnestavägen!', g('brute', 4, 3, 18, 's1')), g('runner', 30, 0.35, 26, 's2')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 15, overlap: 50, train: { at: 330 },
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 18, overlap: 50, train: { at: 330 },
     intro: { title: 'Day 3: The last train', text: 'Hold until the train leaves. It will not wait.' },
     objective: 'Hold Folkets hus until the train leaves.',
     waves: [ say('Gnestavägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
@@ -520,22 +521,22 @@ export const DAYS = [
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 46, 0.35, 0, 's3'), g('brute', 3, 3, 16, 's2')] },
              { groups: [g('walker', 60, 0.28, 0, 's2'), g('walker', 50, 0.3, 4, 's1'), tell('Runners from the ravine!', g('runner', 40, 0.3, 20, 's3')), g('brute', 4, 3, 24, 's1')] },
              { groups: [g('walker', 70, 0.25, 0, 's3'), g('runner', 50, 0.25, 6, 's1'), g('brute', 5, 2.5, 10, 's2')] } ] },
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 17, overlap: 50, train: { at: 340 },
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 37, overlap: 50, train: { at: 340 },
     intro: { title: 'Day 4: North side', text: 'They are north of the tracks. Close the bridges.' },
     objective: 'Hold Folkets hus until the train leaves.',
-    waves: [ say('Gnestavägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
-             say('North of the tracks, along Krokvägen!', { groups: [g('walker', 50, 0.35, 0, 's4'), g('runner', 16, 0.5, 12, 's4')] }),
-             { groups: [g('walker', 50, 0.3, 0, 's4'), g('walker', 40, 0.35, 4, 's2'), g('brute', 4, 3, 14, 's4')] },
-             { groups: [g('runner', 50, 0.25, 0, 's4'), g('walker', 50, 0.3, 4, 's1'), g('walker', 40, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
-             { groups: [g('walker', 80, 0.22, 0, 's4'), g('runner', 40, 0.3, 8, 's2'), g('brute', 4, 3, 14, 's4')] } ] },
-  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7.1, overlap: 50, train: { at: 360, last: true },
+    waves: [ say('Gnestavägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('runner', 4, 0.8, 6, 's1')] }),
+             say('North of the tracks, along Krokvägen!', { groups: [g('walker', 36, 0.35, 0, 's4'), g('runner', 12, 0.5, 12, 's4')] }),
+             { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 29, 0.35, 4, 's2'), g('brute', 4, 3, 14, 's4')] },
+             { groups: [g('runner', 36, 0.25, 0, 's4'), g('walker', 36, 0.3, 4, 's1'), g('walker', 29, 0.35, 8, 's3'), tell('Brutes at the bridge!', g('brute', 5, 2.5, 20, 's4'))] },
+             { groups: [g('walker', 58, 0.22, 0, 's4'), g('runner', 29, 0.3, 8, 's2'), g('brute', 4, 3, 14, 's4')] } ] },
+  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 28.2, overlap: 50, train: { at: 360, last: true },
     intro: { title: 'Day 5: Along the tracks', text: 'The last train north. Everyone who can, gets on.' },
     objective: 'Hold Folkets hus until the last train leaves.',
-    waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('walker', 10, 0.7, 4, 's2')] }),
-             say('North of the tracks!', { groups: [g('walker', 50, 0.3, 0, 's4'), g('walker', 30, 0.4, 4, 's4n'), g('runner', 20, 0.4, 12, 's1')] }),
-             say('On the tracks! Up onto the platform!', { groups: [g('walker', 40, 0.35, 0, 's5'), g('runner', 30, 0.3, 8, 's5'), g('walker', 40, 0.35, 4, 's3')] }),
-             { groups: [g('walker', 60, 0.25, 0, 's4'), g('runner', 40, 0.3, 4, 's2'), g('brute', 4, 3, 10, 's4n'), g('walker', 40, 0.3, 10, 's5')] },
-             { groups: [g('walker', 60, 0.25, 0, 's1'), g('walker', 50, 0.3, 0, 's5'), g('runner', 40, 0.3, 10, 's4'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
+    waves: [ say('Gnestavägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's1', 14), g('walker', 7, 0.7, 4, 's2')] }),
+             say('North of the tracks!', { groups: [g('walker', 36, 0.3, 0, 's4'), g('walker', 22, 0.4, 4, 's4n'), g('runner', 14, 0.4, 12, 's1')] }),
+             say('On the tracks! Up onto the platform!', { groups: [g('walker', 29, 0.35, 0, 's5'), g('runner', 22, 0.3, 8, 's5'), g('walker', 29, 0.35, 4, 's3')] }),
+             { groups: [g('walker', 43, 0.25, 0, 's4'), g('runner', 29, 0.3, 4, 's2'), g('brute', 4, 3, 10, 's4n'), g('walker', 29, 0.3, 10, 's5')] },
+             { groups: [g('walker', 43, 0.25, 0, 's1'), g('walker', 36, 0.3, 0, 's5'), g('runner', 29, 0.3, 10, 's4'), g('brute', 6, 2.4, 14, 's2'), g('brute', 4, 3, 20, 's5')] } ] },
 ];
 
 export const MOLNBO_SURROUNDINGS = {

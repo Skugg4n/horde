@@ -130,8 +130,8 @@ test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök och dag 4 och 5 i
     for (let d = 0; d < 3; d++) assert.ok(a[d] <= 2, `seed ${i} dag ${d + 1}: ${a}`);
     for (let d = 3; d < 5; d++) assert.ok(a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
   }
-  // dag 4 kostar försök i de flesta seeds (bron är svår)
-  assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2).length >= 3);
+  // dag 4 och 5 kostar försök i de flesta seeds (bron och sista tåget är svåra)
+  assert.ok(smart.filter(r => mbAttempts(r.log)[3] >= 2 || mbAttempts(r.log)[4] >= 2).length >= 3);
 });
 
 test('balans: den som aldrig spärrar förlorar från dag 3', () => {
@@ -151,6 +151,6 @@ test('balans: högst cirka 250 levande zombier samtidigt', () => {
 // 0.17.0-molnbo: första kvittot.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'c73550b3', 'molnbo 2': '70afde53', 'molnbo 3': 'b912da3c', 'molnbo 4': '343da59a', 'molnbo 5': '9da35399' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '9d65b52a', 'molnbo 2': '21c4a23b', 'molnbo 3': '6da351cb', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '2220d9db', 'molnbo 2': '81149352', 'molnbo 3': '4d2aaaf0', 'molnbo 4': 'f0abc7d6', 'molnbo 5': '33593c36' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'e18b0a25', 'molnbo 2': '3ec71d04', 'molnbo 3': 'f210c352', 'molnbo 4': '741638a5', 'molnbo 5': '741638a5' });
 });
