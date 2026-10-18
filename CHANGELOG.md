@@ -10,7 +10,7 @@ Flytten in i ett hus säger varför den inte går: "Door blocked", "Door blocked
 
 Mölnbo åt rätt håll (H450, H451). Horden kommer från Järna och Södertälje i nordost och drar mot Gnesta: dag 1 väg 57 norrifrån över bron, dag 3 Fagernäsvägen österifrån längs spåret, dag 4 Norrbacken norr om spåret. En mindre grupp söderifrån upp Stenbyvägen dag 2 (och dag 5). Banvallen västerifrån dag 5 är de som gått runt. Introna säger varifrån. Tåget heter inte längre "north" och rullar ut västerut.
 
-Pendeltåget (H452). Mölnbo dag 4, 30 s in i tredje vågen, rullar ett X60 in från Järna och stannar vid norra perrongen. 9 s före: signalen och raden "Train incoming. It's not empty." och en ping på perrongen. Dörrarna slås upp och 50 väller ut på perrongen och tar trappan upp till gångbron. Deterministiskt i dagens data; räknas till vågen. Kartläsaren i balansen flyttar en grupp mot gångbrons fot vid signalen, den andra håller.
+Pendeltåget (H452). Mölnbo dag 4, 30 s in i fjärde vågen, rullar ett X60 in från Järna och stannar vid norra perrongen. 9 s före: signalen och raden "Train incoming. It's not empty." och en ping på perrongen. Dörrarna slås upp och 50 väller ut på perrongen och tar trappan upp till gångbron. Deterministiskt i dagens data; räknas till vågen. Kartläsaren i balansen flyttar en grupp mot gångbrons fot vid signalen, den andra håller.
 
 Löparnas snubbel (H454, H455). Sällsynt och oregelbundet (chansen 0,2 var 40 till 90 m), och utlöst av en tung träff, taggtråden eller en skarp sväng. Farten behålls i tre varianter: snavar och fångar sig (vanligast), faller och glider, kravlar upp på alla fyra medan den rör sig, med sned kropp och en arm först. Löparnas fart 3,4 till 3,22 så att tempot är som förut.
 
