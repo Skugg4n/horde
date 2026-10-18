@@ -974,3 +974,6 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .obbar.breached { border-color: #d4482c; animation: none; }
 /* 0.17.1: fiendekortets PAUSED uppe i mitten, inte över köpraden */
 #enemycard .paused { top: 22px; bottom: auto; }
+/* 0.17.2: Quick jump i debugmenyn */
+#debug .row.quick { gap: 4px; }
+#debug .row.quick > label:first-child { width: 100%; }

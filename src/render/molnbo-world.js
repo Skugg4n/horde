@@ -20,13 +20,28 @@ const REACH = 120;     // så långt ut i diset (meter utanför spelytan) det ri
 const outsideD = (c, x, z) => Math.hypot(Math.max(c.x0 - x, 0, x - c.x1), Math.max(c.z0 - z, 0, z - c.z1));
 const RM = frame(null, 0, 0, 0, RAIL_RY);     // järnvägens ram: lokal x = u, lokal z = v
 
+// 0.17.2 (H302, Olas speltest: "kanten är gles och dimman ser ut som ett grafikfel"): två sätt att avsluta kartan, att
+// jämföra i debugmenyn (Visuals, Edge). 'haze': djupare grå dis i lager, högre saker tonar in som siluetter (höjden
+// tunnar ut diset). 'dark': mörker bortom den aktiva ytan som en vinjett, landskapet dämpas mot nästan svart.
+// Båda med riktigt landskap i kanten (skog, trädgårdar, hus), aldrig tomt.
+export const EDGE_MODES = {
+  haze: { col: '#8d918c', curve: [6, 120, 0.97], hfall: 0.32, layers: 0.42, bg: '#8d918c' },
+  dark: { col: '#121512', curve: [2, 64, 0.97], hfall: 0, layers: 0, bg: '#121512' },
+};
+export const EDGE_DEFAULT = 'dark';
+// Gemensamma uniforms för allt i diset (materialen i omgivningen läser dem, setEdge ändrar dem)
+function edgeUniforms() {
+  return { col: { value: new THREE.Color(EDGE_MODES[EDGE_DEFAULT].col) }, curve: { value: new THREE.Vector3(...EDGE_MODES[EDGE_DEFAULT].curve) }, hfall: { value: EDGE_MODES[EDGE_DEFAULT].hfall } };
+}
+
 // Material med diset inbakat (samma kurva som dimskivan), som e4-far.js.
-function hazed(base, crisp, haze) {
+function hazed(base, crisp, haze, U) {
   const m = base.clone();
   m.onBeforeCompile = sh => {
-    sh.uniforms.uHazeCol = { value: HAZE };
+    sh.uniforms.uHazeCol = U.col;
     sh.uniforms.uCrisp = { value: new THREE.Vector4(crisp.x0, crisp.z0, crisp.x1, crisp.z1) };
-    sh.uniforms.uCurve = { value: new THREE.Vector3(haze.start, haze.end, haze.max) };
+    sh.uniforms.uCurve = U.curve;
+    sh.uniforms.uHFall = U.hfall;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFarW;')
       .replace('#include <project_vertex>', `#include <project_vertex>
@@ -40,10 +55,11 @@ function hazed(base, crisp, haze) {
         varying vec3 vFarW;
         uniform vec3 uHazeCol;
         uniform vec4 uCrisp;
-        uniform vec3 uCurve;`)
+        uniform vec3 uCurve;
+        uniform float uHFall;`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         vec2 fo = max(max(uCrisp.xy - vFarW.xz, vFarW.xz - uCrisp.zw), vec2(0.0));
-        float ff = smoothstep(uCurve.x, uCurve.y, length(fo)) * uCurve.z;
+        float ff = smoothstep(uCurve.x, uCurve.y, length(fo)) * uCurve.z * (1.0 - uHFall * smoothstep(1.0, 14.0, vFarW.y));
         float fl = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
         vec3 hz = linearToOutputTexel(vec4(uHazeCol, 1.0)).rgb;
         gl_FragColor.rgb = mix(mix(gl_FragColor.rgb, vec3(fl), 0.35 * ff), hz, ff);`);
@@ -152,6 +168,7 @@ export function buildMolnbo(scene, map) {
   beyond.rotation.x = -Math.PI / 2; beyond.position.y = -0.1; scene.add(beyond);
 
   const b = createBatch(), fb = createBatch(), r = seeded(1018);
+  const U = edgeUniforms();
   const signs = new THREE.Group(); signs.name = 'molnbo-signs'; scene.add(signs);
   const inC = (x, z, pad = 0) => x >= crisp.x0 - pad && x <= crisp.x1 + pad && z >= crisp.z0 - pad && z <= crisp.z1 + pad;
   const near = (x, z) => outsideD(crisp, x, z) < 22;
@@ -350,6 +367,26 @@ export function buildMolnbo(scene, map) {
     }
   }
 
+  // ---------- kanten (0.17.2, H302) ----------
+  // Ringen närmast utanför den aktiva ytan fylls med skog i klungor, trädgårdsträd och buskar, så att kanten aldrig
+  // är tom: tätare ju längre ut, glesare vid vägarna (de går vidare in i diset).
+  {
+    const bumpE = (x, z) => Math.sin(x * 0.053 + 1.3) * Math.cos(z * 0.047) + 0.6 * Math.sin((x - z) * 0.031);
+    for (let z = crisp.z0 - 70; z < crisp.z1 + 70; z += 4.2) for (let x = crisp.x0 - 70; x < crisp.x1 + 70; x += 4.2) {
+      const px = x + r.range(-1.6, 1.6), pz = z + r.range(-1.6, 1.6), o = outsideD(crisp, px, pz);
+      if (o < 2 || o > 66) continue;
+      if (r() > 0.25 + o / 70 + 0.25 * bumpE(px, pz)) continue;
+      if (blocked(px, pz, 4) || map.far.some(f => Math.hypot(f.x - px, f.z - pz) < Math.max(f.w, f.d) / 2 + 3)) continue;
+      if (inPoly(px, pz, map.ground.field) || inPoly(px, pz, map.ground.field2)) { if (r() > 0.08) continue; }
+      const bb = o < 22 ? b : fb, k = r(), hgt = r.range(8, 15);
+      if (bb === b) b.tag = { kind: 'tree', x: px, z: pz };
+      if (k < 0.35) spruce(bb, px, pz, hgt, r); else if (k < 0.55) pine(bb, px, pz, hgt, r); else if (k < 0.75) birch(bb, px, pz, hgt * 0.85, r);
+      else gardenTree(bb, frame(null, px, 0, pz, r() * 6), r.range(6, 10), (r() * 3) | 0, r);
+      b.tag = null; trees++;
+      if (r() < 0.3) bb.put(UNIT.blob, null, px + r.range(-2, 2), 0.6, pz + r.range(-2, 2), r.range(1.6, 2.8), r.range(1.0, 1.6), r.range(1.6, 2.8), r.pick(GP.hedge), 'matte', r() * 6);
+    }
+  }
+
   // ---------- omgivningen i diset ----------
   for (const f of map.far) {
     if (outsideD(crisp, f.x, f.z) > REACH) continue;
@@ -372,11 +409,27 @@ export function buildMolnbo(scene, map) {
   const mats = new Map();
   for (const m of farMeshes) {
     const key = m.material.uuid;
-    if (!mats.has(key)) mats.set(key, hazed(m.material, crisp, sur.haze));
+    if (!mats.has(key)) mats.set(key, hazed(m.material, crisp, sur.haze, U));
     m.material = mats.get(key); m.castShadow = false; m.receiveShadow = false;
   }
-  farGroup.add(fogSheet(crisp, sur.fade, EXT, sur.haze));
+  const sheet = fogSheet(crisp, sur.fade, EXT, sur.haze);
+  farGroup.add(sheet);
+  // 'haze': tre tunnare lager ovanför marken, så att diset har djup och höga saker sticker upp ur det
+  const layers = [2.5, 6, 11].map((y, i) => { const l = fogSheet(crisp, sur.fade, EXT, { start: 16 + i * 14, end: 130, max: 0.4 }); l.position.y = y; l.renderOrder = 3 + i; farGroup.add(l); return l; });
   scene.add(farGroup);
+  // Kanten (H302): läget byts i debugmenyn och sparas i webbläsaren ('horde.edge')
+  function setEdge(mode) {
+    const E = EDGE_MODES[mode] ?? EDGE_MODES[EDGE_DEFAULT], col = new THREE.Color(E.col);
+    U.col.value.copy(col); U.curve.value.set(...E.curve); U.hfall.value = E.hfall;
+    sheet.material.uniforms.uHaze.value = col.clone(); sheet.material.uniforms.uCurve.value.set(...E.curve);
+    layers.forEach((l, i) => { l.visible = E.layers > 0; l.material.uniforms.uHaze.value = col.clone(); l.material.uniforms.uCurve.value.set(16 + i * 14, 130, E.layers); });
+    beyond.material.color.set(E.bg);
+    scene.background = new THREE.Color(E.bg);
+    if (scene.fog) scene.fog.color.set(E.bg);
+    scene.userData.edgeMode = mode in EDGE_MODES ? mode : EDGE_DEFAULT;
+  }
+  scene.userData.setEdge = setEdge;
+  setEdge(EDGE_DEFAULT);
 
   // ---------- tåget som går (dag 3 till 5) ----------
   // depart(): tåget rullar ut österut (mot Järna och Stockholm), accelererar och försvinner i diset.
