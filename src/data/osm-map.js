@@ -77,6 +77,7 @@ export function osmGrid(map, bounds, cellSize = 2) {
   return {
     w: gw, h: gh, cellSize, origin: [x0, z0], walk, terrain,
     spawns: (sk.spawns ?? []).map(s => ({ id: s.id, cell: nearestWalk(s.at) })),
+    exits: (sk.exits ?? []).map(s => ({ id: s.id, cell: nearestWalk(s.at) })),
     base: sk.base ? nearestWalk(sk.base.at) : null,
     cellOf, center: (i, j) => [cx(i), cz(j)],
   };

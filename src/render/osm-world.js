@@ -101,6 +101,7 @@ function paintLand(map, { bounds, ppm, fadeEdges = false, detail = true }) {
   for (const p of G.lawn) poly(p, P.lawn, 2);
   for (const p of G.pitch) poly(p, P.pitch, 1);
   for (const p of G.sand) poly(p, P.sand, 2);
+  for (const p of G.beach ?? []) poly(p, P.sand, 3);   // badstränder: sand utan lekplats
   for (const p of G.gravel) poly(p, P.gravel, 1);
   for (const p of G.rock ?? []) poly(p, P.rock, 3);
   for (const p of G.square ?? []) poly(p, P.paving, 1);
@@ -498,6 +499,14 @@ export function sketchOverlay(map, gridPath) {
     routes.push({ id: s.id, cells: path?.length ?? 0, metres: path ? Math.round(path.length * g.cellSize) : null });
   });
   if (sk.base) { disc(...sk.base.at, 4, '#b5532a'); }
+  // utgångarna: konvojens väg från basen ut i dimman, grön
+  for (const e of sk.exits ?? []) {
+    const ec = g.exits?.find(q => q.id === e.id);
+    const path = ec && g.base ? gridPath(g, g.base, ec.cell) : null;
+    if (path) poly(path.map(([ci, cj]) => g.center(ci, cj)), '#7fd06a', 0.42, 0.8);
+    disc(...e.at, 2.6, '#7fd06a');
+    routes.push({ id: e.id, exit: true, cells: path?.length ?? 0, metres: path ? Math.round(path.length * g.cellSize) : null });
+  }
   // linjerna mellan försvarspunkterna (triangeln): streckade band
   for (const l of sk.links ?? []) {
     const L = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), n = Math.max(1, Math.floor(L / 6));
