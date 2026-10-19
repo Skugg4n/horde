@@ -247,3 +247,65 @@ Rutan: samma kortformat som rekvisitionen (streck, ikoner, en rad text, "2 days"
 2. Ordning: blandat. Vissa platser MÅSTE försvaras vissa dagar (fasta dagar i berättelsen); däremellan väljer spelaren själv (fönster, styrt av underrättelser).
 3. Västerkärv: med som "Västerkärv", gården anonym (ingen person vid namn).
 4. Nytt krav: mellansnacket i den nya helheten måste vara intressant, relevant och snyggt presenterat så man förstår vad som händer. Tänk ett komplett spel, inte "kartor med en ruta på". Kanske egna miljöer (ledningsplats m.m.). Fable undersöker hur andra spel gör (se 2026-10-18-mellansnack.md).
+
+## 10. Olas kampanjbåge (2026-10-19): dag för dag
+
+Olas egen genomgång, nedskriven som den kom. Det här är nu den bärande planen. Ledningscentralen ger brottstycken av en större händelseutveckling (order, lägesrapporter), med kortare radio- och TV-inslag som krydda. Varje dag ska ha en anledning: inte "försvar här, försvar där", utan en händelse som förklarar varför man gör det man gör. Mekaniker låses upp steg för steg enligt onboardingplanen.
+
+**Fram till dag 0.** Utbrott på flera ställen i Sverige. Människor beter sig konstigt och aggressivt. De angripna vänder sig snart mot andra. En smitta mellan människor. De smittade kallas snart zombies eller odöda och ökar snabbt; mänskligheten är oförberedd på en attack inifrån. MCF och militären mobiliserar och försöker skilja smittade från friska. Myndigheterna försöker i panik stoppa horden och samla de friska på säkra punkter. Civila, Hemvärnet, räddningstjänsten och militären samarbetar. Storstäderna är värst drabbade; våldet sprider sig som tentakler ut mot landsbygden.
+
+**Dag 1 till 3, E4 Lästringe.** En mindre samling zombier längs E4, norrut. Uppdrag: hindra gruppen från att nå väg 224 vid trafikplats Lästringe. En liten grupp infanteri vid vägspärren, två Ksp 90 som understöd. Striden beräknas ta tre dagar. (Anpassas till det som redan byggts.)
+
+Omgruppering: befälhavaren till kontrollrummet i Gnesta.
+
+**Dag 4, Hagstumosse, Ishallen.** Fiender närmar sig östra Gnesta. Omlokalisering, försvar under evakuering av ett villaområde. De flesta hus är tömda, några återstår. Inga trupper lediga: civila med jaktvapen och improviserade vapen. Vi hinner knappt försvara oss och rädda alla.
+
+**Dag 5 till 6, Hagstumosse, Ishallen.** Hemvärnet kommer med 1 till 2 enheter som vi styr över. Move låses upp här (dag 6 eller 7): "vi har fått tag på kommunikationsradio till enheterna och kan ge nya order under pågående strid". När enheterna är få måste de vara rörliga.
+
+**Dag 7, Vikingavägen.** Flera större grupper i rörelse, de samlar sig mot ishallen där civila är samlade. Utplånar vi dem får vi andrum att bygga bättre försvar i staden. Anfall från väst, syd och nord. Uppmaning: betongfundament och bilar för att styra om grupperna.
+
+Omgruppering: kontrollrummet i Gnesta. Trupperna är inte toppen; vi återkommer senare och slår tillbaka med bättre möjligheter.
+
+**Dag 8, Mölnbo dag 1.** Försvaret av Gnesta höll. En större hord från Södertälje har tagit Järna; Mölnbo står på tur. Evakuera Mölnbos norra sida och hålla dem tillbaka vid järnvägsbron så att folk hinner över. Ett par A-traktorer och Hemvärnet till att börja med. Kartan måste rättas: det är EN väg över spåret, inte två, och vägarna och Folkets hus läge ska stämma (Olas satellitbild 2026-10-19 i horde-refs/molnbo/satellit-ola-2026-10-19.jpg).
+
+**Dag 9, Mölnbo dag 2.** Ett större angrepp. Vi tappar greppet om norrsidan: efter denna dag går det inte längre att placera trupper där. Tåget rullar in med sin överraskning.
+
+**Dag 10, Mölnbo dag 3.** Horden närmar sig. Vi måste släppa Mölnbo och söka skydd i Gnesta. Håll en viss tid; när tiden är ute och tillräckligt många överlevt försvinner menyerna, trupperna packar ihop och beger sig mot Gnesta, medan en flodvåg av zombier väller in från norr, sprider sig i gatorna och husen på nordsidan och till sist över bron. Bilden tonar ut.
+
+Omgruppering: kontrollrummet i Gnesta.
+
+**Dag 11 till 12, Björnlunda.** Dag 1 försvar från väst. Dag 2 evakuering och försvar från väst och syd. (Olas satellitbild i horde-refs/bjornlunda/satellit-ola-2026-10-19.jpg.)
+
+Omgruppering: kontrollrummet i Gnesta.
+
+**Dag 13, Gnesta västra rondell.** Försvar mot förtrupper.
+
+**Dag 14, Västerkärv.** Zombier via småvägar. Civila, någon Ksp, en EPA. Stigar och specialregler för den här kartan.
+
+**Dag 15, Västra rondellen.** Vi blir överkörda.
+
+**Dag 16, västra Gnesta centrum.** Tillbakatryckta. "Retreat to better defensible positions" så att vi inte förlorar alla trupper. Kanske även östra delarna och höjden med Frejaskolan och Alpgatan.
+
+**Dag 17, Last stand.** Brandstationen och Elektron som shelters och strongpoints. Evakuering av civila till Prästön i småbåtar. "The herd is thinning. Let the waves break on our defenses."
+
+**Dag 18, förstärkningen.** Försvarsmakten släpper trupper och materiel från andra områden: eldkastare, granatkastare, 12,7 mm (sådant vi saknat och som tvingat oss att backa för bjässarna). Anfall, pushback från västra Gnesta: fiendens vågor är svagare än våra styrkor, men inte för stor skillnad. Oklart hur pushback ser ut: kanske victory locations, från ett hörn och framåt. Bryter mot tidigare mekanik, måste designas.
+
+**Dag 19, Västra rondellen.** Spår av något konstigt.
+
+**Dag 20, Mölnbo, slutstriden dag 1.** Mölnbo ser annorlunda ut. Köttiga nervtrådar växer ut från ett tåg på spåret. En av tunnorna med smittan som skickats genom Sverige har kraschat här och läckt. Det har växt ur den välta vagnen och sprider sig som en amöba. Håll emot zombier och andra monster ur det, plus stragglers. Bara en liten del av kartan går att placera på: vi äger den inte än.
+
+**Dag 21, Mölnbo, slutstriden dag 2.** Vi kontrollerar större delen av staden och eskorterar en EPA fylld med sprängämnen in i monstret. Lyckas det är utbrottet här stoppat. Positionerna flyttas fram successivt, bombning på distans, kanske lugna stunder då man kan komma närmare. Mekaniken är oklar.
+
+**Laxne.** Inte i bågen. Olas förslag: ett val för spelaren, försvara Laxne eller släppa det till horden för att spara trupper.
+
+### Konsekvenser för det som finns
+- Källan flyttar från grustaget vid Björnlunda (avsnitt 5) till en kraschad transport i Mölnbo. Grustaget utgår.
+- Mölnbo-basen: Folkets hus är gården där folk samlas dag 8 och försvaras dag 9; dag 10 överges den. Flykten går över spåret mot Gnesta. Folkets hus behöver inte ligga på linjen mot Gnesta; det är samlingsplatsen, inte slutmålet.
+- Riktningarna på E4 (norrut längs E4) och Hagstumosse (österifrån) ska följa den här texten, och kartornas spawns rättas efter den, inte tvärtom.
+- Mölnbo-kartan rättas: en bro, vägnätet efter satellitbilden.
+- Dag 10 (hålla en tid, sedan uttåg och flodvåg), dag 16 (reträtt), dag 18 (pushback), dag 20 till 21 (monstret, eskorten) är nya mekaniker som behöver egna specar.
+
+### Öppet (Ola)
+1. Dag 18 pushback: victory locations eller något annat?
+2. Laxne som valfri skådeplats: när i bågen erbjuds valet (mellan dag 10 och 11?) och vad kostar det att släppa byn (trupper sparade mot civila förlorade)?
+3. Dag 19 "spår av något konstigt": vad ser man?
