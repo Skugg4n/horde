@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.21.0 (kartbordet) (2026-10-19)
+
+Mellan dagarna ligger nu ett kartbord i brandstationen i Gnesta, byggt efter mockupen docs/mockups/kontrollrum-3.html och Olas beslut i mellansnack avsnitt 11 (H500). Det ersätter operationskartan och förrådet som två skyltar; de gamla finns kvar i spelmenyn under Between days: Classic. Spec: docs/superpowers/specs/2026-10-19-kartbordet-bygge.md. Skärmbilder: docs/hub-0.21-start.png, docs/hub-0.21-day8.png, docs/hub-0.21-molnbo.png.
+
+- En sak i taget: dag 1 är kartan och en lapp med dagens order och Deploy. Fiendehögen kommer efter första mötet, radion med första remsan, truppkorten och klämbrädan när förrådet öppnar.
+- Kartan är större och tydligare: E4, E20, 57, 223, 224, järnvägarna, sjöarna, Mälaren, Östersjön och orterna. Sektorerna med läge (holding, threatened, held, secure) och DAY n vid nästa strid, med hordens riktning. Ett klick väljer en sektor.
+- Uppdragshögar per sektor: ordern överst, gårdagens lägesrapport under, äldre blad som kanter, HELD på klara sektorer. Klick breder ut högen. Lägesrapporten är dagens egen text när banan har en (day.report), annars skriven ur dagens siffror.
+- Fiendehögen: ett blad per mött typ, klick på en kant lägger det överst. Gula lappen What we face är nästa strids underrättelser.
+- Truppkorten: ett kort per enhet i Into battle och Reserve, med förrådets regler. Klicka för att flytta, dra mellan fälten eller släpp på ett kort för att byta.
+- Requisition (R) är förrådet som en klämbräda över bordet. Enter ställer upp, Esc öppnar menyn, T städar bordet.
+- Föremålen går att dra; läget sparas i sparfilen (table.layout) och Tidy lägger tillbaka allt. Sparfilen är kvar på v4.
+- Layoutprovet går igenom bordet dag 1, 2, 8 och Mölnbo dag 1, en utbredd hög och Requisition i tre bredder.
+
 ## 0.19.2: speltestet av 0.19.1 (2026-10-19)
 
 Speltestet sa NEJ, men nära (docs/playtests/2026-10-19-0.19.1.md): det mesta från 0.19.0 höll, men tåget dag 4 var en klocka och inte ett val, och dag 4 läckte utan att man såg var.
