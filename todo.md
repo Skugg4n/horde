@@ -439,5 +439,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H495 | molnbo | Mölnbo dag 1 till 3 enligt bågen: dag 1 hålla bron så folk hinner över, dag 2 norrsidan förloras (ingen placering där efteråt) + tåget, dag 3 hålla en tid, sedan uttåg mot Gnesta och flodvåg över bron (menyerna försvinner, trupperna packar, bilden tonar ut).
 - [ ] H496 | kampanj | Rätta E4 (norrut längs E4) och Hagstumosse (österifrån) spawns efter bågen, inte tvärtom.
 - [ ] H497 | kampanj | Move låses upp dag 6 eller 7 med "radio till enheterna".
-- [ ] H498 | kampanj | Slutet flyttar till Mölnbo: kraschad smittotransport på spåret, köttiga nervtrådar ur tåget, dag 20 hålla, dag 21 eskortera EPA med sprängämnen in i monstret. Grustaget utgår. Egen spec.
+- [ ] H498 | kampanj | Slutet i Björnlunda (Ola 2026-10-19): kraschad smittotransport på spåret i Björnlunda, köttiga nervtrådar ur tåget, dag 20 hålla, dag 21 eskortera EPA med sprängämnen in i monstret. Grustaget utgår. Egen spec.
 - [ ] H499 | kampanj | Nya mekaniker som behöver spec: reträtt dag 16, pushback dag 18 (victory locations?), dag 19 spår av något konstigt, Laxne som valfri skådeplats.

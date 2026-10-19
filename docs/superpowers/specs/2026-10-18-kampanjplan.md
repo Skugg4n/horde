@@ -292,14 +292,14 @@ Omgruppering: kontrollrummet i Gnesta.
 
 **Dag 19, Västra rondellen.** Spår av något konstigt.
 
-**Dag 20, Mölnbo, slutstriden dag 1.** Mölnbo ser annorlunda ut. Köttiga nervtrådar växer ut från ett tåg på spåret. En av tunnorna med smittan som skickats genom Sverige har kraschat här och läckt. Det har växt ur den välta vagnen och sprider sig som en amöba. Håll emot zombier och andra monster ur det, plus stragglers. Bara en liten del av kartan går att placera på: vi äger den inte än.
+**Dag 20, Björnlunda, slutstriden dag 1.** (Ola 2026-10-19: Björnlunda, inte Mölnbo. Vi går västerut.) Björnlunda ser annorlunda ut. Köttiga nervtrådar växer ut från ett tåg på spåret. En av tunnorna med smittan som skickats genom Sverige har kraschat här och läckt. Det har växt ur den välta vagnen och sprider sig som en amöba. Håll emot zombier och andra monster ur det, plus stragglers. Bara en liten del av kartan går att placera på: vi äger den inte än.
 
-**Dag 21, Mölnbo, slutstriden dag 2.** Vi kontrollerar större delen av staden och eskorterar en EPA fylld med sprängämnen in i monstret. Lyckas det är utbrottet här stoppat. Positionerna flyttas fram successivt, bombning på distans, kanske lugna stunder då man kan komma närmare. Mekaniken är oklar.
+**Dag 21, Björnlunda, slutstriden dag 2.** Vi kontrollerar större delen av staden och eskorterar en EPA fylld med sprängämnen in i monstret. Lyckas det är utbrottet här stoppat. Positionerna flyttas fram successivt, bombning på distans, kanske lugna stunder då man kan komma närmare. Mekaniken är oklar.
 
 **Laxne.** Inte i bågen. Olas förslag: ett val för spelaren, försvara Laxne eller släppa det till horden för att spara trupper.
 
 ### Konsekvenser för det som finns
-- Källan flyttar från grustaget vid Björnlunda (avsnitt 5) till en kraschad transport i Mölnbo. Grustaget utgår.
+- Källan är en kraschad smittotransport på spåret i Björnlunda (Västra stambanan går genom byn). Grustaget (avsnitt 5) utgår.
 - Mölnbo-basen: Folkets hus är gården där folk samlas dag 8 och försvaras dag 9; dag 10 överges den. Flykten går över spåret mot Gnesta. Folkets hus behöver inte ligga på linjen mot Gnesta; det är samlingsplatsen, inte slutmålet.
 - Riktningarna på E4 (norrut längs E4) och Hagstumosse (österifrån) ska följa den här texten, och kartornas spawns rättas efter den, inte tvärtom.
 - Mölnbo-kartan rättas: en bro, vägnätet efter satellitbilden.
