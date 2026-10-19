@@ -33,7 +33,14 @@ export const EARLY_MAX_SPAWN = 5;   // mitt i en våg räknas högst så många 
 // (2) den senaste har kommit ut helt och (3) OVERLAP_SPENT av den är döda eller framme vid basen, eller
 // dayCfg.overlap sekunder har gått sedan den kom ut (den långa klockan). Sedan en nedräkning på OVERLAP_BEAT s, en
 // paus där de nya verben hinner användas. Utan att spelaren kallar tidigt är alltså högst två vågor igång.
-export const OVERLAP_SPENT = 0.7, OVERLAP_BEAT = 12;
+// 0.19.1 (speltestet av 0.19.0, fynd 4: Mölnbo dag 3 och 4 hade våg 3 och 4 ovanpå varandra, 150 till 200 ute): grinden
+// höll "högst två vågor", men den långa klockan släppte nästa våg 50 s efter att den senaste kommit ut, hur många av den
+// som än levde. På Mölnbos långa vägar har en våg knappt nått försvaret efter 50 s (dag 4: 70 av 73 kvar när våg 4 kom,
+// med tågets 50 ovanpå). En dag kan nu säga dayCfg.overlapMin: den långa klockan släpper bara om så stor del av den
+// senaste är nere; annars väntar nästa våg på 70 %, eller på OVERLAP_STALL gånger den långa klockan (så att dagen aldrig
+// står still). Mölnbo dag 3 till 5 har 0,4. Utan overlapMin (Vikingavägen, Ishallen dag 4 och 5) som förut: de är
+// speltestade med den gamla klockan.
+export const OVERLAP_SPENT = 0.7, OVERLAP_BEAT = 12, OVERLAP_STALL = 3;
 
 // ---------- debugmenyns reglar (0.12.2) ----------
 // tweaks: multiplikatorer som debugmenyn ändrar live (zombiernas hp och fart, antalet i varje grupp,
@@ -416,9 +423,16 @@ export function overlapGate(sim) {
   for (const z of sim.zombies) if (onRoad(z) && z.wave === latest) alive++;
   const queued = queuedN > 0, total = (sim.waveSpawned?.[latest] ?? 0) + queuedN;
   const more = Math.max(0, alive + queuedN - Math.floor((1 - OVERLAP_SPENT) * total + 1e-9));
-  const wait = queued || sim.waveOutAt == null ? null : Math.max(0, ov - (sim.time - sim.waveOutAt));
-  const open = !older && !queued && (more === 0 || wait === 0);
-  return { open, more: wait === 0 ? 0 : more, wait, older };
+  const lmin = sim.dayCfg.overlapMin ?? 0;
+  const long = lmin > 0 ? Math.max(0, alive + queuedN - Math.floor((1 - lmin) * total + 1e-9)) : 0;
+  const since = queued || sim.waveOutAt == null ? null : sim.time - sim.waveOutAt;
+  const wait = since == null ? null : Math.max(0, ov - since);
+  const stall = since != null && since >= ov * OVERLAP_STALL - 1e-9;
+  const timed = (wait === 0 && long === 0) || stall;
+  const open = !older && !queued && (more === 0 || timed);
+  // more: hur många till som ska ned (efter den långa klockan räcker OVERLAP_LONG); wait: klockan, null när den inte
+  // längre räcker ensam
+  return { open, more: timed ? 0 : wait === 0 ? long : more, wait: wait === 0 && !timed ? null : wait, older };
 }
 
 function ageCorpses(sim, dt) {

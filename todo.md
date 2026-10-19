@@ -400,7 +400,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 ## Speltestet av 0.19.0 (docs/playtests/2026-10-19-0.19.0.md)
 
 - [x] H461 | ux | Bjässens knuff-tips kom aldrig (barrikadgrenen i main.js tog händelsen först); knuffen syns knappt. Tipset första gången, "Cars shoved aside" där det sker, vraken glider längre undan, damm och plåt. (0.19.1)
-- [ ] H462 | balans | Mölnbo dag 3 och 4 är en mur: våg 3 och 4 ovanpå varandra (150 till 200 ute), basen 3-4 när tåget kommer. Utred grinden, trimma så att tåget blir ett val.
+- [x] H462 | balans | Mölnbo dag 3 och 4 är en mur: våg 3 och 4 ovanpå varandra (150 till 200 ute), basen 3-4 när tåget kommer. Orsaken: grindens långa klocka släppte nästa våg 50 s efter att den senaste kommit ut, oavsett hur många av den som levde (dag 4: 70 av 73 kvar, tågets 50 ovanpå). Nu overlapMin 0,4 dag 3 till 5; tåget i tredje vågen dag 4, våg 3 och 4 mindre. (0.19.1)
 - [ ] H463 | ux | Tre röda banderoller samtidigt (tåget, basen, bjässarna). En stor banderoll i taget med prioritet (tåget > flykt > omväg/genombrott), resten i kö eller små.
 - [x] H464 | balans | Vågens svans: 1 till 3 bjässar sist gav 90 till 150 s väntan utan något i bild. Svansregeln för alla typer (tre bjässar på väg 57: 191 till 148 s), och plåten "3 left: brutes, Stenbyvägen" vid skärmkanten som flyttar kameran dit. (0.19.1)
 - [x] H465 | spel | Move in i hus mitt i vågen nekas nästan överallt (1 av 13): "Door blocked" utan synlig orsak. Orsaken: dörren valdes bara bland gatrutorna intill huset, och en villa på sin tomt har ingen. Nu närmaste ruta trupperna går på; en soldat i en ficka nekar inte hela gruppen; bodarna säger "This building can't be entered". Prov över alla hus på Mölnbo och Vikingavägen. (0.19.1)

@@ -233,7 +233,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
   const comfortable = () => sim.baseHp >= sim.map.baseHp && sim.zombies.every(z => z.dead || sim.route.fraction(z) < 0.5);
   let bonus = 0, thrown = 0, blastKills = 0, blastNow = false, squadHits = 0, squads = 0, squadDown = 0;
   const waves = [];
-  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0, peakWaves = 0;
+  let ticks = 0, firstHit = null, firstShot = null, waveIdx = 0, peak = 0, peakWaves = 0, trainBase = null;
   while (sim.phase !== 'won' && sim.phase !== 'lost' && ticks < maxTicks) {
     if (sim.phase === 'build' && sim.nextWaveIn == null) { think(); startWave(sim); }
     else if (sim.phase === 'build') {
@@ -257,6 +257,8 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     if (trackSquads && ticks % 30 === 0) squads = Math.max(squads, sim.guns.filter(g => g.squad).length);
     if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; const w = wavesOnRoad(sim).size; if (w > peakWaves) peakWaves = w; }
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
+    // 0.19.1: basen när pendeltåget signalerar (Mölnbo dag 4); inte i fingeravtrycket
+    if (trainBase == null && sim.arrival?.warned) trainBase = Math.max(0, sim.baseHp);
     if (sim.waveIndex > waveIdx || sim.phase === 'lost' || sim.phase === 'won') {
       if (sim.waveIndex > waveIdx || sim.phase === 'lost') waves.push({ cash: sim.cash, baseHp: Math.max(0, sim.baseHp) });
       waveIdx = sim.waveIndex;
@@ -267,7 +269,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
     // 0.18.1: flest vågor ute på vägen samtidigt (src/sim/sim.js wavesOnRoad); inte i fingeravtrycket
-    peak, peakWaves, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash,
+    peak, peakWaves, trainBase, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash,
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
@@ -920,7 +922,8 @@ const forceOf = (p, mapId) => {
 // Hela kampanjen: varje sektor i ordning, varje dag tills den vinns (högst maxAttempts försök).
 // Loggen har en rad per försök. stuck: dagen som aldrig vanns (kampanjen stannar där).
 // start: framsteget att börja från (standard: en ny kampanj); sectors: sektorerna som spelas.
-export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8, sectors = SECTOR_ORDER, start = null } = {}) {
+// 0.19.1: onSecond(sim, mapId, day, attempt) en gång per simulerad sekund (spårning i balansarbetet, inte i proven)
+export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8, sectors = SECTOR_ORDER, start = null, onSecond = null } = {}) {
   let p = start ?? newCampaign();
   const log = [];
   for (const mapId of sectors) {
@@ -931,7 +934,7 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         p = requisitionPolicy(gatherUnits(p, mapId), mapId);
         const force = forceOf(p, mapId), rpBefore = p.rp, pressure = pressureOf(p, mapId);
-        const r = playOpDay(p, mapId, day, policy, { seedOffset });
+        const r = playOpDay(p, mapId, day, policy, { seedOffset, onSecond: onSecond && (sim => onSecond(sim, mapId, day, attempt)) });
         const f = finishDay(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
         log.push({ mapId, day, attempt, won: r.won, baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
           lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
@@ -939,7 +942,7 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
           waveBase: r.waveLog.map(w => w.baseHp),
           // 0.14.2: förnödenheterna kvar när dagen tar slut (överskottet); inte heller i fingeravtrycket
-          cashEnd: r.cashEnd, peakWaves: r.peakWaves, earlyCalls: r.earlyCalls });
+          cashEnd: r.cashEnd, peakWaves: r.peakWaves, earlyCalls: r.earlyCalls, trainBase: r.trainBase });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -957,7 +960,7 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
@@ -992,14 +995,14 @@ export function molnboArrival(seedOffset = 0) {
   return mbArrival.get(seedOffset);
 }
 // Mölnbo från ankomsten. maxAttempts: försök per dag innan policyn ger upp.
-export function molnboCampaign(policy = 'mbSmart', { seedOffset = 0, maxAttempts = 6 } = {}) {
-  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['molnbo'], start: molnboArrival(seedOffset) });
+export function molnboCampaign(policy = 'mbSmart', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['molnbo'], start: molnboArrival(seedOffset), onSecond });
 }
 export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
 export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function mbPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, r);
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
 }
 

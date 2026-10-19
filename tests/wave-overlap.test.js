@@ -4,7 +4,7 @@
 // OVERLAP_SPENT av den senaste är döda (eller framme vid basen), eller när den långa klockan gått ut.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSim, startWave, step, overlapGate, wavesOnRoad, OVERLAP_SPENT, OVERLAP_BEAT } from '../src/sim/sim.js';
+import { createSim, startWave, step, overlapGate, wavesOnRoad, OVERLAP_SPENT, OVERLAP_BEAT, OVERLAP_STALL } from '../src/sim/sim.js';
 import { MAPS } from '../src/data/maps.js';
 
 // Igång: en våg med zombier kvar att släppa eller levande ute på vägen. De som står vid basens dörr (Mölnbo och
@@ -50,4 +50,28 @@ test('grinden: den långa klockan släpper nästa våg, men aldrig en tredje med
   for (let t = 0; t < 200; t += 0.1) step(sim, 0.1);
   assert.equal(sim.wavesStarted, 2, 'våg 3 väntar: våg 1 är inte klar');
   assert.equal(overlapGate(sim).older, 1);
+});
+
+// 0.19.1 (speltestet av 0.19.0, fynd 4: Mölnbo dag 4 kom våg 4 med 70 av 73 i våg 3 kvar, 50 s efter att den kommit ut):
+// med dayCfg.overlapMin släpper den långa klockan bara om så stor del av den senaste är nere; annars väntar nästa våg på
+// 70 %, eller på OVERLAP_STALL gånger klockan.
+const mapMin = (ov, min) => { const m = mapOf(ov); return { ...m, days: [{ ...m.days[0], overlapMin: min }] }; };
+test('grinden med overlapMin: klockan ensam släpper inte en våg som knappt rörts', () => {
+  const sim = createSim({ map: mapMin(20, 0.4), day: 1, cash: 0, seed: 1, tweaks: { god: true, speed: 0.01 } });
+  startWave(sim);
+  while (sim.spawnQueue.length) step(sim, 0.1);
+  for (let t = 0; t < 25; t += 0.1) step(sim, 0.1);
+  assert.equal(overlapGate(sim).open, false, 'klockan har gått, ingen är nere');
+  assert.equal(overlapGate(sim).more, 4, 'fyra av tio behöver ned');
+  for (const z of sim.zombies.filter(q => !q.dead).slice(0, 4)) z.dead = true;
+  assert.equal(overlapGate(sim).open, true, '40 % nere efter klockan');
+});
+test('grinden med overlapMin: dagen står aldrig still (OVERLAP_STALL gånger klockan)', () => {
+  const sim = createSim({ map: mapMin(20, 0.4), day: 1, cash: 0, seed: 1, tweaks: { god: true, speed: 0.01 } });
+  startWave(sim);
+  while (sim.spawnQueue.length) step(sim, 0.1);
+  const out = sim.time;
+  while (sim.wavesStarted < 2 && sim.time < out + 200) step(sim, 0.1);
+  const at = sim.time - out;
+  assert.ok(at >= 20 * OVERLAP_STALL + OVERLAP_BEAT - 0.5 && at <= 20 * OVERLAP_STALL + OVERLAP_BEAT + 0.5, `våg 2 efter ${at.toFixed(1)} s`);
 });
