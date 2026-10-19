@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1440">
+<title>Kontrollrum 3: Bordet</title>
+<!--
+  KONTROLLRUM 3 · THE TABLE (mockup v3, 1440x900)
+
+  States: ?state=start (campaign day 1: map + one note) or ?state=day8 (default).
+  Toggle with the S key.
+
+  Components. Every physical object is an absolutely positioned .obj placed by CSS
+  variables, so the real build can reuse the structure and let the player drag things:
+    --x --y      top-left on the table (px; inside a .pile they are relative to the pile)
+    --w --h      size (--h optional)
+    --r          rotation (deg)
+    --z          stacking order (newest on top)
+  .sheet   a sheet of paper or film. Variants: .map (printed dark map), .overlay (tracing film).
+  .note    a note in a mission stack. Variants: .order (typed), .lined (pencil report),
+           .strip (radio log), .postit (intel), .report (small closed report).
+  .pile    a group of sheets lying on top of each other. .pile.mission = notes per mission
+           on the map, .pile.intel = enemy sheets. Children get --x/--y relative to the pile;
+           only the top one is readable, the rest show their edges.
+  .zone    a marked area at the table edge (Into battle / Reserve) that holds .card.
+  .card    one unit card. One card per unit, never "x2".
+  .string  red string from a .note (a paper clip, [data-string-from]) to a place on the map
+           ([data-map-pin] marker). Drawn in the #strings SVG after layout.
+  [data-state="day8"]  only exists from day 8; hidden in the start state.
+-->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Saira+Stencil+One&family=IBM+Plex+Mono:wght@500;600&display=swap');
+:root{--ink:#16120e;--paper:#e9dfc9;--paper-dim:#b9ad94;--rust:#b5532a;--blood:#7a1b14;--olive:#5d6343;--plate:rgba(22,18,14,.82);--pencil:#3b352c;--string:#a3261a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:#1d150e}
+body{font-family:'Oswald',sans-serif;color:var(--paper);position:relative}
+
+/* ---------- the table: oiled oak planks on a steel frame ---------- */
+.table{position:absolute;inset:0;background:
+ radial-gradient(ellipse 58% 60% at 48% 40%,rgba(255,200,130,.20),transparent 72%),
+ url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='300'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='0.0035 0.16' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 0.20  0 0 0 0 0.12  0 0 0 0 0.06  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>"),
+ linear-gradient(180deg,#4a3420,#3b2918 55%,#2f2013)}
+.table::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(180deg,transparent 0 148px,rgba(0,0,0,.45) 148px 150px,rgba(255,220,170,.05) 150px 151px)}
+.table::after{content:'';position:absolute;inset:0;opacity:.35;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='150'><filter id='k'><feTurbulence type='fractalNoise' baseFrequency='0.002 0.6' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.4 -0.55'/></filter><rect width='100%' height='100%' filter='url(%23k)'/></svg>")}
+.rail{position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(180deg,#8b8a84,#55544e 40%,#2c2b27);box-shadow:0 -2px 6px rgba(0,0,0,.6)}
+.rail::after{content:'';position:absolute;inset:5px 0 auto 0;height:6px;background:radial-gradient(circle,#c8c6bd 1.5px,#3a3934 2.5px,transparent 3px) 30px 0/180px 6px repeat-x}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 48% 42%,transparent 48%,rgba(8,5,2,.72) 100%);z-index:90}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.12;mix-blend-mode:overlay;z-index:91;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+
+/* ---------- base component ---------- */
+.obj{position:absolute;left:calc(var(--x)*1px);top:calc(var(--y)*1px);width:calc(var(--w)*1px);transform:rotate(calc(var(--r,0)*1deg));z-index:var(--z,1)}
+.obj[style*="--h"]{height:calc(var(--h)*1px)}
+/* paper: soft contact shadow + longer lamp shadow, a hair of edge light */
+.sheet,.note{box-shadow:0 1px 1px rgba(0,0,0,.35),0 3px 6px rgba(0,0,0,.28),6px 14px 26px rgba(0,0,0,.38)}
+.note::before,.sheet.paper::before{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,250,235,.18),inset 0 0 18px rgba(90,70,40,.18);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>")}
+body.state-start [data-state="day8"],body.state-day8 [data-state="start"]{display:none}
+
+/* ---------- .sheet.map ---------- */
+.sheet.map{background:#cfc6ad;padding:10px;border-radius:1px}
+.sheet.map svg{display:block;width:100%;height:100%}
+.sheet.map .crease{position:absolute;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(255,255,255,.07) 50%,transparent)}
+.sheet.map .marg{position:absolute;font:600 8.5px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#4a4232}
+/* ---------- .sheet.overlay (tracing film) ---------- */
+.sheet.overlay{background:rgba(214,218,206,.30);backdrop-filter:blur(.7px) brightness(1.25);-webkit-backdrop-filter:blur(.7px) brightness(1.25);border:1px solid rgba(240,240,230,.35);box-shadow:0 1px 2px rgba(0,0,0,.25),5px 10px 18px rgba(0,0,0,.22)}
+.sheet.overlay svg{display:block;width:100%;height:100%}
+
+/* ---------- .note variants ---------- */
+.note{position:absolute}
+.note.order{background:linear-gradient(176deg,#e4dac2,#d3c8ac);color:#221d16;padding:18px 20px 16px;font-family:'IBM Plex Mono',monospace}
+.order .hd{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;font-weight:600;border-bottom:1.5px solid #221d16;padding-bottom:6px}
+.order .meta{font-size:10.5px;line-height:1.55;margin:9px 0 10px;color:#3a3226}
+.order .txt{font-size:15.5px;font-weight:600;line-height:1.38}
+.order .sig{font-size:10px;margin-top:12px;color:#4a4030;letter-spacing:.06em}
+.order kbd{display:inline-block;margin-top:14px;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;border:1.5px solid #221d16;padding:3px 8px 2px;border-radius:2px}
+.stamp{position:absolute;border:3px double rgba(150,40,26,.78);color:rgba(150,40,26,.82);font-family:'Saira Stencil One',sans-serif;padding:4px 10px 3px;letter-spacing:.08em;text-align:center;line-height:1.05;mix-blend-mode:multiply;-webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.6'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.stamp small{display:block;font:600 8.5px 'IBM Plex Mono',monospace;letter-spacing:.14em}
+.stamp.olive{border-color:rgba(70,80,40,.8);color:rgba(70,80,40,.85)}
+.note.lined{background-color:#d8cfb6;background-image:linear-gradient(90deg,transparent 34px,rgba(150,60,50,.45) 34px,rgba(150,60,50,.45) 35.5px,transparent 35.5px),repeating-linear-gradient(180deg,transparent 0 25px,rgba(70,95,110,.32) 25px 26px);background-position:0 0,0 46px;color:var(--pencil);padding:20px 16px 18px 44px}
+.lined .h{font:600 12px Oswald,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#5a5040;height:26px}
+.lined .txt{font:400 17px/26px Oswald,sans-serif;letter-spacing:.015em;color:#2f2a22;padding-top:1px}
+.lined .txt b{font-weight:600}
+.lined .sig{font:italic 400 14px/26px Oswald,sans-serif;color:#5a5040;text-align:right}
+.note.strip{background:#cbc4af;color:#2b261e;font-family:'IBM Plex Mono',monospace;padding:12px 18px 14px;clip-path:polygon(0 3%,3% 0,6% 4%,9% 0,13% 3%,17% 0,100% 0,100% 100%,96% 97%,92% 100%,88% 97%,84% 100%,80% 97%,0 100%,1.5% 70%,0 45%,1.5% 25%)}
+.strip .h{font-size:10px;font-weight:600;letter-spacing:.14em;color:#5a4f3c;display:flex;gap:10px}
+.strip .h i{font-style:normal;color:#8a3a20}
+.strip .txt{font-size:12.5px;line-height:1.5;margin-top:5px;font-weight:500}
+.note.postit{background:linear-gradient(170deg,#c9b067,#ad9552);color:#2a2418;padding:12px 13px 10px}
+.postit .h{font:600 11px Oswald,sans-serif;letter-spacing:.18em;color:#4a3d22}
+.postit .txt{font:400 15px/1.28 Oswald,sans-serif;margin-top:3px}
+.note.report{background:linear-gradient(176deg,#ddd3ba,#cbbf9f);color:#2b261e;padding:12px 14px;font-family:'IBM Plex Mono',monospace}
+.report .hd{font-size:9.5px;font-weight:600;letter-spacing:.14em;border-bottom:1px solid #2b261e;padding-bottom:4px;display:flex;justify-content:space-between}
+.report .txt{font-size:12px;font-weight:600;line-height:1.4;margin-top:7px}
+/* edge-only sheets underneath: just a header line shows */
+.note.under .hd{opacity:.9}
+
+/* ---------- .pile ---------- */
+.pile{position:absolute;left:calc(var(--x)*1px);top:calc(var(--y)*1px);width:0;height:0;z-index:var(--z,5)}
+.pile>.obj{z-index:var(--z,1)}
+/* enemy sheets in the intel pile */
+.enemy{background:linear-gradient(176deg,#dad0b6,#c7bb9b);color:#2b261e;padding:9px 12px 12px}
+.enemy .tab{display:flex;justify-content:space-between;font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#4a4030;height:16px}
+.enemy .tab b{font:14px 'Saira Stencil One',sans-serif;letter-spacing:.06em;color:#2b261e;font-weight:400;margin-top:-3px}
+.enemy .tab i{font-style:normal;color:#8a3a20}
+.enemy.grey .tab{color:#7a705c}.enemy.grey .tab b{color:#6a604c}
+.enemy .body{display:flex;gap:10px;margin-top:12px;border-top:1px solid rgba(43,38,30,.35);padding-top:10px}
+.enemy .body .t{font:400 15px/1.3 Oswald,sans-serif;flex:1}
+.enemy .stats{margin-top:10px;font:600 10.5px/1.7 'IBM Plex Mono',monospace;color:#4a4030}
+.enemy .stats span{display:flex;justify-content:space-between;border-bottom:1px dotted rgba(43,38,30,.35)}
+
+/* ---------- .zone + .card ---------- */
+.zone{position:absolute;left:calc(var(--x)*1px);top:calc(var(--y)*1px);width:calc(var(--w)*1px);height:calc(var(--h)*1px);border:1.5px dashed rgba(233,215,180,.22);border-radius:6px;z-index:2}
+.zone .lbl{position:absolute;left:12px;top:-12px;background:#2f2214;padding:0 8px;font:600 13px Oswald,sans-serif;letter-spacing:.2em;color:var(--paper-dim)}
+.zone .lbl b{color:var(--paper)}
+.card{height:188px;border-radius:7px;background:linear-gradient(160deg,#2a261e,#1c1914);border:1px solid rgba(233,223,201,.22);padding:10px 11px;box-shadow:0 1px 1px rgba(0,0,0,.4),0 4px 6px rgba(0,0,0,.35),6px 12px 20px rgba(0,0,0,.4);overflow:hidden}
+.card::after{content:'';position:absolute;inset:0;border-radius:7px;background:linear-gradient(125deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 32%,rgba(255,255,255,0) 70%,rgba(255,255,255,.06) 100%);pointer-events:none}
+.card .k{white-space:nowrap;font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--paper-dim);display:flex;justify-content:space-between}
+.card .k i{font-style:normal;color:#d9a441}
+.card .n{font:600 16px/1.05 Oswald,sans-serif;text-transform:uppercase;letter-spacing:.03em;margin-top:6px}
+.card .rl{font:400 12px Oswald,sans-serif;color:var(--paper-dim);margin-top:3px;letter-spacing:.03em}
+.card .men{display:flex;gap:3px;margin-top:10px;flex-wrap:wrap}
+.card .men s{width:9px;height:9px;border:1px solid rgba(233,223,201,.5);text-decoration:none}
+.card .men s.on{background:var(--paper)}
+.card .men s.dead{border-color:rgba(224,96,60,.6);background:repeating-linear-gradient(45deg,transparent 0 2px,rgba(224,96,60,.6) 2px 3px)}
+.card .ft{position:absolute;left:11px;right:11px;bottom:10px;font:600 10.5px 'IBM Plex Mono',monospace;color:var(--paper-dim);display:flex;justify-content:space-between;align-items:end}
+.card .ft .ok{color:#9fc46a}.card .ft .bad{color:#e0603c}
+.card.new{border-color:rgba(217,164,65,.6)}
+
+/* ---------- clipboard ---------- */
+.clipboard{border-radius:6px;background:linear-gradient(170deg,#4a3f2e,#352d20);padding:42px 14px 14px;box-shadow:0 2px 3px rgba(0,0,0,.45),6px 16px 28px rgba(0,0,0,.5)}
+.clipboard .jaw{position:absolute;left:56px;top:-8px;width:116px;height:38px;border-radius:5px 5px 10px 10px;background:linear-gradient(180deg,#a5a297,#5e5c55);box-shadow:0 3px 4px rgba(0,0,0,.5)}
+.clipboard .pg{background:#d9cfb6;color:#2b261e;border-radius:1px;padding:12px 12px 14px;height:100%;display:flex;flex-direction:column;gap:9px}
+.clipboard .h{font:600 11px Oswald,sans-serif;letter-spacing:.2em;color:#5a5040;text-transform:uppercase}
+.clipboard .nb{font:21px 'Saira Stencil One',sans-serif;line-height:1}
+.clipboard .nb small{display:block;font:500 11px 'IBM Plex Mono',monospace;color:#5a5040;margin-top:4px}
+.clipboard .rp{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid rgba(43,38,30,.3);padding-top:8px;font:600 11px Oswald,sans-serif;letter-spacing:.18em;color:#5a5040}
+.clipboard .rp b{font:600 22px 'IBM Plex Mono',monospace;color:#8a3a20;letter-spacing:0}
+.clipboard .grow{flex:1}
+.btn{display:block;width:100%;font:600 16px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--paper);text-align:center;padding:11px 10px 9px;border:1px solid rgba(233,223,201,.3);border-radius:2px;background:var(--plate)}
+.btn.main{background:var(--rust);font-size:19px;padding:13px 10px 11px}
+.btn kbd{display:inline-block;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:none;padding:1px 6px;border:1px solid rgba(233,223,201,.45);border-radius:2px;margin-top:4px}
+.btn .p{display:block;font:600 12px 'IBM Plex Mono',monospace;color:#f2d18a;letter-spacing:.02em;text-transform:none;margin-top:3px}
+
+/* ---------- small things on the table ---------- */
+.ring{position:absolute;border-radius:50%;border:5px solid rgba(60,30,10,.32);box-shadow:inset 0 0 6px rgba(60,30,10,.28),0 0 3px rgba(60,30,10,.2);z-index:3;pointer-events:none}
+.pencil{position:absolute;height:9px;border-radius:2px;background:linear-gradient(180deg,#8a6f2c,#6a5420 50%,#4f3e17);box-shadow:3px 5px 5px rgba(0,0,0,.45);z-index:30}
+.pencil::before{content:'';position:absolute;left:-22px;top:0;border-right:22px solid #c9b58a;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.pencil::after{content:'';position:absolute;left:-22px;top:3px;border-right:7px solid #2a2520;border-top:1.5px solid transparent;border-bottom:1.5px solid transparent}
+.pencil i{position:absolute;right:-16px;top:0;width:16px;height:9px;background:linear-gradient(180deg,#9a9890,#6c6a62);border-radius:0 3px 3px 0}
+.clip{position:absolute;width:12px;height:34px;border:2.5px solid #9d9b93;border-radius:6px;box-shadow:1px 2px 2px rgba(0,0,0,.35);z-index:4}
+.clip::after{content:'';position:absolute;left:1px;top:6px;width:5px;height:20px;border:2px solid #b6b4ab;border-radius:4px}
+.pin{position:absolute;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ea9a84,#9a2a1c 55%,#5a160e);box-shadow:2px 3px 3px rgba(0,0,0,.55);transform:translate(-50%,-50%);z-index:41}
+#strings{position:absolute;inset:0;z-index:40;pointer-events:none}
+.mapmark{position:absolute;width:1px;height:1px}
+</style></head><body class="state-day8">
+<div class="table"></div>
+
+<!-- ================= the overview map ================= -->
+<div class="obj sheet map" id="map" style="--x:300;--y:30;--w:880;--h:600;--r:-0.5;--z:2">
+  <svg id="mapsvg" viewBox="0 0 860 580"></svg>
+  <div class="crease" style="left:440px;top:0;width:10px;height:100%"></div>
+  <div class="crease" style="left:0;top:300px;width:100%;height:8px;background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(255,255,255,.06) 50%,transparent)"></div>
+  <div class="marg" style="left:12px;bottom:-1px">LANTMÄTERIET · 1:250 000 · SÖDERMANLAND</div>
+  <div class="marg" style="right:12px;bottom:-1px" id="sheetno">SHEET 1 · DAY 1</div>
+</div>
+<div id="marks"></div>
+
+<!-- Gnesta inset: a second, smaller sheet of tracing film laid on top of the map -->
+<div class="obj sheet overlay" data-state="day8" style="--x:322;--y:118;--w:290;--h:206;--r:3;--z:6"><svg id="insetsvg" viewBox="0 0 300 224" preserveAspectRatio="none"></svg></div>
+
+<!-- ================= START STATE: the one note ================= -->
+<div class="obj note order" data-state="start" id="brief" style="--x:1010;--y:400;--w:300;--r:2.2;--z:8">
+  <div class="hd"><span>MCF · BRIEFING</span><span>DAY 1</span></div>
+  <div class="meta">TO: Commander, roadblock E4<br>VALID: Day 1, from 06:00</div>
+  <div class="txt">Something is spreading. A small group is moving north along the E4. Stop it before road 224 at Lästringe.</div>
+  <div class="sig">Infantry and two Ksp 90 at the roadblock.</div>
+  <kbd>DEPLOY DAY 1 · ENTER</kbd>
+</div>
+
+<!-- ================= DAY 8 ================= -->
+<!-- mission pile: Mölnbo. Day 7's report under day 8's order. -->
+<div class="pile mission" data-state="day8" style="--x:248;--y:318;--z:10">
+  <div class="obj note lined" style="--x:0;--y:0;--w:304;--h:338;--r:-1.8;--z:1">
+    <div class="h">Situation · night 7</div>
+    <div class="txt"><b>Gnesta held.</b> The ice rink is safe and Vikingavägen is quiet. But a larger horde from Södertälje has taken Järna overnight. It moves west along the railway. <b>Mölnbo is next.</b> Get the north side out over the bridge. One road crosses the tracks. Hold it until they are through.</div>
+    <div class="sig">MCF, Gnesta</div>
+  </div>
+  <div class="obj note order" style="--x:34;--y:92;--w:290;--r:1.6;--z:2">
+    <div class="hd"><span>FÖRSVARSMAKTEN</span><span>ORDER 08</span></div>
+    <div class="meta">TO: Commander, Gnesta<br>FROM: Staff, Södermanland<br>VALID: Day 8, from 05:00</div>
+    <div class="txt">Evacuate north Mölnbo. Hold the railway bridge until the last civilians cross.</div>
+    <div class="sig">Confirm on the radio. Out.</div>
+    <div class="stamp" style="right:10px;bottom:-14px;transform:rotate(-7deg);font-size:16px">RECEIVED<small>GNESTA · 23:10</small></div>
+    <div class="clip" data-string-from="molnbo" style="right:22px;top:-12px;transform:rotate(8deg)"></div>
+  </div>
+</div>
+
+<!-- mission pile: E4 Lästringe, closed. Report on top, order 01 peeking out. -->
+<div class="pile mission" data-state="day8" style="--x:986;--y:440;--z:9">
+  <div class="obj note report under" style="--x:14;--y:-26;--w:224;--h:120;--r:-3;--z:1"><div class="hd"><span>ORDER 01</span><span>E4</span></div></div>
+  <div class="obj note report" style="--x:0;--y:0;--w:232;--r:1.4;--z:2;padding-bottom:30px">
+    <div class="hd"><span>E4 · LÄSTRINGE</span><span>DAYS 1 TO 3</span></div>
+    <div class="txt">Group stopped short of road 224. Roadblock stood.</div>
+    <div class="stamp olive" style="right:12px;bottom:6px;transform:rotate(-5deg);font-size:14px">HELD</div>
+  </div>
+</div>
+
+<!-- radio log -->
+<div class="obj note strip" data-state="day8" style="--x:22;--y:40;--w:226;--r:-2;--z:8">
+  <div class="h"><span>RADIO</span><i>04:40</i><span>P4 SÖRMLAND</span></div>
+  <div class="txt">Trains between Södertälje and Gnesta are cancelled. People in Järna are told to stay indoors. In Mölnbo, Folkets hus is open for anyone heading west. Bring water.</div>
+</div>
+
+<!-- intel pile: enemy sheets, walker at the bottom, brute on top -->
+<div class="pile intel" data-state="day8" style="--x:1204;--y:28;--z:12">
+  <div class="obj note enemy grey" style="--x:6;--y:0;--w:208;--h:290;--r:1.4;--z:1"><div class="tab"><b>CRAWLER</b><span>05 · REPORTED</span></div></div>
+  <div class="obj note enemy grey" style="--x:0;--y:27;--w:210;--h:290;--r:-1.6;--z:2"><div class="tab"><b>ARMOURED</b><span>04 · REPORTED</span></div></div>
+  <div class="obj note enemy" style="--x:8;--y:54;--w:206;--h:290;--r:1.2;--z:3"><div class="tab"><b>RUNNER</b><span>02 · SEEN</span></div></div>
+  <div class="obj note enemy" style="--x:2;--y:81;--w:210;--h:290;--r:-1.2;--z:4"><div class="tab"><b>WALKER</b><span>01 · SEEN</span></div></div>
+  <div class="obj note enemy" style="--x:4;--y:110;--w:208;--h:300;--r:0.8;--z:5">
+    <div class="tab"><b>BRUTE</b><i>03 · NEW</i></div>
+    <div class="body">
+      <div class="t">Taller than a door. Wire won't stop them.</div>
+      <svg width="58" height="104" viewBox="0 0 66 120" fill="none" stroke="#3a3122" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".85">
+        <path d="M30 10c6-3 12 0 12 7s-5 10-11 9-8-5-7-9 3-6 6-7z"/>
+        <path d="M22 28c10-4 24-3 30 4 5 7 7 20 6 30M22 28c-8 4-12 14-13 26M28 30c-2 12 0 24 4 34 2 6 2 12 0 18M44 34c2 12 1 22-2 32"/>
+        <path d="M58 62l2 16M9 54l-3 18M6 72l3 4M60 78l-3 4"/>
+        <path d="M30 82l-6 30M38 82l6 30M22 112h6M42 112h7"/>
+        <path d="M2 2v116" stroke-dasharray="2 3" stroke-width=".8"/>
+      </svg>
+    </div>
+    <div class="stats"><span>HEIGHT<b>2.4 m</b></span><span>SPEED<b>slow</b></span><span>STOPS IT<b>heavy MG</b></span></div>
+  </div>
+  <div class="obj note postit" style="--x:36;--y:330;--w:176;--h:128;--r:-4;--z:6">
+    <div class="h">WHAT WE FACE</div>
+    <div class="txt">From Järna, along the tracks. Walkers, 200 or more. Runners out front. <b>3 big ones.</b></div>
+  </div>
+</div>
+
+<!-- card zones at the table edge: one card per unit -->
+<div class="zone" data-state="day8" style="--x:300;--y:676;--w:690;--h:206"><div class="lbl"><b>INTO BATTLE</b> · 5 of 6</div></div>
+<div class="zone" data-state="day8" style="--x:1008;--y:676;--w:184;--h:206"><div class="lbl"><b>RESERVE</b> · 3</div></div>
+<div id="cards" data-state="day8"></div>
+
+<!-- clipboard -->
+<div class="obj clipboard" data-state="day8" style="--x:1212;--y:500;--w:208;--h:376;--r:1.2;--z:11"><div class="jaw"></div><div class="pg">
+  <div class="h">Next battle</div>
+  <div class="nb">Mölnbo · Day 8<small>The railway bridge</small></div>
+  <div class="rp"><span>REQUISITION</span><b>240</b></div>
+  <div class="grow"></div>
+  <div class="btn">Requisition<span class="p">Units and upgrades</span></div>
+  <div class="btn main">Deploy day 8<br><kbd>Enter</kbd></div>
+</div></div>
+
+<!-- small things -->
+<div class="ring" data-state="day8" style="left:84px;top:620px;width:96px;height:96px"></div>
+<div class="ring" data-state="day8" style="left:98px;top:640px;width:70px;height:70px;border-width:2px;opacity:.55"></div>
+<div class="ring" style="left:1060px;top:60px;width:92px;height:92px;opacity:.75"></div>
+<div class="pencil" data-state="day8" style="left:90px;top:780px;width:170px;transform:rotate(-18deg)"><i></i></div>
+<div class="pencil" data-state="start" style="left:1010px;top:690px;width:170px;transform:rotate(-14deg)"><i></i></div>
+
+<svg id="strings"></svg>
+<div class="rail"></div>
+<div class="vignette"></div><div class="grain"></div>
+
+<script>
+/* ---------- geography: lon/lat -> map px (inner 860x580) ---------- */
+const MW = 860, MH = 580, LON0 = 16.35, LAT0 = 59.28, KX = MW / 1.6, KY = KX * 1.942;
+const gx = lon => (lon - LON0) * KX, gy = lat => (LAT0 - lat) * KY;
+const SM = pts => { const n = pts.length, q = pts.map(([lo, la]) => [gx(lo), gy(la)]); let d = `M${q[0][0].toFixed(1)} ${q[0][1].toFixed(1)}`; for (let i = 0; i < n; i++) { const p0 = q[(i - 1 + n) % n], p1 = q[i], p2 = q[(i + 1) % n], p3 = q[(i + 2) % n]; d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`; } return d + 'Z'; };
+const P = pts => pts.map(([lo, la], i) => (i ? 'L' : 'M') + gx(lo).toFixed(1) + ' ' + gy(la).toFixed(1)).join(' ');
+const PLACES = {
+  sodertalje: [17.63, 59.196], jarna: [17.567, 59.093], molnbo: [17.418, 59.048], gnesta: [17.311, 59.049],
+  bjornlunda: [17.163, 59.071], laxne: [17.10, 59.122], nykoping: [17.007, 58.753], trosa: [17.55, 58.897],
+  flen: [16.588, 59.058], mariefred: [17.22, 59.262], vagnharad: [17.49, 58.946], lastringe: [17.36, 58.862],
+  hagstumosse: [17.33, 59.054], stjarnhov: [16.99, 59.075],
+};
+const SEA = [[17.64,59.19],[17.68,59.15],[17.66,59.08],[17.72,59.02],[17.78,59.06],[17.80,59.14],[17.86,59.17],[17.96,59.15],[17.96,58.70],[16.98,58.70],[17.05,58.745],[17.12,58.772],[17.25,58.80],[17.35,58.832],[17.45,58.865],[17.55,58.888],[17.62,58.93],[17.70,58.985],[17.67,59.05],[17.62,59.12]];
+const MALAREN = [[16.95,59.30],[17.05,59.262],[17.15,59.268],[17.22,59.256],[17.30,59.252],[17.42,59.246],[17.52,59.232],[17.60,59.214],[17.635,59.204],[17.66,59.222],[17.72,59.252],[17.80,59.30]];
+const LAKES = {
+  'KLÄMMINGEN': [[17.295,59.058],[17.26,59.076],[17.20,59.098],[17.15,59.118],[17.115,59.136],[17.098,59.126],[17.135,59.104],[17.19,59.084],[17.25,59.062],[17.28,59.050]],
+  'SILLEN': [[17.26,59.025],[17.30,59.02],[17.33,58.99],[17.32,58.95],[17.29,58.925],[17.25,58.935],[17.24,58.97],[17.23,59.0]],
+  'BÅVEN': [[16.84,59.07],[16.92,59.09],[17.02,59.08],[17.06,59.04],[17.0,59.0],[16.93,58.985],[16.86,59.0],[16.82,59.04]],
+  'YNGAREN': [[16.52,58.95],[16.60,58.96],[16.66,58.93],[16.62,58.90],[16.54,58.905],[16.50,58.925]],
+  'LÅNGHALSEN': [[16.70,58.89],[16.80,58.885],[16.88,58.87],[16.86,58.855],[16.76,58.865],[16.69,58.875]],
+  'FRÖSJÖN': [[17.30,59.06],[17.325,59.064],[17.335,59.056],[17.31,59.052]],
+  'HALLBOSJÖN': [[17.455,59.115],[17.49,59.12],[17.50,59.105],[17.465,59.10]],
+};
+const ISLANDS = [[17.73,58.95,7,4],[17.80,58.90,10,5],[17.66,58.86,6,3],[17.88,59.0,12,6],[17.35,58.79,5,3],[17.20,58.74,6,3]];
+const ROADS = [
+  { n: 'E4', e: 1, pts: [[17.96,59.245],[17.70,59.205],[17.625,59.17],[17.585,59.12],[17.56,59.06],[17.515,58.985],[17.47,58.93],[17.38,58.872],[17.30,58.842],[17.18,58.80],[17.05,58.772],[16.90,58.762],[16.70,58.745],[16.35,58.72]], at: [17.6,59.15] },
+  { n: 'E20', e: 1, pts: [[17.625,59.20],[17.50,59.235],[17.36,59.258],[17.22,59.27],[17.10,59.285]], at: [17.52,59.23] },
+  { n: '57', pts: [[17.585,59.10],[17.567,59.090],[17.49,59.06],[17.418,59.044],[17.36,59.042],[17.311,59.045],[17.23,59.058],[17.163,59.066],[17.0,59.064],[16.85,59.052],[16.72,59.054],[16.588,59.054],[16.35,59.02]], at: [17.47,59.045] },
+  { n: '223', pts: [[17.22,59.262],[17.18,59.21],[17.13,59.16],[17.10,59.122],[17.13,59.09],[17.163,59.07]], at: [17.15,59.19] },
+  { n: '224', pts: [[17.36,58.862],[17.335,58.905],[17.33,58.95],[17.345,59.0],[17.32,59.04]], at: [17.345,58.93] },
+  { n: '218', pts: [[17.55,58.897],[17.49,58.946],[17.44,58.99]], at: [17.52,58.925] },
+  { n: '53', pts: [[17.0,58.758],[16.96,58.85],[16.95,58.95],[16.90,59.06],[16.82,59.18],[16.76,59.28]], at: [16.93,58.88] },
+];
+const RAILS = [
+  [[17.72,59.21],[17.625,59.175],[17.58,59.12],[17.567,59.093],[17.49,59.066],[17.418,59.050],[17.36,59.049],[17.311,59.052],[17.24,59.064],[17.163,59.073],[17.0,59.08],[16.85,59.075],[16.70,59.066],[16.588,59.060],[16.35,59.04]],
+  [[17.567,59.093],[17.53,59.02],[17.49,58.946],[17.40,58.89],[17.25,58.822],[17.06,58.762],[16.9,58.75]],
+  [[17.625,59.19],[17.45,59.25],[17.25,59.272],[17.10,59.29]],
+];
+const TOWNS = [['SÖDERTÄLJE','sodertalje',1,8,-6],['NYKÖPING','nykoping',1,8,4],['FLEN','flen',0,6,4],['TROSA','trosa',0,7,4],['MARIEFRED','mariefred',0,-70,14],['VAGNHÄRAD','vagnharad',0,7,4],['JÄRNA','jarna',0,7,-6],['MÖLNBO','molnbo',0,-14,-12],['GNESTA','gnesta',1,-30,18],['BJÖRNLUNDA','bjornlunda',0,-44,16],['LAXNE','laxne',0,7,-4],['STJÄRNHOV','stjarnhov',0,-24,-9],['LÄSTRINGE','lastringe',0,8,12]];
+
+function drawMap(state) {
+  const X = k => gx(PLACES[k][0]), Y = k => gy(PLACES[k][1]);
+  let s = `<rect width="${MW}" height="${MH}" fill="#151710"/>`;
+  s += `<rect width="${MW}" height="${MH}" fill="url(#relief)" opacity=".5"/>`;
+  for (let i = 0; i <= 10; i++) { const x = i * MW / 10; s += `<line x1="${x}" y1="0" x2="${x}" y2="${MH}" class="gl"/>`; if (i < 10) s += `<text x="${x + 4}" y="12" class="grid">${String.fromCharCode(65 + i)}</text>`; }
+  for (let i = 0; i <= 7; i++) { const y = i * MH / 7; s += `<line x1="0" y1="${y}" x2="${MW}" y2="${y}" class="gl"/>`; if (i < 7) s += `<text x="4" y="${y + 13}" class="grid">${i + 1}</text>`; }
+  s += `<path d="${SM(SEA)}" class="water sea"/><path d="${SM(MALAREN)}" class="water sea"/>`;
+  for (const [x, y, rx, ry] of ISLANDS) s += `<ellipse cx="${gx(x)}" cy="${gy(y)}" rx="${rx}" ry="${ry}" fill="#151710" stroke="rgba(143,196,232,.22)"/>`;
+  for (const [n, pts] of Object.entries(LAKES)) { s += `<path d="${SM(pts)}" class="water"/>`; if (n !== 'FRÖSJÖN' && n !== 'HALLBOSJÖN') { const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length; s += `<text x="${gx(cx)}" y="${gy(cy) + 3}" class="lake" text-anchor="middle">${n}</text>`; } }
+  s += `<text x="${gx(17.27)}" y="${gy(59.266)}" class="lake big" text-anchor="middle">MÄLAREN</text><text x="${gx(17.42)}" y="${gy(58.765)}" class="lake big" text-anchor="middle">ÖSTERSJÖN</text>`;
+  for (const r of RAILS) s += `<path d="${P(r)}" class="rail1"/><path d="${P(r)}" class="rail2"/>`;
+  for (const r of ROADS) s += `<path d="${P(r.pts)}" class="${r.e ? 'road e' : 'road'}"/>`;
+  for (const r of ROADS) { const x = gx(r.at[0]), y = gy(r.at[1]); s += `<rect x="${x - 12}" y="${y - 7}" width="24" height="13" rx="2" class="${r.e ? 'shield e' : 'shield'}"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" class="rd${r.e ? ' e' : ''}">${r.n}</text>`; }
+  for (const [n, k, big, dx, dy] of TOWNS) { const x = X(k), y = Y(k); s += big ? `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" class="tw"/>` : `<circle cx="${x}" cy="${y}" r="2.6" class="tw"/>`; s += `<text x="${x + dx}" y="${y + dy}" class="town${big ? ' big' : ''}">${n}</text>`; }
+
+  const ring = (k, c, r = 11, dash = '') => `<circle cx="${X(k)}" cy="${Y(k)}" r="${r}" fill="none" stroke="${c}" stroke-width="2" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const pen = (x, y, t, a = 'start', cls = 'pen') => `<text x="${x}" y="${y}" text-anchor="${a}" class="${cls}">${t}</text>`;
+  if (state === 'start') {
+    // the group on the E4, coming north towards Lästringe
+    s += `<path d="M${gx(17.08)} ${gy(58.77)} Q ${gx(17.22)} ${gy(58.80)} ${gx(17.33)} ${gy(58.848)}" class="arrow"/>`;
+    s += `<path d="M${gx(17.33) - 10} ${gy(58.848) - 7} L${gx(17.33)} ${gy(58.848)} L${gx(17.33) - 11} ${gy(58.848) + 6}" class="arrowhead"/>`;
+    s += ring('lastringe', '#e0603c', 13) + ring('lastringe', 'rgba(224,96,60,.45)', 22);
+    s += `<path d="M${X('lastringe') + 20} ${Y('lastringe') - 22} q 36 -26 70 -6" class="penline"/>` + pen(X('lastringe') + 44, Y('lastringe') - 38, 'DAY 1', 'start', 'pen big');
+    s += pen(X('lastringe') - 16, Y('lastringe') + 30, 'roadblock, keep them off 224', 'middle');
+  } else {
+    // Lästringe: done
+    s += `<circle cx="${X('lastringe')}" cy="${Y('lastringe')}" r="8" fill="rgba(138,128,112,.35)" stroke="#8a8070" stroke-width="1.5"/>` + pen(X('lastringe') - 12, Y('lastringe') + 24, 'held, days 1 to 3', 'middle');
+    // Gnesta: held
+    s += `<circle cx="${X('gnesta')}" cy="${Y('gnesta')}" r="9" fill="rgba(143,196,232,.30)" stroke="#8fc4e8" stroke-width="1.5"/>` + pen(X('gnesta') - 8, Y('gnesta') + 32, 'held, days 4 to 7', 'middle');
+    // zoom box for the inset
+    const zx0 = gx(17.25), zy0 = gy(59.075), zx1 = gx(17.37), zy1 = gy(59.03);
+    s += `<rect x="${zx0}" y="${zy0}" width="${zx1 - zx0}" height="${zy1 - zy0}" class="penline" stroke-dasharray="3 3"/>`;
+    // the horde: Södertälje to Järna (taken) to Mölnbo, along the railway
+    const jx = X('jarna'), jy = Y('jarna');
+    s += `<path d="M${X('sodertalje') - 4} ${Y('sodertalje') + 12} Q ${gx(17.62)} ${gy(59.14)} ${jx + 8} ${jy - 12}" class="arrow"/>`;
+    s += `<path d="M${jx - 12} ${jy - 2} Q ${gx(17.49)} ${gy(59.085)} ${X('molnbo') + 20} ${Y('molnbo') - 6}" class="arrow"/>`;
+    s += `<path d="M${X('molnbo') + 30} ${Y('molnbo') - 15} L${X('molnbo') + 20} ${Y('molnbo') - 6} L${X('molnbo') + 32} ${Y('molnbo') + 2}" class="arrowhead"/>`;
+    s += `<circle cx="${jx}" cy="${jy}" r="12" fill="rgba(122,27,20,.5)" stroke="#b5532a" stroke-width="1.5"/><path d="M${jx - 9} ${jy - 9} L${jx + 9} ${jy + 9} M${jx + 9} ${jy - 9} L${jx - 9} ${jy + 9}" stroke="#e0603c" stroke-width="2"/>`;
+    s += pen(jx + 16, jy + 18, 'taken, night 7');
+    s += ring('molnbo', '#e0603c', 10) + ring('molnbo', 'rgba(224,96,60,.45)', 19);
+    s += `<path d="M${X('molnbo') - 10} ${Y('molnbo') - 24} q 30 -30 76 -22" class="penline"/>` + pen(X('molnbo') + 10, Y('molnbo') - 50, 'DAY 8', 'start', 'pen big');
+    s += pen(X('molnbo') + 4, Y('molnbo') + 30, 'one road over the tracks', 'start');
+  }
+  const svg = document.getElementById('mapsvg');
+  svg.innerHTML = `<defs><filter id="rf"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="4"/><feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.38  0 0 0 0 0.28  0 0 0 0.35 -0.08"/></filter><pattern id="relief" width="860" height="580" patternUnits="userSpaceOnUse"><rect width="860" height="580" filter="url(#rf)"/></pattern></defs>
+  <style>.gl{stroke:rgba(160,170,130,.08)}.grid{font:9px 'IBM Plex Mono',monospace;fill:rgba(200,205,170,.35)}
+  .water{fill:rgba(62,86,94,.55);stroke:rgba(143,196,232,.28);stroke-width:1}.water.sea{fill:rgba(52,74,84,.55)}
+  .lake{font:italic 500 9.5px Oswald,sans-serif;fill:rgba(143,196,232,.55);letter-spacing:.14em}.lake.big{font-size:13px;letter-spacing:.4em}
+  .rail1{fill:none;stroke:rgba(215,210,185,.55);stroke-width:3}.rail2{fill:none;stroke:#151710;stroke-width:1.6;stroke-dasharray:7 7}
+  .road{fill:none;stroke:rgba(205,200,175,.5);stroke-width:1.5}.road.e{stroke:rgba(217,164,65,.7);stroke-width:2.6}
+  .shield{fill:#151710;stroke:rgba(205,200,175,.55)}.shield.e{stroke:rgba(217,164,65,.8);fill:#2a2412}
+  .rd{font:600 9.5px 'IBM Plex Mono',monospace;fill:rgba(205,200,175,.85)}.rd.e{fill:#e3b257}
+  .tw{fill:rgba(225,220,195,.8)}.town{font:500 11px Oswald,sans-serif;fill:rgba(225,220,195,.72);letter-spacing:.08em}.town.big{font-size:13.5px;font-weight:600;fill:rgba(233,223,201,.9)}
+  .arrow{fill:none;stroke:#b5532a;stroke-width:3;stroke-dasharray:9 5;opacity:.9}.arrowhead{fill:none;stroke:#b5532a;stroke-width:3}
+  .pen{font:italic 400 12px Oswald,sans-serif;fill:rgba(215,210,185,.78);letter-spacing:.03em}.pen.big{font-size:16px;font-style:normal;fill:rgba(233,223,201,.85);letter-spacing:.14em}
+  .penline{fill:none;stroke:rgba(215,210,185,.6);stroke-width:1.3}
+  .ttl{font:24px 'Saira Stencil One',sans-serif;fill:rgba(233,223,201,.85)}.sub{font:600 9.5px 'IBM Plex Mono',monospace;fill:rgba(185,173,148,.9);letter-spacing:.18em}</style>` + s +
+  `<text x="26" y="44" class="ttl">Operation Södermanland</text><text x="27" y="60" class="sub">${state === 'start' ? 'SHEET 1 · DAY 1' : 'SHEET 1 · NIGHT 7 TO DAY 8'}</text>`;
+  document.getElementById('sheetno').textContent = state === 'start' ? 'FIRST ISSUE' : 'CORRECTED NIGHT 7';
+  // invisible markers for strings (they follow the sheet's rotation)
+  const map = document.getElementById('map');
+  map.querySelectorAll('.mapmark').forEach(m => m.remove());
+  for (const k of Object.keys(PLACES)) { const m = document.createElement('i'); m.className = 'mapmark'; m.dataset.mapPin = k; m.style.left = (10 + X(k) * (MW / 860)) + 'px'; m.style.top = (10 + Y(k)) + 'px'; map.appendChild(m); }
+}
+
+/* ---------- Gnesta inset on tracing film (schematic, a later zoom) ---------- */
+function drawInset() {
+  const ink = '#1c1810';
+  document.getElementById('insetsvg').innerHTML = `<style>.i{fill:none;stroke:${ink};stroke-width:1.4;opacity:.8}.it{font:500 10px Oswald,sans-serif;fill:${ink};letter-spacing:.06em;opacity:.85}.ih{font:15px 'Saira Stencil One',sans-serif;fill:${ink};opacity:.85}.is{font:600 8px 'IBM Plex Mono',monospace;fill:${ink};letter-spacing:.14em;opacity:.75}</style>
+  <path d="M186 20 q 40 -6 70 12 q 18 20 -4 38 q -36 14 -62 -8 q -16 -22 -4 -42z" fill="rgba(60,90,110,.28)" stroke="${ink}" stroke-width="1" opacity=".8"/>
+  <text x="222" y="46" class="it" text-anchor="middle" font-style="italic">Frösjön</text>
+  <path d="M0 132 C 70 124 120 112 170 106 S 260 96 300 92" class="i" stroke-width="3"/><path d="M0 132 C 70 124 120 112 170 106 S 260 96 300 92" fill="none" stroke="rgba(214,218,206,.9)" stroke-width="1.4" stroke-dasharray="6 6"/>
+  <path d="M0 160 C 60 156 110 150 160 140 S 250 128 300 132" class="i" stroke-width="2"/>
+  <path d="M60 158 L 70 214 M160 140 L 150 60 M210 136 L 250 200 M110 150 L 98 70" class="i" stroke-width="1"/>
+  <circle cx="60" cy="158" r="9" class="i"/><text x="40" y="186" class="it">Västra rondellen</text>
+  <rect x="140" y="112" width="34" height="18" class="i" stroke-width="1"/><text x="134" y="104" class="it" text-anchor="end">Centrum</text>
+  <circle cx="246" cy="150" r="10" fill="rgba(80,130,170,.35)" stroke="${ink}" stroke-width="1.4" opacity=".85"/><text x="238" y="176" class="it">Ishallen</text><text x="238" y="187" class="is">HAGSTUMOSSE · HELD</text>
+  <path d="M200 76 C 230 80 250 70 270 62" class="i" stroke-width="1"/><text x="262" y="82" class="it" text-anchor="end">Vikingavägen</text>
+  <text x="96" y="62" class="it">Frejaskolan</text><text x="176" y="160" class="it">Brandstationen</text>
+  <text x="12" y="24" class="ih">GNESTA</text><text x="12" y="36" class="is">INSET · 1:20 000 · LATER</text>`;
+}
+
+/* ---------- unit cards: one per unit ---------- */
+const INTO = [
+  { k: 'HV · 1', n: 'Hemvärnet 1', rl: 'Rifle squad · Ak 4', men: [8, 0, 8], star: 1, ft: ['Rested', 'ok'] },
+  { k: 'HV · 2', n: 'Hemvärnet 2', rl: 'Rifle squad · Ak 4', men: [7, 1, 8], ft: ['Rested', 'ok'] },
+  { k: 'KSP 58', n: 'Ksp 58 team', rl: 'General MG · 7.62', men: [3, 0, 3], ft: ['Rested', 'ok'] },
+  { k: 'NEW', n: 'A-tractor 1', rl: 'Carries people out. Blocks a road.', men: [1, 0, 1], ft: ['Delivered', 'ok'], cls: 'new' },
+  { k: 'NEW', n: 'A-tractor 2', rl: 'Carries people out. Blocks a road.', men: [1, 0, 1], ft: ['Delivered', 'ok'], cls: 'new' },
+];
+const RESERVE = [
+  { k: 'EPA', n: 'Welded pillbox', rl: 'Stays at the ice rink', ft: ['Garrison', ''] },
+  { k: 'REFILL 100 RP', n: 'Army squad', rl: 'Ak 5', men: [4, 4, 8], ft: ['Refill', 'bad'] },
+  { k: 'TIRED', n: 'Volunteers', rl: 'Hunting rifles', men: [5, 3, 8], ft: ['Tired', 'bad'], rest: 2 },
+];
+function card(u, x, y, r, z) {
+  const men = u.men ? '<div class="men">' + Array.from({ length: u.men[2] }, (_, i) => `<s class="${i < u.men[0] ? 'on' : i < u.men[0] + u.men[1] ? 'dead' : ''}"></s>`).join('') + '</div>' : '';
+  const tail = u.rest != null ? `<span>${'▮'.repeat(u.rest)}${'▯'.repeat(3 - u.rest)}</span>` : (u.star ? '<span style="color:#d9a441">★</span>' : '<span></span>');
+  return `<div class="obj card ${u.cls ?? ''}" style="--x:${x};--y:${y};--w:132;--r:${r};--z:${z}"><div class="k"><span>${u.k}</span>${u.men ? `<i>${u.men[0]}/${u.men[2]}</i>` : ''}</div><div class="n">${u.n}</div><div class="rl">${u.rl}</div>${men}<div class="ft"><span class="${u.ft[1]}">${u.ft[0]}</span>${tail}</div></div>`;
+}
+const ROT = [-2, 1.4, -0.8, 2.2, -1.4];
+document.getElementById('cards').innerHTML =
+  INTO.map((u, i) => card(u, 316 + i * 134, 690 + (i % 2 ? 5 : 0), ROT[i], 20)).join('') +
+  RESERVE.map((u, i) => card(u, 1016 + i * 22, 684 + i * 6, [-3, 2, -0.6][i], 20 + i)).join('');
+
+/* ---------- strings: from a note's clip to a pin on the map ---------- */
+function drawStrings() {
+  const sv = document.getElementById('strings'); sv.setAttribute('viewBox', '0 0 1440 900');
+  document.querySelectorAll('.pin').forEach(p => p.remove());
+  let out = '';
+  for (const c of document.querySelectorAll('[data-string-from]')) {
+    if (!c.offsetParent) continue;
+    const a = c.getBoundingClientRect(), b = document.querySelector(`[data-map-pin="${c.dataset.stringFrom}"]`).getBoundingClientRect();
+    const x1 = a.left + a.width / 2, y1 = a.top + 6, x2 = b.left, y2 = b.top;
+    const mx = (x1 + x2) / 2 + 10, my = Math.min(y1, y2) + 34; // lies slack on the table
+    out += `<path d="M${x1 + 3} ${y1 + 4} Q ${mx + 3} ${my + 5} ${x2 + 3} ${y2 + 4}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="2.4"/><path class="string" d="M${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}" fill="none" stroke="var(--string)" stroke-width="2"/>`;
+    const p = document.createElement('div'); p.className = 'pin'; p.style.left = x2 + 'px'; p.style.top = y2 + 'px'; document.body.appendChild(p);
+  }
+  sv.innerHTML = out;
+}
+
+/* ---------- state ---------- */
+function setState(st) {
+  document.body.className = 'state-' + st;
+  drawMap(st);
+  requestAnimationFrame(drawStrings);
+}
+let state = new URLSearchParams(location.search).get('state') === 'start' ? 'start' : 'day8';
+drawInset();
+setState(state);
+document.fonts && document.fonts.ready.then(() => setState(state));
+addEventListener('keydown', e => { if (e.key === 's' || e.key === 'S') { state = state === 'start' ? 'day8' : 'start'; setState(state); } });
+</script>
+</body></html>
