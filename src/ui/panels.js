@@ -36,6 +36,8 @@ const REASONS = {
   'bas': 'On the base',
   // 0.17.1: Mölnbos broar (enheten skulle stå under däcket och inte synas)
   'bro': 'Under the bridge',
+  // 0.20.0 (Mölnbo dag 3): norra sidan är förlorad
+  'förlorad': 'Lost to the horde',
   'utanför': 'Outside the map',
   'ej upplåst': 'Not released yet.',
   'fel läge': 'The day is over.',
@@ -621,7 +623,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
   const head = sectorDone ? 'Victory' : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : 'The line broke.';
-  const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians reached the ice rink${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
+  const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians ${evac.place ?? 'reached the ice rink'}${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   const rows = [];
   if (rp) {
     rows.push(['Kills and waves', rp.base]);

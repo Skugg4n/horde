@@ -65,11 +65,10 @@ export const STAGES = [
   { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: ['garrison'] },
   // 0.17.0-molnbo: Mölnbo. Inget nytt i gränssnittet; det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
   { id: 'after-gnn-5', after: ['gnesta-norr', 5], adds: [] },
+  // 0.20.0 (kampanjbågen, H495): tre dagar. Håll eld vid bron dag 2, klockan och de överrända pjäserna dag 3.
   { id: 'mb-1', map: 'molnbo', day: 1, adds: ['rout'] },
-  { id: 'mb-2', map: 'molnbo', day: 2, adds: [] },
-  { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train'] },
-  { id: 'mb-4', map: 'molnbo', day: 4, adds: ['holdFire'] },
-  { id: 'mb-5', map: 'molnbo', day: 5, adds: ['overrun'] },
+  { id: 'mb-2', map: 'molnbo', day: 2, adds: ['holdFire'] },
+  { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train', 'overrun'] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];
 export const stageIndex = id => STAGES.findIndex(s => s.id === id);

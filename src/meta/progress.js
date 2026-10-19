@@ -18,6 +18,18 @@ export function newProgress() {
   return { v: SAVE_VERSION, mapId: 'riksvagen', rp: 0, research: [], maps: { riksvagen: newMapState() }, op: emptyOp(), lessons: { seen: [], mode: 'on', read: [] } };
 }
 const newMapState = () => ({ unlockedDay: 1, attempts: {} });
+// 0.20.0 (H495): en bana kan få färre dagar (Mölnbo fem till tre). En sparfil som stod längre fram på banan än den nu
+// har dagar räknas som klar med banan: unlockedDay sätts till sista dagen + 1 (src/meta/operation.js syncOperation
+// stänger då sektorn). Inget annat ändras; försöken på dagarna som inte finns längre står kvar. null = inget att ändra.
+export function clampDays(progress) {
+  let maps = null;
+  for (const [id, st] of Object.entries(progress.maps ?? {})) {
+    const max = MAPS[id] ? MAPS[id].days.length + 1 : null;
+    if (max == null || !(st?.unlockedDay > max)) continue;
+    (maps ??= { ...progress.maps })[id] = { ...st, unlockedDay: max };
+  }
+  return maps ? { ...progress, maps } : null;
+}
 
 // Banans del av framsteget (en tom om banan inte spelats än).
 export function mapState(progress, mapId = progress.mapId) {

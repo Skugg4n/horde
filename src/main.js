@@ -13,6 +13,7 @@ import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { mountTrain } from './ui/train.js';
+import { mountExodus } from './ui/exodus.js';
 import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
@@ -38,7 +39,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, evacPath, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -809,6 +810,8 @@ uiRoot.appendChild(evacEl);
 let evacKey = '';
 // 0.17.0-molnbo: tågklockan (src/ui/train.js), samma plats som evakueringens ruta
 const trainUi = mountTrain(uiRoot);
+// 0.20.0 (Mölnbo dag 3, H495): uttåget, HUD:en tonar ut och bilden till svart (src/ui/exodus.js)
+const exodusUi = mountExodus(uiRoot);
 function updateEvac() {
   trainUi.update(sim, mode);
   const ev = mode === 'play' ? sim.evac : null;
@@ -1225,9 +1228,19 @@ function handleEvents() {
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     // 0.13.0: de civila, pillboxen och lagen på väg
     else if (ev.t === 'civilianDown') { if (!isSeen(progress, 'tip.civ')) tip('tip.civ', [ev.x, ev.z]); else if (time - civToldAt > 3) { civToldAt = time; note(uiRoot, 'A civilian is down!', 'warn'); } civilianLost(ev); }
-    else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, 'The first civilians are inside the ice rink.');
+    else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, sim.map.evacPlace ? `The first civilians ${sim.map.evacPlace}.` : 'The first civilians are inside the ice rink.');
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
-    else if (ev.t === 'evacDone') note(uiRoot, 'The civilians are inside the ice rink.');
+    else if (ev.t === 'evacDone') note(uiRoot, sim.map.evacPlace ? `The civilians ${sim.map.evacPlace}.` : 'The civilians are inside the ice rink.');
+    // 0.20.0 (Mölnbo dag 3, H495): uttåget. Menyerna tonar ut, kameran ser mot bron där flodvågen kommer, och när den
+    // går ut på bron tonar bilden till svart (src/ui/exodus.js)
+    else if (ev.t === 'exodusStart') {
+      if (placing) stopPlacing(); closePanel(); selected = null;
+      exodusUi.start();
+      note(uiRoot, 'Time. Pull out to Gnesta!', '', { prio: true, ms: 7000 });
+      const tr = sim.dayCfg.hold?.exodus?.trigger;
+      if (tr && rig) { const cx = tr.reduce((a, q) => a + q[0], 0) / tr.length, cz = tr.reduce((a, q) => a + q[1], 0) / tr.length; rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: cx, z: cz - 18, view: 70 }, 3); }
+    }
+    else if (ev.t === 'exodusFade') exodusUi.fade(ev.in);
     // 0.17.0-molnbo: tåget går (Mölnbo dag 3 till 5)
     // 0.17.1 (speltestet av 0.17.0: "själva avgången hann jag aldrig se"): ett ögonblick för sig. Kameran glider till
     // tåget som rullar ut, raden säger det, och lugnet före VICTORY är längre (TRAIN_PAUSE)
@@ -1466,7 +1479,7 @@ function goToTail() {
 // "Inget i spelet säger att man kan eller bör flytta mot perrongen." När tåget signalerar lyser perrongen och
 // trapptornen (en pulserande kontur), en etikett står där de kliver ur, och pilar på marken går från de två närmaste
 // enheterna dit. Banderollen säger valet på två rader och ett klick flyttar kameran till perrongen. Spelet saktar till
-// 1x en stund (slowDown), ingen paus; första gången pekar en bildtext på perrongen (lessons.js mb-4.platform).
+// 1x en stund (slowDown), ingen paus; första gången pekar en bildtext på perrongen (lessons.js mb-2.platform).
 // Allt står tills en stund efter att dörrarna öppnats (simuleringens tid).
 const PLATFORM_AFTER = 14, PLATFORM_ARROWS = 2, ARROW_MAX = 26;
 let platform = null;           // { untilSim, arrowsAt }
@@ -1786,7 +1799,7 @@ function updateRoutes() {
   const ev = sim.evac && !evacOutcome(sim.evac) ? sim.dayCfg.evac : null;
   if (ev) {
     const houses = [...new Set(ev.groups.map(g => g.house))], eKey = obsKey + '|' + houses.join(',');
-    if (routeKeys.evac !== eKey) { routeKeys.evac = eKey; routeKeys.evacPaths = houses.map(h => { const d = houseDoor(sim.map, h, sim.route); return [[d.x, d.z], ...sim.route.pathFrom(d.cell).map(cellWorld)]; }); }
+    if (routeKeys.evac !== eKey) { routeKeys.evac = eKey; routeKeys.evacPaths = houses.map(h => evacPath(sim, h)); }
     routeLines.set('evac', routeKeys.evacPaths, eKey);
     // 0.16.1 (speltestet av 0.16.0): där de civila går in på hordens väg, röda fläckar på den gula linjen
     routeLines.set('danger', evacHelp().zones.map(z => z.pts), 'd' + day);
@@ -2099,7 +2112,7 @@ function lessonWorldPts(t) {
       for (const sd of [-1, 1]) for (const { h } of near.filter(x => x.s === sd).slice(0, 2)) pts.push([h.x, h.z]);
     }
   }
-  // 0.19.2: perrongen och trapptornen när pendeltåget signalerar (mb-4.platform)
+  // 0.19.2: perrongen och trapptornen när pendeltåget signalerar (mb-2.platform)
   else if (w === 'platform') { for (const q of sim.map.trainMark?.pts ?? []) pts.push(q); }
   else if (w === 'xfzone') { for (const k of xfZones()?.keys ?? []) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'sanityLow') { const g = shakenUnit(); if (g) { const q = unitPos(g) ?? g; pts.push([q.x, q.z]); } }
@@ -2413,6 +2426,8 @@ function setMode(m, makeSheet) {
   for (const n of uiRoot.querySelectorAll(m === 'play' ? '.note.warn' : '.note')) n.remove();
   if (m !== 'play') { clearNoteQueue(); for (const n of uiRoot.querySelectorAll('.civlost')) n.remove(); }
   hovered = null;
+  // 0.20.0: uttågets svarta ligger kvar under resultatskylten, inte längre
+  if (m !== 'result') exodusUi.reset();
   mode = m;
   uiRoot.dataset.mode = m;
   sheet = makeSheet ? makeSheet() : null;
@@ -2496,7 +2511,9 @@ function startDay(n) {
   failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
-  scene.userData.molnbo?.reset(); trainUi.reset(); resetMarks();
+  scene.userData.molnbo?.reset(); trainUi.reset(); exodusUi.reset(); resetMarks();
+  // 0.20.0 (Mölnbo dag 3): norra sidan är förlorad, bilden färgar den
+  scene.userData.molnbo?.setLost?.(sim.dayCfg.lost?.poly ?? null);
   view.setSim(sim);
   minimap.reset(sim);
   hud.reset();
@@ -2563,7 +2580,7 @@ function finishDay() {
     return { name: unit ? unitName(unit) : '?', men: unit?.men != null && u.alive != null ? unit.men - u.alive : 0, destroyed: !!u.destroyed };
   });
   lastResult = {
-    won, day, rp: f.rp, attempt: f.attempt, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac } : null,
+    won, day, rp: f.rp, attempt: f.attempt, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac, place: sim.map.evacPlace ?? null } : null,
     // 0.17.1: samma våg som plåten uppe till vänster visade (hud.js waveCounts och waveLabel)
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, wave: waveCounts(sim).wave, lastDay: day >= map.days.length, losses,
   };
@@ -2694,7 +2711,7 @@ if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescript
 // 0.17.2 (Olas önskan): Quick jump i debugmenyn. Dagen med ankomstens trupp och forskning (som Jump to), truppen
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
 const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 3], ['gnesta', 5],
-  ['gnesta-norr', 1], ['gnesta-norr', 4], ['molnbo', 1], ['molnbo', 3], ['molnbo', 5]];
+  ['gnesta-norr', 1], ['gnesta-norr', 4], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3]];
 async function quickJump(mapId, d) {
   await debugJump(mapId, d);
   if (lesson) { coach.hide(); lesson = null; }
@@ -2839,12 +2856,14 @@ function tick(now) {
   if (!scene || !sim) { requestAnimationFrame(tick); return; }   // första banan laddas
 
   // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
-  const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
+  const running = sim.phase === 'wave' || sim.phase === 'exodus' || (sim.phase === 'build' && sim.nextWaveIn != null);
   const paused = menu.isOpen() || lessonPaused();
   advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? playSpeed() : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   // 0.16.4 (Olas önskan): efter den sista zombien en stund av lugn innan VICTORY, så att man ser det. Tiden går i
   // spelets fart och står still när spelet pausas; musiken har redan gått ner (phase 'won').
-  if (mode === 'play' && sim.phase === 'won') {
+  // 0.20.0: efter uttåget är bilden redan svart: resultatet direkt
+  if (mode === 'play' && sim.phase === 'won' && sim.exodus) finishDay();
+  else if (mode === 'play' && sim.phase === 'won') {
     if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
     if (!paused) victoryWait.t += frameDt * playSpeed();
     const trainBeat = !!sim.train?.gone, pause = trainBeat ? TRAIN_PAUSE : VICTORY_PAUSE, lineAt = trainBeat ? TRAIN_LINE_AT : VICTORY_LINE_AT;

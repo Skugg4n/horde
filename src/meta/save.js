@@ -1,6 +1,6 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
+import { newProgress, migrateV1, migrateV2, SAVE_VERSION, clampDays } from './progress.js';
 import { newCampaign, migrateToV4, syncOperation, needsPoolMerge } from './operation.js';
 import { MAPS } from '../data/maps.js';
 import { withLessons } from './lessons.js';
@@ -11,6 +11,7 @@ const V1_COPY = 'horde.save.v1';     // kopia av en v1-sparfil, sparas när den 
 const V2_COPY = 'horde.save.v2';     // kopia av en v2-sparfil (0.4.x), likadant
 const V3_COPY = 'horde.save.v3';     // kopia av en v3-sparfil (0.5.0 till 0.13.x), likadant (0.14.0)
 const V4_COPY = 'horde.save.v4';     // 0.16.0: kopia av en v4-fil där Gnesta North var en egen sektor (Hagstumosse slås ihop)
+const DAYS_COPY = 'horde.save.days';  // 0.20.0: kopia av en fil som stod längre fram på en bana än den nu har dagar (Mölnbo dag 4 och 5)
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -78,7 +79,10 @@ export function loadProgress(storage) {
   if (isValidMaps(parsed, SAVE_VERSION)) {
     // 0.16.0: en sparfil utan lektioner räknar allt fram till den längst spelade dagen som sett (lessons.js)
     if (needsPoolMerge(parsed)) keepCopy(s, raw, V4_COPY);
-    const p = { ...newProgress(), lessons: undefined, ...parsed };
+    // 0.20.0 (H495): Mölnbo har tre dagar (förut fem). Stod filen på dag 4 eller 5 är Mölnbo klart; kopian behålls.
+    const clamped = clampDays(parsed);
+    if (clamped) keepCopy(s, raw, DAYS_COPY);
+    const p = { ...newProgress(), lessons: undefined, ...(clamped ?? parsed) };
     return withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } }));
   }
   // Äldre versioner: kopian behålls som den var (horde.save.v1, .v2, .v3; skrivs aldrig över), och

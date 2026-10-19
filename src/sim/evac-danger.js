@@ -3,7 +3,7 @@
 // de civilas väg (inom DANGER_R meter) är linjen farlig: där dör de civila. Platserna som täcker en farozon är
 // öppna rutor nära den, med fri sikt dit, där de frivilliga får stå. Rent och deterministiskt: samma svar i
 // webbläsaren (de röda fläckarna och de föreslagna platserna) och i balansskriptet (den som följer tipset).
-import { houseDoor, checkSpot } from './sim.js';
+import { checkSpot, evacPath } from './sim.js';
 import { KIND, lineOfSightH } from './placement.js';
 import { WEAPONS } from '../data/weapons.js';
 
@@ -15,8 +15,8 @@ export function evacPaths(sim) {
   const ev = sim.dayCfg.evac;
   if (!ev || sim.route.kind !== 'grid') return [];
   const houses = [...new Set(ev.groups.map(g => g.house))];
-  const cw = k => { const c = sim.route.cellCenter(k); return [c.x, c.z]; };
-  return houses.map(h => { const d = houseDoor(sim.map, h, sim.route); return [[d.x, d.z], ...sim.route.pathFrom(d.cell).map(cw)]; });
+  // 0.20.0: vägen slutar i den säkra zonen när dagen har en (sim.js evacPath)
+  return houses.map(h => evacPath(sim, h));
 }
 function hordePoints(sim) {
   const ids = [...new Set(sim.dayCfg.waves.flatMap(w => w.groups.map(g => g.spawn ?? sim.route.spawns[0].id)))];

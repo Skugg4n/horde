@@ -1,4 +1,4 @@
-// Tågklockan (0.17.0-molnbo): Mölnbo dag 3 till 5, "Hold until the train leaves." En plåt uppe i mitten
+// Tågklockan (0.17.0-molnbo): "Hold until the train leaves." 0.20.0: också hållklockan (Mölnbo dag 3, dayCfg.hold). En plåt uppe i mitten
 // (samma plats som evakueringens ruta) med nedräkningen till avgången och en stapel. Klockan går från första
 // vågens start (src/sim/sim.js runTrain).
 const fmt = s => { const t = Math.max(0, Math.ceil(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
@@ -27,9 +27,12 @@ export function mountTrain(root) {
       if (k === key) return;
       key = k;
       el.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the train leaves.';
-      el.querySelector('.n').innerHTML = tr.gone ? '<b>The train is away.</b>'
-        : sim.wavesStarted === 0 ? `${tr.last ? 'Last train' : 'Train'} leaves <b>${fmt(tr.at)}</b> after the first wave`
-          : `${tr.last ? 'Last train' : 'Train'} leaves in <b>${fmt(tr.left)}</b>`;
+      // 0.20.0 (Mölnbo dag 3): hållklockan, sedan uttåget mot Gnesta
+      el.querySelector('.n').innerHTML = tr.hold ? (tr.gone ? '<b>Pulling out.</b>'
+        : sim.wavesStarted === 0 ? `Hold <b>${fmt(tr.at)}</b> from the first wave` : `Pull out in <b>${fmt(tr.left)}</b>`)
+        : tr.gone ? '<b>The train is away.</b>'
+          : sim.wavesStarted === 0 ? `${tr.last ? 'Last train' : 'Train'} leaves <b>${fmt(tr.at)}</b> after the first wave`
+            : `${tr.last ? 'Last train' : 'Train'} leaves in <b>${fmt(tr.left)}</b>`;
       el.querySelector('.safe').style.width = (100 * (1 - tr.left / tr.at)).toFixed(2) + '%';
     },
     reset() { key = ''; },
