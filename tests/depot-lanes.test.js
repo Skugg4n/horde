@@ -80,3 +80,13 @@ test('INTEL ljuger aldrig: känd dag visar bara typer som finns, med rätt antal
   }
   for (const n of [1, 2, 3, 7, 12, 50, 333]) { const [a, b] = rangeOf(n); assert.ok(a <= n && n <= b, `${n}`); }
 });
+
+// 0.19.1 (speltestet av 0.19.0, fynd 6: förslaget satte 8 utmattade i stridsbanan medan 12 vilade satt i reserven)
+test('förslaget: när halva truppen är utmattad går de vilade in, inte de utmattade', () => {
+  let p = mb();
+  const L = lanes(p, 'molnbo'), tired = new Set(L.battle.map(u => u.uid));
+  p = { ...p, op: { ...p.op, units: p.op.units.map(u => (tired.has(u.uid) ? { ...u, fatigue: 2 } : u)) } };
+  const L2 = lanes(p, 'molnbo');
+  const exhaustedIn = L2.battle.filter(u => u.fatigue === 2);
+  assert.ok(exhaustedIn.length <= tired.size / 2, `${exhaustedIn.length} utmattade av ${tired.size} kvar i striden`);
+});

@@ -5,7 +5,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { shopItem } from '../data/shop.js';
 import { weaponUnlocked, obstacleUnlocked, inArsenal } from './stats.js';
-import { canAct, capFull, readyCount, allowed } from './sim.js';
+import { canAct, capFull, readyCount, reserveCount, allowed } from './sim.js';
 
 // { state: 'ok' | 'poor' | 'locked' | 'full' | 'closed' | 'absent', cost, need, research }
 //   absent (0.13.0): sektorn har inte saken i förrådet i dag; kortet syns inte i köpraden
@@ -21,7 +21,13 @@ export function buyState(sim, id) {
   if (sim.core && gun) {
     // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) syns när den kommit fram
     const count = readyCount(sim, id);
-    if (!count) return sim.deployed?.some(d => d.type === id) ? { state: 'out', cost: 0, need: 0, count: 0 } : { state: 'absent', cost: 0, need: 0 };
+    // 0.19.1 (speltestet av 0.19.0: "KSP 58 All out" mitt i vågen fast tre fanns i reserven): held, de som väntar i
+    // reserven men inte går att ställa ut nu (reserven går ut bara i uppställningen)
+    if (!count) {
+      const held = reserveCount(sim, id);
+      if (held) return { state: 'out', cost: 0, need: 0, count: 0, held };
+      return sim.deployed?.some(d => d.type === id) ? { state: 'out', cost: 0, need: 0, count: 0 } : { state: 'absent', cost: 0, need: 0 };
+    }
     if (capFull(sim, id)) return { state: 'full', cost: 0, need: 0, count };
     return { state: 'ok', cost: 0, need: 0, count };
   }

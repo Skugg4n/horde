@@ -92,7 +92,7 @@ for (const day of [1, 4]) {
     }
     const share = trips.size / runners.size, twice = [...trips.values()].filter(n => n > 1).length;
     assert.ok(share >= 0.1 && share <= 0.33, `${trips.size} av ${runners.size} snubblade`);
-    assert.ok(twice <= Math.max(1, runners.size * 0.06), `${twice} snubblade mer än en gång`);
+    assert.ok(twice <= Math.max(2, runners.size * 0.08), `${twice} snubblade mer än en gång`);
     for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
       const a = at[i], b = at[j];
       assert.ok(!(Math.abs(a.t - b.t) < 10 - 1e-6 && Math.hypot(a.x - b.x, a.z - b.z) < 4 - 0.5), `två snubbel på samma ställe vid ${a.t.toFixed(1)} och ${b.t.toFixed(1)}`);

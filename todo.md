@@ -394,19 +394,23 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9).
 - [ ] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10).
 - [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
-- [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12).
+- [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12). (0.19.1: kortet säger "3 in reserve" och varför, inte "All out"; själva insättningen kvar.)
 - [x] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
 
 ## Speltestet av 0.19.0 (docs/playtests/2026-10-19-0.19.0.md)
 
 - [x] H461 | ux | Bjässens knuff-tips kom aldrig (barrikadgrenen i main.js tog händelsen först); knuffen syns knappt. Tipset första gången, "Cars shoved aside" där det sker, vraken glider längre undan, damm och plåt. (0.19.1)
 - [x] H462 | balans | Mölnbo dag 3 och 4 är en mur: våg 3 och 4 ovanpå varandra (150 till 200 ute), basen 3-4 när tåget kommer. Orsaken: grindens långa klocka släppte nästa våg 50 s efter att den senaste kommit ut, oavsett hur många av den som levde (dag 4: 70 av 73 kvar, tågets 50 ovanpå). Nu overlapMin 0,4 dag 3 till 5; tåget i tredje vågen dag 4, våg 3 och 4 mindre. (0.19.1)
-- [ ] H463 | ux | Tre röda banderoller samtidigt (tåget, basen, bjässarna). En stor banderoll i taget med prioritet (tåget > flykt > omväg/genombrott), resten i kö eller små.
+- [x] H463 | ux | Tre röda banderoller samtidigt (tåget, basen, bjässarna). En stor röd banderoll i taget, rank tåget 3 > flykt 2 > resten 1; en ny med högre rank tar platsen, de andra står små under. (0.19.1)
 - [x] H464 | balans | Vågens svans: 1 till 3 bjässar sist gav 90 till 150 s väntan utan något i bild. Svansregeln för alla typer (tre bjässar på väg 57: 191 till 148 s), och plåten "3 left: brutes, Stenbyvägen" vid skärmkanten som flyttar kameran dit. (0.19.1)
 - [x] H465 | spel | Move in i hus mitt i vågen nekas nästan överallt (1 av 13): "Door blocked" utan synlig orsak. Orsaken: dörren valdes bara bland gatrutorna intill huset, och en villa på sin tomt har ingen. Nu närmaste ruta trupperna går på; en soldat i en ficka nekar inte hela gruppen; bodarna säger "This building can't be entered". Prov över alla hus på Mölnbo och Vikingavägen. (0.19.1)
 - [x] H466 | zombier | Snubblet klumpar sig: 10 av 16 löpare dag 4, flera gånger, samma ruta vid brofästet. Minst 60 m mellan två för samma löpare, utlösarna en liten chans (svängen 0,04, var 0,25 i varje gathörn), inget snubbel inom 4 m och 10 s från ett annat; cirka 1 av 4 till 5 löpare över Mölnbo, prov dag 1 och 4. (0.19.1)
-- [ ] H467 | ux | Förrådet föreslår utmattade enheter för striden fast vilade finns i reserven.
-- [ ] H468 | ux | "+20 %" och "+$" ritas över köpraden.
-- [ ] H469 | text | Kommandotexten om "the empty X60" som skydd står kvar (struket i 0.18.1).
-- [ ] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer.
+- [x] H467 | ux | Förrådet föreslår utmattade enheter för striden fast vilade finns i reserven. Förslaget väger tröttheten hårdare (0,4 för utmattad). (0.19.1)
+- [x] H468 | ux | "+20 %" och "+$" ritas över köpraden. Raderna hålls ovanför köpraden och under plåtarna uppe, takets lappar döljs under dagrutan och SUPPLIES. (0.19.1)
+- [x] H469 | text | Kommandotexten om "the empty X60" som skydd står kvar (struket i 0.18.1). Nu: "They come over the bridge and up Stenbyvägen. Hold the houses on both sides." (0.19.1)
+- [x] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer. Dag 2 "From Järna and from the south. Squads in houses along Stenbyvägen.", dag 3 "The train" med Järna och Fagernäsvägen i öster. (0.19.1)
 - [ ] H471 | spel | En villa på sin tomt kan inte stormas: stormningen (sim.js, assaults) läser husets touch (gatrutorna intill), och villorna har ingen. Avgör med Ola om villorna ska gå att storma (dörren i doorCells), räkna om balansen.
+- [ ] H472 | ux | Esc stängde både kortet i handen och korsellektionen på Ishallen dag 2 (lektionen kom när kortet släpptes). Speltestet av 0.19.0, smått.
+- [ ] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv.
+- [ ] H474 | ux | Enhetslapparna döljs medan ett kort är i handen, så man ser inte var de egna står när man placerar nästa.
+- [ ] H475 | ux | Pendeltåget dag 4: en kantpil eller kameran mot perrongen vid signalen, så att valet (flytta mot perrongen eller hålla) syns.

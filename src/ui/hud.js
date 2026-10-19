@@ -147,8 +147,18 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // varandra inom en kort stund slås ihop till en siffra, så att horden inte blir en textvägg.
   const floats = [];
   const FLOAT_LIFE = 900, FLOAT_MERGE = 250, FLOAT_NEAR = 70, FLOAT_MAX = 14;
+  // 0.19.1 (speltestet av 0.19.0, fynd 7: "+20 %" och "+$ 10" ritades över köpradens kort och över SUPPLIES): raderna
+  // som stiger hålls ovanför köpraden och knappen nere och under plåtarna uppe (dagen, SUPPLIES och BASE)
+  const FLOAT_RISE = 70;   // px raden stiger (animationen bounty, -190 % av en rad, och lite luft)
+  function clampFloat(x, y) {
+    let lo = 0, hi = innerHeight;
+    for (const id of ['day', 'res']) { const r = document.getElementById(id)?.getBoundingClientRect(); if (r?.height && x > r.left - 60 && x < r.right + 60) lo = Math.max(lo, r.bottom); }
+    for (const id of ['buildbar', 'go', 'wavebar']) { const r = document.getElementById(id)?.getBoundingClientRect(); if (r?.height && x > r.left - 60 && x < r.right + 60) hi = Math.min(hi, r.top); }
+    return Math.max(lo + FLOAT_RISE, Math.min(hi - 16, y));
+  }
   function bounty(x, y, amount) {
     if (!amount) return;
+    y = clampFloat(x, y);
     const now = performance.now();
     for (let i = floats.length - 1; i >= 0; i--) if (now - floats[i].t0 > FLOAT_LIFE) floats.splice(i, 1);
     const near = floats.find(f => now - f.t0 < FLOAT_MERGE && Math.hypot(f.x - x, f.y - y) < FLOAT_NEAR);
@@ -166,6 +176,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // 0.19.1: life (ms) för en längre rad ("Cars shoved aside" står kvar en stund)
   function flash(x, y, text, cls = '', life = FLOAT_LIFE) {
     if (floats.length >= FLOAT_MAX) return;
+    y = clampFloat(x, y);
     const node = document.createElement('div');
     node.className = 'bounty ' + cls;
     node.textContent = text;

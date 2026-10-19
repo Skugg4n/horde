@@ -121,7 +121,12 @@ export const pressureOf = (p, id) => p.op?.pressure[poolOf(id)] ?? 0;
 export const FATIGUE_WORTH = [1, 0.95, 0.75];
 export const unitWorth = u => (UNIT_RP[u.type] ?? 100) * (1 + 0.6 * (u.level - 1)) * (vetOf(u) ? 1.1 : 1) * FATIGUE_WORTH[u.fatigue ?? 0];
 const fit = u => u.men == null || u.men > 0;
-const suggestOrder = (a, b) => unitWorth(b) - unitWorth(a) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
+// 0.19.1 (speltestet av 0.19.0, fynd 6: förslaget inför Mölnbo dag 3 satte 8 utmattade i stridsbanan medan 12 vilade satt i
+// reserven, 14 klick att byta): förslaget väger tröttheten hårdare (SUGGEST_FATIGUE), så att en utvilad enhet av
+// ungefär samma värde går före en utmattad. En utmattad Ksp 58 på nivå 3 går fortfarande före utvilade frivilliga.
+export const SUGGEST_FATIGUE = [1, 0.9, 0.4];
+const suggestWorth = u => unitWorth({ ...u, fatigue: 0 }) * SUGGEST_FATIGUE[u.fatigue ?? 0];
+const suggestOrder = (a, b) => suggestWorth(b) - suggestWorth(a) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
 export function lanes(p, sector) {
   const here = unitsIn(p, sector), cap = deployCap(p, sector);
   const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);

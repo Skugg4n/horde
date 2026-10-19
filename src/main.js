@@ -250,9 +250,9 @@ function startPlacing(type) {
   // låg bildtakt syns inte att det första klicket tog, och ett andra klick lade förut tillbaka saken, så att nästa
   // klick på kartan inte gjorde något. Esc eller högerklick lägger tillbaka.
   if (placing?.type === type && !placing.move) { flashTip(reasonText('i handen')); return; }
-  const st = buyState(sim, type).state;
+  const bs = buyState(sim, type), st = bs.state;
   // 0.16.4 (Olas: taket ska synas): vid taket säger klicket varför, med siffrorna
-  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText('ute')); else if (st === 'full' && sim.core) flashTip(`Sector full: ${sim.guns.length} / ${frontage(sim)} deployed. The rest wait in reserve.`); return; }
+  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText(bs.held ? 'reservHeld' : 'ute')); else if (st === 'full' && sim.core) flashTip(`Sector full: ${sim.guns.length} / ${frontage(sim)} deployed. The rest wait in reserve.`); return; }
   closePanel();
   audio.ui('pick');
   placing = { type, kind: shopItem(type).kind };
@@ -906,7 +906,8 @@ function updateSquadTags() {
   }
   // 0.19.0: lapparna ritas aldrig över köpraden
   const bar = document.getElementById('buildbar')?.getBoundingClientRect(), barTop = bar && bar.height ? bar.top : innerHeight;
-  for (const el of squadTags.values()) { const v = parseFloat(el.style.top) > barTop - 2 ? 'hidden' : ''; if (el.style.visibility !== v) el.style.visibility = v; }
+  const boxes = plateBoxes();
+  for (const el of squadTags.values()) { const v = parseFloat(el.style.top) > barTop - 2 || underPlate(el.getBoundingClientRect(), boxes) ? 'hidden' : ''; if (el.style.visibility !== v) el.style.visibility = v; }
 }
 
 // 0.19.0 (H452): pendeltåget som rullar in (sim.arrival). Från förvarningen bromsar det in från diset i öster och står
@@ -981,13 +982,18 @@ function updateUnitStatus() {
 // 0.19.0 (speltestet av 0.18.1, fynd 6: två sanity-staplar ovanpå varandra, och staplar från enheter utanför bild över
 // köpraden): en lapp som hamnar på köpraden eller utanför fönstret döljs, och en lapp som täcker en annan flyttas ner
 // under den (de översta står kvar).
+// 0.19.1 (speltestet av 0.19.0, fynd 7: takets lapp "INF 5 ⌂ IN HOUSE TIRED" över dagrutan, "TIRED" över SUPPLIES): en lapp
+// som går in under plåtarna uppe döljs också.
+const TOP_PLATES = ['day', 'res'];
+function plateBoxes() { return TOP_PLATES.map(id => document.getElementById(id)?.getBoundingClientRect()).filter(r => r?.height); }
+const underPlate = (r, boxes) => boxes.some(b => r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom);
 function declutterTags(els) {
   const bar = document.getElementById('buildbar')?.getBoundingClientRect();
   const barTop = bar && bar.height ? bar.top : innerHeight;
-  const vis = [];
+  const vis = [], boxes = plateBoxes();
   for (const el of els) {
     const r = el.getBoundingClientRect();
-    const off = r.bottom > barTop - 2 || r.top < 0 || r.right < 0 || r.left > innerWidth;
+    const off = r.bottom > barTop - 2 || r.top < 0 || r.right < 0 || r.left > innerWidth || underPlate(r, boxes);
     const v = off ? 'hidden' : '';
     if (el.style.visibility !== v) el.style.visibility = v;
     if (!off) vis.push({ el, r: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } });
@@ -1216,7 +1222,7 @@ function handleEvents() {
     // 0.19.0 (H452): pendeltåget rullar in. Signalen och raden, en ping på perrongen, och kameran glider dit en stund
     // (spelaren väljer: flytta trupper mot perrongen eller hålla)
     else if (ev.t === 'trainWarn') {
-      note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 9000 });
+      note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 9000, rank: 3 });
       const ib = sim.map.inbound;
       if (ib) { const [x, z] = sim.map.inbound.doors[Math.floor(ib.doors.length / 2)]; alerts.push({ x, z, until: time + 14, kind: 'barricade' }); }
     }
@@ -1229,7 +1235,7 @@ function handleEvents() {
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
     // 0.18.1 (speltestet av 0.18.0: "flykt sker utan banderoll"): banderollen mitt uppe, pingen på minikartan och flykten i bild
     // 0.19.0 (speltestet av 0.18.1, fynd 5): banderollen är röd och överst bland raderna, inte grå bakom omvägen
-    else if (ev.t === 'routed') { note(uiRoot, routBanner(ev.type), 'warn rout', { prio: true, top: true, ms: 3500 }); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
+    else if (ev.t === 'routed') { note(uiRoot, routBanner(ev.type), 'warn rout', { prio: true, top: true, ms: 3500, rank: 2 }); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
     else if (ev.t === 'unitBack') note(uiRoot, ev.kind === 'rout' ? `${unitName({ type: ev.type })} regrouping in reserve.` : `${unitName({ type: ev.type })} back in reserve.`);
     else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'recrewed') note(uiRoot, 'The gun is manned again.');

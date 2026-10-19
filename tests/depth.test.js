@@ -116,7 +116,8 @@ function coreSim(rows, waves, units, allow, house = null) {
 
 test('routed: en grupp under gränsen flyr mot basen, samlas i reserven och går att ställa ut igen', () => {
   const rows = [ROAD, '.'.repeat(ROAD.length), '.'.repeat(ROAD.length), '.'.repeat(ROAD.length)];
-  const { map, sim } = coreSim(rows, wave('brute', 3, 1), [{ uid: 1, type: 'civ', level: 1, men: 4 }], ['sanity', 'rout']);
+  // 0.19.1: sex bjässar (var tre): med högst fem kvar skyndar vågens svans förbi gruppen innan den hinner brytas
+  const { map, sim } = coreSim(rows, wave('brute', 6, 1), [{ uid: 1, type: 'civ', level: 1, men: 4 }], ['sanity', 'rout']);
   assert.ok(build(sim, key(map, 30, 2), 'civ').ok);
   const g = sim.guns[0];
   startWave(sim);

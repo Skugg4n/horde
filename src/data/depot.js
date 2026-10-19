@@ -143,7 +143,8 @@ export const RELEASES = [
     text: 'Your units are at Mölnbo station. A Psg 90 team waits on the stair towers.',
     grant: [{ type: 'psg90' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
   { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
-    text: 'An empty X60 stands at the south platform. Use it as cover.',
+    // 0.19.1 (speltestet av 0.19.0, fynd 8: tåget som skydd ströks i 0.18.1, raden stod kvar)
+    text: 'They come over the bridge and up Stenbyvägen. Hold the houses on both sides.',
     stock: { inf: 1, ak5: 1 } },
   { id: 'mb-3', map: 'molnbo', day: 3, from: 'MCF',
     text: 'One train out tonight. It leaves on time, with or without you holding.',

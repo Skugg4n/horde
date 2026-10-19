@@ -63,6 +63,8 @@ const REASONS = {
   'reserv': 'None of those left in reserve',
   // 0.16.2: kortet för en typ där alla är utställda, och ett klick med något i handen på gränssnittet
   'ute': 'All of these are on the map',
+  // 0.19.1
+  'reservHeld': 'The reserve goes out before the first wave',
   'gränssnitt': 'Not on the map',
   'i handen': 'Already in hand. Esc puts it back',
   'uppställd': 'Units deploy before the first wave',
@@ -265,8 +267,8 @@ export function buildBar(root, actions) {
         // 0.14.0: en kärntrupp kostar inget; kortet säger hur många som väntar i reserven
         const unit = st.count != null;
         // 0.16.2: alla utställda: kortet står kvar grått med samma siffra
-        set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : st.state === 'out' ? 'All out' : unit ? `×${st.count} ready` : money(st.cost));
-        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? REASONS.front : st.state === 'out' ? REASONS.ute : unit ? 'Your unit. Place it on the map.' : '');
+        set(c.price, st.state === 'poor' ? `Need ${money(st.need)}` : st.state === 'full' ? 'Full' : st.state === 'out' ? (st.held ? `${st.held} in reserve` : 'All out') : unit ? `×${st.count} ready` : money(st.cost));
+        set(c.why, st.state === 'poor' ? `Need ${money(st.need)} more` : st.state === 'full' ? REASONS.front : st.state === 'out' ? (st.held ? REASONS.reservHeld : REASONS.ute) : unit ? 'Your unit. Place it on the map.' : '');
       }
     }
   }
@@ -701,9 +703,20 @@ function noteStack(root) {
   if (!st) { st = document.createElement('div'); st.id = 'notes'; root.appendChild(st); }
   return st;
 }
-function showNote(root, text, cls, ms = NOTE_MS, top = false) {
+// 0.19.1 (speltestet av 0.19.0: tåget drunknade under tre röda banderoller samtidigt, "Base under attack!", "Brutes at
+// the bridge!" och "Train incoming"): högst EN stor röd banderoll åt gången. rank säger vilken som går före: tåget 3,
+// en enhet som bryts 2, allt annat rött (omväg, genombrott, basen) 1. En ny med högre rank tar den stora platsen och den
+// gamla blir liten; en ny med samma eller lägre rank står liten under. Vanliga rader (rank 0) som förut.
+const bigNote = st => st.querySelector('.note.big');
+function showNote(root, text, cls, ms = NOTE_MS, top = false, rank = 0) {
   const st = noteStack(root);
   const el = document.createElement('div');
+  el._rank = rank;
+  if (rank > 0) {
+    const big = bigNote(st);
+    if (big && big._rank >= rank) { cls = cls.replace(/\bwarn\b/, 'minor'); top = false; }
+    else { if (big) { big.classList.remove('warn', 'big'); big.classList.add('minor'); } cls += ' big'; top = true; }
+  }
   el.className = 'note plate ' + cls;
   el.textContent = text;
   if (top) st.prepend(el); else st.appendChild(el);
@@ -712,19 +725,20 @@ function showNote(root, text, cls, ms = NOTE_MS, top = false) {
 function dropNote(root, el) {
   el.remove();
   const st = noteStack(root);
-  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms); }
+  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms, false, q.rank); }
 }
 // 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå. 0.16.2: ms, hur länge raden står
 // 0.19.0 (speltestet av 0.18.1, fynd 5: "Volunteer squad breaks!" grå och halvt bakom den röda omvägsraden): top lägger
 // raden överst i kolumnen (en enhet som bryts går före en omväg)
-export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false } = {}) {
+export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false, rank = null } = {}) {
   const st = noteStack(root);
+  rank ??= /\bwarn\b/.test(cls) ? 1 : 0;
   if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) { const old = st.querySelector('.note'); if (old) { clearTimeout(old._t); old.remove(); } }
   const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
   if (noteQueue.some(q => q.text === text)) return;
-  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls, ms }); if (noteQueue.length > 6) noteQueue.shift(); return; }
-  showNote(root, text, cls, ms, top);
+  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls, ms, rank }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  showNote(root, text, cls, ms, top, rank);
 }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

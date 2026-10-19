@@ -194,6 +194,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui:not([data-mode="play"]) #routekey { display: none; }
 /* 0.10.2: ingången som nästa grupp kommer från */
 .entry.next .txt { color: #fff1e6; background: rgba(150, 26, 10, 0.9); border-color: rgba(255, 140, 110, 0.7); }
+/* 0.19.1: en stor röd banderoll åt gången, de andra röda står små under (panels.js showNote) */
+.note.minor { color: #ffd2c0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; background: rgba(70, 18, 10, 0.86); border-color: rgba(255, 140, 110, 0.35); }
 .note.warn { color: #fff1e6; font-size: 17px; font-weight: 600; letter-spacing: 0.06em; background: rgba(150, 26, 10, 0.92); border-color: rgba(255, 140, 110, 0.6); }
 #res .delta {
   position: absolute; left: 0; top: 100%; margin-top: 2px; font: 600 13px 'IBM Plex Mono', monospace;
