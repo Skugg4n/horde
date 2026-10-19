@@ -9,7 +9,7 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
+import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, canReposition, repositionGun, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
@@ -774,6 +774,12 @@ function evacDeploy(sim) {
     build(sim, s.key, 'civ');
   }
 }
+// 0.20.0 (H497): Move (mitt i striden) kommer först Ishallen dag 3. Före det flyttar en människa bara i uppställningen
+// (Reposition: före vågen och mellan vågorna, direkt och gratis). Med Move upplåst som förut.
+function relocate(sim, id, key) {
+  if (allowed(sim, 'move')) return moveGun(sim, id, key);
+  return canReposition(sim) ? repositionGun(sim, id, key) : { ok: false, reason: 'låst' };
+}
 function evacReposition(sim) {
   if (sim.phase !== 'build' || sim.nextWaveIn == null || sim._evacMoved === sim.wavesStarted) return;
   sim._evacMoved = sim.wavesStarted;
@@ -781,7 +787,7 @@ function evacReposition(sim) {
   const near = (g, z) => Math.hypot(g.x - z.x, g.z - z.z) < 12;
   const free = squads.filter(g => !need.some(z => near(g, z)));
   const spots = coverSpots(sim, need.filter(z => !squads.some(g => near(g, z))), { max: 8 });
-  for (const s of spots) { const g = free.shift(); if (!g) break; moveGun(sim, g.id, s.key); }
+  for (const s of spots) { const g = free.shift(); if (!g) break; relocate(sim, g.id, s.key); }
 }
 
 // E4 (0.16.4): platserna som ser vägen från en ingång, och flytten när den förvarnade ingången kommer.
@@ -807,10 +813,12 @@ function reactToTrain(sim) {
 function reactToForetold(sim) {
   const ids = sim.dayCfg.foretell ?? [];
   if (!ids.length || sim.waveIndex < 1 || sim._reacted) return;
+  // 0.20.0: utan Move väntar flytten på uppställningen (ingen levande zombie)
+  if (!allowed(sim, 'move') && !canReposition(sim)) return;
   sim._reacted = true;
   const gun = [...sim.guns].reverse().find(g => g.weapon.type === 'm249' && !g.move);
   if (!gun) return;
-  for (const k of e4SpawnPlan(ids[0]).spots) if (moveGun(sim, gun.id, k).ok) return;
+  for (const k of e4SpawnPlan(ids[0]).spots) if (relocate(sim, gun.id, k).ok) return;
 }
 // En dag i operationen. policy: namnet i POLICIES. Returnerar runDay:s resultat med dagens rapport.
 export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset = 0, onSecond = null } = {}) {

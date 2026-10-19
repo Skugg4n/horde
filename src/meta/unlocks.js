@@ -8,8 +8,9 @@
 //   place, start, base   alltid (ställa ut, starta vågen, basen)
 //   manual               Field manual (J), från slutet av E4 dag 1
 //   supplies             förnödenhetsmätaren och köpen i striden; wire, block, car: hindren var för sig
-//   move                 Move (M), E4 dag 2 när Södertälje är på väg (0.16.4, förut South dag 4)
-//   aim, rotate, speed   sikta-dra, Rotate (R) och fartknappen (F), E4 dag 3
+//   move, rotate         Move (M) och Rotate (R), Ishallen dag 3 (kampanjbågens dag 6, 0.20.0): radio till enheterna.
+//                        Förut E4 dag 2 och 3. Före dess flyttas enheterna bara i uppställningen (Reposition).
+//   aim, speed           sikta-dra och fartknappen (F), E4 dag 3
 //   opmap                operationskartan, efter E4 dag 3
 //   evac, minimap        evakueringen och minikartan (Tab), South dag 1
 //   route                hordens väg med etiketten V, South dag 2
@@ -39,16 +40,17 @@ import { mapState, mapUnlocked } from './progress.js';
 export const STAGES = [
   { id: 'e4-1', map: 'riksvagen', day: 1, adds: ['place', 'start', 'base'] },
   { id: 'after-e4-1', after: ['riksvagen', 1], adds: ['manual'] },
-  // 0.16.4 (Olas feedback, E4 dag 2): Move kommer här, fartknappen dag 3
-  { id: 'e4-2', map: 'riksvagen', day: 2, adds: ['supplies', 'wire', 'move'] },
-  { id: 'e4-3', map: 'riksvagen', day: 3, adds: ['aim', 'rotate', 'speed'] },
+  // 0.16.4 (Olas feedback, E4 dag 2): Move kom här, fartknappen dag 3. 0.20.0 (H497, kampanjbågen): Move och Rotate
+  // flyttade till Ishallen dag 3, när Hemvärnet kommer med radio till enheterna.
+  { id: 'e4-2', map: 'riksvagen', day: 2, adds: ['supplies', 'wire'] },
+  { id: 'e4-3', map: 'riksvagen', day: 3, adds: ['aim', 'speed'] },
   { id: 'after-e4', after: ['riksvagen', 3], adds: ['opmap'] },
   { id: 'gn-1', map: 'gnesta', day: 1, adds: ['evac', 'minimap'] },
   { id: 'gn-2', map: 'gnesta', day: 2, adds: ['block', 'route', 'crossfire'] },
   { id: 'after-gn-2', after: ['gnesta', 2], adds: ['rp', 'depot', 'levels'] },
   // 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): dag 3 Hemvärnet och Norra vägen, de vilande husen
   // dag 4, Next wave med bonus dag 5, förnödenheterna på enheten och Psg 90 Vikingavägen dag 1, skrotbilarna dag 2
-  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['sanity'] },
+  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['sanity', 'move', 'rotate'] },
   { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition'] },
   { id: 'gn-4', map: 'gnesta', day: 4, adds: ['dormant'] },
   // 0.16.0: Return till förrådet kommer med uppgraderingarna. Omplaceringen och trycket mellan sektorerna
