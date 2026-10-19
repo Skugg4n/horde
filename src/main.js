@@ -1011,7 +1011,12 @@ function updateUnitStatus() {
 // 0.19.1 (speltestet av 0.19.0, fynd 7: takets lapp "INF 5 ⌂ IN HOUSE TIRED" över dagrutan, "TIRED" över SUPPLIES): en lapp
 // som går in under plåtarna uppe döljs också.
 const TOP_PLATES = ['day', 'res'];
-function plateBoxes() { return TOP_PLATES.map(id => document.getElementById(id)?.getBoundingClientRect()).filter(r => r?.height); }
+// 0.20.0 (layoutprovet, Mölnbo dag 2: pendeltågets banderoll och bildtexten låg över enheternas lappar vid bron): också
+// banderollerna och lektionsplåten döljer de lappar som hamnar under dem
+const TOP_OVER = '#notes .note, #coach:not([hidden]) .cplate';
+function plateBoxes() {
+  return [...TOP_PLATES.map(id => document.getElementById(id)), ...uiRoot.querySelectorAll(TOP_OVER)].map(el => el?.getBoundingClientRect()).filter(r => r?.height);
+}
 const underPlate = (r, boxes) => boxes.some(b => r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom);
 // 0.19.2 (speltestet av 0.19.1, fynd 4: IN HOUSE, TIRED och EXHAUSTED i en klump vid korsningen, raderna över
 // vågskyltarna): samma regel för alla lappar i världen (src/ui/declutter.js). Vågskyltarna och perrongens etikett står
@@ -2713,7 +2718,7 @@ function placePanel() {
 
 // 0.14.1 (speltestet av 0.14.0: utan ?debug gick klockan inte att driva): med ?test finns bara klockan och
 // läget, inget låses upp och inget ändras i framsteget. ?debug har allt nedan.
-function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build'); t++) { step(sim, DT); handleEvents(); } }
+function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build' || sim.phase === 'exodus'); t++) { step(sim, DT); handleEvents(); } }
 // 0.16.0: lektionen som visas (steget eller fiendens ruta) och att släppa den, för proven i webbläsaren
 const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.step.id ?? null; }, release: () => (card ? closeCard() : releaseLesson()), get manualOpen() { return !!manual; } };
 if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };

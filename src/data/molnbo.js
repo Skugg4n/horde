@@ -426,7 +426,7 @@ export const TRAIN_MARK = (() => {
     ys: [P.h + 0.06, ...TOWERS.map(t => t.h + 0.06)],
     label: R(INBOUND.uStop, (P.v0 + P.v1) / 2), labelY: P.h + 1.2,
     target: R(uOnBridge(LINK.v), LINK.v),
-    pts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1])), R(uOnBridge(LINK.v), LINK.v)],
+    pts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1]))],
   };
 })();
 

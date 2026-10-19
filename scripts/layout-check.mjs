@@ -185,8 +185,9 @@ async function run() {
     await check('opmap');
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 5); H.showDepot('gnesta', 'opmap', { day: 5 }); })()`);
     await check('depot');
-    // 0.17.0: Mölnbo (0.20.0: hållklockans dag 3): introt med målet, resultatet, operationskartan och förrådet med sektorns tak
-    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); H.startDay(3); })()`);
+    // 0.17.0: Mölnbo: introt med målet, resultatet, operationskartan och förrådet med sektorns tak. 0.20.0: dag 2 (pendeltågets
+    // dag), så att sektorn inte är klar efteråt (dag 3 är Mölnbos sista)
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 2); H.startDay(2); })()`);
     await check('molnbo-intro');
     await ev(`window.__horde.sheetAction('go')`);
     await page.waitForTimeout(400);
@@ -273,11 +274,11 @@ async function run() {
     await page.waitForTimeout(600);
     if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-wave @${W}: panelen öppnades inte`);
     await checkHud('hud-molnbo-2-panel-wave');
-    // fyra vågor igång och en klarad: "Wave 4 of 4 · 1 cleared" och "216 of 255 left" i dagens plåt. Pausat (pausmenyn,
+    // tre vågor igång och en klarad: "Wave 3 of 4 · 1 cleared" (0.20.0: dag 2 har fyra vågor; med fyra igång vann dagen) och "216 of 255 left" i dagens plåt. Pausat (pausmenyn,
     // HUD:en ritas ändå) så att simuleringen inte klarar vågorna innan provet läser plåten
     await page.keyboard.press('Escape'); await page.waitForTimeout(250);
     if (!(await ev(`!!document.querySelector('.pausesheet')`))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
-    await ev(`(() => { const s = window.__horde.sim; s.wavesStarted = 4; s.waveIndex = 1; s.cleared = [true]; })()`);
+    await ev(`(() => { const s = window.__horde.sim; s.wavesStarted = 3; s.waveIndex = 1; s.cleared = [true]; })()`);
     await checkHud('hud-molnbo-2-stacked');
     const plate = await ev(`document.querySelector('#day .row').textContent`);
     if (!/cleared/.test(plate)) errors.push(`hud-molnbo-2-stacked @${W}: plåten visar inte staplade vågor (${plate})`);

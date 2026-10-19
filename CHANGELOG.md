@@ -1,5 +1,26 @@
 # Ändringslogg
 
+## 0.20.0 (Mölnbo efter satellitbilden och kampanjbågen) (2026-10-19)
+
+Mölnbo är omritat efter Olas satellitbild och har nu tre dagar, kampanjens dag 8 till 10 (H494, H495, kampanjplanen avsnitt 10).
+
+Kartan. En väg över spåret: väg 57:s bro vid stationen. Gångbron är borta; trapptornen står vid vägbrons västra kant och trappan från norra perrongen går upp på däcket. Väg 57 kommer från Järna i nordost, går snett över bron och fortsätter som Gnestavägen mot Gnesta i sydväst. Stenbyvägen går söderut från korsningen vid caféet Harmoni, Trollvägen och Kvarnvägen ligger öster om den, Fagernäsvägen går längs spåret på södra sidan förbi stationshuset, och på norra sidan finns Backvägen, Norrängsvägen, Skogstorpsvägen och stationsparkeringen vid 24Food. Folkets hus (basen) ligger vid Kvarnvägen, Missionskyrkan söder om Trollvägen, radhusen vid Mjölnarstigen i sydväst och kvarnen längre söderut i diset. Hembygdsgården ligger väster om kartan och syns inte längre.
+
+Horden kommer från Järna: väg 57 norrifrån, Norrängsvägen på norra sidan och Fagernäsvägen längs spåret på södra. En mindre grupp kommer söderifrån längs Stenbyvägen dag 2. Introna säger varifrån, med högst tolv ord.
+
+Dag 1, Hold the bridge. Norra sidan evakueras över bron: markerade hus, gula linjer, några i taget under dagen, de längst upp mot Järna först. De civila är i säkerhet när de är över bron. Dagen vinns när vågorna är hållna och minst 19 av 24 kommit över.
+
+Dag 2, The north side. Ett större angrepp på båda sidor om spåret och gruppen söderifrån. Pendeltåget rullar in med sin överraskning (förut dag 4); de som kliver ur går trappan upp på vägbron.
+
+Dag 3, Pull out. Norra sidan är förlorad: den är mörkröd och går inte att ställa ut eller spärra på ("Lost to the horde"). Klockan räknar ned sex minuter från första vågen medan vågorna fortsätter. När tiden är ute och basen står tonar HUD:en och köpraden ut, trupperna packar och springer sydväst ut ur kartan längs Gnestavägen, en flodvåg väller in från norr ur dimman och ur husen på norra sidan, och när den går ut på bron tonar bilden till svart och dagen är vunnen. Allt följer simuleringen och är deterministiskt (provat i tests/molnbo.test.js).
+
+Kampanjen. Dag 4 och 5 är borta. En sparfil som stod på Mölnbo dag 4 eller 5 räknas som Mölnbo klart; den gamla filen sparas som kopia (horde.save.days) och inget raderas. Håll eld lärs dag 2, klockan och de överrända pjäserna dag 3. Ledningens leveranser och texter följer bågen.
+
+Smått:
+- Lappar under banderollerna och lektionsplåten uppe döljs, som under dagrutan.
+- Pendeltågets bildtext: "They get off here, climb to the bridge. Meet them or hold."
+- Balansen: docs/balance-log.md, Mölnbo 0.20.0.
+
 ## 0.20.0 (riktningarna)
 
 Horden kommer nu varifrån kampanjbågen säger (H496, kampanjplanen avsnitt 10), och Move har en anledning (H497).

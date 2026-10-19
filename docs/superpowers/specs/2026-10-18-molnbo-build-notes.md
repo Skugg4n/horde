@@ -47,3 +47,11 @@ Det här är antaget för att kunna bygga. Varje punkt går att ändra i src/dat
 - Dag 4:s rotorsak: en lucka i gångbrons spärr (en av två rutor sönder) räcker för horden, och grupperna söder om spåret går aldrig över broarna. Ingen väg i rutnätet går förbi två spärrar på däcken (tests/molnbo.test.js). En genombruten spärr märks nu, och raderna säger gatan.
 - ?debug&jump=molnbo:N ger balansens ankomst (src/data/arrival.js ARRIVAL_TROOP). Speltestet av 0.17.0 hoppade dit med hela truppen på nivå 1, långt svagare än balansens spelare; med den truppen förlorar också en enkel skriptad spelare dag 1, med ankomsten vinner den med basen hel.
 - Dag 4 är fortfarande en knivsegg för kartläsaren (seed 0 vinner med bas 1). En sänkning av hp 31 till 28 gav bara en bas till, så den behölls.
+
+## 0.20.0 (H494, H495, Olas satellitbild 2026-10-19 och kampanjbågen)
+
+- Kartan är spårad ur satellitbilden (horde-refs/molnbo/satellit-ola-2026-10-19.jpg) till järnvägens ram, cirka 0,15 m spel per bildpunkt, med sidorna om spåret isärskjutna (söder 23 m, norr 10 m) så att järnvägen får sin verkliga bredd. Någon plan.json ur OSM fanns inte för Mölnbo, så OSM-pipelinen (scripts/osm-to-map.mjs) användes inte; ingen OSM-hämtning gjordes.
+- En bro: vägbron korsar spåret snett (något mindre snett än i verkligheten). Gångbron är borta. Trapptornen står vid vägbrons västra kant, trappan från norra perrongen går upp på däcket.
+- Antaget, behöver Olas bekräftelse: Fagernäsvägen har ingen förbindelse med Trollvägen (bara via korsningen), gamla stationshuset ligger öster om bron mellan spåret och Fagernäsvägen, kvarnen söder om Mjölnarstigen, Postillan är ett vanligt hus vid caféets gård.
+- Dag 1 till 3 efter bågen; dag 3:s uttåg är en egen fas i simuleringen (sim.phase 'exodus', src/sim/sim.js startExodus och runExodus). Trupperna springer längs sina vägar till utgången på Gnestavägen; de som inte kan flyttas (fast monterade) står kvar.
+- Prova: ?debug&jump=molnbo:3, eller Quick jump Mölnbo 3 i debugmenyn.

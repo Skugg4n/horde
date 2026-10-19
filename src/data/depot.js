@@ -142,8 +142,9 @@ export const RELEASES = [
   // 0.20.0 (kampanjbågen dag 8 till 10, H495): tre dagar. Dag 1 håll bron medan norra sidan evakueras (ett par
   // A-traktorer och Hemvärnet till att börja med), dag 2 tappar vi norra sidan, dag 3 släpper vi Mölnbo.
   { id: 'mb-1', map: 'molnbo', day: 1, from: 'FM', adopt: true,
-    text: 'Järna has fallen. Hold the bridge at Mölnbo while the north side crosses. An A-tractor and a Psg 90 team join you.',
-    grant: [{ type: 'psg90' }, { type: 'epa' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
+    // (A-traktorn och Hemvärnet är redan med från Hagstumosse; en A-traktor till gav en rad för mycket i förrådet)
+    text: 'Järna has fallen. Hold the bridge at Mölnbo while the north side crosses. A Psg 90 team joins you.',
+    grant: [{ type: 'psg90' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
   { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
     text: 'The north side is out. More are coming from Järna on both sides of the tracks.',
     grant: [{ type: 'hv' }], stock: { inf: 1, ak5: 1, ksp58: 1, m249: 1 } },

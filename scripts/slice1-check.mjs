@@ -191,7 +191,8 @@ const scenes = {
       // 0.18.1: förrådets banor (en Ksp 90 kan vila i reserven): scenen ger dagen en
       if (!sim.reserve.some(u => u.type === 'm249')) sim.reserve.push({ uid: 9002, type: 'm249', level: 1, vet: 0 });
       // en Ksp 90 ställs vid gatan där horden kommer in, vänd bort från den (den skjuter inte; laget slås ner)
-      const sp = sim.route.spawns[0], c0 = sim.route.cellCenter(sp.key), p = sim.place;
+      // 0.20.0: Mölnbo dag 3 är norra sidan förlorad: ingången på södra sidan (Fagernäsvägen), där det går att ställa ut
+      const sp = sim.route.spawns.find(q => q.id === 's2') ?? sim.route.spawns[0], c0 = sim.route.cellCenter(sp.key), p = sim.place;
       let at = null;
       for (let k = 0; k < p.n && at == null; k++) {
         const c = p.center(k), d = Math.hypot(c.x - c0.x, c.z - c0.z);
@@ -328,7 +329,8 @@ const scenes = {
           S.step(sim, 1 / 30);
           for (const e of sim.events) { if (e.t === 'routed') routs++; else if (e.t === 'gunSilent') silent++; else if (e.t === 'crossfire') xf++; }
           sim.events = [];
-          if (i % 15 === 0) most = Math.max(most, S.wavesOnRoad(sim).size);
+          // uttåget (dag 3) räknas inte: flodvågen är ett manus efter striden
+          if (i % 15 === 0 && sim.phase !== 'exodus') most = Math.max(most, S.wavesOnRoad(sim).size);
         }
         return { phase: sim.phase, base: Math.max(0, sim.baseHp), waves: sim.waveIndex, of: sim.dayCfg.waves.length, time: Math.round(sim.time), wavesOutAtOnce: most, routs, silent, crossfire: xf, kills: sim.kills, exodus, civ: sim.evac ? `${sim.evac.safe}/${sim.evac.need}` : null };
       });
@@ -394,14 +396,16 @@ const scenes = {
     const rshot = await shot('rout-banner');
     return { ok: z.zoneTiles > 0 && !z.held && flash.flashes > 0 && !!rout.banner && rout.bar?.w >= 40, zones: z, zshot, flash, rout, rshot };
   },
-  // 11. Förrådet: banorna och INTEL (Mölnbo dag 4, fler enheter än taket)
+  // 11. Förrådet: banorna och INTEL (Mölnbo dag 3, 0.20.0 förut dag 4, fler enheter än taket)
   async depot() {
+    // 0.20.0: scen 9 spelade Mölnbo dag 3, sista dagen, så sektorn är klar: tillbaka till dag 2 (ett hopp går bara framåt)
+    await page.evaluate(() => { const H = window.__horde, p = H.progress; if (p.maps.molnbo) H.setProgress({ ...p, maps: { ...p.maps, molnbo: { attempts: {}, ...p.maps.molnbo, unlockedDay: 2 } }, op: { ...p.op, closed: p.op.closed.filter(id => id !== 'molnbo') } }); });
     await day('molnbo', 2);
     const r = await page.evaluate(() => {
       const H = window.__horde, p = H.progress;
       const units = p.op.units.map((u, i) => ({ ...u, fatigue: i % 3 }));
       H.setProgress({ ...p, rp: 300, op: { ...p.op, units } });
-      H.showDepot('molnbo', 'opmap', { day: 4 });
+      H.showDepot('molnbo', 'opmap', { day: 3 });
       const q = s => document.querySelectorAll(s).length;
       const lanes = { battle: q('.depot .lane.battle .ucard'), rest: q('.depot .lane.rest .ucard'), cnt: document.querySelector('.depot .lane.battle .cnt')?.textContent };
       // klick: en från reserven till striden när banan är full ger ett skäl

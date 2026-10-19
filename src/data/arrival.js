@@ -28,9 +28,8 @@ export const ARRIVAL_TROOP = {
     // 0.19.1: omräknad efter snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag (docs/balance-log.md 0.19.1)
     // 0.20.0: omräknad efter riktningarna (Vikingavägen väst, syd och nord; Move och Rotate från Ishallen dag 3;
     // docs/balance-log.md 0.20.0 riktningarna)
-    // 0.20.0 (Mölnbo): plus ledningens A-traktor dag 1 (src/data/depot.js mb-1, kampanjbågen: ett par A-traktorer och Hemvärnet)
     units: [['civ', 2, 4, 4], ['civ', 2, 4, 3], ['civ', 2, 4, 3], ['m249', 2, null, 7], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 3, null, 7], ['epa', 1, null, 6],
       ['m249', 2, null, 1], ['ksp58', 3, null, 7], ['m2', 1, null, 6], ['ak5', 1, null, 1], ['ksp58', 2, null, 5], ['m249', 1, null, 0], ['ksp58', 2, null, 5], ['psg90', 2, null, 5],
-      ['psg90', 2, null, 4], ['inf', 2, 5, 1], ['psg90', 2, null, 2], ['psg90', 1, null, 0], ['epa', 1, null, 0]],
+      ['psg90', 2, null, 4], ['inf', 2, 5, 1], ['psg90', 2, null, 2], ['psg90', 1, null, 0]],
   },
 };

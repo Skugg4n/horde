@@ -1227,3 +1227,30 @@ Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 och 2:
 - normal: riksvagen 3 68ec2156, gnesta 1 fd3928f0, gnesta 2 e241945c, gnesta 3 36ccafe6, gnesta 4 6d5430d7, gnesta 5 74f7cd97, gnesta-norr 1 b09c19db, gnesta-norr 2 8a2bce69, gnesta-norr 3 f7edf9aa, gnesta-norr 4 c16098c9, gnesta-norr 5 cac14819
 - mbSmart: f2206923, 93f0f3c1, 302de2ca, f8da80b0, d3449bdf; naive: bf232dc6, 9d10cad9, 1d769ec2, aaf25304, cc8a9d61
 - simuleringens kvitto (tests/sim-receipt.test.js) oförändrat
+
+## Mölnbo 0.20.0: kartan efter satellitbilden och tre dagar efter kampanjbågen
+
+Kartan är omritad (en bro, vägnätet efter satellitbilden, Folkets hus vid Kvarnvägen) och dagarna är nya, så alla tre fingeravtrycken är nya avsiktligt. Sammanslagen med riktningarna och laddtiden; ankomsten (src/data/arrival.js) är riktningarnas, oförändrad av Mölnbo-ombygget.
+
+Spelarna:
+- mbSmart som förut, plus evakueringens karta dag 1 (evacMap) och vägrutorna norr om spåret som tyngd dag 1 (focus). Spärren ligger på Stenbyvägen vid Missionskyrkan (horden går runt via Trollvägen); gångbrons spärr finns inte längre.
+- mbNaive (ny): naive som följer evakueringens tips dag 1. Utan tipsen dog de civila uppe vid Järna-vägen och dag 1 förlorades varje gång; spelet visar farozonerna och platserna, så den spelaren är den som räknas. Dag 1 ställer också han sig norr om bron.
+- Pendeltågets reaktion: kartläsaren flyttar en grupp till korsningen vid brons södra fot (trappan går nu upp på vägbron).
+
+Värden och skäl:
+- Dag 1: hp 16, evakueringen 24 civila i sex hus, need 19. Husen går i ordning från Norrängsvägen och väg 57 (längst upp, innan horden är där) till Skogstorpsvägen; i omvänd ordning dog de civila i hordens väg. Första vågen 2 s efter start (dimprovet: den första ur diset inom 10 s). Med need 20 kom kartläsaren in med exakt 20 i tre seeds.
+- Dag 2: hp 13 (prövat 20, 16, 15: den som aldrig spärrar fastnade på dag 2 i en seed, och basen var 9 till 10 vid tågets signal), sista vågen mindre (52 vandrare i stället för 70).
+- Dag 3: hp 10 och våg 2 till 4 mindre (prövat 18, 16, 14, 13, 12, 11: den som aldrig spärrar dog runt 300 s, strax före klockan, i alla eller de flesta seeds; vid 16 vann han direkt med debugReach-truppen men inte efter dag 2:s trötthet). Flodvågen 112 (förut 228; med vågornas rester blev det 351 levande).
+- Toppen och vågorna räknas inte under uttåget (balance.mjs, slice1-check.mjs): flodvågen är ett manus efter striden.
+
+Mätt (fem seeds), försök per dag och bas kvar:
+
+    mbSmart  alla dagar på första försöket; dag 1 civila över 21 till 23; bas dag 2: 18, 20, 20, 20, 20; dag 3: 20 i alla
+    mbNaive  alla dagar på första försöket; dag 1 civila 21 till 24; bas dag 2: 16, 11, 17, 17, 17; dag 3: 10, 20, 8, 14, 6
+    toppen   116 levande, högst två vågor ute
+
+Kartläsaren vinner för lätt (basen hel dag 3); det är ett känt glapp mellan spelarna på den här kartan: Stenbyvägen och Trollvägen är nästan lika långa, så en spärr leder om horden utan omväg, och kartläsaren ställer allt längs den väg han valt. Den som inte spärrar betalar dag 2 och 3. Ett speltest får visa om dag 3 behöver mer tryck för den som läser kartan.
+
+Fingeravtrycken: mbSmart 3eb447c8, c6df086e, a987d15d; mbNaive c395415f, 724a4294, 8c95da16.
+
+Andra prov som ändrades med kartan (inte balans): bilspärren i tests/shove.test.js ligger på Kvarnvägen med gruppen söderifrån (vid Missionskyrkan finns nu en lika kort väg runt), snubblets prov mäter dag 2 och tillåter upp till 0,36 (vägen från Järna är längre, fler meter att snubbla på), svansens bjässar får 200 s (cirka 180 med svansen).

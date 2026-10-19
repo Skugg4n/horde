@@ -35,7 +35,7 @@ test('Mölnbo är en bana efter Hagstumosse, med tre dagar efter kampanjbågen o
     // H443: högst tolv ord, på engelska, och de säger varifrån horden kommer (Järna)
     assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
     assert.match(d.intro.text, /Järna/);
-    assert.doesNotMatch(JSON.stringify(d), /—/);
+    assert.doesNotMatch(JSON.stringify(d), /\u2014/);
   }
   const [d1, d2, d3] = molnbo.days;
   // dag 1: evakueringen av norra sidan, vinst först när också vågorna är hållna
@@ -320,8 +320,8 @@ test('kampanjen: Mölnbo öppnar efter Vikingavägen dag 5 och truppen följer m
   p0 = finishDay(p0, { mapId: 'gnesta-norr', day: 5, won: true, intelEarned: 10 }).progress;
   assert.equal(mapUnlocked(p0, 'molnbo'), true);
   assert.equal(sectorStatus(p0, 'molnbo'), 'holding');
-  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90 och A-traktor (0.20.0)
-  assert.equal(unitsIn(p0, 'molnbo').length, before + 2);
+  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90
+  assert.equal(unitsIn(p0, 'molnbo').length, before + 1);
   assert.ok(p0.op.inbox.some(m => /Järna/.test(m.text) && /Mölnbo is next/.test(m.text)), 'övergången');
   assert.ok(p0.op.inbox.some(m => m.id === 'mb-1'));
   // efter dag 3 är Mölnbo klart (sektorn stängd)
@@ -389,7 +389,7 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
     assert.equal(r.stuck, null, `seed ${i}: ${a}`);
     for (const d of [1, 2]) assert.ok(a[d] >= 1 && a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
   }
-  // dag 3 (uttågets dag) kostar mest; dag 2 kostar ibland försök (seed 1 fyra), annars en del av basen
+  // dag 3 (uttågets dag) kostar mest; dag 2 kostar en del av basen
   const won = d => naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day === d && x.won));
   assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 12, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
   assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
@@ -417,8 +417,8 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // omräknad). Den andra spelaren är mbNaive (naive som följer evakueringens tips). docs/balance-log.md 0.20.0 (Mölnbo).
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '315c4e39', 'molnbo 2': '51f27812', 'molnbo 3': 'a3be0c8a' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'a3f18a8c', 'molnbo 2': 'a80a70f3', 'molnbo 3': '1324623a' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '3eb447c8', 'molnbo 2': 'c6df086e', 'molnbo 3': 'a987d15d' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c395415f', 'molnbo 2': '724a4294', 'molnbo 3': '8c95da16' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.
