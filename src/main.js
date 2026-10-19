@@ -53,6 +53,8 @@ import { createChord } from './ui/chord.js';
 import { createMinimap } from './ui/minimap.js';
 import { createAudio } from './audio/audio.js';
 import { Vector3, Box3, Raycaster, Vector2, Plane } from 'three';
+import { mark, add, loadTimes } from './meta/load-timing.js';
+mark('moduler');   // alla moduler hämtade och körda (banornas data med)
 
 const DT = 1 / 30;
 // Fart 1x, 2x, 3x (SPEEDS i settings.js): fler fasta steg per bildruta (simuleringen har samma dt),
@@ -93,30 +95,45 @@ uiRoot.dataset.mode = 'menu';   // tills första banan är laddad: ingen HUD
 let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null, marks = null;
 let day = 1, sim = null;
 const worlds = new Map();
-const loading = document.createElement('div');
-loading.id = 'loading'; loading.className = 'plate'; loading.hidden = true;
-loading.innerHTML = '<div class="t">Loading</div><div class="bar"><i></i></div><div class="s"></div>';
-uiRoot.appendChild(loading);
+// 0.20.0 (H502): skylten finns redan när sidan laddas (loadbar.js, filerna hämtas); spelet tar över den här.
+const loading = document.getElementById('loading') ?? document.createElement('div');
+if (!loading.parentNode) {
+  loading.id = 'loading'; loading.className = 'plate'; loading.hidden = true;
+  loading.innerHTML = '<div class="t">Loading</div><div class="bar"><i></i></div><div class="s"></div>';
+  uiRoot.appendChild(loading);
+}
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 // 0.17.1 (speltestet av 0.17.0: "Loading Hagstumosse · Ishallen" när Mölnbo öppnades): skylten säger alltid banan
 // spelaren väntar på (loadTarget), också medan en annan bana byggs färdigt före den.
 let loadTarget = null;
+// 0.20.0 (H502): vid starten har filerna redan tagit första delen av mätaren (loadbar.js); banans steg fyller resten.
+let booting = true;
 function showLoading(name, step, frac) {
   loading.hidden = false;
   loading.querySelector('.t').textContent = 'Loading ' + (loadTarget ?? name);
   loading.querySelector('.s').textContent = step;
-  loading.querySelector('.bar i').style.width = Math.round(frac * 100) + '%';
+  const base = booting ? (window.__loadbar?.share ?? 0) : 0;
+  loading.querySelector('.bar i').style.width = Math.round((base + (1 - base) * frac) * 100) + '%';
 }
 let loadingMap = null;
+// Banans steg och hur långt mätaren har kommit när steget är klart (0.20.0, H502: andelarna ur mätningen i
+// docs/reports/2026-10-19-laddtid.md, ungefär lika över banorna): rutnätet och placeringen, världen, trupperna och
+// simuleringen, shaderprogrammen. Mätaren flyttas när ett steg faktiskt är klart.
 async function buildMapWorld(m) {
-  showLoading(m.name, 'Laying out the streets', 0.1);
+  showLoading(m.name, 'Mapping the streets', 0.04);
   await nextFrame(); await nextFrame();
-  const t0 = performance.now();
+  const t0 = performance.now(); mark('bygge:' + m.id);
+  // rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js): här, som ett eget steg
+  void m.grid; void m.place;
+  showLoading(m.name, 'Raising the houses', 0.15);
+  await nextFrame();
+  const t0w = performance.now();
   const st = createScene(null, m, { renderer });
   const w = { map: m, stage: st, scene: st.scene, camera: st.camera };
   buildWorld(w.scene, m);
   if (edgeMode) w.scene.userData.setEdge?.(edgeMode);
-  showLoading(m.name, 'Raising the houses', 0.45);
+  add(m.id + ':värld', t0w);
+  showLoading(m.name, 'Placing the troops', 0.6);
   await nextFrame();
   w.rig = createRig({ camera: w.camera, map: m, fill: st.fill, dom: renderer.domElement, holding: () => mode === 'play' && (!!placing || !!rotating) });
   w.rig.active = false;
@@ -129,13 +146,14 @@ async function buildMapWorld(m) {
   w.routeLines = createRouteLines(w.scene, { heightAt: m.groundY ?? null });   // 0.17.0-molnbo: vägen följer bron
   w.marks = createWorldMarks(w.scene);   // 0.19.2: perrongen och läckorna
   const tBuild = performance.now() - t0;
-  showLoading(m.name, 'Mixing the paint', 0.7);
+  showLoading(m.name, 'Mixing the paint', 0.75);
   await nextFrame();
   const t1 = performance.now();
   // Shaderprogrammen kompileras parallellt (KHR_parallel_shader_compile) medan skylten står.
   try { await renderer.compileAsync(w.scene, w.camera); } catch { renderer.compile(w.scene, w.camera); }
   for (const tex of texturesOf(w.scene)) renderer.initTexture(tex);
   w.timing = { build: Math.round(tBuild), compile: Math.round(performance.now() - t1) };
+  loadTimes.ms[m.id + ':bygge'] = Math.round(tBuild); add(m.id + ':shader', t1);
   showLoading(m.name, 'Ready', 1);
   return w;
 }
@@ -171,7 +189,8 @@ async function loadMap(id) {
     sightCache.clear();
     // en bildruta med den nya banan innan skylten tas bort
     await nextFrame();
-    loading.hidden = true;
+    loading.hidden = true; booting = false;
+    mark('första bild:' + m.id);
   })();
   try { await loadingMap; } finally { loadingMap = null; loadingId = null; if (loadTarget === m.name) loadTarget = null; }
 }

@@ -31,6 +31,7 @@
 <div id="stage" class="grade"></div>
 <div class="vignette"></div>
 <div class="grain"></div>
+<script src="loadbar.js" data-name="Gnesta centrum" data-modules="24" data-share="0.3"></script>
 <div id="labels"></div>
 <div id="head" class="plate">
   <div class="t">GNESTA CENTRUM</div>
@@ -44,6 +45,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { VERSION } from './src/version.js';
+import { mark, now as tNow, add as tAdd } from './src/meta/load-timing.js';
 import { gnestaCentrum as map, GNESTA_CENTRUM_VERSION } from './src/data/gnesta-centrum.js';
 import { gridPath } from './src/data/osm-map.js';
 import { createScene } from './src/render/scene.js';
@@ -51,6 +53,7 @@ import { gridOverlay } from './src/render/gnesta-world.js';
 import { buildOsmWorld, sketchOverlay } from './src/render/osm-world.js';
 import { frame } from './src/render/gnesta-kit.js';
 import * as K from './src/render/gnesta-centrum-kit.js';
+mark('moduler');   // laddtiden (H502): moduler och kartans data klara
 
 // Förhandsvisningen har inget ljud.
 document.getElementById('ver').textContent = `Gnesta centrum ${GNESTA_CENTRUM_VERSION} · v${VERSION}`;
@@ -81,7 +84,12 @@ const KIT = {
 };
 const STREET = { car: K.parkedCar, tree: K.streetTree, bench: K.bench, planter: K.planter, rack: K.bikeRack, bike: K.bike };
 const t0 = performance.now();
+// 0.20.0 (H502): mätaren (loadbar.js) följer stegen: världen, shaderprogrammen, första bildrutan
+const nextPaint = () => new Promise(r => requestAnimationFrame(() => r()));
+window.__loadbar?.step('Raising the houses', 0.05); await nextPaint();
+const tWorld = tNow();
 const world = buildOsmWorld(scene, map, { kit: KIT, street: STREET });
+tAdd(map.id + ':värld', tWorld);
 const buildMs = Math.round(performance.now() - t0);
 const grid = gridOverlay(map.grid); grid.visible = false; scene.add(grid);
 const sketch = sketchOverlay(map, gridPath); scene.add(sketch.group);
@@ -189,6 +197,7 @@ function tick(now) {
   }
   world.update(dt, time);
   renderer.render(scene, camera);
+  if (!tick.drawn) { tick.drawn = true; mark('första bild'); window.__loadbar?.done(); }
   for (const l of labels) {
     v3.copy(l.p).project(camera);
     l.el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px';
@@ -202,6 +211,10 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
 }
+// shaderprogrammen kompileras parallellt medan skylten står, i stället för i första bildrutan
+window.__loadbar?.step('Mixing the paint', 0.75); await nextPaint();
+{ const t = tNow(); try { await renderer.compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
+  scene.traverse(o => { if (o.material?.map) renderer.initTexture(o.material.map); }); tAdd(map.id + ':shader', t); }
 requestAnimationFrame(tick);
 // för felsökning och provkörningar: window.__gnesta
 window.__gnesta = { goPart, buildMs, renderer, scene, camera, map, world, sketch, target, setView(v) { view = v; applyCamera(); }, focus(x, z, v) { target.set(x, 0, z); if (v) view = v; showPart(map.parts.find(p => x >= p.bounds.x0 && x <= p.bounds.x1 && z >= p.bounds.z0 && z <= p.bounds.z1) ?? null); applyCamera(); },

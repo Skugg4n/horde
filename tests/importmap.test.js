@@ -21,3 +21,13 @@ test('felvakten står före huvudmodulen och erbjuder omladdning', () => {
   assert.match(html, /A new version was loaded\./);
   assert.match(html, /unhandledrejection/);
 });
+
+test('laddningsmätaren väntar på rätt antal filer (kör node scripts/importmap.mjs)', async () => {
+  const { PREVIEWS, renderPreview } = await import('../scripts/importmap.mjs');
+  assert.match(html, /<script src="loadbar\.js\?v=[^"]+" data-name="Horde" data-modules="\d+"><\/script>/);
+  for (const p of PREVIEWS) {
+    const h = readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+    assert.equal(h, renderPreview(h), p);
+    assert.ok(h.indexOf('loadbar.js') < h.indexOf('<script type="module">'), p + ': mätaren före modulerna');
+  }
+});
