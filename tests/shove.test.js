@@ -1,5 +1,7 @@
 // 0.19.0 (H456, Ola 2026-10-18): bjässen går inte runt skrotbilar utan knuffar undan dem på ett par sekunder;
 // betongen respekterar den som förut. Mölnbo: en bilspärr på Stenbyvägen vid missionskyrkan.
+// 0.20.0 (kartan efter satellitbilden): spärren på Kvarnvägen mellan Stenbyvägen och Folkets hus, gruppen söderifrån
+// (s4). Omvägen runt via Trollvägen är lång; vid missionskyrkan finns nu en lika kort väg runt (Trollvägen).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { molnbo, R } from '../src/data/molnbo.js';
@@ -8,12 +10,12 @@ import { ZOMBIES } from '../src/data/zombies.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { TIPS, MANUAL } from '../src/data/lessons.js';
 
-const day = n => ({ n: 1, startCash: 0, waves: [{ groups: [{ type: 'brute', count: n, interval: 2, delay: 0, spawn: 's1' }, { type: 'walker', count: 10, interval: 0.5, delay: 0, spawn: 's1' }] }] });
+const day = n => ({ n: 1, startCash: 0, waves: [{ groups: [{ type: 'brute', count: n, interval: 2, delay: 0, spawn: 's4' }, { type: 'walker', count: 10, interval: 0.5, delay: 0, spawn: 's4' }] }] });
 function run(type) {
   const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day(2)] }, day: 1, cash: 9999 });
-  const [x, z] = R(-1.5, 56);
+  const [x, z] = R(4, 123.5);
   assert.ok(placeAcross(sim, sim.route.cellAt(x, z), type).ok);
-  const walkers = sim.route.paths(['s1'])[0].cells;
+  const walkers = sim.route.paths(['s4'])[0].cells;
   startWave(sim);
   const ev = [];
   while (sim.time < 300 && sim.phase === 'wave') { step(sim, 0.1); for (const e of sim.events) if (e.t === 'carShove' || e.t === 'obstacleBroken' || e.t === 'obstacleHit') ev.push({ ...e, at: sim.time }); }

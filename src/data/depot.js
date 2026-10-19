@@ -139,22 +139,17 @@ export const RELEASES = [
   // ---------- Mölnbo (0.17.0-molnbo) ----------
   // adopt: enheterna som står utan sektor (Hagstumosse är klar) följer med hit. Spelaren är befälhavaren som
   // skickas dit det behövs; truppen följer med.
+  // 0.20.0 (kampanjbågen dag 8 till 10, H495): tre dagar. Dag 1 håll bron medan norra sidan evakueras (ett par
+  // A-traktorer och Hemvärnet till att börja med), dag 2 tappar vi norra sidan, dag 3 släpper vi Mölnbo.
   { id: 'mb-1', map: 'molnbo', day: 1, from: 'FM', adopt: true,
-    text: 'Your units are at Mölnbo station. A Psg 90 team waits on the stair towers.',
-    grant: [{ type: 'psg90' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
+    text: 'Järna has fallen. Hold the bridge at Mölnbo while the north side crosses. An A-tractor and a Psg 90 team join you.',
+    grant: [{ type: 'psg90' }, { type: 'epa' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
   { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
-    // 0.19.1 (speltestet av 0.19.0, fynd 8: tåget som skydd ströks i 0.18.1, raden stod kvar)
-    text: 'They come over the bridge and up Stenbyvägen. Hold the houses on both sides.',
-    stock: { inf: 1, ak5: 1 } },
-  { id: 'mb-3', map: 'molnbo', day: 3, from: 'MCF',
-    text: 'One train out tonight. It leaves on time, with or without you holding.',
-    grant: [{ type: 'hv' }], stock: { ksp58: 1, m249: 1 } },
-  { id: 'mb-4', map: 'molnbo', day: 4, from: 'FM',
-    text: 'More are coming north of the tracks from Järna. The bridge is the only way over.',
-    grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1 } },
-  { id: 'mb-5', map: 'molnbo', day: 5, from: 'FM',
-    text: 'The last train out. Everything we have left is at Mölnbo.',
-    stock: { ksp58: 1, inf: 1, ak5: 1 } },
+    text: 'The north side is out. More are coming from Järna on both sides of the tracks.',
+    grant: [{ type: 'hv' }], stock: { inf: 1, ak5: 1, ksp58: 1, m249: 1 } },
+  { id: 'mb-3', map: 'molnbo', day: 3, from: 'FM',
+    text: 'We cannot hold Mölnbo. Hold it as long as the clock says, then pull back to Gnesta.',
+    grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1, inf: 1 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

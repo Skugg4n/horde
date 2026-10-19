@@ -23,7 +23,7 @@ import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
 import { planSquad, hordeWeight } from '../src/sim/squad.js';
 import { routeFor } from '../src/sim/route.js';
 import { distPolyline } from '../src/data/gnesta.js';
-import { R as R_MB } from '../src/data/molnbo.js';
+import { R as R_MB, toRail as toRail_MB } from '../src/data/molnbo.js';
 import { dangerZones, coverSpots } from '../src/sim/evac-danger.js';
 
 const DT = 1 / 30;
@@ -255,7 +255,8 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     blastNow = false;
     if (onSecond && ticks % 30 === 0) onSecond(sim);
     if (trackSquads && ticks % 30 === 0) squads = Math.max(squads, sim.guns.filter(g => g.squad).length);
-    if (ticks % 15 === 0) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; const w = wavesOnRoad(sim).size; if (w > peakWaves) peakWaves = w; }
+    // 0.20.0: uttåget (Mölnbo dag 3) räknas inte: flodvågen är ett manus efter dagens strid
+    if (ticks % 15 === 0 && !sim.exodus) { let n = 0; for (const z of sim.zombies) if (!z.dead) n++; if (n > peak) peak = n; const w = wavesOnRoad(sim).size; if (w > peakWaves) peakWaves = w; }
     if (firstHit == null && sim.baseHp < sim.map.baseHp) firstHit = sim.time;
     // 0.19.1: basen när pendeltåget signalerar (Mölnbo dag 4); inte i fingeravtrycket
     if (trainBase == null && sim.arrival?.warned) trainBase = Math.max(0, sim.baseHp);
@@ -790,10 +791,10 @@ function e4SpawnPlan(id) {
   const cells = route.paths([id]).flatMap(q => q.cells).filter(k => { const q = p.center(k); return q.x >= c.x0 && q.x <= c.x1 && q.z >= c.z0 && q.z <= c.z1; });
   return coveragePlan(map, cells, { range: E4_RANGE, cacheKey: 'e4only:' + id });
 }
-// 0.19.0 (H452): pendeltåget som rullar in (Mölnbo dag 4). Kartläsaren (P.trainReact) flyttar vid förvarningen sin
-// närmaste grupp, eller annars en Ksp 58, till gångbrons södra fot, där de som kliver ur tåget kommer ner; den som inte
-// läser kartan håller sin linje. Spelarens val: flytta mot perrongen eller hålla.
-const TRAIN_STAND = R_MB(-21, 22);
+// 0.19.0 (H452): pendeltåget som rullar in (Mölnbo dag 2, förut 4). Kartläsaren (P.trainReact) flyttar vid förvarningen
+// sin närmaste grupp, eller annars en Ksp 58, till korsningen vid brons södra fot (0.20.0: de som kliver ur tåget går
+// trappan upp på vägbron och ner över bron); den som inte läser kartan håller sin linje. Spelarens val: flytta eller hålla.
+const TRAIN_STAND = R_MB(-24, 46);
 function reactToTrain(sim) {
   if (!sim.arrival?.warned || sim._trainReact) return;
   sim._trainReact = true;
@@ -967,27 +968,28 @@ export function stepPrints(log) {
 // ---------- Mölnbo (0.17.0-molnbo) ----------
 // Spelaren kommer från Hagstumosse med det en vanlig spelare har där (opCampaign('normal'): trupperna, nivåerna,
 // förrådets uppgraderingar och RP). Två spelare i Mölnbo:
-//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionshuset (0.19.0: horden norrifrån runt via Fagernäsvägen),
-//             gångbron dag 4 och 5 (allt norrifrån måste över vägbron, flaskhalsen), Psg 90 på trapptornen och taken,
-//             grupperna bakom tåget; flyttar en grupp mot gångbrons fot när pendeltåget signalerar (dag 4).
+//   mbSmart : läser kartan. Spärrar Stenbyvägen vid Missionskyrkan (horden från bron runt via Trollvägen och
+//             Kvarnvägen), Psg 90 på trapptornen och taken, grupperna bakom tåget; dag 1 täcker den de civilas väg över
+//             bron (evacMap, farozonerna); flyttar en grupp mot korsningen när pendeltåget signalerar (dag 2).
 //   naive   : samma trupper och köp, ställer allt efter sin egen väg och spärrar aldrig.
-// Mål (uppdraget): mbSmart vinner dag 1 till 3 inom 2 försök och dag 4 och 5 inom 3 till 4, naive förlorar från dag 3,
-// högst cirka 250 levande zombier. docs/balance-log.md, Mölnbo.
-// Stenbyvägen vid Missionshuset (horden norrifrån tar Fagernäsvägen och Genvägen, förbi stationsgrusplanen och husen
-// där).
-// 0.19.0 (H450): horden kommer från Järna; Kvarnvägen-spärren (mot horden från Gnestavägen) behövs inte längre.
-const MB_STENBY = [R_MB(-1.5, 56)];
-// Gångbrons södra ramp: horden norrifrån måste över vägbron, där tornen och caféets parkering ser dem. Prövat
-// (balansloggen): spärren på vägbron i stället (horden tar gångbron) och en tyngd på pjäserna vid broarna var sämre.
-const MB_FOOT = [R_MB(-17.5, 22)];
+// 0.20.0 (H494, H495): kartan efter satellitbilden och tre dagar efter kampanjbågen. docs/balance-log.md, Mölnbo 0.20.0.
+// Stenbyvägen söder om Trollvägen, vid Missionskyrkan.
+const MB_STENBY = [R_MB(-9, 66)];
+// Dag 1 håller kartläsaren bron från norra sidan, där de civila och horden möts (vägrutorna norr om spåret väger mer).
+const MB_NORTH = { id: 'mbNorth', weight: (x, z) => (toRail_MB(x, z)[1] < -14 ? 4 : 0.6) };
 TOWN.molnbo = {
-  blocks: day => (day >= 4 ? [...MB_STENBY, ...MB_FOOT] : MB_STENBY),
-  planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, near: 0.5, lastLine: 0.25 } : { roofs: 3, near: 0 }),
-  kits: [0, 1, 1, 2, 2, 3], roofsDay: [0, 2, 2, 3, 3, 3], maxTicks: 30 * 1200,
+  blocks: () => MB_STENBY,
+  // dag 1 visar spelet var de civila möter horden (farozonerna och de föreslagna platserna), så också den som inte läser
+  // kartan ställer sig norr om bron
+  planOpts: (day, policy) => (day === 1 ? { roofs: 3, near: 0, focus: MB_NORTH } : policy === 'smart' ? { roofs: 3, near: 0.5, lastLine: 0.25 } : { roofs: 3, near: 0 }),
+  kits: [0, 1, 2, 3], roofsDay: [0, 2, 3, 3], maxTicks: 30 * 1200,
 };
 HV_POLICY.molnbo = { days: [], gap: [] };
 REQUISITION.molnbo = ['up:psg90:3', 'lvl:psg90:2', 'unit:psg90:4', 'lvl:ksp58:3', 'unit:ksp58:6', 'lvl:inf:2', 'unit:inf:3', 'lvl:m2:3', 'lvl:psg90:3', 'unit:ak5:3', 'lvl:ak5:3', 'unit:m249:6'];
-POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true, trainReact: true };
+POLICIES.mbSmart = { plan: 'smart', blocks: true, early: false, supplies: true, rest: true, depth: true, trainReact: true, evacMap: true };
+// 0.20.0: den som aldrig spärrar följer ändå evakueringens tips dag 1 (de föreslagna platserna vid farozonerna, som spelet
+// visar), annars är han som naive. Utan det förlorar han dag 1 på de civila varje gång (de dör uppe vid Järna-vägen).
+POLICIES.mbNaive = { ...POLICIES.naive, evacMap: true };
 // Framsteget en vanlig spelare har när Mölnbo öppnar (sparas per seed).
 const mbArrival = new Map();
 export function molnboArrival(seedOffset = 0) {
@@ -1010,10 +1012,10 @@ const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
 if (IS_MAIN && process.argv[2] === 'molnbo') {
-  for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'naive']) {
+  for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {
     console.log(`\n=== Mölnbo, ${policy} ===`);
     console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');
-    const runs = SEEDS.map(seedOffset => molnboCampaign(policy, { seedOffset, maxAttempts: policy === 'naive' ? 4 : 6 }));
+    const runs = SEEDS.map(seedOffset => molnboCampaign(policy, { seedOffset, maxAttempts: policy === 'mbSmart' ? 6 : 4 }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${mbAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
     for (const x of runs[0].log) console.log(`  dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}  ${x.force}`);
   }

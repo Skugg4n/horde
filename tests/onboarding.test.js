@@ -35,9 +35,9 @@ test('ett nytt begrepp per dag: E4 dag 1 har bara pjäsen, starten och basen', (
   assert.deepEqual(fresh('gnesta-norr', 4, 'gnesta-norr', 3), ['fatigue', 'target']);
   assert.deepEqual(fresh('gnesta-norr', 5, 'gnesta-norr', 4), ['garrison']);
   assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 5), ['rout']);
-  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), []);
-  assert.deepEqual(fresh('molnbo', 4, 'molnbo', 3), ['holdFire']);
-  assert.deepEqual(fresh('molnbo', 5, 'molnbo', 4), ['overrun']);
+  // 0.20.0: Mölnbo har tre dagar (kampanjbågen): Håll eld dag 2, klockan och de överrända pjäserna dag 3
+  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), ['holdFire']);
+  assert.deepEqual(fresh('molnbo', 3, 'molnbo', 2), ['overrun', 'train']);
   assert.ok(featuresFor('gnesta', 4).has('dormant') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
   assert.ok(featuresFor('gnesta', 5).has('early') && featuresFor('gnesta', 5).has('upgrades') && !featuresFor('gnesta', 5).has('unitSupplies'));
   assert.ok(featuresFor('gnesta-norr', 1).has('unitSupplies') && featuresFor('gnesta-norr', 2).has('car') && !featuresFor('gnesta-norr', 1).has('car'));

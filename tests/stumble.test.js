@@ -76,7 +76,9 @@ test('taggtråden kan fälla löparen', async () => {
 // 0.19.1 (speltestet av 0.19.0, fynd 5: dag 4 snubblade 10 av 16 löpare, flera två och tre gånger, och tre till fyra på
 // samma ruta vid brofästet inom 1,5 s). Mätt över en hel korsning av Mölnbo (inget försvar, god mode): ungefär var femte
 // löpare snubblar, nästan ingen två gånger, och inga två snubbel inom 4 m och 10 s.
-for (const day of [1, 4]) {
+// 0.20.0: dag 2 (dag 1 har bara ett fåtal löpare, dag 3 slutar med uttåget och dag 4 finns inte längre). Vägen från
+// Järna till Folkets hus är längre på den nya kartan, så andelen får vara upp till 0,36 och en tiondel två gånger (fler meter att snubbla på).
+for (const day of [2]) {
   test(`Mölnbo dag ${day}: ungefär var femte löpare snubblar, sällan två gånger, aldrig flera på samma ställe`, () => {
     const sim = createSim({ map: MAPS.molnbo, day, cash: 0, seed: 1, tweaks: { god: true } });
     startWave(sim);
@@ -91,8 +93,8 @@ for (const day of [1, 4]) {
       }
     }
     const share = trips.size / runners.size, twice = [...trips.values()].filter(n => n > 1).length;
-    assert.ok(share >= 0.1 && share <= 0.33, `${trips.size} av ${runners.size} snubblade`);
-    assert.ok(twice <= Math.max(2, runners.size * 0.08), `${twice} snubblade mer än en gång`);
+    assert.ok(share >= 0.1 && share <= 0.36, `${trips.size} av ${runners.size} snubblade`);
+    assert.ok(twice <= Math.max(2, runners.size * 0.1), `${twice} snubblade mer än en gång`);
     for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
       const a = at[i], b = at[j];
       assert.ok(!(Math.abs(a.t - b.t) < 10 - 1e-6 && Math.hypot(a.x - b.x, a.z - b.z) < 4 - 0.5), `två snubbel på samma ställe vid ${a.t.toFixed(1)} och ${b.t.toFixed(1)}`);

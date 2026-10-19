@@ -1,93 +1,135 @@
-// Mölnbo (0.17.0-molnbo): kartan, bron som enda passagen, perrongen och banvallen, prickskyttelägena, tåget som
-// skydd, tågklockan, kampanjens krok och balansen. docs/superpowers/specs/2026-10-17-molnbo-design.md,
-// docs/superpowers/specs/2026-10-18-molnbo-build-notes.md och docs/balance-log.md (Mölnbo).
+// Mölnbo: kartan, bron som enda passagen, perrongen, prickskyttelägena, tåget som skydd, kampanjens krok och balansen.
+// docs/superpowers/specs/2026-10-17-molnbo-design.md, docs/superpowers/specs/2026-10-18-molnbo-build-notes.md och
+// docs/balance-log.md (Mölnbo). 0.20.0 (H494, H495): kartan efter Olas satellitbild, en bro, och tre dagar efter
+// kampanjbågen (kampanjplanen avsnitt 10): håll bron medan norra sidan evakueras, norra sidan faller, uttåget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
-import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, FOOT, BRIDGE, SHAPES } from '../src/data/molnbo.js';
+import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, BRIDGE, SHAPES, LINK, NORTH_SIDE } from '../src/data/molnbo.js';
+import { inPoly } from '../src/data/gnesta.js';
 import { liftedHit } from '../src/render/lift.js';
 import { reasonText } from '../src/ui/panels.js';
-import { placeAcross, checkSpot, removeObstacle } from '../src/sim/sim.js';
+import { placeAcross, checkSpot, checkObstacle, removeObstacle, createSim, startWave, step, build } from '../src/sim/sim.js';
 import { routeFor } from '../src/sim/route.js';
 import { placementFor, KIND } from '../src/sim/placement.js';
 import { crewPassable } from '../src/sim/crew-path.js';
 import { rerouteStreet, streetAt } from '../src/sim/streets.js';
-import { createSim, startWave, step, build } from '../src/sim/sim.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
-import { mapUnlocked } from '../src/meta/progress.js';
+import { mapUnlocked, mapState } from '../src/meta/progress.js';
+import { loadProgress } from '../src/meta/save.js';
 import { molnboCampaign, mbAttempts, mbPrints, molnboArrival } from '../scripts/balance.mjs';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
 
 const route = routeFor(molnbo), g = route.grid, p = placementFor(molnbo);
 const keyAtRail = (u, v) => { const [x, z] = R(u, v); return g.keyAt(x, z); };
-const uOn = (br, v) => br.a[0] + (br.a[1] - v) * (br.b[0] - br.a[0]) / (br.a[1] - br.b[1]);
+const uOn = v => BRIDGE.a[0] + (BRIDGE.a[1] - v) * (BRIDGE.b[0] - BRIDGE.a[0]) / (BRIDGE.a[1] - BRIDGE.b[1]);
+const NORTH = ['s1', 's3', 's5', 's6'];
+const bareDay = (o = {}) => ({ n: 1, startCash: 99999, waves: [{ groups: [] }], ...o });
 
-test('Mölnbo är en bana efter Hagstumosse, med fem dagar och korta intron', () => {
+test('Mölnbo är en bana efter Hagstumosse, med tre dagar efter kampanjbågen och korta intron', () => {
   assert.equal(MAPS.molnbo, molnbo);
-  assert.equal(molnbo.days.length, 5);
+  assert.equal(molnbo.days.length, 3);
   assert.deepEqual(molnbo.unlock, { map: 'gnesta-norr', day: 5 });
   for (const d of molnbo.days) {
     assert.match(d.intro.title, /^Day \d: /);
-    // 0.19.0 (H443): också dag 2 (förut Olas text på 20 ord, med undantag)
+    // H443: högst tolv ord, på engelska, och de säger varifrån horden kommer (Järna)
     assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
-    assert.doesNotMatch(JSON.stringify(d), /\u2014/);
+    assert.match(d.intro.text, /Järna/);
+    assert.doesNotMatch(JSON.stringify(d), /—/);
   }
-  // tågklockan från dag 3, det sista tåget dag 5
-  assert.deepEqual(molnbo.days.map(d => !!d.train), [false, false, true, true, true]);
-  assert.equal(molnbo.days[4].train.last, true);
+  const [d1, d2, d3] = molnbo.days;
+  // dag 1: evakueringen av norra sidan, vinst först när också vågorna är hållna
+  assert.ok(d1.evac?.all && d1.evac.need > 0 && d1.evac.safeZone);
+  // dag 2: pendeltåget rullar in
+  assert.ok(d2.arrival && !d2.train && !d2.hold);
+  // dag 3: norra sidan förlorad, hållklockan och uttåget
+  assert.ok(d3.lost?.poly && d3.hold?.at > 0 && d3.hold.exodus);
+  assert.ok(molnbo.days.every(d => !d.train), 'inget tåg som går');
 });
 
-test('varje ingång når Folkets hus, och järnvägen är stängd utom broarna, perrongen och banvallen', () => {
+test('kartan: väg 57 från Järna i nordost över bron mot Gnesta i sydväst, och landmärkena där de ligger', () => {
+  const road = id => molnbo.roads.find(r => r.id === id);
+  for (const id of ['v57', 'v57n', 'gnestavagen', 'stenby', 'troll', 'kvarn', 'fagernas', 'backv', 'norrang', 'skogstorp', 'station', 'mjolnar']) assert.ok(road(id), id);
+  // väg 57: norra delen går mot nordost (x växer, z minskar), Gnestavägen mot sydväst
+  const n = road('v57n').ptsRaw, w = road('gnestavagen').ptsRaw;
+  assert.ok(n.at(-1)[0] > n[0][0] && n.at(-1)[1] < n[0][1] - 50, 'väg 57 mot nordost');
+  assert.ok(w.at(-1)[0] < w[0][0] - 100 && w.at(-1)[1] > w[0][1], 'Gnestavägen mot sydväst');
+  // norra sidan: Backvägen, Norrängsvägen, Skogstorpsvägen och parkeringen ligger norr om spåret
+  for (const id of ['backv', 'norrang', 'skogstorp', 'station']) assert.ok(road(id).rail.every(([, v]) => v < RAIL.corridor[0]), id);
+  assert.ok(RS(molnbo.areas.parking).every(([, v]) => v < RAIL.corridor[0]), 'parkeringen');
+  // södra sidan: Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen och Mjölnarstigen
+  for (const id of ['stenby', 'troll', 'kvarn', 'fagernas', 'mjolnar']) assert.ok(road(id).rail.every(([, v]) => v > RAIL.corridor[1]), id);
+  const at = id => { const h = molnbo.buildings.find(b => b.id === id); return [h.u, h.v]; };
+  // caféet vid brofästet, öster om Stenbyvägen; missionskyrkan söder om Trollvägen; stationshuset vid spåret i öster
+  assert.ok(Math.hypot(at('cafe')[0] - BRIDGE.a[0], at('cafe')[1] - BRIDGE.a[1]) < 25, 'caféet vid brofästet');
+  assert.ok(at('mission')[1] > 60 && at('mission')[0] > -9, 'missionskyrkan');
+  assert.ok(at('station')[0] > 60 && at('station')[1] > RAIL.corridor[1] && at('station')[1] < 30, 'stationshuset');
+  // Folkets hus vid Kvarnvägen, radhusen vid Mjölnarstigen i sydväst, kvarnen längre söderut
+  const F = molnbo.folkets;
+  assert.ok(Math.min(...road('kvarn').rail.map(([u, v]) => Math.hypot(u - F.u, v - F.v))) < 30, 'Folkets hus vid Kvarnvägen');
+  const rows = molnbo.buildings.filter(b => b.kind === 'chain');
+  assert.ok(rows.length >= 4 && rows.every(b => b.u < -20 && b.v > 90), 'radhusen vid Mjölnarstigen');
+  assert.ok(at('kvarn')[1] > F.v + 15, 'kvarnen söder om Folkets hus');
+});
+function RS(poly) { return poly.map(([x, z]) => toRail(x, z)); }
+
+test('EN väg över spåret: bron. Varje ingång når Folkets hus, och järnvägen är stängd utom bron och perrongen', () => {
   for (const pa of route.paths(molnbo.spawns.map(s => s.id))) assert.ok(pa.reaches, pa.id);
   // spåren och södra perrongen är stängda för horden
   for (const v of RAIL.tracks) for (const u of [-60, -30, 40, 80]) assert.equal(g.walkable(keyAtRail(u, v)), false, `spår ${u} ${v}`);
   assert.equal(g.walkable(keyAtRail(-50, 8.2)), false, 'södra perrongen');
-  // norra perrongen och båda broarna är gångbara
   assert.equal(g.walkable(keyAtRail(-50, -10.5)), true, 'norra perrongen');
-  for (const br of [BRIDGE, FOOT]) for (const v of [-6, 0, 6]) assert.equal(g.walkable(keyAtRail(uOn(br, v), v)), true, `bro vid ${v}`);
+  for (const v of [-6, 0, 6]) assert.equal(g.walkable(keyAtRail(uOn(v), v)), true, `bron vid ${v}`);
+  // varje gångbar ruta i spårets mitt ligger på bron: ingen annan passage
+  let mid = 0;
+  for (let k = 0; k < g.n; k++) {
+    if (!g.walkable(k)) continue;
+    const [u, v] = toRail(...g.center(k));
+    if (v < -7 || v > RAIL.corridor[1]) continue;
+    mid++;
+    assert.ok(Math.abs(u - uOn(v)) <= BRIDGE.width / 2 + 1.5, `passage vid ${u.toFixed(0)}, ${v.toFixed(0)}`);
+  }
+  assert.ok(mid > 20, `${mid} rutor på bron`);
 });
 
-test('norr om spåret: enda vägen är bron. Stängs båda broarna slår horden sig igenom', () => {
-  const span = (u, v) => { const [x, z] = R(u, v); return route.span(route.cellAt(x, z)); };
-  const obs = {};
-  for (const k of span(uOn(BRIDGE, 22), 22)) obs[k] = { type: 'block' };
-  // bara vägbron stängd: Norrbacken (0.19.0, förut Krokvägen) går över gångbron
-  let pa = route.paths(['s4'], obs)[0];
-  assert.ok(pa.reaches && pa.through == null);
-  assert.ok(pa.cells.some(k => { const [u, v] = toRail(...g.center(k)); return Math.abs(v) < 5 && Math.abs(u - uOn(FOOT, v)) < 3; }), 'över gångbron');
-  // båda stängda: ingen öppen väg, de går genom en spärr
-  for (const k of span(uOn(FOOT, 22), 22)) obs[k] = { type: 'block' };
-  pa = route.paths(['s4'], obs)[0];
-  assert.ok(pa.through != null, 'genom en spärr');
-  // banvallen (S5) når bara resten genom trappan till gångbron
-  const s5 = route.paths(['s5'])[0];
-  assert.ok(s5.cells.some(k => { const [u, v] = toRail(...g.center(k)); return u > RAIL.platformN.u0 && v < RAIL.platformN.v1 + 0.5 && v > RAIL.platformN.v0 - 0.5; }), 'över perrongen');
+test('bron: med vägbron spärrad, var på däcket som helst, finns ingen väg från norr runt spärren', () => {
+  let n = 0;
+  for (let v = -28; v <= 28; v += 2) {
+    const obs = {}, [x, z] = R(uOn(v), v);
+    for (const k of route.span(route.cellAt(x, z))) obs[k] = { type: 'block' };
+    for (const pa of route.paths(NORTH, obs)) { assert.ok(pa.through != null, `${pa.id} förbi spärren vid ${v}`); n++; }
+    // pendeltågets folk (perrongen, trappan upp på däcket) möter samma spärr när den ligger söder om trappan
+    if (v > LINK.v + 2) {
+      const door = route.nearestCell(...molnbo.inbound.doors[0]);
+      assert.ok(route.pathFrom(door).length > 0);
+    }
+  }
+  assert.ok(n >= 100, `${n} fall`);
+  // trappan från norra perrongen går upp på vägbrons däck (dit pendeltågets folk går)
+  assert.ok(Math.abs(LINK.u1 - (uOn(LINK.v) - BRIDGE.width / 2)) < 1.5, 'trappan når vägbron');
 });
 
-test('höjden i bilden: däcket, ramperna och perrongen', () => {
-  assert.equal(groundY(...R(uOn(BRIDGE, 0), 0)), DECK_H);
-  assert.equal(groundY(...R(uOn(FOOT, 0), 0)), DECK_H);
-  assert.equal(groundY(...R(-6, 34)), 0, 'korsningen vid caféet');
-  const mid = groundY(...R(uOn(BRIDGE, 22), 22));
+test('höjden i bilden: däcket, ramperna, trappan och perrongen', () => {
+  assert.equal(groundY(...R(uOn(0), 0)), DECK_H);
+  assert.equal(groundY(...R(BRIDGE.a[0], BRIDGE.a[1] + 2)), 0, 'korsningen vid caféet');
+  const mid = groundY(...R(uOn(22), 22));
   assert.ok(mid > 0.5 && mid < DECK_H - 0.5, `rampen ${mid}`);
   assert.equal(groundY(...R(-50, -10.5)), RAIL.platformN.h);
+  assert.ok(groundY(...R(LINK.u1 - 1, LINK.v)) > DECK_H - 0.6, 'trappans topp vid däcket');
 });
 
 // 0.17.1 (speltestet av 0.17.0: spärrarna på bron syntes inte, och en Psg 90 hamnade under gångbron)
 test('bron: spärren ligger på däcket, och ingen enhet kan stå under det', () => {
-  const sim = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
-  // en spärr mitt på varje bro: alla rutor står på däckets höjd (bilden lyfter hindren med map.groundY)
-  for (const br of [BRIDGE, FOOT]) {
-    const [x, z] = R(uOn(br, 0), 0);
-    const r = placeAcross(sim, route.cellAt(x, z), 'block');
-    assert.ok(r.ok, JSON.stringify(r));
-    for (const k of r.cells) assert.equal(groundY(...g.center(k)), DECK_H, `ruta ${k} på däcket`);
-  }
+  const sim = createSim({ map: { ...molnbo, days: [bareDay()] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  const [x, z] = R(uOn(0), 0);
+  const r = placeAcross(sim, route.cellAt(x, z), 'block');
+  assert.ok(r.ok, JSON.stringify(r));
+  for (const k of r.cells) assert.equal(groundY(...g.center(k)), DECK_H, `ruta ${k} på däcket`);
   // pekaren mot däcket uppifrån som kameran: punkten ligger på däcket, inte på marken bakom
-  const [bx, bz] = R(uOn(BRIDGE, 0), 0), dir = [-40, -46, -40], L = Math.hypot(...dir);
-  const ray = { origin: { x: bx + 40, y: DECK_H + 46, z: bz + 40 }, direction: { x: dir[0] / L, y: dir[1] / L, z: dir[2] / L } };
+  const dir = [-40, -46, -40], L = Math.hypot(...dir);
+  const ray = { origin: { x: x + 40, y: DECK_H + 46, z: z + 40 }, direction: { x: dir[0] / L, y: dir[1] / L, z: dir[2] / L } };
   const hit = liftedHit(ray, molnbo.groundY);
-  assert.ok(Math.hypot(hit.x - bx, hit.z - bz) < 0.5, `träffen ${hit.x} ${hit.z}`);
+  assert.ok(Math.hypot(hit.x - x, hit.z - z) < 0.5, `träffen ${hit.x} ${hit.z}`);
   // under däcket: inga öppna rutor, skälet "Under the bridge", men soldaterna kan gå där
   let under = 0;
   for (let k = 0; k < p.n; k++) {
@@ -97,92 +139,68 @@ test('bron: spärren ligger på däcket, och ingen enhet kan stå under det', ()
     assert.notEqual(p.kind[k], KIND.open, `ruta ${k} under bron är öppen`);
     assert.ok(crewPassable(p, k) || p.kind[k] === KIND.house, `ruta ${k}`);
   }
-  assert.ok(under > 30, `${under} rutor under broarna`);
-  // södra perrongen under gångbron (där Psg 90 hamnade i speltestet)
+  assert.ok(under > 20, `${under} rutor under bron`);
   let k0 = -1;
-  // utanför järnvägen (förut öppen mark) och med däcket mer än 2 m över sig
   for (let k = 0; k < p.n && k0 < 0; k++) { const c = p.center(k), [, v] = toRail(c.x, c.z); if (Math.abs(v) > RAIL.corridor[1] + 1 && !p.walk[k] && deckY(c.x, c.z) > 2) k0 = k; }
   assert.ok(k0 >= 0, 'en ruta under bron utanför järnvägen');
-  const r0 = checkSpot(sim, k0, 'psg90');
-  assert.deepEqual(r0, { ok: false, reason: 'bro' });
+  assert.deepEqual(checkSpot(sim, k0, 'psg90'), { ok: false, reason: 'bro' });
   assert.equal(reasonText('bro'), 'Under the bridge');
   // och spärren går att riva med halva priset tillbaka, som på de andra banorna
-  const [fx, fz] = R(uOn(FOOT, 0), 0), cash = sim.cash;
-  const rm = removeObstacle(sim, route.cellAt(fx, fz));
+  const cash = sim.cash, rm = removeObstacle(sim, route.cellAt(x, z));
   assert.ok(rm.ok && rm.refund === 75 && sim.cash === cash + 75, JSON.stringify(rm));
 });
 
-// 0.17.1 (speltestet av 0.17.0, dag 4: basen tömdes medan vägbrons spärr stod hel). Ingen väg från norr går förbi två
-// spärrar på broarna, var på däcken de än står (ramperna inräknade, inte korsningarna vid brofästena där gatan är
-// bredare än spärren). Horden norrifrån måste alltså slå sig igenom en spärr.
-test('broarna: med båda broarna spärrade finns ingen väg från norr runt spärrarna', () => {
-  const span = (br, v) => { const [x, z] = R(uOn(br, v), v); return route.span(route.cellAt(x, z)); };
-  let n = 0;
-  for (let vb = -28; vb <= 28; vb += 2) for (let vf = -26; vf <= 26; vf += 2) {
-    const obs = {};
-    for (const k of span(BRIDGE, vb)) obs[k] = { type: 'block' };
-    for (const k of span(FOOT, vf)) obs[k] = { type: 'block' };
-    // banvallen (dag 5) når gångbron genom trappan från norra perrongen, söder om LINK (v -9,4)
-    // 0.19.0 (H450): norr om spåret är väg 57 (s1) och Norrbacken (s4)
-    const north = vf > -8 ? ['s1', 's4', 's5'] : ['s1', 's4'];
-    for (const pa of route.paths(north, obs)) { assert.ok(pa.through != null, `${pa.id} förbi spärrarna (vägbron ${vb}, gångbron ${vf})`); n++; }
-  }
-  assert.ok(n > 1500, `${n} fall`);
-});
-
-test('broarna: en lucka i spärren märks, och raden säger gatan horden tar', () => {
-  // bara gångbron spärrad, en ruta slås sönder: resten av spärren märks genombruten
-  const day = { n: 1, startCash: 0, waves: [{ groups: [{ type: 'brute', count: 6, interval: 0.3, delay: 0, spawn: 's4' }] }] };
+test('bron: en lucka i spärren märks, och raden säger gatan horden tar', () => {
+  const day = { n: 1, startCash: 0, waves: [{ groups: [{ type: 'brute', count: 6, interval: 0.3, delay: 0, spawn: 's3' }] }] };
   const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 1000 });
-  for (const br of [BRIDGE, FOOT]) { const [x, z] = R(uOn(br, 0), 0); assert.ok(placeAcross(sim, route.cellAt(x, z), 'block').ok); }
+  { const [x, z] = R(uOn(0), 0); assert.ok(placeAcross(sim, route.cellAt(x, z), 'block').ok); }
   startWave(sim);
   let broken = null;
   while (!broken && sim.time < 400) { step(sim, 0.1); broken = sim.events.find(e => e.t === 'obstacleBroken'); }
   assert.ok(broken, 'en ruta gick sönder');
   const rest = Object.values(sim.obstacles).filter(o => o.line === broken.line);
   assert.ok(rest.length >= 1 && rest.every(o => o.breached), 'resten av spärren är genombruten');
-  assert.ok(Object.values(sim.obstacles).filter(o => o.line !== broken.line).every(o => !o.breached), 'den andra spärren står');
   const c = route.cellCenter(broken.cell);
-  assert.match(streetAt(molnbo, c.x, c.z), /^(Gångbron|Väg 57)$/);
-  // Stenbyvägen spärrad vid Missionshuset: horden norrifrån (0.19.0, H450) tar Fagernäsvägen, och raden säger det
+  assert.equal(streetAt(molnbo, c.x, c.z), 'Väg 57');
+  // Stenbyvägen spärrad vid Missionskyrkan: horden från bron tar Trollvägen, och raden säger det
   const before = route.paths(['s1'])[0].cells, obs = {};
-  { const [x, z] = R(-1.5, 56); for (const k of route.span(route.cellAt(x, z))) obs[k] = { type: 'block' }; }
+  { const [x, z] = R(-9, 66); for (const k of route.span(route.cellAt(x, z))) obs[k] = { type: 'block' }; }
   const after = route.paths(['s1'], obs)[0].cells;
-  assert.equal(rerouteStreet(molnbo, k => g.center(k), before, after), 'Fagernäsvägen');
+  assert.equal(after.length > 0 && route.paths(['s1'], obs)[0].through, null, 'en öppen väg runt');
+  assert.match(rerouteStreet(molnbo, k => g.center(k), before, after) ?? '', /Trollvägen|Kvarnvägen/);
 });
 
-test('prickskyttelägen: trapptornen, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
-  const sim = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
-  const roofKey = (u, v) => keyAtRail(u, v);
+test('prickskyttelägen: trapptornen vid vägbron, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
+  const sim = createSim({ map: { ...molnbo, days: [bareDay()] }, day: 1, cash: 99999, research: ['psg90.1'] });
   for (const t of TOWERS) {
-    const k = roofKey(...t.at);
+    const k = keyAtRail(...t.at);
     assert.ok(p.perch[k] && p.roof[k] >= t.h - 0.05, `${t.id}`);
     assert.equal(build(sim, k, 'psg90').ok, true, `Psg 90 på ${t.id}`);
+    // tornet står vid vägbrons västra kant
+    assert.ok(Math.abs(t.at[0] + t.size / 2 - (uOn(t.at[1]) - BRIDGE.width / 2)) < 1.5, `${t.id} vid bron`);
   }
-  assert.ok(p.perch[roofKey(-51, X60.v)] && p.roof[roofKey(-51, X60.v)] > 3.5, 'X60-taket');
-  assert.ok(p.perch[roofKey(92, 16.5)], 'stationstaket');
-  // tåget skymmer (ett hus med höjd), och södra perrongen bakom det är skydd för grupperna
-  assert.equal(p.kind[roofKey(-51, X60.v)], KIND.house);
+  assert.ok(p.perch[keyAtRail(-51, X60.v)] && p.roof[keyAtRail(-51, X60.v)] > 3.5, 'X60-taket');
+  const st = molnbo.buildings.find(b => b.id === 'station');
+  assert.ok(p.perch[keyAtRail(st.u, st.v)], 'stationstaket');
+  assert.equal(p.kind[keyAtRail(-51, X60.v)], KIND.house);
   let brick = 0;
   for (let u = -76; u < -26; u += 2) { const k = keyAtRail(u, 6.8); if (p.brick[k] && p.kind[k] === KIND.open) brick++; }
   assert.ok(brick >= 15, `${brick} rutor bakom tåget`);
 });
 
-// 0.17.2 (H301, Olas speltest av 0.17.1): prickskytt i missionskyrkans klocktorn och på de höga husen (hyreshusen,
-// Folkets hus, stationshuset). Tornen är perch 3 (TOWER i spöket), taken perch 1 (ROOF); höjden ger sikten.
+// 0.17.2 (H301, Olas speltest av 0.17.1): prickskytt i missionskyrkans klocktorn och på de höga husen.
 test('prickskyttelägen: klocktornet och de höga husen, och tornets höjd ser längre än marken', () => {
-  const sim = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  const sim = createSim({ map: { ...molnbo, days: [bareDay()] }, day: 1, cash: 99999, research: ['psg90.1'] });
   const ids = SHAPES.map(s => s.id), cells = id => { const out = []; for (let k = 0; k < p.w * p.h; k++) if (p.perch[k] && p.bldg[k] === ids.indexOf(id) + 1) out.push(k); return out; };
   const tower = cells('mission');
   assert.ok(tower.length >= 1 && tower.every(k => p.perch[k] === 3 && p.roof[k] >= 10), `klocktornet: ${tower.map(k => [p.perch[k], p.roof[k]])}`);
   for (const t of TOWERS) assert.ok(cells(t.id).every(k => p.perch[k] === 3), t.id);
-  for (const id of ['apt1', 'apt2', 'folkets', 'station']) assert.ok(cells(id).length >= 4 && cells(id).every(k => p.perch[k] === 1), id);
+  for (const id of ['apt1', 'folkets', 'station']) assert.ok(cells(id).length >= 4 && cells(id).every(k => p.perch[k] === 1), id);
   const k = tower[0];
   assert.equal(build(sim, k, 'psg90').ok, true, 'Psg 90 i klocktornet');
   const gun = sim.guns.at(-1);
   assert.ok(gun.roof && gun.y >= 10, `står ${gun.y} m upp`);
-  // samma pjäs på marken bredvid kyrkan ser mindre av gatorna
-  const sim2 = createSim({ map: { ...molnbo, days: [{ n: 1, startCash: 99999, waves: [{ groups: [] }] }] }, day: 1, cash: 99999, research: ['psg90.1'] });
+  const sim2 = createSim({ map: { ...molnbo, days: [bareDay()] }, day: 1, cash: 99999, research: ['psg90.1'] });
   const c = p.center(k);
   let ground = -1;
   for (let r = 6; r < 16 && ground < 0; r += 2) for (let a = 0; a < 16 && ground < 0; a++) {
@@ -194,7 +212,7 @@ test('prickskyttelägen: klocktornet och de höga husen, och tornets höjd ser l
   assert.ok(seen(sim) > seen(sim2) * 1.3, `tornet ser ${seen(sim)} rutor, marken ${seen(sim2)}`);
 });
 
-test('tågklockan: dagen vinns när tåget går, också med zombier kvar, och väntar på tåget när vågorna är klara', () => {
+test('tågklockan (motorn kvar): dagen vinns när tåget går, också med zombier kvar, och väntar när vågorna är klara', () => {
   const day = { n: 1, startCash: 0, train: { at: 30 }, waves: [{ groups: [{ type: 'walker', count: 30, interval: 0.5, delay: 0, spawn: 's1' }] }] };
   const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 0 });
   startWave(sim);
@@ -203,16 +221,95 @@ test('tågklockan: dagen vinns när tåget går, också med zombier kvar, och v�
   assert.equal(sim.phase, 'won');
   assert.ok(Math.abs(gone - 30) < 0.15, `tåget gick ${gone}`);
   assert.ok(sim.zombies.some(z => !z.dead), 'zombier kvar när tåget gick');
-  // en dag där vågorna är slut före tåget: den väntar
-  const d2 = { n: 1, startCash: 0, train: { at: 40 }, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 's1' }] }] };
-  const s2 = createSim({ map: { ...molnbo, baseHp: 999, days: [d2] }, day: 1, cash: 0 });
-  startWave(s2);
-  while (!s2.zombies.length) step(s2, 0.1);
-  for (const z of s2.zombies) z.dead = true;
-  for (let i = 0; i < 100; i++) step(s2, 0.1);
-  assert.notEqual(s2.phase, 'won', 'väntar på tåget');
-  while (s2.phase !== 'won' && s2.time < 60) step(s2, 0.1);
-  assert.ok(s2.phase === 'won' && s2.time >= 40 - 1e-6);
+});
+
+// 0.20.0 (H495, dag 1): de civila på norra sidan går över bron i grupper; i säkerhet när de är över (safeZone).
+test('dag 1: de civila är i säkerhet över bron, och dagen vinns först när också vågorna är hållna', () => {
+  const d1 = molnbo.days[0];
+  // husen ligger på norra sidan och deras väg går över bron
+  for (const q of d1.evac.groups) {
+    const h = molnbo.buildings.find(b => b.id === q.house);
+    assert.ok(h && h.v < RAIL.corridor[0], q.house);
+  }
+  // en enda grupp, inga zombier att tala om: de går över bron och är i säkerhet söder om den, långt före basen
+  const ev = { need: 2, all: true, safeZone: d1.evac.safeZone, groups: [{ house: d1.evac.groups[0].house, count: 2, at: 0, wave: 0 }] };
+  const day = { n: 1, startCash: 0, evac: ev, waves: [{ groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 's4' }] }, { groups: [{ type: 'walker', count: 1, interval: 1, delay: 0, spawn: 's4' }] }] };
+  const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 0 });
+  startWave(sim);
+  let safeAt = null;
+  while (sim.phase !== 'won' && sim.time < 400) {
+    step(sim, 0.1);
+    for (const e of sim.events) if (e.t === 'civilianSafe') { const c = sim.civilians.find(q => q.id === e.id); safeAt = toRail(c.x, c.z); }
+    // de civila är framme men vågorna är inte hållna: dagen går vidare
+    if (sim.evac.safe === 2 && sim.waveIndex < 2) assert.notEqual(sim.phase, 'won', 'vinner inte före vågorna');
+    if (sim.phase === 'build' && sim.nextWaveIn != null) sim.nextWaveIn = Math.min(sim.nextWaveIn, 1);
+    for (const z of sim.zombies) if (!z.dead && sim.time > 40) z.dead = true;
+  }
+  assert.equal(sim.phase, 'won');
+  assert.equal(sim.evac.safe, 2);
+  assert.ok(safeAt && safeAt[1] > BRIDGE.ramp && safeAt[1] < 50, `i säkerhet vid ${safeAt}`);
+});
+
+// 0.20.0 (H495, dag 3): norra sidan är förlorad, ingen placering där. Dag 1 och 2 går det.
+test('dag 3: norra sidan är förlorad, ingen enhet och ingen spärr där', () => {
+  const north = [-20, -50], key = keyAtRail(...north);
+  assert.ok(inPoly(...R(...north), NORTH_SIDE));
+  const s3 = createSim({ map: molnbo, day: 3, cash: 99999 });
+  let open = -1;
+  for (let k = 0; k < p.n && open < 0; k++) { const c = p.center(k); if (p.kind[k] === KIND.open && inPoly(c.x, c.z, NORTH_SIDE) && toRail(c.x, c.z)[1] < -30) open = k; }
+  assert.ok(open >= 0);
+  assert.deepEqual(checkSpot(s3, open, 'hv'), { ok: false, reason: 'förlorad' });
+  assert.equal(reasonText('förlorad'), 'Lost to the horde');
+  const [rx, rz] = R(20, -60);
+  assert.equal(checkObstacle(s3, route.cellAt(rx, rz), 'block').reason, 'förlorad');
+  // bron över spåret går fortfarande att spärra, och söder om spåret går det att ställa ut
+  { const [x, z] = R(uOn(0), 0); assert.ok(checkObstacle(s3, route.cellAt(x, z), 'block').ok); }
+  const s2 = createSim({ map: molnbo, day: 2, cash: 99999 });
+  assert.notEqual(checkSpot(s2, open, 'hv').reason, 'förlorad');
+  void key;
+});
+
+// 0.20.0 (H495, dag 3): klockan går ut, menyerna tonar, trupperna packar och springer sydväst ut, flodvågen väller in
+// från norr, och när den går ut på bron tonar bilden ut och dagen är vunnen. Deterministiskt.
+test('dag 3: uttåget. Klockan går ut, trupperna packar, flodvågen når bron, bilden tonar ut och dagen är vunnen', () => {
+  const run = () => {
+    const d3 = molnbo.days[2], day = { ...d3, hold: { ...d3.hold, at: 40 } };
+    const sim = createSim({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 99999, research: ['psg90.1'] });
+    // en grupp och en Ksp 90 söder om bron
+    for (const [u, v, t] of [[-24, 46, 'hv'], [-2, 60, 'm249']]) {
+      const [x, z] = R(u, v);
+      let ok = false;
+      for (let r = 0; r < 8 && !ok; r++) for (let a = 0; a < 16 && !ok; a++) { const k = p.keyAt(x + Math.cos(a) * r * 2, z + Math.sin(a) * r * 2); ok = checkSpot(sim, k, t).ok && build(sim, k, t).ok; }
+      assert.ok(ok, t);
+    }
+    startWave(sim);
+    const log = [];
+    let shotsAfter = 0;
+    while (sim.phase !== 'won' && sim.phase !== 'lost' && sim.time < 300) {
+      step(sim, 1 / 30);
+      for (const e of sim.events) if (/^exodus|^won$/.test(e.t)) log.push([e.t, Math.round(sim.time * 10) / 10]);
+      if (sim.phase === 'exodus') shotsAfter += sim.events.filter(e => e.t === 'shot').length;
+    }
+    return { sim, log, shotsAfter };
+  };
+  const a = run(), b = run();
+  assert.equal(a.sim.phase, 'won');
+  assert.deepEqual(a.log.map(([t]) => t), ['exodusStart', 'exodusFade', 'exodusDone', 'won']);
+  const at = t => a.log.find(x => x[0] === t)[1];
+  assert.ok(Math.abs(at('exodusStart') - 40) < 0.1, 'klockan');
+  assert.ok(at('exodusFade') > at('exodusStart') + 3, 'flodvågen når bron en stund efter uttåget');
+  assert.ok(Math.abs(at('exodusDone') - at('exodusFade') - molnbo.days[2].hold.exodus.fade) < 0.1, 'bilden tonar ut');
+  assert.equal(a.shotsAfter, 0, 'ingen skjuter under uttåget');
+  // trupperna har packat och är på väg mot utgången i sydväst (Gnestavägen)
+  const exit = molnbo.days[2].hold.exodus.exit;
+  assert.ok(a.sim.exodus.packed >= 2);
+  for (const gun of a.sim.guns) assert.ok(gun.leaving && Math.hypot(gun.x - exit[0], gun.z - exit[1]) < 4, gun.weapon.type);
+  // flodvågen kom från norr och gick ut på bron
+  const flood = a.sim.zombies.filter(z => z.flood);
+  assert.ok(flood.length > 50, `${flood.length} i flodvågen`);
+  assert.ok(flood.some(z => inPoly(z.x, z.z, molnbo.days[2].hold.exodus.trigger)), 'på bron');
+  // deterministiskt
+  assert.deepEqual(a.log, b.log);
 });
 
 test('kampanjen: Mölnbo öppnar efter Vikingavägen dag 5 och truppen följer med', () => {
@@ -223,64 +320,83 @@ test('kampanjen: Mölnbo öppnar efter Vikingavägen dag 5 och truppen följer m
   p0 = finishDay(p0, { mapId: 'gnesta-norr', day: 5, won: true, intelEarned: 10 }).progress;
   assert.equal(mapUnlocked(p0, 'molnbo'), true);
   assert.equal(sectorStatus(p0, 'molnbo'), 'holding');
-  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90
-  assert.equal(unitsIn(p0, 'molnbo').length, before + 1);
-  assert.ok(p0.op.inbox.some(m => /Mölnbo station is the last way north/.test(m.text)), 'övergången');
+  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90 och A-traktor (0.20.0)
+  assert.equal(unitsIn(p0, 'molnbo').length, before + 2);
+  assert.ok(p0.op.inbox.some(m => /Järna/.test(m.text) && /Mölnbo is next/.test(m.text)), 'övergången');
   assert.ok(p0.op.inbox.some(m => m.id === 'mb-1'));
+  // efter dag 3 är Mölnbo klart (sektorn stängd)
+  for (const d of [1, 2, 3]) p0 = finishDay(p0, { mapId: 'molnbo', day: d, won: true, intelEarned: 10, report: { units: [] } }).progress;
+  assert.equal(sectorStatus(p0, 'molnbo'), 'held');
+});
+
+// 0.20.0 (H495): en sparfil som stod på Mölnbo dag 4 eller 5 räknas som klar med Mölnbo. Sparfilen raderas aldrig.
+test('sparfilen: Mölnbo dag 4 och 5 från före 0.20.0 räknas som Mölnbo klart, och kopian behålls', () => {
+  let base = debugReach(newCampaign(), 'molnbo', 3);
+  for (const day of [4, 5, 6]) {
+    const old = { ...base, maps: { ...base.maps, molnbo: { unlockedDay: day, attempts: { 1: 1, 2: 1, 3: 1, 4: 2, ...(day > 4 ? { 5: 1 } : {}) } } } };
+    const m = new Map([['horde.save', JSON.stringify(old)]]);
+    const st = { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
+    const q = loadProgress(st);
+    assert.equal(mapState(q, 'molnbo').unlockedDay, 4, `dag ${day}`);
+    assert.equal(sectorStatus(q, 'molnbo'), 'held', `dag ${day}`);
+    assert.equal(mapState(q, 'molnbo').attempts[4], 2, 'försöken står kvar');
+    assert.equal(m.get('horde.save'), JSON.stringify(old), 'filen skrivs inte över vid läsningen');
+    if (day > 4) assert.equal(m.get('horde.save.days'), JSON.stringify(old), 'kopian');
+    assert.equal(q.op.units.length, old.op.units.length, 'inga enheter försvinner');
+  }
 });
 
 // Balansen (docs/balance-log.md, Mölnbo). Spelaren kommer med det en vanlig spelare har efter Hagstumosse.
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const smart = SEEDS.map(s => molnboCampaign('mbSmart', { seedOffset: s, maxAttempts: 6 }));
-const naive = SEEDS.map(s => molnboCampaign('naive', { seedOffset: s, maxAttempts: 4 }));
+const naive = SEEDS.map(s => molnboCampaign('mbNaive', { seedOffset: s, maxAttempts: 4 }));
 
-// 0.17.1 (efter speltestet av 0.17.0): dag 5 inom 3 försök (var 4), och dag 1 till 3 inom 2.
-test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och dag 5 inom 3', () => {
+// 0.20.0: kartläsaren vinner varje dag inom 2 försök
+test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök', () => {
   for (const [i, r] of smart.entries()) {
     const a = mbAttempts(r.log);
     assert.equal(r.stuck, null, `seed ${i}: ${a}`);
     for (let d = 0; d < 3; d++) assert.ok(a[d] <= 2, `seed ${i} dag ${d + 1}: ${a}`);
-    assert.ok(a[3] <= 2, `seed ${i} dag 4: ${a}`);
-    assert.ok(a[4] <= 3, `seed ${i} dag 5: ${a}`);
   }
-  // 0.17.2 (H301): med tornen och de höga husen vinner kartläsaren på första försöket, men dag 4 (bron) kostar basen
-  // (MB05, H295: dag 4 och 5 var knivseggar, Ola förlorade dag 4; dag 4 hp 31 till 36, docs/balance-log.md 0.17.2)
 });
 
-// 0.19.1 (speltestet av 0.19.0, fynd 4: basen hade 3 till 4 kvar när pendeltåget kom, och tåget avgjorde inget): båda
-// spelarna har en hel bas när tåget signalerar, och tåget är ett val. Kartläsaren flyttar en grupp mot perrongen och
-// klarar sig med god marginal; den som håller kvar betalar.
-test('balans: pendeltåget dag 4 kommer till en hel bas, och den som inte flyttar betalar', () => {
-  for (const [name, rs] of [['mbSmart', smart], ['naive', naive]]) for (const [i, r] of rs.entries()) {
-    const d4 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 4);
-    for (const x of d4) assert.ok(x.trainBase != null && x.trainBase >= 15, `${name} seed ${i} försök ${x.attempt}: basen ${x.trainBase} vid signalen`);
+// 0.20.0 (dag 1): de civila kommer över bron; med evakueringens tips klarar också den som aldrig spärrar dagen
+test('balans: dag 1 får de civila över, båda spelarna, på första försöket', () => {
+  for (const [name, rs] of [['mbSmart', smart], ['mbNaive', naive]]) for (const [i, r] of rs.entries()) {
+    const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 1 && x.won);
+    assert.ok(w && w.attempt === 1, `${name} seed ${i}`);
+    assert.ok(w.evac.safe >= molnbo.days[0].evac.need, `${name} seed ${i}: ${w.evac.safe}`);
+  }
+});
+
+// 0.19.1 (speltestet av 0.19.0, fynd 4): båda spelarna har en hel bas när tåget signalerar (0.20.0: dag 2), och tåget är
+// ett val. Kartläsaren flyttar en grupp mot korsningen och klarar sig med god marginal.
+test('balans: pendeltåget dag 2 kommer till en hel bas', () => {
+  for (const [name, rs] of [['mbSmart', smart], ['mbNaive', naive]]) for (const [i, r] of rs.entries()) {
+    const d2 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 2);
+    for (const x of d2) assert.ok(x.trainBase != null && x.trainBase >= 15, `${name} seed ${i} försök ${x.attempt}: basen ${x.trainBase} vid signalen`);
   }
   for (const [i, r] of smart.entries()) {
-    const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 4 && x.won);
-    assert.ok(w && w.baseHp >= 12, `mbSmart seed ${i}: dag 4 bas ${w?.baseHp}`);
+    const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 2 && x.won);
+    assert.ok(w && w.baseHp >= 12, `mbSmart seed ${i}: dag 2 bas ${w?.baseHp}`);
   }
-  const held = naive.map(r => r.log.find(x => x.mapId === 'molnbo' && x.day === 4 && x.attempt === 1)).filter(Boolean);
-  assert.ok(held.every(x => !x.won || x.baseHp <= 12), `naive dag 4: ${held.map(x => x.baseHp)}`);
 });
 
-// 0.17.2 (H301): prickskyttarna i tornen och på de höga husen bär den som inte spärrar genom dag 3; bron dag 4 stoppar
-// honom (i minst fyra av fem seeds). Förut: förlorade från dag 3.
-// 0.19.1 (speltestet av 0.19.0: dag 3 och 4 var en mur, testaren förlorade två och fem gånger): den som aldrig spärrar är
-// den vanliga spelaren som ställer ut förnuftigt. Han vinner dag 1 och 2 direkt och tar sig igenom dag 3 och 4 inom
-// fyra försök, men dag 3 till 5 kostar basen.
-test('balans: den som aldrig spärrar klarar Mölnbo, men dag 3 till 5 kostar', () => {
+// 0.20.0: den som aldrig spärrar klarar Mölnbo, men dag 2 och 3 kostar
+test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag, men dag 2 och 3 kostar', () => {
   for (const [i, r] of naive.entries()) {
     const a = mbAttempts(r.log);
-    assert.deepEqual(a.slice(0, 2), [1, 1], `seed ${i}`);
-    for (const d of [2, 3]) assert.ok(a[d] >= 1 && a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
+    assert.equal(r.stuck, null, `seed ${i}: ${a}`);
+    for (const d of [1, 2]) assert.ok(a[d] >= 1 && a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
   }
-  const won = naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day >= 3 && x.won));
+  const won = naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day >= 2 && x.won));
   assert.ok(won.reduce((s, x) => s + x.baseHp, 0) / won.length <= 12, `snitt bas ${won.map(x => x.baseHp)}`);
 });
 
-test('balans: högst cirka 250 levande zombier samtidigt', () => {
-  const peak = Math.max(...[...smart, ...naive].flatMap(r => r.log.map(x => x.peak)));
-  assert.ok(peak <= 250, `${peak}`);
+test('balans: högst cirka 250 levande zombier samtidigt, och högst två vågor ute', () => {
+  const all = [...smart, ...naive].flatMap(r => r.log);
+  assert.ok(Math.max(...all.map(x => x.peak)) <= 250, `${Math.max(...all.map(x => x.peak))}`);
+  for (const x of all) assert.ok(x.peakWaves <= 2, `dag ${x.day} försök ${x.attempt}: ${x.peakWaves}`);
 });
 
 // 0.17.1 (speltestet av 0.17.0 hoppade dit med truppen på nivå 1): hoppet till Mölnbo ger balansens ankomst.
@@ -288,63 +404,29 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
   const a = molnboArrival(0);
   assert.deepEqual(ARRIVAL_TROOP.molnbo.units, a.op.units.map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0]), 'kör om balansen och skriv in truppen i src/data/arrival.js');
   assert.deepEqual(ARRIVAL_TROOP.molnbo.research, a.research);
-  const p = debugReach(newCampaign(), 'molnbo', 1);
-  assert.deepEqual(unitsIn(p, 'molnbo').map(u => [u.type, u.level]), ARRIVAL_TROOP.molnbo.units.map(([t, l]) => [t, l]));
-  assert.ok(ARRIVAL_TROOP.molnbo.research.every(id => p.research.includes(id)));
+  const q = debugReach(newCampaign(), 'molnbo', 1);
+  assert.deepEqual(unitsIn(q, 'molnbo').map(u => [u.type, u.level]), ARRIVAL_TROOP.molnbo.units.map(([t, l]) => [t, l]));
+  assert.ok(ARRIVAL_TROOP.molnbo.research.every(id => q.research.includes(id)));
 });
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
-// 0.17.0-molnbo: första kvittot.
-// 0.17.0 (sammanslagen med 0.16.4): alla steg nya, avsiktligt. Löparnas snubbel och 0.16.4:s ändringar i simuleringen
-// flyttar varje dag; dag 3 till 5 omtrimmade (docs/balance-log.md, Mölnbo 0.17.0).
-// 0.17.1 (speltestet av 0.17.0): alla dagar nya, avsiktligt. Dag 1 jämnare vågor och ingen överlapp dag 1 och 2,
-// trapptornen 7,2 m, ingen enhet under broarna, dag 5 hp 16 till 15 (docs/balance-log.md, Mölnbo 0.17.1).
-// 0.17.2: alla dagar nya, avsiktligt. Prickskyttarna i tornen, på hyreshusen, Folkets hus gavel och stationen (H301),
-// husen och bilarna av vägarna (H307), trädgårdarnas bodar (H308), dag 4 hp 31 till 36 (docs/balance-log.md 0.17.2).
-// 0.18.0: alla dagar nya, avsiktligt (skiva 1): ankomsten från Hagstumosse med sanity, korseld och trötthet, routed och
-// Fall back från dag 1, de pansrade dag 2, kryparna dag 2 till 5, husen, Håll eld dag 4 och överrända pjäser dag 5;
-// kartläsaren vilar de utmattade, ställer Ksp 88 på Strongest, bemannar tysta pjäser och ställer en grupp i ett hus.
-// Dag 4 hp 36 till 34 och färre vandrare i dag 4:s och 5:s sista vågor (toppen under 250). docs/balance-log.md 0.18.0.
-// 0.18.1 (vågornas grind): ingen av Mölnbo-spelarna kallar tidigt, så högst två vågor är ute samtidigt
-test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => {
-  for (const rs of [smart, naive]) for (const r of rs) for (const x of r.log) assert.ok(x.peakWaves <= 2, `dag ${x.day} försök ${x.attempt}: ${x.peakWaves}`);
-});
-// 0.18.1: alla dagar nya, avsiktligt: ankomsten från Hagstumosse (omräknad), vågornas grind och tåget senare (dag 3 330
-// till 420 s, dag 4 340 till 380 och hp 34 till 38, dag 5 360 till 420), förrådets banor och husen som slutar stormas när
-// alla där är nere. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.18.1.
-// 0.19.0: alla dagar nya, avsiktligt: horden från Järna (H450), gruppen söderifrån (H451), pendeltåget dag 4 i fjärde
-// vågen och hp 38 till 32 (H452), kartläsaren flyttar en grupp vid signalen och spärrar inte Kvarnvägen, snubblet, stormningens
-// tärning, vågens svans och bjässarna mot skrotbilarna. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.19.0.
-// 0.19.1: alla dagar nya, avsiktligt: ankomsten (omräknad), grindens overlapMin dag 3 till 5 (den långa klockan släpper bara
-// om 40 % är nere), pendeltåget i tredje vågen och avgången 420 s dag 4, våg 3 och 4 mindre, hp dag 3 17,5 till 18, dag 4 32
-// till 38, dag 5 15 till 19, snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag. Naive når dag 5.
-// docs/balance-log.md 0.19.1.
-// 0.19.2: dag 4 och 5 nya, avsiktligt: dag 4 hp 38 till 36 (speltestet av 0.19.1: vandrarna läckte förbi vid Folkets hus
-// från cirka 270 s, tre försök i rad). Dag 1 till 3 orörda. docs/balance-log.md 0.19.2.
+// 0.20.0: alla dagar nya, avsiktligt: kartan omritad efter satellitbilden (en bro, vägnätet, Folkets hus vid Kvarnvägen)
+// och tre dagar efter kampanjbågen (evakueringen, norra sidan faller, uttåget). Den andra spelaren är mbNaive (naive som
+// följer evakueringens tips). docs/balance-log.md 0.20.0.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
-test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'd71cc6d9', 'molnbo 2': 'c73e046d', 'molnbo 3': '92e246da', 'molnbo 4': 'a7c97377', 'molnbo 5': 'a447e4e0' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '579bb76c', 'molnbo 2': '972a565c', 'molnbo 3': 'a84d179d', 'molnbo 4': '06a2f8c6', 'molnbo 5': '6b3b70bd' });
+test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'cb983217', 'molnbo 2': '6219ae1d', 'molnbo 3': '6b79badf' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '6a7fdc42', 'molnbo 2': 'c2b3f881', 'molnbo 3': 'aaab289f' });
 });
 
-// 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").
-// Ingen bugg i flödesfältet: husen med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte
-// stänga en väg. Det var en ny ingång: gruppen söderifrån (Stenbyvägen, våg 2) kommer ut söder om Kvarnvägens
-// korsning, så med Kvarnvägen stängd är skrotbilarna på Stenbyvägen söder om Folkets hus dess enda väg. De slår sig
-// igenom, luckan öppnar och hela horden tar den kortare vägen genom luckan. H458 varnar nu när spärren läggs.
-test('H457: skrotbilarna söder om Folkets hus är enda vägen för gruppen söderifrån när Kvarnvägen är stängd', () => {
+// 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.
+test('H457: ett hus med garnison ändrar inte hordens vägar', () => {
   const sim = createSim({ map: molnbo, day: 2, cash: 9999, depth: true });
   sim.maxSquads = 9;
-  const r = sim.route, obs = {};
-  for (const [u, v, t] of [[-90, 71, 'block'], [3, 125, 'car']]) { const [x, z] = R(u, v); for (const k of r.span(r.cellAt(x, z))) obs[k] = { type: t }; }
-  const [p1, p2] = r.paths(['s1', 's2'], obs);
-  assert.equal(p1.through, null, 'horden norrifrån har en öppen väg');
-  assert.ok(p2.through != null && streetAt(molnbo, ...g.center(p2.through)) === 'Stenbyvägen', 'söderifrån genom bilarna');
-  // ett hus med garnison ändrar inte vägarna
-  const before = r.paths(['s1', 's2']).map(p => p.cells.join());
-  const h = sim.map.lots.plots.find(q => q.id === 'V-13');
+  const r = sim.route, before = r.paths(['s1', 's4']).map(q => q.cells.join());
+  const h = sim.map.lots.plots.find(q => q.house.kind === 'villa' && q.house.v > 40 && q.house.road === 'stenby');
   assert.ok(h);
   const k = p.keyAt(h.house.x, h.house.z);
   assert.ok(build(sim, k, 'inf').ok && sim.guns[0].house, 'gruppen i huset');
-  assert.deepEqual(r.paths(['s1', 's2']).map(q => q.cells.join()), before);
+  assert.deepEqual(r.paths(['s1', 's4']).map(q => q.cells.join()), before);
 });

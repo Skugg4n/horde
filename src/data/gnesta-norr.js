@@ -603,7 +603,8 @@ export const gnestaNorr = {
   id: 'gnesta-norr', name: 'Hagstumosse · Vikingavägen', version: NORR_VERSION,
   // 0.16.4 (Olas rättelse): en vinst läses som en vinst, befälhavaren skickas dit det behövs.
   // 0.17.0: Mölnbo följer (src/data/molnbo.js)
-  outro: { text: 'Hagstumosse holds and the ice rink is safe. Mölnbo station is the last way north for hundreds. Command is sending you to hold it.' },
+  // 0.20.0 (kampanjbågen dag 8): Järna har fallit och Mölnbo står på tur
+  outro: { text: 'Hagstumosse holds and the ice rink is safe. A bigger horde from Södertälje has taken Järna. Mölnbo is next.' },
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).

@@ -4,12 +4,12 @@
 //   2 crossfire   korseldens zon med en Ksp 90 i handen (Ishallen dag 2)
 //   3 armored     pansrade mot småkaliber (Mölnbo dag 2)
 //   4 rout        en grupp frivilliga bryts av bjässar (Mölnbo dag 1)
-//   5 overrun     en Ksp 90 blir överränd och bemannas igen med Recrew (Mölnbo dag 5)
+//   5 overrun     en Ksp 90 blir överränd och bemannas igen med Recrew (Mölnbo dag 3; 0.20.0, förut dag 5)
 //   6 fatigue     tröttheten i förrådet och rekvisitionens streck
 // 0.18.1 (speltestet av 0.18.0 hann inte se dem):
 //   7 classes     pansrade mot lätta och tunga vapen: skada per träff per skadeklass (Mölnbo dag 2)
-//   8 crawlers    krypare under taggtråden: farten i trådens rutor och trådens slitage (Mölnbo dag 4)
-//   9 molnbo      Mölnbo dag 1 till 4 spelade med balansens uppställning: utfall, flest vågor ute samtidigt
+//   8 crawlers    krypare under taggtråden: farten i trådens rutor och trådens slitage (Mölnbo dag 2; 0.20.0, förut dag 4)
+//   9 molnbo      Mölnbo dag 1 till 3 (0.20.0) spelade med balansens uppställning: utfall, flest vågor ute samtidigt
 //  10 readable    korseldens zoner utan kort i handen, "+20 %" i striden, sanity-stapeln och banderollen när en enhet bryts
 //  11 depot       förrådets banor (Into battle / Reserve · resting) och INTEL
 //
@@ -184,7 +184,7 @@ const scenes = {
   },
   // 5. En Ksp 90 nära gatan blir överränd, står tyst och bemannas igen med Recrew
   async overrun() {
-    await day('molnbo', 5);
+    await day('molnbo', 3);
     const r = await page.evaluate(async () => {
       const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js'), B = await import('./scripts/balance.mjs');
       sim.cash = 2000;
@@ -275,7 +275,7 @@ const scenes = {
   },
   // 8. Krypare under taggtråden: Mölnbo dag 4, tråd tvärs över vägen, krypare och vandrare genom den
   async crawlers() {
-    await day('molnbo', 4);
+    await day('molnbo', 2);
     const r = await page.evaluate(async () => {
       const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js'), { ZOMBIES } = await import('./src/data/zombies.js');
       sim.cash = 5000;
@@ -310,24 +310,27 @@ const scenes = {
     });
     return r;
   },
-  // 9. Mölnbo dag 1 till 4, var för sig: balansens uppställning (Quick jump) och sedan bara klockan
+  // 9. Mölnbo dag 1 till 3, var för sig: balansens uppställning (Quick jump) och sedan bara klockan. Dag 3 slutar med
+  // uttåget (0.20.0): phase 'exodus' tills bilden tonat ut
   async molnbo() {
     const out = {};
-    for (const d of [1, 2, 3, 4]) {
+    for (const d of [1, 2, 3]) {
       await page.evaluate(async d => { await window.__horde.quickJump('molnbo', d); }, d);
       await clearLessons();
       out['day' + d] = await page.evaluate(async () => {
         const H = window.__horde, sim = H.sim, S = await import('./src/sim/sim.js');
         if (sim.phase === 'build' && sim.nextWaveIn == null) S.startWave(sim);
         let most = 0, routs = 0, silent = 0, xf = 0;
-        for (let i = 0; i < 30 * 900 && (sim.phase === 'wave' || sim.phase === 'build'); i++) {
+        let exodus = false;
+        for (let i = 0; i < 30 * 900 && (sim.phase === 'wave' || sim.phase === 'build' || sim.phase === 'exodus'); i++) {
           if (sim.phase === 'build' && sim.nextWaveIn == null) S.startWave(sim);
+          if (sim.phase === 'exodus') exodus = true;
           S.step(sim, 1 / 30);
           for (const e of sim.events) { if (e.t === 'routed') routs++; else if (e.t === 'gunSilent') silent++; else if (e.t === 'crossfire') xf++; }
           sim.events = [];
           if (i % 15 === 0) most = Math.max(most, S.wavesOnRoad(sim).size);
         }
-        return { phase: sim.phase, base: Math.max(0, sim.baseHp), waves: sim.waveIndex, of: sim.dayCfg.waves.length, time: Math.round(sim.time), wavesOutAtOnce: most, routs, silent, crossfire: xf, kills: sim.kills };
+        return { phase: sim.phase, base: Math.max(0, sim.baseHp), waves: sim.waveIndex, of: sim.dayCfg.waves.length, time: Math.round(sim.time), wavesOutAtOnce: most, routs, silent, crossfire: xf, kills: sim.kills, exodus, civ: sim.evac ? `${sim.evac.safe}/${sim.evac.need}` : null };
       });
       await page.evaluate(() => { const H = window.__horde; if (H.mode !== 'play') return; });
     }
@@ -393,7 +396,7 @@ const scenes = {
   },
   // 11. Förrådet: banorna och INTEL (Mölnbo dag 4, fler enheter än taket)
   async depot() {
-    await day('molnbo', 4);
+    await day('molnbo', 2);
     const r = await page.evaluate(() => {
       const H = window.__horde, p = H.progress;
       const units = p.op.units.map((u, i) => ({ ...u, fatigue: i % 3 }));

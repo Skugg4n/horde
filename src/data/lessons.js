@@ -125,29 +125,23 @@ export const LESSONS = {
     { id: 'mb-1.rout', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Broken units flee. Pull one back yourself: select it, press', keys: ['G'], manual: 'rout' },
     { id: 'mb-1.tower', kind: 'step', when: 'start', done: 'placing:psg90|placed:psg90', target: { ui: '#buildbar .card[data-id="psg90"]' }, text: 'High ground. Put a Psg 90 on a stair tower.', manual: 'roofs' },
     { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Towers, station roof, train roof.' },
+    // 0.20.0 (H495): dag 1 evakueras norra sidan över bron (Hagstumosses evakuering)
+    { id: 'mb-1.evac', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'The north side crosses the bridge. Keep their way open.', manual: 'evac' },
   ],
+  // 0.20.0 (kampanjbågen, H495): dag 2 tappar vi norra sidan. Pendeltåget rullar in (förut dag 4), bron och Håll eld.
   'mb-2': [
-    // 0.18.1 (Olas speltest: "tåget är skydd" förvirrade, grupperna där var bara mål för horden; husen lärs först på
-    // Vikingavägen dag 5): villorna på båda sidor om Stenbyvägen.
-    // 0.19.0 (H443): högst tolv ord. (H450): horden går Stenbyvägen från korsningen vid caféet ner mot Folkets hus, så
-    // lektionen pekar på husen längs vägen (road:stenby), inte på ingången söderifrån.
-    { id: 'mb-2.houses', kind: 'show', when: 'start', target: { world: 'road:stenby' }, text: 'Squads in houses on both sides of Stenbyvägen. They must walk it.', manual: 'garrison' },
-  ],
-  'mb-3': [
-    { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'The train leaves when the clock runs out. Hold until then.', manual: 'train' },
-  ],
-  'mb-4': [
     // 0.19.2 (speltestet av 0.19.1, fynd 1: tåget lästes som en klocka, inte som ett val): första gången pendeltåget
     // signalerar pekar en bildtext på perrongen. Ingen paus (caption); först i listan så att inget steg håller upp den.
-    { id: 'mb-4.platform', kind: 'caption', when: 'trainWarn', target: { world: 'platform' }, text: 'They get off here. Meet them, or hold the line.' },
-    { id: 'mb-4.bridge', kind: 'show', when: 'start', target: { world: 'route' }, text: 'One road bridge, one footbridge. Close both and they must break through.', manual: 'barricades' },
+    { id: 'mb-2.platform', kind: 'caption', when: 'trainWarn', target: { world: 'platform' }, text: 'They get off here, climb to the bridge. Meet them or hold.' },
+    { id: 'mb-2.bridge', kind: 'show', when: 'start', target: { world: 'route' }, text: 'One bridge over the tracks. Close it and they must break through.', manual: 'barricades' },
     // 0.18.0 (skiva 1, kampanjplanens rondell dag 12): Håll eld vid bron
-    { id: 'mb-4.hold', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Hold fire: they walk into the ambush. Select a unit, press', keys: ['H'], manual: 'holdFire' },
+    { id: 'mb-2.hold', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Hold fire: they walk into the ambush. Select a unit, press', keys: ['H'], manual: 'holdFire' },
   ],
-  'mb-5': [
-    { id: 'mb-5.last', kind: 'caption', when: 'start', target: { ui: '#train' }, text: 'The last train out. Hold until it leaves.' },
+  // 0.20.0: dag 3, håll tills klockan gått ut, sedan uttåget
+  'mb-3': [
+    { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'Hold until the clock runs out. Then we pull out.', manual: 'train' },
     // 0.18.0 (skiva 1, kampanjplanens centrum dag 16): överrända pjäser
-    { id: 'mb-5.overrun', kind: 'show', when: 'silent', target: { world: 'silent' }, text: 'A gun crew is down. Recrew it, or send a squad.', keys: ['N'], manual: 'overrun' },
+    { id: 'mb-3.overrun', kind: 'show', when: 'silent', target: { world: 'silent' }, text: 'A gun crew is down. Recrew it, or send a squad.', keys: ['N'], manual: 'overrun' },
   ],
   // Tvåstegsvalet kommer bara när köpraden har fler än 9 kort (Olas beslut 3); steget följer det, inte dagen.
   any: [
@@ -206,7 +200,8 @@ export const MANUAL_GROUPS = ['Basics', 'Defences', 'Units', 'Operation', 'Enemi
 export const MANUAL = [
   { id: 'place', group: 'Basics', title: 'Place a unit', icon: 'm249', text: 'Pick a card at the bottom or press its key; each card keeps its key. Click the ground to place it. Right-click or Esc puts it back. Holding a card, pan with WASD, the middle button or the screen edge.', keys: ['4', 'X'] },
   { id: 'start', group: 'Basics', title: 'Start the wave', text: 'Build first: nothing moves until you start. After a wave the next one counts down by itself.', keys: ['Space'] },
-  { id: 'train', group: 'Basics', title: 'The last train', text: 'At Mölnbo a train waits at the platform. It leaves when the clock runs out. Hold the base until then and the day is won, even with infected still on the streets.' },
+  // 0.20.0: klockan på Mölnbo dag 3 (förut tåget som gick)
+  { id: 'train', group: 'Basics', title: 'The clock', text: 'Some days have a clock. Hold the base until it runs out and the day is won, even with infected still on the streets.' },
   { id: 'base', group: 'Basics', title: 'The base', text: 'Every infected that reaches the base takes a point. At zero the day is lost and starts over with the force you went in with.' },
   { id: 'speed', group: 'Basics', title: 'Speed', text: 'Run the day at 1x, 2x or 3x. The world pauses whenever a tip or the menu is open.', keys: ['F'] },
   { id: 'supplies', group: 'Defences', title: 'Supplies', text: 'Each day brings supplies, and every kill adds a little. Spend them during the day on defences. They do not carry over.' },
@@ -222,7 +217,7 @@ export const MANUAL = [
   { id: 'roofs', group: 'Units', title: 'Snipers', icon: 'psg90', text: 'The Psg 90 goes on flat roofs, the ridge by a chimney, tall buildings and towers. Height lets it see over the houses.' },
   { id: 'veterancy', group: 'Units', title: 'Veterans', icon: 'star', text: 'A unit that survives three won days earns a star: slightly better aim and reload.' },
   { id: 'losses', group: 'Units', title: 'Losses', icon: 'losses', text: 'Lose a day and it starts over with the force you went in with. Win, and the fallen stay lost until you refill them at the depot.' },
-  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to the ice rink, a few at a time. Red patches show where the horde meets them. Choose which to cover, and move your units when the next houses go.' },
+  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to safety, a few at a time. Red patches show where the horde meets them. Choose which to cover, and move your units when the next houses go.' },
   { id: 'minimap', group: 'Operation', title: 'Map', text: 'The map shows your units, the horde and where they come in. Click it to look there.', keys: ['Tab'] },
   { id: 'map', group: 'Operation', title: 'Operations map', text: 'Between days you pick the sector and read what command has sent.' },
   { id: 'rp', group: 'Operation', title: 'RP', text: 'Requisition points. Earned in battle by kills, waves and objectives, spent at the depot between days.' },

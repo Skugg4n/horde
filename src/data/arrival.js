@@ -26,8 +26,9 @@ export const ARRIVAL_TROOP = {
     // 0.18.1: omräknad efter vågornas grind, förrådets banor och Vikingavägen dag 2 och 3 (docs/balance-log.md 0.18.1)
     // 0.19.0: omräknad efter snubblet, stormningens tärning, vågens svans och löparnas fart (docs/balance-log.md 0.19.0)
     // 0.19.1: omräknad efter snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag (docs/balance-log.md 0.19.1)
+    // 0.20.0: ledningens A-traktor dag 1 (src/data/depot.js mb-1, kampanjbågen: ett par A-traktorer och Hemvärnet)
     units: [['civ', 2, 4, 4], ['civ', 2, 4, 3], ['civ', 2, 4, 3], ['m249', 2, null, 4], ['m249', 2, null, 4], ['hv', 2, 5, 2], ['ksp58', 3, null, 7], ['epa', 1, null, 4],
       ['m249', 2, null, 1], ['ksp58', 3, null, 7], ['m2', 2, null, 6], ['ak5', 2, null, 5], ['ksp58', 3, null, 6], ['m249', 1, null, 0], ['ksp58', 3, null, 5], ['psg90', 2, null, 5],
-      ['psg90', 2, null, 5], ['inf', 2, 5, 1], ['psg90', 2, null, 3], ['psg90', 1, null, 0]],
+      ['psg90', 2, null, 5], ['inf', 2, 5, 1], ['psg90', 2, null, 3], ['psg90', 1, null, 0], ['epa', 1, null, 0]],
   },
 };

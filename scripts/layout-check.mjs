@@ -185,7 +185,7 @@ async function run() {
     await check('opmap');
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 5); H.showDepot('gnesta', 'opmap', { day: 5 }); })()`);
     await check('depot');
-    // 0.17.0: Mölnbo (tågklockans dag 3): introt med målet, resultatet, operationskartan och förrådet med sektorns tak
+    // 0.17.0: Mölnbo (0.20.0: hållklockans dag 3): introt med målet, resultatet, operationskartan och förrådet med sektorns tak
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); H.startDay(3); })()`);
     await check('molnbo-intro');
     await ev(`window.__horde.sheetAction('go')`);
@@ -198,7 +198,7 @@ async function run() {
     await check('molnbo-result');
     await ev(`window.__horde.sheetAction('opmap')`);
     await check('molnbo-opmap');
-    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); H.showDepot('molnbo', 'opmap', { day: 4 }); })()`);
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); H.showDepot('molnbo', 'opmap', { day: 3 }); })()`);
     await check('molnbo-depot');
     // 0.17.1: gränssnittet i striden (auditHud): lektionsplåten med PAUSED över köpraden, raden vid pekaren nära
     // DAY-rutan, tågets ruta med ingångarnas etiketter, mitt i en våg, och E4 med lektionsplåten vid köpraden
@@ -235,8 +235,8 @@ async function run() {
     await page.mouse.move(Math.round(W * 0.2), 190);
     await checkHud('hud-molnbo-1-psg90');
     await ev(`window.__horde.stopPlacing()`);
-    // 0.19.2 (speltestet av 0.19.1, fynd 6): lektionerna dag 2 och 4 står inte på köpraden
-    for (const d of [2, 4]) {
+    // 0.19.2 (speltestet av 0.19.1, fynd 6): lektionerna dag 2 och 3 (0.20.0, förut 2 och 4) står inte på köpraden
+    for (const d of [2, 3]) {
       await ev(`window.__horde.setProgress({ ...window.__horde.progress, lessons: undefined })`);
       await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', ${d}); })()`);
       await page.waitForTimeout(1200);
@@ -246,51 +246,52 @@ async function run() {
     // lektionerna sedda igen (annars kommer en lektion som ännu inte visats mitt i provet av panelen)
     await ev(`(async () => { const H = window.__horde, L = await import('/src/data/lessons.js'); H.setProgress({ ...H.progress, lessons: { ...H.progress.lessons, seen: Object.values(L.LESSONS).flat().map(l => l.id) } }); })()`);
     await clearLessons();
-    // 0.19.2 (fynd 4: "FROM WAVE 2 / FROM WAVE 2 / FROM WAVE 3" på Stenbyvägen): dag 5 före första vågen
-    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 5); })()`);
+    // 0.19.2 (fynd 4: "FROM WAVE 2 / FROM WAVE 2 / FROM WAVE 3" på Stenbyvägen): dag 3 (0.20.0, förut 5) före första vågen
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); })()`);
     await clearLessons();
-    await checkHud('hud-molnbo-5-build');
-    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); })()`);
+    await checkHud('hud-molnbo-3-build');
+    // 0.20.0: pendeltågets dag är dag 2 (förut 4)
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 2); })()`);
     await clearLessons();
-    await checkHud('hud-molnbo-4-build');
+    await checkHud('hud-molnbo-2-build');
     // 0.18.1 (speltestet av 0.18.0: enhetspanelen över tågklockan): en panel öppen i bygget får inte hamna över
     // dagrutan eller tågklockan, inte heller när klockan dyker upp när vågen startar
     await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
-    if (!(await ev('window.__horde.sim.guns.length'))) errors.push(`hud-molnbo-4-panel-build @${W}: inga enheter utställda`);
+    if (!(await ev('window.__horde.sim.guns.length'))) errors.push(`hud-molnbo-2-panel-build @${W}: inga enheter utställda`);
     await ev(`(() => { const H = window.__horde, g = H.sim.guns.find(x => !x.preset) ?? H.sim.guns[0]; if (g) H.open({ kind: 'gun', id: g.id }); })()`);
-    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-4-panel-build @${W}: panelen öppnades inte`);
-    await checkHud('hud-molnbo-4-panel-build');
+    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-build @${W}: panelen öppnades inte`);
+    await checkHud('hud-molnbo-2-panel-build');
     // panelen stängs före vågen (i 1024 tränger den ingångarnas etiketter); vågens panel provas nedan
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     // första trycket säger till om enheter i reserven, nästa startar vågen
     for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
     await page.waitForTimeout(2500);
     await clearLessons();
-    if (await ev('window.__horde.sim.phase') !== 'wave') errors.push(`hud-molnbo-4-wave @${W}: vågen startade inte`);
-    await checkHud('hud-molnbo-4-wave');
+    if (await ev('window.__horde.sim.phase') !== 'wave') errors.push(`hud-molnbo-2-wave @${W}: vågen startade inte`);
+    await checkHud('hud-molnbo-2-wave');
     await ev(`(() => { const H = window.__horde, gs = H.sim.guns; for (const g of gs.slice(0, 3)) H.open({ kind: 'gun', id: g.id }); })()`);
     await page.waitForTimeout(600);
-    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-4-panel-wave @${W}: panelen öppnades inte`);
-    await checkHud('hud-molnbo-4-panel-wave');
-    // fyra vågor igång och en klarad: "Wave 4 of 5 · 1 cleared" och "216 of 255 left" i dagens plåt. Pausat (pausmenyn,
+    if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-wave @${W}: panelen öppnades inte`);
+    await checkHud('hud-molnbo-2-panel-wave');
+    // fyra vågor igång och en klarad: "Wave 4 of 4 · 1 cleared" och "216 of 255 left" i dagens plåt. Pausat (pausmenyn,
     // HUD:en ritas ändå) så att simuleringen inte klarar vågorna innan provet läser plåten
     await page.keyboard.press('Escape'); await page.waitForTimeout(250);
     if (!(await ev(`!!document.querySelector('.pausesheet')`))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
     await ev(`(() => { const s = window.__horde.sim; s.wavesStarted = 4; s.waveIndex = 1; s.cleared = [true]; })()`);
-    await checkHud('hud-molnbo-4-stacked');
+    await checkHud('hud-molnbo-2-stacked');
     const plate = await ev(`document.querySelector('#day .row').textContent`);
-    if (!/cleared/.test(plate)) errors.push(`hud-molnbo-4-stacked @${W}: plåten visar inte staplade vågor (${plate})`);
+    if (!/cleared/.test(plate)) errors.push(`hud-molnbo-2-stacked @${W}: plåten visar inte staplade vågor (${plate})`);
     await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
     // 0.19.2 (fynd 1): pendeltågets signal mitt i vågen, banderollen med två rader, perrongens etikett och bildtexten.
     // Kameran vid perrongen (klicket på banderollen), enheternas lappar och skyltarna runt den
-    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-4.platform') } }); H.trainWarned({ t: 'trainWarn', in: 12 }); })()`);
+    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-2.platform') } }); H.trainWarned({ t: 'trainWarn', in: 12 }); })()`);
     await page.waitForTimeout(900);
-    if (!(await ev('!!window.__horde.platform'))) errors.push(`hud-molnbo-4-train @${W}: perrongen lyser inte efter signalen`);
-    await checkHud('hud-molnbo-4-train');
+    if (!(await ev('!!window.__horde.platform'))) errors.push(`hud-molnbo-2-train @${W}: perrongen lyser inte efter signalen`);
+    await checkHud('hud-molnbo-2-train');
     await ev(`(() => { const n = [...document.querySelectorAll('#notes .note.click')].find(x => /Train incoming/.test(x.textContent)); n?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); })()`);
     await page.waitForTimeout(1500);
-    if (!(await ev(`!document.querySelector('.platlabel').hidden`))) errors.push(`hud-molnbo-4-train @${W}: klicket på banderollen visar inte perrongen`);
-    await checkHud('hud-molnbo-4-platform');
+    if (!(await ev(`!document.querySelector('.platlabel').hidden`))) errors.push(`hud-molnbo-2-train @${W}: klicket på banderollen visar inte perrongen`);
+    await checkHud('hud-molnbo-2-platform');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     if (pageErrors.length) errors.push(...pageErrors.map(e => `@${W} konsolfel: ${e}`));

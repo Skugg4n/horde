@@ -34,6 +34,7 @@ test('svansen gäller inte så länge fler än fem lever', () => {
 test('svansen: tre bjässar sist skyndar också', () => {
   const a = arrive(3, 'brute');
   assert.ok(a.hurried != null && a.hurried >= TAIL.after - 0.2, `skyndar vid ${a.hurried}`);
-  // utan svansen gick de i sin egen takt hela vägen (191 s på väg 57 till Folkets hus, nu cirka 150)
-  assert.ok(a.t < 170, `klar efter ${a.t.toFixed(0)} s`);
+  // utan svansen gick de i sin egen takt hela vägen (191 s på väg 57 till Folkets hus, nu cirka 150).
+  // 0.20.0: kartan efter satellitbilden, vägen från Järna till Folkets hus är längre (cirka 180 s med svansen)
+  assert.ok(a.t < 200, `klar efter ${a.t.toFixed(0)} s`);
 });
