@@ -4,6 +4,9 @@ import { newProgress, migrateV1, migrateV2, SAVE_VERSION } from './progress.js';
 import { newCampaign, migrateToV4, syncOperation, needsPoolMerge } from './operation.js';
 import { MAPS } from '../data/maps.js';
 import { withLessons } from './lessons.js';
+import { normalizeTable } from './table.js';
+// Bara när fältet finns eller behövs: ett framsteg utan bord lämnas som det är tills bordet sparar något.
+const withTable = p => (p.table === undefined ? p : { ...p, table: normalizeTable(p.table) });
 
 const KEY = 'horde.save';
 const BROKEN = 'horde.save.broken';
@@ -79,7 +82,8 @@ export function loadProgress(storage) {
     // 0.16.0: en sparfil utan lektioner räknar allt fram till den längst spelade dagen som sett (lessons.js)
     if (needsPoolMerge(parsed)) keepCopy(s, raw, V4_COPY);
     const p = { ...newProgress(), lessons: undefined, ...parsed };
-    return withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } }));
+    // 0.21.0: kartbordets del (table.layout, table.log) är valfri; saknas den eller är den trasig blir bordet tomt
+    return withTable(withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } })));
   }
   // Äldre versioner: kopian behålls som den var (horde.save.v1, .v2, .v3; skrivs aldrig över), och
   // framsteget flyttas steg för steg till v3 och sedan v4 (0.14.0, operation.js migrateToV4).
@@ -89,7 +93,7 @@ export function loadProgress(storage) {
   else if (isValidV1(parsed)) { keepCopy(s, raw, V1_COPY); v3 = migrateV1(parsed); }
   if (v3) {
     const p = migrateToV4({ ...v3, maps: { ...newProgress().maps, ...v3.maps } });
-    return withLessons({ ...p, lessons: undefined, maps: { ...newProgress().maps, ...p.maps } });
+    return withTable(withLessons({ ...p, lessons: undefined, maps: { ...newProgress().maps, ...p.maps } }));
   }
   console.warn('Sparfilen gick inte att läsa. Den sparas under horde.save.broken.');
   keepCopy(s, raw, BROKEN);
