@@ -413,4 +413,21 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H472 | ux | Esc stängde både kortet i handen och korsellektionen på Ishallen dag 2 (lektionen kom när kortet släpptes). Speltestet av 0.19.0, smått.
 - [ ] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv.
 - [ ] H474 | ux | Enhetslapparna döljs medan ett kort är i handen, så man ser inte var de egna står när man placerar nästa.
-- [ ] H475 | ux | Pendeltåget dag 4: en kantpil eller kameran mot perrongen vid signalen, så att valet (flytta mot perrongen eller hålla) syns.
+- [x] H475 | ux | Pendeltåget dag 4: en kantpil eller kameran mot perrongen vid signalen, så att valet (flytta mot perrongen eller hålla) syns. (0.19.2: H476)
+
+## Speltestet av 0.19.1 (docs/playtests/2026-10-19-0.19.1.md)
+
+- [x] H476 | ux | Tåget dag 4 är inget val. Vid signalen lyser perrongen och trapptornen (pulserande kontur), etiketten "Platform: they come out here", pilar från de två närmaste enheterna, banderollen på två rader ("Move units to the platform, or hold the line.") som flyttar kameran dit, 1x i sex sekunder utan paus, bildtexten mb-4.platform första gången. (0.19.2)
+- [x] H477 | ux | Läckan syns inte förrän basen tar skada. Där de tar sig förbi de sista försvararna: röd ring på kartan och minikartan, en rad med gatan, en röd pil vid kanten; "Base under attack! From Stenbyvägen" är klickbar. (0.19.2)
+- [x] H478 | ux | Knufftipset tystnar om spärren redan tappat en ruta. Knuffen räknas för sig. (0.19.2)
+- [x] H479 | ux | Världens lappar ovanpå varandra ("CARS SHOVED ASIDE" över vågskylten, FROM WAVE-skyltar staplade, vågskylten över tornets skytt, IN HOUSE/TIRED i en klump). En regel: src/ui/declutter.js (knuffa eller dölj den lägre). (0.19.2)
+- [x] H480 | ux | Lektionsrutan täcker köpraden Mölnbo dag 2 och 4. Plåten flyttas av köpraden, knappen och plåtarna uppe; layoutprovet säger till. (0.19.2)
+- [x] H481 | ux | Farten hoppar till 1x efter fiendens ruta och tips som pausar. Spelarens fart gäller när de stängs. (0.19.2)
+- [x] H482 | text | Taggtråd ger "Horde rerouting via ...". Bara spärrar som stänger säger omvägen. (0.19.2)
+- [x] H483 | ux | Ett gammalt "−$ 120" står kvar under SUPPLIES när en ny dag börjar. En ny dag tar bort raden. (0.19.2)
+- [x] H484 | balans | Mölnbo dag 4 läckte vid Folkets hus från cirka 270 s. Läckan mätt (sista biten av Stenbyvägen, går att täcka), hp 38 till 36. (0.19.2)
+- [ ] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7).
+- [ ] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån.
+- [ ] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats.
+- [ ] H488 | balans | Varje dag slutar med $700 till $1 300 oanvänt (speltestet av 0.19.1). Något att köpa, eller mindre i kassan.
+- [ ] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"?

@@ -1,5 +1,23 @@
 # Ändringslogg
 
+## 0.19.2: speltestet av 0.19.1 (2026-10-19)
+
+Speltestet sa NEJ, men nära (docs/playtests/2026-10-19-0.19.1.md): det mesta från 0.19.0 höll, men tåget dag 4 var en klocka och inte ett val, och dag 4 läckte utan att man såg var.
+
+Tåget som val (H476). När pendeltåget signalerar lyser norra perrongen och trapptornen (en pulserande kontur), etiketten "Platform: they come out here" står där de kliver ur, och pilar på marken går från de två närmaste enheterna mot perrongen. Banderollen säger valet på två rader, "Train incoming. It's not empty." och "Move units to the platform, or hold the line.", och ett klick flyttar kameran till perrongen. Spelet går i 1x i sex sekunder om det gick fortare, ingen paus. Första gången pekar en bildtext på perrongen.
+
+Läckan syns (H477). Där zombierna tar sig förbi de sista försvararna (ingen enhet täcker resten av vägen), eller går en tom väg fram, blinkar en röd ring på kartan och på minikartan, en rad säger gatan första gången och en röd pil vid kanten pekar dit när platsen är utanför bild. "Base under attack! From Stenbyvägen" säger varifrån, och ett klick går dit.
+
+Världens lappar (H479). En regel för alla lappar och skyltar i världen (src/ui/declutter.js): den viktigaste står kvar, en lägre knuffas en bit upp eller ner, och ryms den ändå inte döljs den. Vågskyltarna undviker enheternas lappar och skyttarna högt upp i tornen, en skylt för en senare våg som hamnar intill en annan döljs, "Cars shoved aside" stiger bredvid skylten och inte på den, och enheternas lappar vid korsningen staplas. Lektionsplåten täcker aldrig köpraden, knappen eller plåtarna uppe (H480). Layoutprovet går igenom Mölnbo dag 2 och 4 med lektionerna, dag 5:s skyltar, tågets signal och perrongen, och provar världens lappar mot allt annat.
+
+Smått:
+- Knufftipset och raden kommer också när spärren redan tappat en ruta mot vandrarna (H478).
+- Farten står kvar på det spelaren valt efter fiendens ruta och tips som pausar (H481).
+- Taggtråd säger inte längre "Horde rerouting"; bara spärrar som stänger gör det (H482).
+- Ett gammalt "−$ 120" under SUPPLIES försvinner när en ny dag börjar (H483).
+
+Mölnbo dag 4 (H484): läckan mätt med den nya markeringen är den sista biten av Stenbyvägen fram till Folkets hus, där alla tre ingångarna går ihop. Den går att täcka med en vanlig uppställning, men trycket var för högt för den som håller: hp 38 till 36. Den som håller får 6 till 12 kvar (var 1 till 10). docs/balance-log.md 0.19.2.
+
 ## 0.19.1: speltestet av 0.19.0 (2026-10-19)
 
 Speltestet sa NEJ (docs/playtests/2026-10-19-0.19.0.md): Mölnbo dag 3 och 4 var en mur, bjässens knuff-tips kom aldrig, Move in i hus gick i 1 av 13 hus och snubblet klumpade sig.
