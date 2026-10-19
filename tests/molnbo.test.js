@@ -225,7 +225,8 @@ test('kampanjen: Mölnbo öppnar efter Vikingavägen dag 5 och truppen följer m
   assert.equal(sectorStatus(p0, 'molnbo'), 'holding');
   // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90
   assert.equal(unitsIn(p0, 'molnbo').length, before + 1);
-  assert.ok(p0.op.inbox.some(m => /Mölnbo station is the last way north/.test(m.text)), 'övergången');
+  // 0.20.0 (kampanjbågen): Järna har fallit, Mölnbo står på tur
+  assert.ok(p0.op.inbox.some(m => /Mölnbo is next/.test(m.text)), 'övergången');
   assert.ok(p0.op.inbox.some(m => m.id === 'mb-1'));
 });
 
@@ -321,10 +322,12 @@ test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => 
 // docs/balance-log.md 0.19.1.
 // 0.19.2: dag 4 och 5 nya, avsiktligt: dag 4 hp 38 till 36 (speltestet av 0.19.1: vandrarna läckte förbi vid Folkets hus
 // från cirka 270 s, tre försök i rad). Dag 1 till 3 orörda. docs/balance-log.md 0.19.2.
+// 0.20.0 (riktningarna): alla dagar nya, avsiktligt: ankomsten omräknad (Vikingavägen väst, syd och nord, Move från
+// Ishallen dag 3); inget i Mölnbo ändrat. docs/balance-log.md 0.20.0 (riktningarna).
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'd71cc6d9', 'molnbo 2': 'c73e046d', 'molnbo 3': '92e246da', 'molnbo 4': 'a7c97377', 'molnbo 5': 'a447e4e0' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '579bb76c', 'molnbo 2': '972a565c', 'molnbo 3': 'a84d179d', 'molnbo 4': '06a2f8c6', 'molnbo 5': '6b3b70bd' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'f2206923', 'molnbo 2': '93f0f3c1', 'molnbo 3': '302de2ca', 'molnbo 4': 'f8da80b0', 'molnbo 5': 'd3449bdf' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'bf232dc6', 'molnbo 2': '9d10cad9', 'molnbo 3': '1d769ec2', 'molnbo 4': 'aaf25304', 'molnbo 5': 'cc8a9d61' });
 });
 
 // 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").

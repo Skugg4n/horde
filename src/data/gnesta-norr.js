@@ -570,7 +570,9 @@ export const DAYS = [
              say('Brutes in front!', { groups: [g('brute', 2, 3, 0, 'vikN'), g('walker', 40, 0.35, 4, 'vikN'), g('walker', 30, 0.4, 4, 'dansW')] }),
              { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.25, 4, 'dansW'), g('brute', 3, 3, 24, 'vikN')] },
              say('Brutes lead both columns!', { groups: [g('brute', 4, 3, 0, 'dansW'), g('walker', 55, 0.28, 3, 'dansW'), g('brute', 3, 3, 4, 'vikN'), g('walker', 45, 0.3, 7, 'vikN'), g('runner', 50, 0.2, 20, 'vikN')] }) ] },
-  { n: 4, intel: 'unknown', supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2450, hp: 7, overlap: 60, intro: { title: 'Day 4: The flank', text: 'North, and up the forest road from the south, behind you.' },
+  // 0.20.0: hp 7 till 9. Flanken söderifrån går inte förbi dödszonen vid radhusen som Östra Storgatan gjorde; med 7 vann den
+  // vanliga spelaren alltid på första försöket (balansloggen 0.20.0, riktningarna)
+  { n: 4, intel: 'unknown', supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2450, hp: 9, overlap: 60, intro: { title: 'Day 4: The flank', text: 'North, and up the forest road from the south, behind you.' },
     dormant: [{ house: 'N-10', street: 'Gångvägen', count: 4, type: 'walker', wave: 0 },
       { house: 'B2-02', count: 6, type: 'walker', wave: 3, delay: 35, intel: false }, { house: 'B2-02', count: 1, type: 'brute', wave: 3, delay: 38, intel: false }],
     waves: [ say('From the south, up the forest road!', { groups: [g('walker', 12, 1.0, 0, 'forest', 20)] }),
@@ -583,9 +585,9 @@ export const DAYS = [
       { house: 'B3-02', count: 4, type: 'walker', wave: 3, delay: 45, intel: false }, { house: 'B3-02', count: 2, type: 'brute', wave: 3, delay: 48, intel: false }],
     waves: [ say('Up the forest road from the south.', { groups: [g('walker', 10, 0.7, 0, 'forest', 30), g('runner', 4, 0.9, 6, 'forest')] }),
              say('North and south!', { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'forest'), g('brute', 2, 4, 30, 'vikN')] }),
-             say('Runners from every side!', { groups: [g('crawler', 8, 1.2, 4, 'forest'), g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'forest'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'sigW'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
+             say('Runners from every side!', { groups: [g('crawler', 8, 1.2, 4, 'forest'), g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'forest'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'forest'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
              { groups: [g('brute', 4, 3, 0, 'vikN'), g('walker', 40, 0.3, 3, 'vikN'), g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 20, 'forest'),
-               g('runner', 25, 0.7, 40, 'sigW'), g('brute', 3, 3, 40, 'forest'), g('brute', 3, 3, 50, 'dansW'), tell('Behind you, from the west!', g('walker', 15, 0.5, 55, 'sigW'))] } ] },
+               g('runner', 25, 0.7, 40, 'forest'), g('brute', 3, 3, 40, 'forest'), g('brute', 3, 3, 50, 'dansW'), tell('Behind you, from the west!', g('walker', 15, 0.5, 55, 'sigW'))] } ] },
 ];
 
 // ---------- staden ----------

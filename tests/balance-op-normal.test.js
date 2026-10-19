@@ -91,7 +91,11 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // 0.19.1: alla steg utom E4 dag 1 nya, avsiktligt: snubblets nedkylning (60 m, utlösarna en liten chans, inte två på samma
 // ställe), vågens svans för alla typer, dörrarna in i husen och förrådets förslag (vilade före utmattade). Grinden på
 // Vikingavägen och Ishallen är oförändrad (overlapMin bara på Mölnbo). docs/balance-log.md 0.19.1.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"64696f50","gnesta 1":"92dfca36","gnesta 2":"a532570f","gnesta 3":"1f38a7e5","gnesta 4":"c2e3bc83","gnesta 5":"a1838b44","gnesta-norr 1":"b6376170","gnesta-norr 2":"3ddf1905","gnesta-norr 3":"f25586bc","gnesta-norr 4":"4689acb8","gnesta-norr 5":"bc908954"};
+// 0.20.0 (riktningarna): E4 dag 3 till Vikingavägen dag 5 nya, avsiktligt: Move och Rotate kommer först Ishallen dag 3
+// (policyerna flyttar i uppställningen före det och vrider inte på E4 dag 3 och Ishallen dag 1 och 2), Vikingavägen
+// väst, syd och nord (skogsvägen i stället för Östra Storgatan och Sigtunavägen öst, kartan till skogsvägens dimkant),
+// dag 4 hp 7 till 9. E4 dag 1 och 2 orörda. docs/balance-log.md 0.20.0 (riktningarna).
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"fd3928f0","gnesta 2":"e241945c","gnesta 3":"36ccafe6","gnesta 4":"6d5430d7","gnesta 5":"74f7cd97","gnesta-norr 1":"b09c19db","gnesta-norr 2":"8a2bce69","gnesta-norr 3":"f7edf9aa","gnesta-norr 4":"c16098c9","gnesta-norr 5":"cac14819"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

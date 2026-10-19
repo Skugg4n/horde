@@ -437,7 +437,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H493 | kampanj | Olas kampanjbåge dag 0 till 21 (kampanjplan avsnitt 10) är nu bärande plan. Skriv ledningscentralens texter per dag (order, lägesrapport, radio/TV-inslag) och koppla varje dag till sin anledning.
 - [ ] H494 | molnbo | Rätta Mölnbo-kartan efter satellitbilden: EN väg över spåret (bron, väg 57), vägnätet (Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen), Folkets hus läge. Ref horde-refs/molnbo/satellit-ola-2026-10-19.jpg.
 - [ ] H495 | molnbo | Mölnbo dag 1 till 3 enligt bågen: dag 1 hålla bron så folk hinner över, dag 2 norrsidan förloras (ingen placering där efteråt) + tåget, dag 3 hålla en tid, sedan uttåg mot Gnesta och flodvåg över bron (menyerna försvinner, trupperna packar, bilden tonar ut).
-- [ ] H496 | kampanj | Rätta E4 (norrut längs E4) och Hagstumosse (österifrån) spawns efter bågen, inte tvärtom.
-- [ ] H497 | kampanj | Move låses upp dag 6 eller 7 med "radio till enheterna".
+- [x] H496 | kampanj | Rätta E4 (norrut längs E4) och Hagstumosse (österifrån) spawns efter bågen, inte tvärtom. (0.20.0 riktningarna: E4 var rätt, texterna rättade; Ishallen österut; Vikingavägen väst, syd och nord)
+- [x] H497 | kampanj | Move låses upp dag 6 eller 7 med "radio till enheterna". (0.20.0: Move och Rotate Ishallen dag 3)
 - [ ] H498 | kampanj | Slutet i Björnlunda (Ola 2026-10-19): kraschad smittotransport på spåret i Björnlunda, köttiga nervtrådar ur tåget, dag 20 hålla, dag 21 eskortera EPA med sprängämnen in i monstret. Grustaget utgår. Egen spec.
 - [ ] H499 | kampanj | Nya mekaniker som behöver spec: reträtt dag 16, pushback dag 18 (victory locations?), dag 19 spår av något konstigt, Laxne som valfri skådeplats.
