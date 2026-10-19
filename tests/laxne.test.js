@@ -80,3 +80,28 @@ test('inga tankstreck i Laxnes filer', () => {
   for (const f of ['../src/data/laxne.js', '../src/render/laxne-kit.js', '../laxne.html', '../scripts/osm-places/laxne.mjs'])
     assert.doesNotMatch(readFileSync(new URL(f, import.meta.url), 'utf8'), /\u2014/, f);
 });
+
+test('sjösidan (H501): skog längs stranden, strandkant med vass och stenar, bryggor, och badstranden och bollplanen fria', () => {
+  const lake = GROUND.water[0];
+  // skogen OSM saknar: minst en skogspolygon når stranden söder om badplatsen och en norr om den
+  const near = (poly, pred) => poly.some(([x, z]) => pred(x, z) && GROUND.water.some(w => inPoly(x, z, w)));
+  assert.ok(GROUND.forest.some(p => near(p, (x, z) => z < 0)), 'skog vid stranden norr om badplatsen');
+  assert.ok(GROUND.forest.some(p => near(p, (x, z) => z > 20)), 'skog vid stranden söder om badplatsen');
+  // strandkanten: vass och stenar, alla nära vattenbrynet och ingen på badstranden
+  const shore = GROUND.shore;
+  assert.ok(shore.filter(s => s[2] === 0).length > 60 && shore.filter(s => s[2] === 1).length > 20, `${shore.length} på stranden`);
+  for (const [x, z] of shore) {
+    for (const b of GROUND.beach) assert.ok(!inPoly(x, z, b), `vass på badstranden vid ${x},${z}`);
+    const d = Math.min(...lake.map((p, i) => { const q = lake[(i + 1) % lake.length]; return distPolyline(x, z, [p, q]); }));
+    assert.ok(d < 3.5, `strandkanten ${d.toFixed(1)} m från vattnet vid ${x},${z}`);
+  }
+  // bryggorna: minst tre, och var och en går från land ut i sjön
+  const piers = laxne.props.filter(p => p.kind === 'pier');
+  assert.ok(piers.length >= 3);
+  for (const p of piers) assert.ok(inPoly(p.to[0], p.to[1], lake), `${p.name} slutar i sjön`);
+  // bollplanen (grus) och badstranden ligger inte i någon skog
+  for (const g of [...GROUND.gravel, ...GROUND.beach]) {
+    const cx = g.reduce((s, q) => s + q[0], 0) / g.length, cz = g.reduce((s, q) => s + q[1], 0) / g.length;
+    for (const f of GROUND.forest) assert.ok(!inPoly(cx, cz, f), `skog över ${cx},${cz}`);
+  }
+});

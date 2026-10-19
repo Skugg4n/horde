@@ -136,6 +136,8 @@ export function seeded(seed) {
   const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   r.range = (a0, a1) => a0 + r() * (a1 - a0);
   r.pick = arr => arr[(r() * arr.length) | 0];
+  // 0.20.0 (H502): gå fram n steg utan att räkna dem (samma läge som efter n anrop till r)
+  r.skip = n => { a = (a + Math.imul(n, 0x6D2B79F5)) >>> 0; };
   return r;
 }
 

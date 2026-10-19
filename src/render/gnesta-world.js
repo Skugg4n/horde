@@ -7,6 +7,8 @@ import {
   rowHouse, brickWall, plankFence, parkingLot, forskola, forskolaYard,
 } from './gnesta-kit.js';
 import { buildSurroundings } from './gnesta-ghost.js';
+import { now, add } from '../meta/load-timing.js';
+import { nearLine } from '../data/road-field.js';
 import { createFortify } from './fortify.js';
 import { distPolyline, distPoly, inPoly, w as px2w, FOREST_EDGE } from '../data/gnesta.js';
 
@@ -152,10 +154,12 @@ function paintGround(map) {
 
 // ---------- hela scenen ----------
 export function buildGnesta(scene, map) {
+  let tl = now(); const id = map.id;
   const { x0, x1, z0, z1 } = map.ground.bounds;
 
   // mark
   const tex = paintGround(map);
+  tl = add(id + ':mark', tl);
   const ground = mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); ground.castShadow = false;
   scene.add(ground);
@@ -302,8 +306,9 @@ export function buildGnesta(scene, map) {
     const annex = { ...sh.annex, local: [dx * c2 - dz * s2, dx * s2 + dz * c2] };
     sportHall(b, frame(null, sh.x, 0, sh.z, sh.ry), { ...sh, annex });
   }
+  tl = add(id + ':hus och gator', tl);
   // ---------- skog ----------
-  const blocked = (x, z) => roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)
+  const blocked = (x, z) => roads.some(o => nearLine(x, z, o.pts, o.width / 2 + 3.2))   // 0.20.0 (H502): samma svar, snabbare
     || map.lots.blocks.some(B => inPoly(x, z, B.outer))
     || inPoly(x, z, map.parking.poly) || distPoly(x, z, map.roundabout.island) < 9
     || (map.clearings ?? []).some(poly => inPoly(x, z, poly))
@@ -348,7 +353,9 @@ export function buildGnesta(scene, map) {
     b.tag = null;
   }
 
+  tl = add(id + ':träd', tl);
   const meshes = b.flush(scene);
+  tl = add(id + ':instanser', tl);
   // Befästa positioner: röj runt pjäserna (bara bild). view.js hämtar den ur scenen.
   scene.userData.fortify = createFortify(scene, { tagged: b.tagged });
 

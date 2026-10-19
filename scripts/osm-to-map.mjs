@@ -630,6 +630,34 @@ export function convert(plan, cfg) {
     return o;
   });
 
+  // cfg.shore: strandkanten längs sjön i spelytan, vass ute i vattnet och stenar i vattenbrynet, med ett steg i meter
+  // och andelar ({ step, reed, rock }). Badstranden (ground.beach), bryggornas fästen och vägarnas ändar hålls fria.
+  // Bara kartor med cfg.shore får ground.shore: [x, z, sort (0 vass, 1 sten), storlek, vridning].
+  if (cfg.shore && ground.water.length) {
+    const sr = rng((cfg.seed ?? 1) + 7), SH = cfg.shore, step = SH.step ?? 5, out = [];
+    const free = [...(ground.beach ?? []), ...(ground.sand ?? [])].map(pl => {
+      const c = pl.reduce((a, q) => [a[0] + q[0] / pl.length, a[1] + q[1] / pl.length], [0, 0]);
+      return [c[0], c[1], Math.max(...pl.map(q => Math.hypot(q[0] - c[0], q[1] - c[1]))) + (SH.beachPad ?? 6)];
+    });
+    for (const p of props) if (p.kind === 'pier') free.push([p.at[0], p.at[1], 5]);
+    for (const [x, z, rad] of SH.keepOpen ?? []) { const g = T([x, z]); free.push([g[0], g[1], rad * S]); }
+    for (const w of ground.water) for (let i = 1; i <= w.length; i++) {
+      const [ax, az] = w[i - 1], [bx, bz] = w[i % w.length], L = Math.hypot(bx - ax, bz - az); if (L < 0.01) continue;
+      const ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (let s = sr() * step; s < L; s += step * sr.range(0.7, 1.3)) {
+        const x = ax + ux * s, z = az + uz * s;
+        if (outD(x, z) > 4 || free.some(([fx, fz, fr]) => Math.hypot(fx - x, fz - z) < fr)) continue;
+        if (roads.some(rd => nearestOn(x, z, rd.pts).d < rd.width / 2 + 3)) continue;
+        // normalen ut i vattnet
+        let nx = -uz, nz = ux; if (!inPoly(x + nx * 1.5, z + nz * 1.5, w)) { nx = -nx; nz = -nz; }
+        const k = sr();
+        if (k < SH.reed) { const o = sr.range(0.6, 2.6); out.push([r2(x + nx * o), r2(z + nz * o), 0, r2(sr.range(1.1, 2.0)), r2(sr() * 6.28)]); }
+        else if (k < SH.reed + SH.rock) { const o = sr.range(-0.6, 0.8); out.push([r2(x + nx * o), r2(z + nz * o), 1, r2(sr.range(0.5, 1.1)), r2(sr() * 6.28)]); }
+      }
+    }
+    ground.shore = out;
+  }
+
   const pois = plan.pois.map(p => ({ name: p.name, kind: p.kind, at: P2(T([p.x, p.y])) })).filter(p => outD(...p.at) < 140);
 
   // delarna: spelbara bitar av en stor karta (egna gränser och kamerahem). Hela kartan är summan.
