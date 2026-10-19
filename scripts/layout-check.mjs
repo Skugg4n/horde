@@ -6,7 +6,8 @@
 //   - inga två textrutor som inte är förälder och barn överlappar (syskon, kusiner, tips över innehåll),
 //   - knapparna i en rad (.acts) överlappar inte varandra.
 // 0.17.1: och gränssnittet i striden (auditHud): köpraden, plåtarna, lektionsplåten med PAUSED, ingångarnas etiketter
-// och raderna, på Mölnbo dag 1 och 4 och E4 dag 2.
+// och raderna, på Mölnbo dag 1 och 4 och E4 dag 2. 0.19.2: lektionerna dag 2 och 4 mot köpraden, dag 5:s skyltar,
+// pendeltågets signal och perrongen, och världens lappar (märkena, lägena, etiketten, raderna) mot allt annat.
 // Utfallet: en rad per fel, och exit-kod 1 om något fel finns.
 //
 //   node scripts/layout-check.mjs [--port 8146] [--shots katalog]
@@ -78,7 +79,9 @@ function audit(scope) {
 // och korten i köpraden håller sin text inne i kortet.
 function auditHud(scope) {
   const out = [];
-  const OWNERS = ['#day', '#res', '#train', '#evac', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap', '#banner', '.entry', '#coach .cplate', '#coach .paused', '#notes .note', '.panel', '#routekey', '#hint'];
+  // 0.19.2: världens lappar också (enheternas märken och lägen, perrongens etikett, raderna som stiger, pilarna vid kanten)
+  const OWNERS = ['#day', '#res', '#train', '#evac', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap', '#banner', '.entry', '#coach .cplate', '#coach .paused', '#notes .note', '.panel', '#routekey', '#hint',
+    '.platlabel', '.bounty.shove', '#leakarrow', '#tailarrow', '#basearrow', '.sqtag', '.ustat'];
   const vis = n => { if (n.closest('[hidden]')) return false; for (let a = n; a; a = a.parentElement) { const s = getComputedStyle(a); if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05) return false; } return true; };
   const owners = [];
   for (const sel of OWNERS) for (const n of document.querySelectorAll(sel)) if (vis(n) && !owners.some(o => o.el.contains(n))) { const r = n.getBoundingClientRect(); if (r.width && r.height) owners.push({ sel, el: n, r }); }
@@ -115,6 +118,10 @@ function auditHud(scope) {
     if (['#notes .note', '#banner'].includes(t.o.sel) && ['#notes .note', '#banner'].includes(o.sel)) continue;
     if (hit(glyphs(t.r), o.r)) out.push(`${scope}: "${t.text}" (${t.o.sel}) ligger över ${o.sel}`);
   }
+  // 0.19.2 (speltestet av 0.19.1, fynd 6: lektionsrutan över DEPLOY-raden): lektionsplåten får inte ligga på köpraden,
+  // knappen eller vågens rad, inte ens på en kant utan text
+  const plate = owners.find(o => o.sel === '#coach .cplate');
+  for (const o of owners) if (plate && ['#buildbar', '#go', '#wavebar', '#day', '#res'].includes(o.sel) && hit(plate.r, o.r)) out.push(`${scope}: lektionsplåten ligger på ${o.sel}`);
   // köpradens kort: texten inne i kortet
   for (const c of document.querySelectorAll('#buildbar .card')) {
     if (!vis(c)) continue;
@@ -228,6 +235,21 @@ async function run() {
     await page.mouse.move(Math.round(W * 0.2), 190);
     await checkHud('hud-molnbo-1-psg90');
     await ev(`window.__horde.stopPlacing()`);
+    // 0.19.2 (speltestet av 0.19.1, fynd 6): lektionerna dag 2 och 4 står inte på köpraden
+    for (const d of [2, 4]) {
+      await ev(`window.__horde.setProgress({ ...window.__horde.progress, lessons: undefined })`);
+      await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', ${d}); })()`);
+      await page.waitForTimeout(1200);
+      if (!(await ev('!!window.__horde.lesson'))) errors.push(`hud-molnbo-${d}-lesson @${W}: ingen lektion`);
+      await checkHud(`hud-molnbo-${d}-lesson`);
+    }
+    // lektionerna sedda igen (annars kommer en lektion som ännu inte visats mitt i provet av panelen)
+    await ev(`(async () => { const H = window.__horde, L = await import('/src/data/lessons.js'); H.setProgress({ ...H.progress, lessons: { ...H.progress.lessons, seen: Object.values(L.LESSONS).flat().map(l => l.id) } }); })()`);
+    await clearLessons();
+    // 0.19.2 (fynd 4: "FROM WAVE 2 / FROM WAVE 2 / FROM WAVE 3" på Stenbyvägen): dag 5 före första vågen
+    await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 5); })()`);
+    await clearLessons();
+    await checkHud('hud-molnbo-5-build');
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 4); })()`);
     await clearLessons();
     await checkHud('hud-molnbo-4-build');
@@ -259,6 +281,16 @@ async function run() {
     const plate = await ev(`document.querySelector('#day .row').textContent`);
     if (!/cleared/.test(plate)) errors.push(`hud-molnbo-4-stacked @${W}: plåten visar inte staplade vågor (${plate})`);
     await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
+    // 0.19.2 (fynd 1): pendeltågets signal mitt i vågen, banderollen med två rader, perrongens etikett och bildtexten.
+    // Kameran vid perrongen (klicket på banderollen), enheternas lappar och skyltarna runt den
+    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-4.platform') } }); H.trainWarned({ t: 'trainWarn', in: 12 }); })()`);
+    await page.waitForTimeout(900);
+    if (!(await ev('!!window.__horde.platform'))) errors.push(`hud-molnbo-4-train @${W}: perrongen lyser inte efter signalen`);
+    await checkHud('hud-molnbo-4-train');
+    await ev(`(() => { const n = [...document.querySelectorAll('#notes .note.click')].find(x => /Train incoming/.test(x.textContent)); n?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); })()`);
+    await page.waitForTimeout(1500);
+    if (!(await ev(`!document.querySelector('.platlabel').hidden`))) errors.push(`hud-molnbo-4-train @${W}: klicket på banderollen visar inte perrongen`);
+    await checkHud('hud-molnbo-4-platform');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     if (pageErrors.length) errors.push(...pageErrors.map(e => `@${W} konsolfel: ${e}`));
