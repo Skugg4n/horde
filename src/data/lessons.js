@@ -137,6 +137,9 @@ export const LESSONS = {
     { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'The train leaves when the clock runs out. Hold until then.', manual: 'train' },
   ],
   'mb-4': [
+    // 0.19.2 (speltestet av 0.19.1, fynd 1: tåget lästes som en klocka, inte som ett val): första gången pendeltåget
+    // signalerar pekar en bildtext på perrongen. Ingen paus (caption); först i listan så att inget steg håller upp den.
+    { id: 'mb-4.platform', kind: 'caption', when: 'trainWarn', target: { world: 'platform' }, text: 'They get off here. Meet them, or hold the line.' },
     { id: 'mb-4.bridge', kind: 'show', when: 'start', target: { world: 'route' }, text: 'One road bridge, one footbridge. Close both and they must break through.', manual: 'barricades' },
     // 0.18.0 (skiva 1, kampanjplanens rondell dag 12): Håll eld vid bron
     { id: 'mb-4.hold', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Hold fire: they walk into the ambush. Select a unit, press', keys: ['H'], manual: 'holdFire' },

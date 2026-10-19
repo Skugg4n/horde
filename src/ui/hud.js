@@ -4,6 +4,7 @@
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { earlyBonus, hasNextWave, waveLeft, overlapGate } from '../sim/sim.js';
+import { declutter, rectOf } from './declutter.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
 const PLURAL = { walker: ['walker', 'walkers'], runner: ['runner', 'runners'], brute: ['brute', 'brutes'], armored: ['armoured', 'armoured'], crawler: ['crawler', 'crawlers'] };
@@ -141,6 +142,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.delta.className = 'delta show ' + (d > 0 ? 'up' : 'down');
     clearTimeout(deltaTimer);
     deltaTimer = setTimeout(() => { el.delta.className = 'delta'; }, 1400);
+    deltaUntil = performance.now() + 1600;
   }
 
   // Pengar från dödade zombier: liten "+$ N" som stiger där zombien föll. Flera döda nära
@@ -185,13 +187,27 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     node.textContent = text;
     node.style.left = x + 'px'; node.style.top = y + 'px';
     root.appendChild(node);
+    // 0.19.2 (speltestet av 0.19.1, fynd 4: "CARS SHOVED ASIDE" ovanpå vågskylten "4 BRUTES TO COME · NORRBACKEN"): raden
+    // och vägen den stiger knuffas ur vägen för skyltarna, perrongens etikett och banderollerna (src/ui/declutter.js)
+    const b = node.getBoundingClientRect();
+    if (b.width) {
+      const fixed = [...root.querySelectorAll('.entry:not([hidden]) .txt, .platlabel:not([hidden]), #notes .note')].map(rectOf).filter(r => r.right > r.left);
+      const [o] = declutter([{ r: { left: b.left, right: b.right, top: b.top - FLOAT_RISE, bottom: b.bottom }, hide: false }], { fixed, maxNudge: 140, gap: 4 });
+      if (o.dy) { y = clampFloat(x, y + o.dy); node.style.top = y + 'px'; }
+    }
     const f = { node, x, y, t0: performance.now() - FLOAT_MERGE, sum: 0 };
     floats.push(f);
     setTimeout(() => { node.remove(); const i = floats.indexOf(f); if (i >= 0) floats.splice(i, 1); }, life);
   }
   function clearFloats() { for (const f of floats) f.node.remove(); floats.length = 0; }
 
+  // 0.19.2 (speltestet av 0.19.1, smått: ett gammalt "−$ 120" stod under SUPPLIES när en ny dag började): en ny dag
+  // (en ny simulering) tar bort raden, och den står aldrig längre än sin tid även om timern inte hann
+  let lastSim = null, deltaUntil = 0;
+  function clearDelta() { clearTimeout(deltaTimer); el.delta.className = 'delta'; el.delta.textContent = ''; deltaUntil = 0; }
   function update(sim) {
+    if (sim !== lastSim) { lastSim = sim; clearDelta(); }
+    if (deltaUntil && performance.now() > deltaUntil) clearDelta();
     const c = waveCounts(sim);
     set(el.day, String(sim.day).padStart(2, '0'));
     set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
@@ -295,6 +311,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.delta.className = 'delta show up';
     clearTimeout(deltaTimer);
     deltaTimer = setTimeout(() => { el.delta.className = 'delta'; }, 2200);
+    deltaUntil = performance.now() + 2400;
   }
 
   // Fart 1x, 2x eller 3x. Lyser rost när den är över 1x.
@@ -398,24 +415,44 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     el.classList.add('edge');
     const f = at.fallback ?? at, hw = w / 2 + 12, hh = h / 2 + 12;
     const p = { x: Math.min(innerWidth - hw, Math.max(hw, f.x)), y: Math.min(innerHeight - hh - 96, Math.max(hh + 130, f.y)), angle: f.angle };
-    const blocked = () => { const r = rectAt(p); return taken.some(u => hits(r, u)) || ui.some(u => hits(r, u)); };
-    for (let i = 0; i < 24 && blocked() && p.y + h < innerHeight - 96; i++) p.y += h / 2 + 6;
-    for (let i = 0; i < 24 && blocked() && p.x + w < innerWidth - 12; i++) p.x += w / 3;
-    el.classList.toggle('over', coversUnit(rectAt(p), units));
-    return placeAt(el, p, w, h);
+    const blocked = q => { const r = rectAt(q); return taken.some(u => hits(r, u)) || ui.some(u => hits(r, u)); };
+    // 0.19.2 (layoutprovet, perrongen i 1024 px: två skyltar vid kanten ovanpå varandra och på knappen): närmaste fria
+    // plats runt reserven, upp och ner och i sidled inom gränssnittets ram; finns ingen döljs en skylt som inte är nästa
+    // grupp (den syns igen när det finns plats)
+    const inFrame = q => q.x - w / 2 >= 12 && q.x + w / 2 <= innerWidth - 12 && q.y - h / 2 >= 120 && q.y + h / 2 <= innerHeight - 90;
+    const tries = [];
+    for (let k = 0; k <= 8; k++) for (const sy of k ? [1, -1] : [0]) for (const dx of [0, -w / 2, w / 2, -w, w]) tries.push({ ...p, x: p.x + dx, y: p.y + sy * k * (h / 2 + 6) });
+    const q = tries.find(t => inFrame(t) && !blocked(t));
+    if (!q && at.lines && !at.next) { el.hidden = true; return null; }
+    const pt = q ?? p;
+    el.classList.toggle('over', coversUnit(rectAt(pt), units));
+    return placeAt(el, pt, w, h);
   }
-  function entry(at, units = [], { covers = null, holding = false } = {}) {
+  // 0.19.2 (speltestet av 0.19.1, fynd 4: "FROM WAVE 2 / FROM WAVE 2 / FROM WAVE 3" staplade på Stenbyvägen): avoid är
+  // världens lappar (enheternas märken, perrongens etikett) som skyltarna inte ställer sig på. En skylt för en senare
+  // våg ("From wave N", lägst prioritet) som hamnar intill en annan skylt döljs; den säger ingenting som inte syns igen
+  // när vågen kommer. Ordningen: nästa grupp, de andra som kommer nu, de senare vågorna.
+  const LATER_NEAR = 26;
+  const later = a => /^From wave /.test(a.lines?.[0] ?? '');
+  const prio = a => (a.next ? 2 : later(a) ? 0 : 1);
+  function entry(at, units = [], { covers = null, holding = false, avoid = [] } = {}) {
     const list = !at ? [] : Array.isArray(at) ? at : [at];
     while (entries.length < list.length) {
       const el = entryEl.cloneNode(true);
       el.removeAttribute('id'); el.classList.add('entry');
       entryEl.after(el); entries.push(el);
     }
-    const ui = list.length ? uiRects() : [], taken = [];
-    // nästa grupp först, så att den får den bästa platsen
-    const order = list.map((a, i) => i).sort((i, j) => (list[j].next ? 1 : 0) - (list[i].next ? 1 : 0));
-    for (const i of order) taken.push(place(entries[i], list[i], taken, ui, units, covers));
-    entries.forEach((el, i) => { if (!list[i]) el.hidden = true; el.classList.toggle('holding', holding); });
+    const ui = list.length ? uiRects() : [], taken = [...avoid], plates = [];
+    const order = list.map((a, i) => i).sort((i, j) => prio(list[j]) - prio(list[i]) || i - j);
+    const hide = new Set();
+    for (const i of order) {
+      const r = place(entries[i], list[i], taken, ui, units, covers);
+      if (!r) { hide.add(i); continue; }
+      const near = plates.some(q => r.x0 < q.x1 + LATER_NEAR && q.x0 < r.x1 + LATER_NEAR && r.y0 < q.y1 + LATER_NEAR && q.y0 < r.y1 + LATER_NEAR);
+      if (later(list[i]) && near) { hide.add(i); continue; }
+      taken.push(r); plates.push(r);
+    }
+    entries.forEach((el, i) => { if (!list[i] || hide.has(i)) el.hidden = true; el.classList.toggle('holding', holding); });
   }
 
   // H092 (0.11.0, speltestet av 0.10.2: ingen ledtråd om R): en liten rad nere till höger, ovanför
@@ -469,8 +506,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   }
   function reset() {
     stuck.clear();
-    last = { cash: null, hp: null }; el.delta.className = 'delta';
-    clearTimeout(deltaTimer);
+    last = { cash: null, hp: null }; clearDelta();
     clearFloats();
     banner(null); entry(null);
   }

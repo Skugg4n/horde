@@ -68,7 +68,7 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
   }
   const PAD = 8;
   // Varje bildruta: målets ruta (rect), eller off: { x, y, angle } vid kanten när målet är utanför bild.
-  function place(rect, { off = null, avoid = null } = {}) {
+  function place(rect, { off = null, avoid = null, hard = [] } = {}) {
     if (!cur) return;
     const vw = innerWidth, vh = innerHeight;
     const r = rect ? { x0: rect.x0 - PAD, y0: rect.y0 - PAD, x1: rect.x1 + PAD, y1: rect.y1 + PAD } : null;
@@ -120,6 +120,23 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     const bigAt = big && [90, Math.max(r.y0 + 70, 90), 150, 220].map(y => ({ x: clampX(vw / 2 - pw / 2), y, side: 'none' })).find(c => fits(c) && !others.some(a => hits(c, a)));
     const best = bigAt || (big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' } : null)
       || cands.find(c => fits(c) && clear(c)) || leastCovering(cands.filter(c => fits(c) && !(r && hits(c, r)))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
+    // 0.19.2 (speltestet av 0.19.1, fynd 6: lektionsrutan täckte DEPLOY-raden på Mölnbo dag 2 och 4, målet låg bakom
+    // köpraden): rutorna i hard (köpraden, knappen och vågens rad nere, plåtarna uppe) täcks aldrig. Hamnar plåten ändå
+    // på en av dem flyttas den ovanför den nedre eller under den övre.
+    const hardAll = [...hard, { x0: vw / 2 - 60, y0: low - 30, x1: vw / 2 + 60, y1: low }];
+    let pushed = false;
+    for (let i = 0; i < 4; i++) {
+      const h = hardAll.find(a => hits(best, a));
+      if (!h) break;
+      best.y = h.y0 > vh / 2 ? h.y0 - ph - 10 : h.y1 + 10; pushed = true;
+    }
+    // flyttad: på samma höjd, närmast i sidled där den inte heller täcker resten (panelen, etiketterna)
+    if (pushed && others.some(a => hits(best, a))) {
+      const xs = [];
+      for (let dx = 40; dx < vw; dx += 40) xs.push(best.x - dx, best.x + dx);
+      const x = xs.find(x => x >= 8 && x + pw <= vw - 8 && !hardAll.some(a => hits({ x, y: best.y }, a)) && !others.some(a => hits({ x, y: best.y }, a)));
+      if (x != null) best.x = x;
+    }
     plate.style.left = Math.round(best.x) + 'px'; plate.style.top = Math.round(best.y) + 'px';
     // ledlinjen: från plåtens kant till målets kant, rak
     const L = { b: [best.x + pw / 2, best.y, cx, t0.y1], t: [best.x + pw / 2, best.y + ph, cx, t0.y0], r: [best.x, best.y + ph / 2, t0.x1, cy], l: [best.x + pw, best.y + ph / 2, t0.x0, cy], none: [0, 0, 0, 0] }[best.side];

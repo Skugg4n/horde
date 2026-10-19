@@ -1155,3 +1155,21 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   .depot .dgrid { grid-template-columns: 1fr; grid-template-rows: none; grid-template-areas: "roster" "intel" "reqs" "ups"; height: auto; max-height: 64vh; overflow-y: auto; }
   .depot .lanes { grid-template-columns: 1fr; }
 }
+
+/* 0.19.2 (speltestet av 0.19.1): banderollen med två rader (tåget) och den klickbara (basen och tåget flyttar kameran dit) */
+.note .l1, .note .l2 { display: block; }
+.note .l2 { font-size: 0.8em; font-weight: 500; letter-spacing: 0.03em; margin-top: 3px; opacity: 0.92; }
+.note.click { pointer-events: auto; cursor: pointer; }
+.note.click:hover { filter: brightness(1.12); }
+/* perrongens etikett när pendeltåget signalerar (main.js platformLabel) */
+.platlabel { position: fixed; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; font: 600 12px/1 Oswald, sans-serif;
+  letter-spacing: 0.05em; color: #1b1a16; background: #f2c46b; padding: 5px 8px; border-radius: 2px; box-shadow: 0 1px 6px rgba(0,0,0,0.55); animation: coachPulse 1.2s ease-in-out infinite; }
+.platlabel::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-bottom: 0; border-top-color: #f2c46b; }
+.platlabel[hidden] { display: none; }
+/* läckan utanför bild: en röd pil vid skärmkanten med gatan (main.js updateLeakArrow) */
+#leakarrow { position: fixed; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 6px; z-index: 39; cursor: pointer; pointer-events: auto;
+  white-space: nowrap; text-transform: uppercase; box-shadow: 0 2px 10px rgba(0,0,0,0.5); font: 600 13px Oswald, sans-serif; letter-spacing: 0.1em; color: #fff1e6; background: rgba(150, 26, 10, 0.9); border: 1px solid rgba(255, 140, 110, 0.7); border-radius: 2px; }
+#leakarrow[hidden] { display: none; }
+#leakarrow .chev { display: flex; width: 20px; height: 20px; align-items: center; justify-content: center; }
+#leakarrow .chev i { width: 10px; height: 10px; border-right: 3px solid #fff1e6; border-top: 3px solid #fff1e6; transform: rotate(45deg); margin-left: -4px; }
+#ui:not([data-mode="play"]) #leakarrow, #ui:not([data-mode="play"]) .platlabel { display: none; }

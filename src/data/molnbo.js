@@ -368,6 +368,21 @@ export const INBOUND = (() => {
   return { u0, u1, v, uStop: (u0 + u1) / 2, from: 260, doorsU, doors: doorsU.map(u => R(u, RAIL.platformN.v0 + 1.6)) };
 })();
 
+// 0.19.2 (speltestet av 0.19.1, fynd 1: "jag såg inte var perrongen är eller vart folket från tåget går"): det som lyser
+// när pendeltåget signalerar. Norra perrongen och de två trapptornens tak (konturerna, med sina höjder), etiketten mitt
+// på perrongen där tåget stannar, och målet för pilarna från de närmaste enheterna: foten av norra trapptornet, där de
+// som kliver ur tar trappan upp till gångbron.
+export const TRAIN_MARK = (() => {
+  const P = RAIL.platformN, sq = t => RS([[t.at[0] - t.size / 2, t.at[1] - t.size / 2], [t.at[0] + t.size / 2, t.at[1] - t.size / 2], [t.at[0] + t.size / 2, t.at[1] + t.size / 2], [t.at[0] - t.size / 2, t.at[1] + t.size / 2]]);
+  return {
+    polys: [PLAT_N, ...TOWERS.map(sq)],
+    ys: [P.h + 0.06, ...TOWERS.map(t => t.h + 0.06)],
+    label: R(INBOUND.uStop, (P.v0 + P.v1) / 2), labelY: P.h + 1.2,
+    target: R(TOWERS[0].at[0], TOWERS[0].at[1]),
+    pts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1]))],
+  };
+})();
+
 // ---------- rutnätet ----------
 // 2 m-rutor, samma regler som Gnesta (src/data/gnesta.js townGrid): gångbart där en gångbar väg eller yta
 // ligger, en sammanhängande kedja längs varje väglinje. Järnvägen är stängd; broarna och gångbron är vanliga
@@ -722,7 +737,7 @@ export const molnbo = {
   outro: { text: 'The last train is through. Mölnbo station held long enough.' },
   camera: { target: R(-6, 20), view: 56, zoom: [24, 84], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
-  roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
+  roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, trainMark: TRAIN_MARK, bridge: BRIDGE, foot: FOOT, towers: TOWERS, x60: X60, folkets: FOLKETS,
   buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,
   spawns: SPAWNS, base: BASE, surroundings: MOLNBO_SURROUNDINGS,
   // 0.17.2 (H307): järnvägens ram för fotavtrycken (src/data/footprints.js), gärdsgården och trädgårdarna

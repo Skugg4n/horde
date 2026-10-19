@@ -6,6 +6,9 @@ import { MAPS } from './data/maps.js';
 import { createRenderer, createScene } from './render/scene.js';
 import { buildWorld, updateWorld } from './render/world.js';
 import { createView } from './render/view.js';
+import { createWorldMarks } from './render/world-marks.js';
+import { createLeakWatch, aheadOf } from './ui/leaks.js';
+import { declutter, rectOf, union } from './ui/declutter.js';
 import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
@@ -35,7 +38,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -87,7 +90,7 @@ uiRoot.dataset.mode = 'menu';   // tills första banan är laddad: ingen HUD
 // (renderer.compileAsync), så att sidan inte fryser och första bildrutan inte hackar.
 // Mätt 0.6.0 (docs/balance-log.md, Laddning): kartans CPU-del är under 0,15 s; nästan hela
 // väntan var GPU:ns första bildruta (shaderprogram), som med mjukvaru-GL tar 20-30 s.
-let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null;
+let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null, marks = null;
 let day = 1, sim = null;
 const worlds = new Map();
 const loading = document.createElement('div');
@@ -124,6 +127,7 @@ async function buildMapWorld(m) {
   w.day = d;
   w.view = createView(w.scene, w.sim);
   w.routeLines = createRouteLines(w.scene, { heightAt: m.groundY ?? null });   // 0.17.0-molnbo: vägen följer bron
+  w.marks = createWorldMarks(w.scene);   // 0.19.2: perrongen och läckorna
   const tBuild = performance.now() - t0;
   showLoading(m.name, 'Mixing the paint', 0.7);
   await nextFrame();
@@ -157,7 +161,7 @@ async function loadMap(id) {
     let w = worlds.get(m.id);
     if (!w) { w = await buildMapWorld(m); worlds.set(m.id, w); }
     if (rig) rig.active = false;
-    map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines;
+    map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines; marks = w.marks;
     day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
     sim = createSim(withTweaks(opStartConfig(progress, day, map.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
     view.setSim(sim);
@@ -977,7 +981,7 @@ function updateUnitStatus() {
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
     el.classList.toggle('squad', !!g.squad && !!SQUAD_TAG[g.weapon.type]);
   }
-  declutterTags([...unitTags.values()]);
+  declutterWorld();
 }
 // 0.19.0 (speltestet av 0.18.1, fynd 6: två sanity-staplar ovanpå varandra, och staplar från enheter utanför bild över
 // köpraden): en lapp som hamnar på köpraden eller utanför fönstret döljs, och en lapp som täcker en annan flyttas ner
@@ -987,30 +991,38 @@ function updateUnitStatus() {
 const TOP_PLATES = ['day', 'res'];
 function plateBoxes() { return TOP_PLATES.map(id => document.getElementById(id)?.getBoundingClientRect()).filter(r => r?.height); }
 const underPlate = (r, boxes) => boxes.some(b => r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom);
-function declutterTags(els) {
+// 0.19.2 (speltestet av 0.19.1, fynd 4: IN HOUSE, TIRED och EXHAUSTED i en klump vid korsningen, raderna över
+// vågskyltarna): samma regel för alla lappar i världen (src/ui/declutter.js). Vågskyltarna och perrongens etikett står
+// fast; varje enhets lappar (märket och läget, som flyttas ihop) knuffas en bit upp eller ner ur vägen, den valda först,
+// grupperna före pjäserna, och ryms en lapp ändå inte döljs den. Lappar på köpraden, under plåtarna uppe eller utanför
+// fönstret döljs som förut.
+function declutterWorld() {
   const bar = document.getElementById('buildbar')?.getBoundingClientRect();
   const barTop = bar && bar.height ? bar.top : innerHeight;
-  const vis = [], boxes = plateBoxes();
-  for (const el of els) {
-    const r = el.getBoundingClientRect();
-    const off = r.bottom > barTop - 2 || r.top < 0 || r.right < 0 || r.left > innerWidth || underPlate(r, boxes);
-    const v = off ? 'hidden' : '';
-    if (el.style.visibility !== v) el.style.visibility = v;
-    if (!off) vis.push({ el, r: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } });
+  const boxes = plateBoxes();
+  const off = r => r.bottom > barTop - 2 || r.top < 0 || r.right < 0 || r.left > innerWidth || underPlate(r, boxes);
+  const fixed = [];
+  for (const el of uiRoot.querySelectorAll('.entry')) if (!el.hidden && el.offsetWidth) fixed.push(rectOf(el.querySelector('.txt') ?? el));
+  if (!platLabel.hidden) fixed.push(rectOf(platLabel));
+  const groups = [];
+  for (const g of sim?.guns ?? []) {
+    const els = [squadTags.get(g.id), unitTags.get(g.id)].filter(Boolean);
+    if (!els.length) continue;
+    let r = null;
+    const vis = [];
+    for (const el of els) { const b = rectOf(el); if (off(b)) { if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden'; continue; } vis.push(el); r = union(r, b); }
+    if (!vis.length) continue;
+    const sel = selected?.kind === 'gun' && selected.id === g.id;
+    groups.push({ els: vis, r, prio: sel ? 5 : g.squad ? 2 : 1 });
   }
-  vis.sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
-  const placed = [];
-  for (const t of vis) {
-    let dy = 0;
-    for (let guard = 0; guard < 8; guard++) {
-      const hit = placed.find(q => q.left < t.r.right && t.r.left < q.right && q.top < t.r.bottom + dy && t.r.top + dy < q.bottom);
-      if (!hit) break;
-      dy = hit.bottom - t.r.top + 2;
+  const out = declutter(groups, { fixed, maxNudge: 40, bounds: { top: 0, bottom: barTop - 2 } });
+  groups.forEach((gr, i) => {
+    const o = out[i], v = o.hidden ? 'hidden' : '';
+    for (const el of gr.els) {
+      if (o.dy) el.style.top = (parseFloat(el.style.top) + o.dy) + 'px';
+      if (el.style.visibility !== v) el.style.visibility = v;
     }
-    if (dy) t.el.style.top = (parseFloat(t.el.style.top) + dy) + 'px';
-    if (t.r.bottom + dy > barTop - 2) t.el.style.visibility = 'hidden';
-    placed.push({ left: t.r.left, right: t.r.right, top: t.r.top + dy, bottom: t.r.bottom + dy });
-  }
+  });
 }
 // 0.18.0: korselden med en enhet i handen (src/sim/sim.js crossfirePreview), sparad per ruta och riktning
 const xfCache = { id: '', keys: [] };
@@ -1145,8 +1157,12 @@ function updateNewSpawn() {
 function barricadeBroken(ev, shoved = false) {
   // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
   const id = ev.line != null ? 'l' + ev.line : 'c' + ev.cell;
-  if (failingWarned.has('down:' + id)) return;
-  failingWarned.add('down:' + id);
+  // 0.19.2 (speltestet av 0.19.1, fynd 3: en spärr som redan tappat en ruta mot vandrarna och sedan knuffas undan sa
+  // ingenting): knuffen räknas för sig, så att tipset och raden kommer också när spärren redan var nere en gång
+  const key = (shoved ? 'shove:' : 'down:') + id;
+  if (failingWarned.has(key)) return;
+  failingWarned.add(key);
+  if (shoved) failingWarned.add('down:' + id);
   // 0.17.1: var spärren gick sönder (gatan), och att resten av spärren inte stoppar någon längre
   const c = sim.route.cellCenter(ev.cell), street = sim.route.kind === 'grid' ? streetAt(sim.map, c.x, c.z) : null;
   // 0.19.1: första knuffen säger tipset själv, sedan raden om gatan
@@ -1180,7 +1196,7 @@ function handleEvents() {
   const evs = sim.events;
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
-  if (evs.some(e => e.t === 'breach')) onBreach();
+  if (evs.some(e => e.t === 'breach')) onBreach(evs.filter(e => e.t === 'breach'));
   for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
@@ -1223,11 +1239,9 @@ function handleEvents() {
     }
     // 0.19.0 (H452): pendeltåget rullar in. Signalen och raden, en ping på perrongen, och kameran glider dit en stund
     // (spelaren väljer: flytta trupper mot perrongen eller hålla)
-    else if (ev.t === 'trainWarn') {
-      note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 9000, rank: 3 });
-      const ib = sim.map.inbound;
-      if (ib) { const [x, z] = sim.map.inbound.doors[Math.floor(ib.doors.length / 2)]; alerts.push({ x, z, until: time + 14, kind: 'barricade' }); }
-    }
+    // 0.19.2 (speltestet av 0.19.1, fynd 1: "jag läste det som en klocka och en fara, inte som ett val"): perrongen lyser
+    // och säger det, pilar från de närmaste enheterna, banderollen säger valet och flyttar kameran dit (trainWarned)
+    else if (ev.t === 'trainWarn') trainWarned(ev);
     else if (ev.t === 'trainDoors') { for (const [x, z] of ev.doors) view.fx.puff(x, z, 4); }
     else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
@@ -1319,23 +1333,39 @@ hud.setSpeed(speed);
 const canSpeed = () => mode === 'play' && (sim.phase === 'wave' || sim.phase === 'build');
 function setSpeed(n) {
   if (!canSpeed() || !SPEEDS.includes(n)) return;
-  speed = n;
+  speed = n; slowUntil = -Infinity;
   hud.setSpeed(speed);
   if (settings.speed !== n) { settings = normalizeSettings({ ...settings, speed: n }); saveSettings(settings); }
 }
 let speedShown = true;
+// 0.19.2 (speltestet av 0.19.1, fynd 1): pendeltågets signal saktar spelet till 1x en stund (SLOW_S sekunder i verklig
+// tid), så att spelaren hinner se perrongen och välja; ingen paus. Spelarens val (speed) står kvar och gäller igen
+// efteråt, och ett tryck på F under tiden gäller direkt.
+const SLOW_S = 6;
+let slowUntil = -Infinity, shownSpeed = null;
+const playSpeed = () => (performance.now() < slowUntil ? 1 : speed);
+function slowDown(secs = SLOW_S) { if (speed > 1) slowUntil = performance.now() + secs * 1000; }
 function toggleSpeed() {
   if (menu.isOpen() || !speedShown) return;
-  setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]);
+  setSpeed(SPEEDS[(SPEEDS.indexOf(playSpeed()) + 1) % SPEEDS.length]);
 }
 
 // ---------- basen tar skada ----------
 let lastBaseToast = -Infinity, lastBreach = -Infinity, shakeT = 0, shakeLen = SHAKE_TIME, shakeAmp = SHAKE_AMP;
-function onBreach() {
+// 0.19.2 (speltestet av 0.19.1, fynd 2): banderollen säger gatan de kom in från ("Base under attack! From Stenbyvägen"),
+// och ett klick flyttar kameran dit. Platsen är där de tog sig förbi de sista försvararna (leakWatch), annars där de
+// senast var långt från basen; den får också en röd ring.
+function onBreach(evs = []) {
   hud.baseHit();
   lastBreach = time;
   shake(SHAKE_TIME, SHAKE_AMP);
-  if (time - lastBaseToast >= BASE_TOAST_GAP) { lastBaseToast = time; note(uiRoot, 'Base under attack!', 'warn'); }
+  const from = evs.map(e => leakWatch.where(e.id)).find(Boolean) ?? null;
+  const street = from && sim.route.kind === 'grid' ? streetAt(sim.map, from.x, from.z) : null;
+  if (from) leakSpot(from.x, from.z, street, { quiet: true });
+  if (time - lastBaseToast >= BASE_TOAST_GAP) {
+    lastBaseToast = time;
+    note(uiRoot, street ? `Base under attack! From ${street}` : 'Base under attack!', 'warn', from ? { onClick: () => lookAt(from.x, from.z), ms: 6000 } : undefined);
+  }
   tip('tip.base');
 }
 // Samma skak för basen och granaterna; en starkare pågående skakning skrivs inte över av en svagare.
@@ -1432,6 +1462,140 @@ function goToTail() {
   audio.ui('click');
 }
 
+// ---------- pendeltåget som val (0.19.2, speltestet av 0.19.1, fynd 1) ----------
+// "Inget i spelet säger att man kan eller bör flytta mot perrongen." När tåget signalerar lyser perrongen och
+// trapptornen (en pulserande kontur), en etikett står där de kliver ur, och pilar på marken går från de två närmaste
+// enheterna dit. Banderollen säger valet på två rader och ett klick flyttar kameran till perrongen. Spelet saktar till
+// 1x en stund (slowDown), ingen paus; första gången pekar en bildtext på perrongen (lessons.js mb-4.platform).
+// Allt står tills en stund efter att dörrarna öppnats (simuleringens tid).
+const PLATFORM_AFTER = 14, PLATFORM_ARROWS = 2, ARROW_MAX = 26;
+let platform = null;           // { untilSim, arrowsAt }
+const platLabel = document.createElement('div');
+platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'Platform: they come out here';
+uiRoot.appendChild(platLabel);
+function trainWarned(ev) {
+  const tm = sim.map.trainMark;
+  note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 11000, rank: 3, sub: 'Move units to the platform, or hold the line.', onClick: tm ? () => goToPlatform() : null });
+  slowDown();
+  if (!tm) {
+    const ib = sim.map.inbound;
+    if (ib) { const [x, z] = ib.doors[Math.floor(ib.doors.length / 2)]; alerts.push({ x, z, until: time + 14, kind: 'barricade' }); }
+    return;
+  }
+  platform = { untilSim: sim.time + (ev.in ?? 12) + PLATFORM_AFTER, arrowsAt: -Infinity };
+  marks?.set('platform', { kind: 'outline', polys: tm.polys, y: tm.ys, color: '#ffbf3a' }, time);
+  const [x, z] = tm.target;
+  alerts.push({ x, z, until: time + (ev.in ?? 12) + PLATFORM_AFTER, kind: 'barricade' });
+}
+function endPlatform() {
+  platform = null; platLabel.hidden = true;
+  if (marks) { marks.clear('platform'); for (let i = 0; i < PLATFORM_ARROWS; i++) marks.clear('parrow' + i); }
+}
+function updatePlatform() {
+  if (!platform) return;
+  const tm = sim.map.trainMark;
+  if (mode !== 'play' || !tm || sim.time > platform.untilSim || sim.phase === 'won' || sim.phase === 'lost') { endPlatform(); return; }
+  const [lx, lz] = tm.label;
+  tmpV.set(lx, tm.labelY ?? 1, lz).project(camera);
+  const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
+  const show = tmpV.z < 1 && sx > 40 && sx < innerWidth - 40 && sy > 40 && sy < innerHeight - 40 && !placing;
+  platLabel.hidden = !show;
+  if (show) { platLabel.style.left = sx + 'px'; platLabel.style.top = sy + 'px'; platLabel.style.visibility = ''; }
+  // pilarna följer enheterna (en gång i sekunden): de två närmaste som inte redan står vid perrongen
+  if (time - platform.arrowsAt < 1) return;
+  platform.arrowsAt = time;
+  const [tx, tz] = tm.target;
+  const near = sim.guns.filter(g => !g.silent && !g.retreat && !WEAPONS[g.weapon.type]?.vehicle).map(g => ({ g, at: unitPos(g) })).filter(u => u.at)
+    .map(u => ({ ...u, d: Math.hypot(u.at.x - tx, u.at.z - tz) })).filter(u => u.d > 16).sort((a, b) => a.d - b.d).slice(0, PLATFORM_ARROWS);
+  for (let i = 0; i < PLATFORM_ARROWS; i++) {
+    const u = near[i];
+    if (!u) { marks?.clear('parrow' + i); continue; }
+    // från enheten mot perrongen, högst ARROW_MAX m (pilen säger vart, kartan och etiketten säger var)
+    const dx = (tx - u.at.x) / u.d, dz = (tz - u.at.z) / u.d, len = Math.min(u.d - 8, ARROW_MAX);
+    marks?.set('parrow' + i, { kind: 'arrow', from: [u.at.x + dx * 3, u.at.z + dz * 3], to: [u.at.x + dx * (3 + len), u.at.z + dz * (3 + len)], y: 0.45, color: '#f2c46b' }, platform.arrowsAt);
+  }
+}
+function lookAt(x, z) {
+  if (mode !== 'play' || !sim || !rig?.canPan) return;
+  rig.focus(x, z, Math.min(rig.view, sim.map.camera.zoom?.[1] ?? rig.view));
+  audio.ui('click');
+}
+function goToPlatform() {
+  const tm = sim?.map.trainMark;
+  if (!tm || mode !== 'play' || !rig?.canPan) return;
+  const f = rig.fit(tm.pts, 10);
+  rig.focus(f.x, f.z, Math.max(rig.view, f.view));
+  audio.ui('click');
+}
+
+// ---------- läckorna (0.19.2, speltestet av 0.19.1, fynd 2) ----------
+// "Det syntes inte vilken väg som läckte förrän basen tog skada." När zombier tar sig förbi de sista försvararna, eller
+// går en tom väg ända fram (src/ui/leaks.js), blinkar platsen: en röd ring på kartan och på minikartan, en rad med gatan
+// första gången för varje gata och dag, och en röd pil vid skärmkanten om platsen är utanför bild. Klick på raden eller
+// pilen flyttar kameran dit.
+const LEAK_SHOW = 7;
+const leakWatch = createLeakWatch();
+const leakRings = [];          // { id, x, z, street, until }
+const leakTold = new Set();
+let leakSimT = 0;
+const leakArrow = document.createElement('button');
+leakArrow.type = 'button'; leakArrow.id = 'leakarrow'; leakArrow.hidden = true;
+leakArrow.innerHTML = '<span class="chev"><i></i></span><span class="txt"></span>';
+leakArrow.addEventListener('click', () => { const l = leakRings[leakRings.length - 1]; if (l) lookAt(l.x, l.z); });
+uiRoot.appendChild(leakArrow);
+function leakSpot(x, z, street, { quiet = false } = {}) {
+  const old = leakRings.find(l => Math.hypot(l.x - x, l.z - z) < 10);
+  if (old) { old.until = time + LEAK_SHOW; leakRings.splice(leakRings.indexOf(old), 1); leakRings.push(old); }
+  else {
+    const id = `leak:${Math.round(x)},${Math.round(z)}`;
+    marks?.set(id, { kind: 'ring', x, z, r: 7, y: 0.3 + (map.groundY ? map.groundY(x, z) : 0), color: '#e8321f' }, time);
+    leakRings.push({ id, x, z, street, until: time + LEAK_SHOW });
+  }
+  alerts.push({ x, z, until: time + LEAK_SHOW, kind: 'leak' });
+  if (!quiet && street && !leakTold.has(street)) { leakTold.add(street); note(uiRoot, `They got past on ${street}.`, 'warn', { onClick: () => lookAt(x, z), ms: 6000 }); }
+}
+// Enheterna som har zombien i p inom räckvidd och sikt (samma villkor som när de skjuter)
+let fireList = [];
+function underFire(z, p) { return coversAt(p.x, p.z); }
+function coversAt(x, z) {
+  const k = sim.place.keyAt(x, z);
+  if (k < 0) return false;
+  return fireList.some(f => f.mask[k] && Math.hypot(x - f.x, z - f.z) <= f.r);
+}
+function updateLeaks(paused) {
+  for (let i = leakRings.length - 1; i >= 0; i--) if (leakRings[i].until < time || mode !== 'play') { marks?.clear(leakRings[i].id); leakRings.splice(i, 1); }
+  if (mode !== 'play' || !sim || sim.phase !== 'wave' || paused) { leakSimT = sim?.time ?? 0; updateLeakArrow(); return; }
+  const dt = Math.max(0, sim.time - leakSimT); leakSimT = sim.time;
+  fireList = [];
+  for (const g of sim.guns) {
+    if (g.silent || g.move || g.retreat || g.building > 0 || !g.sight?.mask) continue;
+    const at = unitPos(g);
+    if (at) fireList.push({ x: at.x, z: at.z, mask: g.sight.mask, r: gunStats(sim, g).range });
+  }
+  const streetOf = (x, z) => (sim.route.kind === 'grid' ? streetAt(sim.map, x, z) : null);
+  for (const l of leakWatch.update(sim, dt, { covered: underFire, ahead: aheadOf(sim, coversAt), base: baseCenter(), streetOf, time: sim.time })) leakSpot(l.x, l.z, l.street);
+  updateLeakArrow();
+}
+function updateLeakArrow() {
+  const l = mode === 'play' && !menu.isOpen() ? leakRings[leakRings.length - 1] : null;
+  const s = l && onScreen(l.x, l.z, 40);
+  if (!l || s.in) { leakArrow.hidden = true; return; }
+  const cx = innerWidth / 2, cy = innerHeight / 2, dx = s.sx - cx, dy = s.sy - cy;
+  const k = Math.min(Math.abs((cx - BASE_EDGE - 60) / (dx || 1e-6)), Math.abs((cy - BASE_EDGE - 40) / (dy || 1e-6)));
+  let bottom = innerHeight - 60;
+  for (const id of ['buildbar', 'wavebar']) { const r = document.getElementById(id)?.getBoundingClientRect(); if (r?.height) bottom = Math.min(bottom, r.top); }
+  leakArrow.hidden = false;
+  leakArrow.style.left = (cx + dx * k) + 'px'; leakArrow.style.top = Math.max(150, Math.min(bottom - 30, cy + dy * k)) + 'px';
+  leakArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  const txt = leakArrow.querySelector('.txt'), str = l.street ? `Got through: ${l.street}` : 'They got through';
+  if (txt.textContent !== str) txt.textContent = str;
+}
+function resetMarks() {
+  endPlatform(); leakWatch.reset(); leakTold.clear(); leakSimT = 0; slowUntil = -Infinity;
+  for (const l of leakRings) marks?.clear(l.id);
+  leakRings.length = 0; leakArrow.hidden = true;
+}
+
 // ---------- horden på väg in ----------
 // Pil vid skärmkanten där vägen kommer in, medan zombier är på väg men ännu inte syns.
 const tmpE = new Vector3();
@@ -1457,7 +1621,7 @@ function findEntry() {
 addEventListener('resize', () => { entryAt = null; });
 function updateEntry() {
   if (mode !== 'play') { hud.entry(null); return; }
-  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints(), { covers: coversGround, holding: !!placing || !!rotating }); return; }
+  if (sim.route.kind === 'grid') { hud.entry(gridEntries(), unitPoints(), { covers: coversGround, holding: !!placing || !!rotating, avoid: labelRects() }); return; }
   if (sim.phase !== 'wave') { hud.entry(null); return; }
   const alive = sim.zombies.filter(z => !z.dead);
   if (!alive.length && !sim.spawnQueue.length) { hud.entry(null); return; }
@@ -1480,11 +1644,26 @@ function coversGround(r) {
 }
 // 0.12.1 (speltestet: "HORDE INCOMING" låg ovanpå en Ksp 90): pjäsernas och soldaternas punkter på
 // skärmen, så att etiketterna undviker dem (och tonas ned om de ändå hamnar över en).
+// 0.19.2 (speltestet av 0.19.1, fynd 4: "25 WALKERS · 22 RUNNERS TO COME" över kyrktornet och skyttens stapel): en pjäs
+// på ett tak eller torn räknas där den står, högt upp, och ett hus med en grupp på taket
 function unitPoints() {
   const out = [];
+  const at = (x, y, z) => { tmpS.set(x, y, z).project(camera); out.push({ x: (tmpS.x + 1) / 2 * innerWidth, y: (1 - tmpS.y) / 2 * innerHeight }); };
   for (const g of sim.guns) {
-    if (g.squad) for (const s of g.soldiers) { const p = toScreen(s.x, s.z); out.push({ x: p.sx, y: p.sy }); }
-    else { const p = toScreen(g.x, g.z); out.push({ x: p.sx, y: p.sy }); }
+    const ht = houseTop(g);
+    if (ht) { at(ht.x, ht.y, ht.z); continue; }
+    if (g.squad) for (const s of g.soldiers) at(s.x, 0.8, s.z);
+    else { at(g.x, (g.y ?? 0) + 0.8, g.z); if (g.y) at(g.x, g.y + 2.4, g.z); }
+  }
+  return out;
+}
+// 0.19.2: lapparna i världen som vågskyltarna ska undvika (enheternas märken och lägen, perrongens etikett)
+function labelRects() {
+  const out = [];
+  for (const el of [...squadTags.values(), ...unitTags.values(), platLabel]) {
+    if (el.hidden || el.style.visibility === 'hidden') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 });
   }
   return out;
 }
@@ -1595,6 +1774,8 @@ let nowPaths = null;
 // 0.10.1 (speltestet: "när barrikaden står där är vägen borta"): vägen som gäller nu ligger kvar hela
 // dagen från varje ingång som dagen använder, tydligare än förut. R slår av och på den.
 let showRoute = true;
+// 0.19.2: spärrarna som stänger (betong och skrotbilar), inte taggtråden
+const blockKey = () => Object.keys(sim.obstacles).filter(k => OBSTACLES[sim.obstacles[k].type]?.kind === 'block').join(',');
 function updateRoutes() {
   const grid = sim.route.kind === 'grid' && mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave');
   if (!grid) { routeLines.set('now', null); routeLines.set('preview', null); routeLines.set('evac', null); routeLines.set('danger', null); return null; }
@@ -1620,7 +1801,9 @@ function updateRoutes() {
     // efter ett hinder, så blinkar den nya vägen och en rad säger det
     // 0.17.1 (speltestet av 0.17.0: "jag förstod aldrig vilken väg horden tog in"): raden säger gatan den nya vägen
     // går på, och den blinkar också när en spärr gått sönder (då står raden om spärren först)
-    else if (before) {
+    // 0.19.2 (speltestet av 0.19.1, fynd 7: "Horde rerouting via Stenbyvägen." efter taggtråd): tråden bromsar men
+    // stänger inget, så en ny väg efter bara tråd sägs inte (och blinkar inte); bara när spärrarna ändrats
+    else if (before && routeKeys.blocks !== blockKey()) {
       const i = nowPaths.findIndex((q, j) => q.cells.join() !== before[j]?.cells.join());
       if (i >= 0) {
         const street = rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i].cells, nowPaths[i].cells);
@@ -1631,6 +1814,7 @@ function updateRoutes() {
         routeFlash = 4;
       }
     }
+    routeKeys.blocks = blockKey();
   }
   // 0.19.0 (H458): med en spärr i handen som stänger sista vägen visas vägarna också när V slagit av dem
   const forceRoute = placing?.kind === 'obstacle' && !!routeKeys.shuts;
@@ -1838,6 +2022,8 @@ function lessonCond(c) {
     case 'units': return play && sim.guns.filter(g => !g.preset).length >= (Number(a) || 1);
     case 'build': return play && sim.phase === 'build';
     case 'xfZone': return play && !!xfZones();
+    // 0.19.2: pendeltåget har signalerat och perrongen lyser
+    case 'trainWarn': return play && !!platform;
     default: return false;
   }
 }
@@ -1857,6 +2043,14 @@ function uiRect(sel) {
 // 0.17.1 (speltestet av 0.17.0: lektionsraden över DAY-rutan och över "UNITS 2/6"): tågets ruta och köpradens rubrik
 const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not([hidden])', '#buildbar', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
   '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark'];
+// 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
+// uppe och banderollerna)
+const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note'];
+function coachHard() {
+  const out = [];
+  for (const sel of COACH_HARD) for (const n of uiRoot.querySelectorAll(sel)) { if (n.hidden) continue; const r = n.getBoundingClientRect(); if (r.width && r.height) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 }); }
+  return out;
+}
 function coachAvoid() {
   const out = [];
   for (const sel of COACH_AVOID) for (const n of uiRoot.querySelectorAll(sel)) {
@@ -1905,6 +2099,8 @@ function lessonWorldPts(t) {
       for (const sd of [-1, 1]) for (const { h } of near.filter(x => x.s === sd).slice(0, 2)) pts.push([h.x, h.z]);
     }
   }
+  // 0.19.2: perrongen och trapptornen när pendeltåget signalerar (mb-4.platform)
+  else if (w === 'platform') { for (const q of sim.map.trainMark?.pts ?? []) pts.push(q); }
   else if (w === 'xfzone') { for (const k of xfZones()?.keys ?? []) { const c = sim.place.center(k); pts.push([c.x, c.z]); } }
   else if (w === 'sanityLow') { const g = shakenUnit(); if (g) { const q = unitPos(g) ?? g; pts.push([q.x, q.z]); } }
   // 0.16.4: en ingång och vägen därifrån till spärren (E4 dag 2: Södertälje)
@@ -1971,7 +2167,8 @@ function startLesson(step) {
   lesson = { step, pause: pause && mode === 'play', missing: 0 };
   const first = mode === 'play' && !lessonsOf(progress).seen.some(id => LESSONS[STAGES[0].id].some(l => l.id === id)) && tipsMode(progress) === 'on' && step.kind !== 'caption';
   coach.show({ ...step, text: fillText(step.text), pause: lesson.pause, dim: pause, fewer: first });
-  if (lesson.pause && speed > 1) { speed = 1; hud.setSpeed(1); }
+  // 0.19.2 (speltestet av 0.19.1, fynd 5: farten hoppade till 1x efter varje tips som pausar): pausen står still av sig
+  // själv, och spelarens fart gäller igen när tipset stängs
   if (step.kind !== 'caption') audio.ui('click');
   return true;
 }
@@ -2007,7 +2204,7 @@ function updateLessons() {
     }
     lesson.missing = 0;
     coach.el.classList.toggle('dimmed', lesson.pause && !placing && !tg?.light && !!tg?.rect);
-    coach.place(tg?.rect ?? null, { off: tg?.off ?? null, avoid: coachAvoid() });
+    coach.place(tg?.rect ?? null, { off: tg?.off ?? null, avoid: coachAvoid(), hard: coachHard() });
     // 0.16.2 (speltestet av 0.16.1: plåten och kortets utfällda ruta skrevs över varandra): finns ingen fri plats
     // viker plåten för den utfällda rutan så länge pekaren står på kortet
     const more = uiRoot.querySelector('#buildbar .card:hover .more');
@@ -2050,7 +2247,6 @@ function openCard(type) {
   const e = ENEMIES[type];
   countHardPause();
   card = { type, held, ...enemyCard(uiRoot, { title: e.title, report: e.report, portrait: portraitOf(type), onContinue: () => closeCard() }) };
-  if (speed > 1) { speed = 1; hud.setSpeed(1); }
   audio.ui('click');
 }
 function closeCard() {
@@ -2300,7 +2496,7 @@ function startDay(n) {
   failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
-  scene.userData.molnbo?.reset(); trainUi.reset();
+  scene.userData.molnbo?.reset(); trainUi.reset(); resetMarks();
   view.setSim(sim);
   minimap.reset(sim);
   hud.reset();
@@ -2486,7 +2682,7 @@ const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.
 if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, get playSpeed() { return playSpeed(); }, get platform() { return platform; }, get leakRings() { return leakRings; }, get marks() { return marks; }, lookAt, goToPlatform, trainWarned, debugEvents: evs => { sim.events.push(...evs); handleEvents(); }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
@@ -2645,20 +2841,24 @@ function tick(now) {
   // Fart bara när tiden går i simuleringen (våg eller nedräkning), inte före första vågen.
   const running = sim.phase === 'wave' || (sim.phase === 'build' && sim.nextWaveIn != null);
   const paused = menu.isOpen() || lessonPaused();
-  advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? speed : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
+  advance(clock, frameDt, { playing: mode === 'play', paused, mul: running ? playSpeed() : 1, dt: DT, maxPerSpeed: MAX_STEPS_PER_SPEED }, () => { step(sim, DT); handleEvents(); });
   // 0.16.4 (Olas önskan): efter den sista zombien en stund av lugn innan VICTORY, så att man ser det. Tiden går i
   // spelets fart och står still när spelet pausas; musiken har redan gått ner (phase 'won').
   if (mode === 'play' && sim.phase === 'won') {
     if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
-    if (!paused) victoryWait.t += frameDt * speed;
+    if (!paused) victoryWait.t += frameDt * playSpeed();
     const trainBeat = !!sim.train?.gone, pause = trainBeat ? TRAIN_PAUSE : VICTORY_PAUSE, lineAt = trainBeat ? TRAIN_LINE_AT : VICTORY_LINE_AT;
     if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : 'Sector quiet', pause - lineAt + 0.4); }
     if (victoryWait.t >= pause) { victoryWait = null; finishDay(); }
   } else if (mode === 'play' && sim.phase === 'lost') finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
+  if (shownSpeed !== playSpeed()) { shownSpeed = playSpeed(); hud.setSpeed(shownSpeed); }
   updateLessons();
   updateBaseArrow();
   updateTailArrow();
+  updatePlatform();
+  updateLeaks(paused);
+  marks?.update(time);
   if (sim) updateNewSpawn();
   updateEnemies();
   updateReveals();
@@ -2707,7 +2907,7 @@ function tick(now) {
     snap: placing && spot?.ok && spot.fx != null && !aim?.drag ? { from: [spot.fx, spot.fz], to: [spot.x, spot.z] } : null });
   view.setZoom(rig.view);
   view.sync(vdt);
-  audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? speed : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
+  audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? playSpeed() : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);
   renderer.render(scene, camera);
   updateDebug(frameDt);

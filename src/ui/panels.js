@@ -708,41 +708,47 @@ function noteStack(root) {
 // en enhet som bryts 2, allt annat rött (omväg, genombrott, basen) 1. En ny med högre rank tar den stora platsen och den
 // gamla blir liten; en ny med samma eller lägre rank står liten under. Vanliga rader (rank 0) som förut.
 const bigNote = st => st.querySelector('.note.big');
-function showNote(root, text, cls, ms = NOTE_MS, top = false, rank = 0) {
+// 0.19.2 (speltestet av 0.19.1, fynd 1 och 2): en banderoll kan ha en andra rad (sub, mindre) och vara klickbar (onClick:
+// "Base under attack! From Stenbyvägen" flyttar kameran dit). Raden känns igen på sin text och andra rad (_key).
+const noteKey = (text, sub) => (sub ? text + '\n' + sub : text);
+function showNote(root, text, cls, ms = NOTE_MS, top = false, rank = 0, { sub = null, onClick = null } = {}) {
   const st = noteStack(root);
   const el = document.createElement('div');
   el._rank = rank;
+  el._key = noteKey(text, sub);
   if (rank > 0) {
     const big = bigNote(st);
     if (big && big._rank >= rank) { cls = cls.replace(/\bwarn\b/, 'minor'); top = false; }
     else { if (big) { big.classList.remove('warn', 'big'); big.classList.add('minor'); } cls += ' big'; top = true; }
   }
-  el.className = 'note plate ' + cls;
-  el.textContent = text;
+  el.className = 'note plate ' + cls + (onClick ? ' click' : '');
+  if (sub) { const a = document.createElement('span'); a.className = 'l1'; a.textContent = text; const b = document.createElement('span'); b.className = 'l2'; b.textContent = sub; el.append(a, b); }
+  else el.textContent = text;
+  if (onClick) { el.setAttribute('role', 'button'); el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); onClick(); }); }
   if (top) st.prepend(el); else st.appendChild(el);
   el._t = setTimeout(() => dropNote(root, el), ms);
 }
 function dropNote(root, el) {
   el.remove();
   const st = noteStack(root);
-  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms, false, q.rank); }
+  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms, false, q.rank, q.opts); }
 }
 // 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå. 0.16.2: ms, hur länge raden står
 // 0.19.0 (speltestet av 0.18.1, fynd 5: "Volunteer squad breaks!" grå och halvt bakom den röda omvägsraden): top lägger
 // raden överst i kolumnen (en enhet som bryts går före en omväg)
-export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false, rank = null } = {}) {
-  const st = noteStack(root);
+export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false, rank = null, sub = null, onClick = null } = {}) {
+  const st = noteStack(root), key = noteKey(text, sub), opts = { sub, onClick };
   rank ??= /\bwarn\b/.test(cls) ? 1 : 0;
   // 0.19.1: den som får gå är den med lägst rang (äldst vid lika), inte den översta (det var den stora banderollen)
-  if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) {
+  if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.key === key)) {
     const old = [...st.querySelectorAll('.note')].sort((a, b) => (a._rank ?? 0) - (b._rank ?? 0))[0];
     if (old && (old._rank ?? 0) <= rank) { clearTimeout(old._t); old.remove(); }
   }
-  const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
+  const same = [...st.querySelectorAll('.note')].find(n => n._key === key);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
-  if (noteQueue.some(q => q.text === text)) return;
-  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, cls, ms, rank }); if (noteQueue.length > 6) noteQueue.shift(); return; }
-  showNote(root, text, cls, ms, top, rank);
+  if (noteQueue.some(q => q.key === key)) return;
+  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  showNote(root, text, cls, ms, top, rank, opts);
 }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }
