@@ -298,6 +298,18 @@ Omgruppering: kontrollrummet i Gnesta.
 
 **Laxne.** Inte i bågen. Olas förslag: ett val för spelaren, försvara Laxne eller släppa det till horden för att spara trupper.
 
+Förhandsvisningen finns (`laxne.html`, H460). Olas beslut: horden kommer från norr längs väg 223 (Laxnevägen från Mariefred) och vill söderut mot Gnesta via Björnlunda. Kartans öppna frågor, med det som gäller tills Ola svarar:
+- Utgångarna: båda öppna, 223 söderut förbi Laxne skola och Hebyvägen åt sydost. Ska bara en gå att välja?
+- Basen: skolan är sista försvarspunkten. Eller ska den vara konvojens lastplats på vägen ut?
+- Husen: OSM har 71; 42 till är tillagda efter kartbilden (villor vid Uppvägen, Ytterbyvägen, Utvägen, Invägen och stranden). Räcker det, eller ska byn bli tätare?
+- Hur långt norrut: kartan slutar vid bussvändslingan och Skottvångsvägen. Behövs ett längre norrstycke av remsan mellan skog och sjö för att ge tid?
+- Ingångarna: 223 från norr och Skottvångsvägen från nordväst (namnet antaget ur hållplatsen). Ska horden också kunna gå runt genom skogen via Uppvägen och Laxnetopsvägen?
+- Fjäderfabriken: antaget läge är den långa byggnaden vid 223-hörnet (Laxne loppis i Google). Vet Ola var den ligger och hur den ser ut?
+- Laxne Bollplan: antagen som grusplanen vid badplatsen (satellitbilden); hållplatsen med namnet står vid Hebyvägen nedanför. Stämmer det?
+- Laxnegården: den röda gården vid Laxnevägen där Google sätter namnet. Ska den vara gård, bas eller bara kuliss?
+- Sjönamnet Klämmingen efter Wikipedia (OSM stavar Klemmingen): räcker det, eller ska det kontrolleras i Lantmäteriets karta?
+- Röset (bronsåldersgraven) och lanthandeln: kuliss? Läget i byn är inte känt.
+
 ### Konsekvenser för det som finns
 - Källan är en kraschad smittotransport på spåret i Björnlunda (Västra stambanan går genom byn). Grustaget (avsnitt 5) utgår.
 - Mölnbo-basen: Folkets hus är gården där folk samlas dag 8 och försvaras dag 9; dag 10 överges den. Flykten går över spåret mot Gnesta. Folkets hus behöver inte ligga på linjen mot Gnesta; det är samlingsplatsen, inte slutmålet.
