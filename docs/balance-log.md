@@ -1254,3 +1254,18 @@ Kartläsaren vinner för lätt (basen hel dag 3); det är ett känt glapp mellan
 Fingeravtrycken: mbSmart 3eb447c8, c6df086e, a987d15d; mbNaive c395415f, 724a4294, 8c95da16.
 
 Andra prov som ändrades med kartan (inte balans): bilspärren i tests/shove.test.js ligger på Kvarnvägen med gruppen söderifrån (vid Missionskyrkan finns nu en lika kort väg runt), snubblets prov mäter dag 2 och tillåter upp till 0,36 (vägen från Järna är längre, fler meter att snubbla på), svansens bjässar får 200 s (cirka 180 med svansen).
+
+## Mölnbo 0.20.1: speltestet av 0.20.0
+
+Dag 1 och 2 nya, dag 3 ny; alla tre fingeravtrycken nya avsiktligt.
+
+- Dag 1: husen i omvänd ordning, närmast bron först (speltestet: de första husen låg på väg 57 där horden kom in). Kartläsaren och den som aldrig spärrar får 20 till 23 över (need 19).
+- Dag 2: overlap 50 till 30 s och overlapMin 0,4 till 0,3 (nästa våg tidigare), svansen n 8, after 6 s, mul 4 (dayCfg.tail), hp 13 till 12. Prövat: fortare takt (dayCfg.pace 1,45, hp 10) gav samma längd men fler dubbla snubbel; hp 10 utan takt gjorde dagen för lätt för den som aldrig spärrar (snittbas 14,2). Längd 1x: mbSmart 392 till 412 s, mbNaive 471 till 554 s (var 515 till 612). Basen: mbSmart 19 till 20, mbNaive 13 till 17.
+- Dag 3: flodvågen 207 (var 112), vågornas rester tas bort vid uttåget, bilden tonar ut tidigast 18 s in. Ingen påverkan på strid före klockan. Toppen räknas inte under uttåget.
+- Vikingavägen dag 4 (speltestet, fynd 5): npm run balance på 0.20.1: skilled vinner N4 på första försöket i alla seeds (bas seed 0: 4), normal inom 1 till 2. Ingen ändring; skillnaden mot speltestet är Quick jump-truppen (todo H526).
+
+    mbSmart  alla dagar första försöket; civila dag 1: 20 till 22; bas dag 2: 19, 20, 20, 20, 20; dag 3: 20
+    mbNaive  alla dagar första försöket; civila dag 1: 20 till 23; bas dag 2: 15, 13, 16, 13, 17; dag 3: 10, 20, 8, 14, 6
+
+Fingeravtrycken: mbSmart a1c2727c, 5ded47d4, a68be77c; mbNaive c7e13ad7, d3390930, edc96eaf.
+Snubblet (tests/stumble.test.js): dag 2 med tidigare vågor 6 av 52 två gånger, gränsen 12 % (todo H528).

@@ -1,5 +1,24 @@
 # Ändringslogg
 
+## 0.20.1: speltestet av 0.20.0 (2026-10-19)
+
+Speltestet sa JA med reservationer (docs/playtests/2026-10-19-0.20.0.md).
+
+Mölnbo dag 1. Introt sa "Hold the bridge", testaren ställde allt vid bron och förlorade på 36 s när de civila dog vid de första husen uppe vid Järna. Nu: "From Järna. Cover the north side. Civilians cross the bridge behind you." Kameran börjar på norra sidan med vägen in, husen och bron i bild, första lektionen pekar på husen och de gula linjerna, och husen närmast bron går först (de längst upp mot Järna sist, när spelaren hunnit ställa sig).
+
+Dag 2 var tolv minuter i 1x; nu cirka sex och en halv för den som läser kartan. Nästa våg kommer tidigare och svansen är hårdare (ingen ensam bjässe i två minuter). Kameran glider till perrongen när pendeltåget signalerar.
+
+Dag 3:s flodvåg är tät: cirka 200 under 20 sekunder ur dimman längs väg 57, Norrängsvägen, Backvägen och Skogstorpsvägen och ur husen på norra sidan, dörr för dörr. Det som var kvar av dagens vågor försvinner när uttåget börjar, så bilden visar flodvågen. "Time. Pull out to Gnesta!" står i en banderoll över hela bredden.
+
+Kameran börjar rätt alla tre dagarna: dag 1 på norra sidan, dag 2 och 3 med bron och basen i bild. Folkets hus har en etikett, "Folkets hus · Base". Mölnbo går att zooma ut längre (kartan är större).
+
+Smått:
+- UNITS-räknaren visar det som går att ha ute (frontbredden, eller dagens trupp om den är mindre), inte "6 / 9" när alla kort säger All out.
+- E4 dag 2:s intro avslöjar inte Södertälje; en rad säger till när de kommer.
+- Lappar och perrongens etikett: klicket på tågets banderoll tar fram perrongen direkt även medan kameran glider.
+- Vikingavägen dag 4 vinns i balansskriptet i alla seeds (skilled och normal); förlusten i speltestet kom ur Quick jump-truppen (todo H526). Ingen ändring.
+- Balansen: docs/balance-log.md, Mölnbo 0.20.1.
+
 ## 0.20.0 (Mölnbo efter satellitbilden och kampanjbågen) (2026-10-19)
 
 Mölnbo är omritat efter Olas satellitbild och har nu tre dagar, kampanjens dag 8 till 10 (H494, H495, kampanjplanen avsnitt 10).
