@@ -399,11 +399,12 @@ export const DAYS = [
   // dagens andra lektion; 0.20.0 (H497) kommer den med radion på Ishallen dag 3, och här flyttar man i uppställningen
   // mellan vågorna (Reposition). Kampanjbågen: gruppen går norrut längs E4 från Nyköping, Södertälje är dag 2:s överraskning.
   { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6, foretell: ['sodertalje'],
-    intro: { title: 'Day 2: Two roads', text: 'Runners from Nyköping, then Södertälje. Wire buys you time.' },
+    // 0.20.1 (speltestet av 0.20.0: introt avslöjade Södertälje i förväg): introt är neutralt, överraskningen säger själv till
+    intro: { title: 'Day 2: Runners', text: 'Runners up the E4 from Nyköping. Wire buys you time.' },
     preset: [{ type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 6, 1.2, 8, 'nykoping')] },
              // 0.16.1 (speltestet av 0.16.0, 20 / 40 / 68): våg 2 44, våg 3 60 (fem klungor löpare i stället för sex)
-             { groups: [g('walker', 14, 1.0, 0, 'nykoping'), g('runner', 15, 0.8, 4, 'sodertalje'), g('runner', 15, 0.8, 22, 'nykoping')] },
+             { groups: [g('walker', 14, 1.0, 0, 'nykoping'), { ...g('runner', 15, 0.8, 4, 'sodertalje'), toast: 'Runners from Södertälje, behind you!' }, g('runner', 15, 0.8, 22, 'nykoping')] },
              { groups: [g('walker', 20, 0.7, 0, 'nykoping'), ...[3, 14, 25, 36, 47].map((delay, i) => g('runner', 8, 0.8, delay, i % 2 ? 'sodertalje' : 'nykoping'))] } ] },
   // 0.16.1 (H192, speltestet av 0.14.2: "dag 3 våg 3 är ett stup, 82 fiender, 20 till 5"): våg 2 har två
   // klungor bjässar och löpare från påfarten, så att basen känner av den (0 till 2), och våg 3 har 26 bjässar i

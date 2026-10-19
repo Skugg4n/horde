@@ -25,7 +25,7 @@ import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 import { nearLine } from './road-field.js';
 
-export const MOLNBO_VERSION = '0.2.0';
+export const MOLNBO_VERSION = '0.2.1';
 
 // ---------- järnvägens ram ----------
 const TH = 21 * Math.PI / 180;
@@ -427,6 +427,9 @@ export const TRAIN_MARK = (() => {
     label: R(INBOUND.uStop, (P.v0 + P.v1) / 2), labelY: P.h + 1.2,
     target: R(uOnBridge(LINK.v), LINK.v),
     pts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1]))],
+    // 0.20.1: kameran när tåget signalerar (main.js trainWarned, goToPlatform): perrongen, tornen och en bit norrut, så att
+    // perrongen och etiketten hamnar under banderollen och inte bakom den
+    viewPts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1])), R(INBOUND.uStop, RAIL.platformN.v0 - 34)],
   };
 })();
 
@@ -718,22 +721,27 @@ const ALL = ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa
 const SOUTH_SIDE = RS([[-160, BRIDGE.ramp + 2], [200, BRIDGE.ramp + 2], [200, 240], [-160, 240]]);
 // Norra sidan (dag 3): allt norr om spåret, också norra perrongen. Ingen placering där, och bilden färgas.
 export const NORTH_SIDE = RS([[-260, RAIL.corridor[0] - 1], [260, RAIL.corridor[0] - 1], [260, -260], [-260, -260]]);
-// Dag 1: husen som evakueras, i tur och ordning. Först de längst upp mot Järna (Norrängsvägen och väg 57), innan horden
-// är där; sedan Backvägen, och sist Skogstorpsvägen i väster, vars väg möter horden först vid bron. Villorna väljs nära
-// punkterna i järnvägens ram.
+// Dag 1: husen som evakueras, i tur och ordning. 0.20.1 (speltestet av 0.20.0: de första husen låg på väg 57 där horden
+// kommer in, och de civila dog utanför bild innan spelaren hunnit något): först husen närmast bron (Skogstorpsvägen och
+// Backvägen), sedan längre upp, och sist de vid Norrängsvägen och väg 57 mot Järna, när spelaren har ställt sig norr om
+// bron. Villorna väljs nära punkterna i järnvägens ram.
 const EVAC_HOMES = (() => {
   const taken = new Set();
-  return [[84, -50], [50, -75], [30, -77], [10, -78], [-3, -62], [-13, -43]].map(([u, v]) => homeNear(u, v, taken));
+  return [[-13, -43], [-3, -62], [16, -62], [10, -78], [30, -77], [50, -75]].map(([u, v]) => homeNear(u, v, taken));
 })();
-// Dag 3: husen på norra sidan där flodvågen väller ut (de som inte evakuerades i tid).
-const FLOOD_HOMES = (() => {
-  const taken = new Set();
-  return [[-20, -66], [30, -72], [70, -52], [8, -56]].map(([u, v]) => homeNear(u, v, taken));
-})();
+// Dag 3: husen på norra sidan där flodvågen väller ut, i den ordning vågen når dem uppifrån (0.20.1: alla husen på
+// norra sidan, så att flodvågen går in i husen och ut på gatorna).
+const FLOOD_HOMES = [...NORTH_HOMES].sort((a, b) => a.v - b.v || a.u - b.u).map(h => h.id);
+// Kameran när dagen börjar (main.js dayFrame, 0.20.1 speltestet: "kameran börjar på fel ställe alla tre dagarna"): en mitt
+// och en vy, eller punkter (pts) som ska vara i bild.
+const VIEW = (u, v, view) => { const [x, z] = R(u, v); return { x, z, view }; };
 export const DAYS = [
   { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16,
-    intro: { title: 'Day 1: Hold the bridge', text: 'From Järna down väg 57. Hold the bridge, get them across.' },
+    // 0.20.1 (speltestet av 0.20.0: "Hold the bridge" fick testaren att ställa allt vid bron; de civila dog uppe vid husen)
+    intro: { title: 'Day 1: Cover the north side', text: 'From Järna. Cover the north side. Civilians cross the bridge behind you.' },
     objective: 'Get the north side over the bridge.',
+    // norra sidan, vägen in från Järna, husen och bron i bild
+    view: VIEW(22, -46, 64),
     // all: dagen vinns först när vågorna är hållna OCH de civila är över (src/sim/sim.js checkEvac)
     evac: { need: 19, all: true, safeZone: SOUTH_SIDE,
       groups: [{ house: EVAC_HOMES[0], count: 4, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 4, at: 6, wave: 0 },
@@ -743,9 +751,15 @@ export const DAYS = [
              say('North of the tracks, along Norrängsvägen!', { groups: [g('walker', 18, 0.55, 0, 's1'), g('walker', 12, 0.6, 6, 's3'), g('runner', 6, 0.6, 14, 's1')] }),
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 13, overlap: 50, overlapMin: 0.4,
-    intro: { title: 'Day 2: The north side', text: 'From Järna, both sides of the tracks. And the south.' },
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 30, overlapMin: 0.3,
+    intro: { title: 'Day 2: The north side falls', text: 'From Järna, both sides of the tracks. And the south.' },
     objective: 'Hold Folkets hus.',
+    // bron, basen och vägen dit
+    view: { pts: [R(uOnBridge(-24), -24), R(BRIDGE.a[0], BRIDGE.a[1]), FOLKETS.entrance, R(FOLKETS.u, FOLKETS.v + 16)] },
+    // 0.20.1 (speltestet av 0.20.0: dag 2 tog tolv minuter i 1x, våg 1 gick 130 s från Järna, en ensam bjässe i två
+    // minuter sist): nästa våg tidigare (overlap 30 s, overlapMin 0,3) och en hårdare svans. Prövat: fortare takt (pace
+    // 1,45) gav samma längd men dubbelt så många löpare som snubblade två gånger.
+    tail: { n: 8, after: 6, mul: 4 },
     arrival: { wave: 2, at: 35, warn: 12, doors: INBOUND.doors,
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
     waves: [ say('Väg 57 again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
@@ -755,6 +769,8 @@ export const DAYS = [
   { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 10, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 3: Pull out', text: 'From Järna, all of them. Hold, then we pull out.' },
     objective: 'Hold Mölnbo, then pull out to Gnesta.',
+    // på bron, söderut mot basen
+    view: { pts: [R(uOnBridge(0), 0), R(BRIDGE.a[0], BRIDGE.a[1]), FOLKETS.entrance, R(FOLKETS.u, FOLKETS.v + 16)] },
     // Norra sidan är förlorad: ingen placering där, och bilden färgar den (main.js lostSide)
     lost: { poly: NORTH_SIDE, name: 'The north side is lost' },
     // Klockan (src/sim/sim.js runTrain): håll i sex minuter från första vågen. Sedan uttåget (src/sim/sim.js runExodus).
@@ -762,15 +778,17 @@ export const DAYS = [
       exodus: {
         // trupperna springer sydväst längs Gnestavägen ut i diset mot Gnesta
         exit: R(-104, 33.5),
-        // flodvågen från norr: ur dimman och ur husen på norra sidan, alla mot bron
-        // (högst cirka 110: med det som är kvar av vågorna blir det inte mer än vyn orkar, ~250 levande)
-        flood: [{ spawn: 's1', type: 'walker', count: 30, interval: 0.15, delay: 0 }, { spawn: 's3', type: 'walker', count: 18, interval: 0.2, delay: 0.5 },
-          { spawn: 's5', type: 'walker', count: 16, interval: 0.2, delay: 1 }, { spawn: 's6', type: 'walker', count: 16, interval: 0.2, delay: 1.5 },
-          { spawn: 's1', type: 'runner', count: 12, interval: 0.25, delay: 3 },
-          ...FLOOD_HOMES.map((house, i) => ({ house, type: 'walker', count: 5, interval: 0.4, delay: 2 + i * 1.2 }))],
+        // flodvågen från norr: ur dimman och ur husen på norra sidan, alla mot bron. 0.20.1 (speltestet av 0.20.0: "ett
+        // trettiotal som strosar"): cirka 200 under 20 s, dörrarna slås upp hus för hus. De som var kvar av dagens vågor tas
+        // bort när uttåget börjar (src/sim/sim.js startExodus), så det levande är flodvågen.
+        flood: [{ spawn: 's1', type: 'walker', count: 64, interval: 0.3, delay: 0 }, { spawn: 's3', type: 'walker', count: 36, interval: 0.5, delay: 1 },
+          { spawn: 's5', type: 'walker', count: 26, interval: 0.7, delay: 1.5 }, { spawn: 's6', type: 'walker', count: 26, interval: 0.7, delay: 2 },
+          { spawn: 's1', type: 'runner', count: 16, interval: 0.6, delay: 4 },
+          ...FLOOD_HOMES.map((house, i) => ({ house, type: 'walker', count: 3, interval: 0.5, delay: 3 + i * 1.1 }))],
         // när den första går ut på bron (norra rampen) tonar bilden ut, och fade sekunder senare är dagen vunnen
         trigger: RS([[uOnBridge(-BRIDGE.ramp) - 8, -BRIDGE.ramp], [uOnBridge(-BRIDGE.ramp) + 8, -BRIDGE.ramp], [uOnBridge(-BRIDGE.deck) + 8, -BRIDGE.deck], [uOnBridge(-BRIDGE.deck) - 8, -BRIDGE.deck]]),
-        fade: 3, max: 70,
+        // inte före min sekunder: vågen hinner välla in och sprida sig
+        fade: 3, min: 18, max: 45,
       } },
     waves: [ say('From today the next wave will not wait for this one.', { groups: [g('walker', 14, 0.6, 0, 's1', 14), g('runner', 6, 0.8, 6, 's1')] }),
              say('From the east, along Fagernäsvägen!', { groups: [g('walker', 24, 0.45, 0, 's2'), g('walker', 18, 0.5, 6, 's1')] }),
@@ -799,7 +817,10 @@ export const molnbo = {
   outro: { text: 'Mölnbo is lost, but the north side got across. Fall back to Gnesta.' },
   // dag 1:s civila är i säkerhet när de är över bron (resultatet och raderna i main.js)
   evacPlace: 'got over the bridge',
-  camera: { target: R(-2, 30), view: 56, zoom: [24, 84], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
+  // 0.20.1: basens namn över Folkets hus (main.js updateBaseLabel)
+  baseLabel: 'Folkets hus · Base',
+  // 0.20.1: utzoomning till 110 (kartan efter satellitbilden är större; dag 2 och 3 börjar med bron och basen i bild)
+  camera: { target: R(-2, 30), view: 56, zoom: [24, 110], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
   roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, trainMark: TRAIN_MARK, bridge: BRIDGE, link: LINK, towers: TOWERS, x60: X60, folkets: FOLKETS,
   buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,

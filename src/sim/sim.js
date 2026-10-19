@@ -269,14 +269,20 @@ export const EXODUS_SPEED = 4;
 function startExodus(sim) {
   const cfg = sim.dayCfg.hold.exodus;
   sim.phase = 'exodus';
-  sim.exodus = { t: 0, fadeAt: null, fade: cfg.fade ?? 3, max: cfg.max ?? 60, trigger: cfg.trigger, exit: cfg.exit, packed: 0 };
+  sim.exodus = { t: 0, fadeAt: null, fade: cfg.fade ?? 3, max: cfg.max ?? 60, min: cfg.min ?? 0, trigger: cfg.trigger, exit: cfg.exit, packed: 0 };
   sim.spawnQueue = [];
   sim.nextWaveIn = null;
+  // 0.20.1 (speltestet av 0.20.0: 165 levande stod kvar söder om bron, "när de når bron är det över" stämde inte med
+  // bilden): de som är kvar av dagens vågor tas bort när uttåget börjar; bara flodvågen syns
+  const before = sim.zombies.length;
+  sim.zombies = sim.zombies.filter(z => z.dead);
+  sim.exodus.cleared = before - sim.zombies.length;
   const wave = sim.dayCfg.waves.length - 1;
   for (const f of cfg.flood) {
     const door = f.house ? houseDoor(sim.map, f.house, sim.route) : null;
     for (let i = 0; i < f.count; i++) sim.spawnQueue.push({ at: sim.time + (f.delay ?? 0) + i * f.interval, type: f.type, wave, ...(door ? { door: f.house, cell: door.cell } : { spawn: f.spawn }), flood: true });
-    if (door) sim.events.push({ t: 'dormantBurst', house: f.house, x: door.x, z: door.z, ry: door.ry, intel: true, flood: true });
+    // husets dörr slås upp när de första kommer ut (pendingBursts, som de vilande med fördröjning)
+    if (door) (sim.pendingBursts ??= []).push({ at: sim.time + (f.delay ?? 0), ev: { t: 'dormantBurst', house: f.house, x: door.x, z: door.z, ry: door.ry, intel: true, flood: true } });
   }
   sim.spawnQueue.sort((a, b) => a.at - b.at);
   const exitKey = sim.place.keyAt(cfg.exit[0], cfg.exit[1]);
@@ -343,6 +349,7 @@ function packUp(sim, g, exitKey) {
 function runExodus(sim, dt) {
   const ex = sim.exodus;
   sim.time += dt; ex.t += dt;
+  if (sim.pendingBursts?.length) for (const b of sim.pendingBursts.filter(q => q.at <= sim.time)) { sim.pendingBursts.splice(sim.pendingBursts.indexOf(b), 1); sim.burst.push(b.ev.house); sim.events.push(b.ev); }
   while (sim.spawnQueue.length && sim.spawnQueue[0].at <= sim.time) spawn(sim, sim.spawnQueue.shift());
   runSoldiers(sim, dt);
   runMoves(sim, dt);
@@ -351,13 +358,14 @@ function runExodus(sim, dt) {
     if (z.dead) continue;
     z.attacking = false; z.foe = null;
     const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
-    const speed = ZOMBIES[z.type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * fog;
+    const speed = ZOMBIES[z.type].speed * paceOf(sim) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed; z.run = (z.run ?? 0) + speed * dt;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
   }
   ageCorpses(sim, dt);
-  if (ex.fadeAt == null && (ex.t >= ex.max || (ex.trigger && sim.zombies.some(z => z.flood && !z.dead && inPolyS(z.x, z.z, ex.trigger))))) {
+  // 0.20.1: inte före exodus.min sekunder (flodvågen hinner välla in och sprida sig innan bilden tonar ut)
+  if (ex.fadeAt == null && (ex.t >= ex.max || (ex.t >= ex.min && ex.trigger && sim.zombies.some(z => z.flood && !z.dead && inPolyS(z.x, z.z, ex.trigger))))) {
     ex.fadeAt = ex.t;
     sim.events.push({ t: 'exodusFade', in: ex.fade });
   }
@@ -527,9 +535,9 @@ function spawn(sim, { type, wave, spawn: spawnId, lead = 0, hp: hpK = null, door
   // 0.12.0: de vilande kommer ut ur huset (door) på gatan framför det
   // 0.19.0 (H452): de som kliver ur pendeltåget kommer ut på perrongen vid dörren (cell)
   const at = door ? { ...sim.route.spawnAt(sim.rng, cell, id), house: door } : cell >= 0 ? sim.route.spawnAt(sim.rng, cell, id) : sim.route.spawn(sim.rng, spawnId, id);
-  const z = { id, type, wave, hp, maxHp: hp, ...at, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false, ...(ZOMBIES[type].shove ? { shove: true } : {}), ...(train ? { train: true } : {}), ...(flood ? { flood: true } : {}) };
+  const z = { id, type, wave, hp, maxHp: hp, ...at, bornAt: sim.time, wob: sim.rng() * 6, dead: false, deadT: 0, blockedBy: null, breached: false, attacking: false, ...(ZOMBIES[type].shove ? { shove: true } : {}), ...(train ? { train: true } : {}), ...(flood ? { flood: true } : {}) };
   if (lead > 0) {
-    const speed = ZOMBIES[type].speed * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1);
+    const speed = ZOMBIES[type].speed * paceOf(sim) * (sim.tweaks?.speed ?? 1);
     const f0 = sim.route.fraction(z), stop = f0 + (1 - f0) * LEAD_MAX;
     // 0.11.0: på en bana med dis stannar försprånget i diset (ingen dyker upp mitt i kartan)
     const fog = sim.route.kind === 'grid' && sim.map.surroundings?.crisp;
@@ -676,10 +684,15 @@ const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every
 // 0.19.1 (speltestet av 0.19.0, fynd 2: nu blev bjässarna svansen, tre bjässar sist gav 90 till 150 s väntan med inget i
 // bild): regeln gäller alla typer, också bjässar och pansrade. Spelaren ser dessutom var de är (main.js, tailArrow).
 export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5 };
+// 0.20.1 (speltestet av 0.20.0, Mölnbo dag 2: en ensam bjässe i nästan två minuter): en dag kan skärpa svansen
+// (dayCfg.tail, samma fält som TAIL) och ha en egen takt (dayCfg.pace, annars banans map.pace).
+export const tailOf = sim => (sim.dayCfg.tail ? { ...TAIL, ...sim.dayCfg.tail } : TAIL);
+export const paceOf = sim => sim.dayCfg.pace ?? sim.map.pace ?? 1;
 function tailHurry(sim, dt) {
   const alive = sim.spawnQueue.length ? Infinity : sim.zombies.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
-  sim.tail = alive > 0 && alive <= TAIL.n ? (sim.tail ?? 0) + dt : 0;
-  return sim.tail >= TAIL.after;
+  const T = tailOf(sim);
+  sim.tail = alive > 0 && alive <= T.n ? (sim.tail ?? 0) + dt : 0;
+  return sim.tail >= T.after;
 }
 function moveZombies(sim, dt) {
   const hitCells = new Set(), hurry = tailHurry(sim, dt);
@@ -741,8 +754,8 @@ function moveZombies(sim, dt) {
     const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
     if (def.stumble && mul > 0) mul *= stumble(sim, z, def.stumble, dt, fog);
     // vågens svans: eftersläntrarna går fortare (krypare och de långt bort)
-    if (hurry && mul > 0 && (z.type === 'crawler' || sim.route.fraction(z) < 1 - TAIL.far)) { mul *= TAIL.mul; z.hurry = true; }
-    const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * fog;
+    if (hurry && mul > 0 && (z.type === 'crawler' || sim.route.fraction(z) < 1 - tailOf(sim).far)) { mul *= tailOf(sim).mul; z.hurry = true; }
+    const speed = def.speed * mul * paceOf(sim) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed;
     z.run = (z.run ?? 0) + speed * dt;
     sim.route.advance(z, speed * dt);

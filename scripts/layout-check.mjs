@@ -285,7 +285,8 @@ async function run() {
     await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
     // 0.19.2 (fynd 1): pendeltågets signal mitt i vågen, banderollen med två rader, perrongens etikett och bildtexten.
     // Kameran vid perrongen (klicket på banderollen), enheternas lappar och skyltarna runt den
-    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-2.platform') } }); H.trainWarned({ t: 'trainWarn', in: 12 }); })()`);
+    await ev(`(() => { const H = window.__horde, p = H.progress; H.setProgress({ ...p, lessons: { ...p.lessons, seen: (p.lessons?.seen ?? []).filter(id => id !== 'mb-2.platform') } }); H.trainWarned({ t: 'trainWarn', in: 12 }); H.rig.skipTour(); })()`);
+    // 0.20.1: kameran glider till perrongen när banderollen kommer; i provet tas den fram direkt (swiftshader har låg bildtakt)
     await page.waitForTimeout(900);
     if (!(await ev('!!window.__horde.platform'))) errors.push(`hud-molnbo-2-train @${W}: perrongen lyser inte efter signalen`);
     await checkHud('hud-molnbo-2-train');

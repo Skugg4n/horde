@@ -1260,7 +1260,7 @@ function handleEvents() {
     else if (ev.t === 'exodusStart') {
       if (placing) stopPlacing(); closePanel(); selected = null;
       exodusUi.start();
-      note(uiRoot, 'Time. Pull out to Gnesta!', '', { prio: true, ms: 7000 });
+      exodusUi.say('Time. Pull out to Gnesta!', 6);
       const tr = sim.dayCfg.hold?.exodus?.trigger;
       if (tr && rig) { const cx = tr.reduce((a, q) => a + q[0], 0) / tr.length, cz = tr.reduce((a, q) => a + q[1], 0) / tr.length; rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: cx, z: cz - 18, view: 70 }, 3); }
     }
@@ -1507,6 +1507,22 @@ function goToTail() {
 // Allt står tills en stund efter att dörrarna öppnats (simuleringens tid).
 const PLATFORM_AFTER = 14, PLATFORM_ARROWS = 2, ARROW_MAX = 26;
 let platform = null;           // { untilSim, arrowsAt }
+// 0.20.1 (speltestet av 0.20.0, fynd 4: "det framgår inte att den röda byggnaden är basen"): basens namn över den
+// (map.baseLabel), som perrongens etikett
+const baseLabel = document.createElement('div');
+baseLabel.className = 'baselabel'; baseLabel.hidden = true;
+uiRoot.appendChild(baseLabel);
+function updateBaseLabel() {
+  const name = mode === 'play' && !sim?.exodus ? sim?.map.baseLabel : null, hr = sim?.map.iceRink;
+  if (!name || !hr) { baseLabel.hidden = true; return; }
+  tmpV.set(hr.x, (hr.wallH ?? 6) + 3.4, hr.z).project(camera);
+  const sx = (tmpV.x + 1) / 2 * innerWidth, sy = (1 - tmpV.y) / 2 * innerHeight;
+  const show = tmpV.z < 1 && sx > 40 && sx < innerWidth - 40 && sy > 90 && sy < innerHeight - 120;
+  baseLabel.hidden = !show;
+  if (!show) return;
+  if (baseLabel.textContent !== name) baseLabel.textContent = name;
+  baseLabel.style.left = sx + 'px'; baseLabel.style.top = sy + 'px';
+}
 const platLabel = document.createElement('div');
 platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'Platform: they come out here';
 uiRoot.appendChild(platLabel);
@@ -1520,6 +1536,9 @@ function trainWarned(ev) {
     return;
   }
   platform = { untilSim: sim.time + (ev.in ?? 12) + PLATFORM_AFTER, arrowsAt: -Infinity };
+  // 0.20.1 (speltestet av 0.20.0, fynd 7: banderollen kom medan kameran stod vid basen): kameran glider till perrongen,
+  // en mjuk rörelse, när banderollen kommer
+  if (rig?.canPan && mode === 'play') { if (placing) stopPlacing(); const f = rig.fit(tm.viewPts ?? tm.pts, 10); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: f.x, z: f.z, view: Math.max(rig.view, f.view) }, 1.4); }
   marks?.set('platform', { kind: 'outline', polys: tm.polys, y: tm.ys, color: '#ffbf3a' }, time);
   const [x, z] = tm.target;
   alerts.push({ x, z, until: time + (ev.in ?? 12) + PLATFORM_AFTER, kind: 'barricade' });
@@ -1559,8 +1578,10 @@ function lookAt(x, z) {
 }
 function goToPlatform() {
   const tm = sim?.map.trainMark;
+  // 0.20.1: kameran kan vara på väg dit (trainWarned glider); klicket tar den fram direkt
+  rig?.skipTour?.();
   if (!tm || mode !== 'play' || !rig?.canPan) return;
-  const f = rig.fit(tm.pts, 10);
+  const f = rig.fit(tm.viewPts ?? tm.pts, 10);
   rig.focus(f.x, f.z, Math.max(rig.view, f.view));
   audio.ui('click');
 }
@@ -2563,6 +2584,10 @@ function baseShape() {
 const FRAME_PAD = 10;
 function dayFrame() {
   if (sim.route.kind !== 'grid') return null;
+  // 0.20.1 (speltestet av 0.20.0, Mölnbo: "kameran börjar på fel ställe alla tre dagarna"): en dag kan säga var (dayCfg.view)
+  const dv = sim.dayCfg.view;
+  if (dv?.pts) return rig.fit(dv.pts, FRAME_PAD);
+  if (dv) return { x: dv.x, z: dv.z, view: dv.view, fits: true };
   const base = baseShape();
   // 0.14.1 (speltestet av 0.14.0: "familjerna dog utanför bild"): en evakueringsdag börjar med hela de
   // civilas väg i bild, från husen till ishallen.
@@ -2901,6 +2926,7 @@ function tick(now) {
   updateBaseArrow();
   updateTailArrow();
   updatePlatform();
+  updateBaseLabel();
   updateLeaks(paused);
   marks?.update(time);
   if (sim) updateNewSpawn();

@@ -1173,3 +1173,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #leakarrow .chev { display: flex; width: 20px; height: 20px; align-items: center; justify-content: center; }
 #leakarrow .chev i { width: 10px; height: 10px; border-right: 3px solid #fff1e6; border-top: 3px solid #fff1e6; transform: rotate(45deg); margin-left: -4px; }
 #ui:not([data-mode="play"]) #leakarrow, #ui:not([data-mode="play"]) .platlabel { display: none; }
+/* basens namn över byggnaden (0.20.1, main.js updateBaseLabel): lugn, ingen puls */
+.baselabel { position: fixed; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap; font: 600 12px/1 Oswald, sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #f3e6c8; background: rgba(20, 16, 12, 0.82); border: 1px solid rgba(233, 223, 201, 0.5); padding: 4px 8px; border-radius: 2px; }
+.baselabel[hidden] { display: none; }
+#ui:not([data-mode="play"]) .baselabel { display: none; }

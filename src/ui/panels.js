@@ -94,6 +94,11 @@ const REASONS = {
   'bemannad': 'The gun is manned',
   'bemannas': 'A crew is on the way',
 };
+// Så många enheter som kan stå ute i dag: frontbredden, eller de utställda plus reserven med folk kvar om de är färre.
+export function unitCap(sim) {
+  const have = sim.guns.length + (sim.reserve ?? []).filter(u => u.men == null || u.men > 0).length;
+  return Number.isFinite(frontage(sim)) ? Math.min(frontage(sim), have) : have;
+}
 export function reasonText(r) {
   return REASONS[r] || REASONS['okänd'];
 }
@@ -248,7 +253,9 @@ export function buildBar(root, actions) {
       for (const gEl of el.querySelectorAll('.grp')) { gEl.classList.toggle('open', Number(gEl.dataset.cat) === openCat); gEl.classList.toggle('armed', !!armed && Number(gEl.dataset.cat) === openCat); }
     }
     const nEl = el.querySelector('[data-n]');
-    if (nEl) set(nEl, sim.core ? `${sim.guns.length} / ${Number.isFinite(frontage(sim)) ? frontage(sim) : '-'}` : `${gunCount(sim)} / ${sim.maxGuns}`);
+    // 0.20.1 (speltestet av 0.20.0, fynd 6: "UNITS 6 / 9" när alla kort sa "All out"): talet efter snedstrecket är så många
+    // som går att ha ute, frontbredden eller dagens trupp om den är mindre (de utställda plus de som väntar i reserven)
+    if (nEl) set(nEl, sim.core ? `${sim.guns.length} / ${unitCap(sim)}` : `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
       const sk = st.state + ':' + st.need + ':' + (holding === id) + ':' + (st.count ?? '');

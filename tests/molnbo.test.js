@@ -26,6 +26,24 @@ const uOn = v => BRIDGE.a[0] + (BRIDGE.a[1] - v) * (BRIDGE.b[0] - BRIDGE.a[0]) /
 const NORTH = ['s1', 's3', 's5', 's6'];
 const bareDay = (o = {}) => ({ n: 1, startCash: 99999, waves: [{ groups: [] }], ...o });
 
+// 0.20.1 (speltestet av 0.20.0): dag 1 säger var man ska stå, kameran börjar på rätt ställe och basen har ett namn
+test('dag 1 säger var man ska stå, kameran börjar vid bron och basen, och Folkets hus har en etikett', () => {
+  const [d1, d2, d3] = molnbo.days;
+  assert.match(d1.intro.text, /Cover the north side/);
+  assert.match(d1.intro.text, /cross the bridge behind you/);
+  assert.equal(molnbo.baseLabel, 'Folkets hus · Base');
+  // dag 1: norra sidan; dag 2 och 3: bron och basen (Folkets hus entré) i bild
+  assert.ok(d1.view?.view > 0 && toRail(d1.view.x, d1.view.z)[1] < RAIL.corridor[0]);
+  for (const d of [d2, d3]) {
+    assert.ok(d.view.pts.some(([x, z]) => Math.hypot(x - molnbo.folkets.entrance[0], z - molnbo.folkets.entrance[1]) < 1), `dag ${d.n}: basen`);
+    assert.ok(d.view.pts.some(([x, z]) => Math.abs(toRail(x, z)[1]) < 40 && groundY(x, z) > 0), `dag ${d.n}: bron`);
+  }
+  // de första husen ligger närmast bron
+  const dist = id => { const h = molnbo.buildings.find(b => b.id === id); return Math.hypot(h.u - BRIDGE.b[0], h.v - BRIDGE.b[1]); };
+  const first = d1.evac.groups.filter(q => q.wave === 0).map(q => dist(q.house)), last = d1.evac.groups.filter(q => q.wave === 2).map(q => dist(q.house));
+  assert.ok(Math.max(...first) < Math.min(...last), `${first} mot ${last}`);
+});
+
 test('Mölnbo är en bana efter Hagstumosse, med tre dagar efter kampanjbågen och korta intron', () => {
   assert.equal(MAPS.molnbo, molnbo);
   assert.equal(molnbo.days.length, 3);
@@ -304,9 +322,14 @@ test('dag 3: uttåget. Klockan går ut, trupperna packar, flodvågen når bron, 
   const exit = molnbo.days[2].hold.exodus.exit;
   assert.ok(a.sim.exodus.packed >= 2);
   for (const gun of a.sim.guns) assert.ok(gun.leaving && Math.hypot(gun.x - exit[0], gun.z - exit[1]) < 4, gun.weapon.type);
-  // flodvågen kom från norr och gick ut på bron
+  // flodvågen kom från norr och gick ut på bron. 0.20.1 (speltestet av 0.20.0: "ett trettiotal som strosar"): 150 till 250
+  // under cirka 20 s, och vågornas rester är borta när uttåget börjar (bara flodvågen lever)
   const flood = a.sim.zombies.filter(z => z.flood);
-  assert.ok(flood.length > 50, `${flood.length} i flodvågen`);
+  assert.ok(flood.length >= 150 && flood.length <= 250, `${flood.length} i flodvågen`);
+  assert.ok(a.sim.zombies.every(z => z.flood || z.dead), 'bara flodvågen lever');
+  assert.ok(at('exodusFade') - at('exodusStart') >= molnbo.days[2].hold.exodus.min - 0.05, 'vågen hinner välla in');
+  const spawnedBy = Math.max(...flood.map(z => z.bornAt ?? 0));
+  assert.ok(spawnedBy - at('exodusStart') <= 22, `sista ur dimman efter ${(spawnedBy - at('exodusStart')).toFixed(1)} s`);
   assert.ok(flood.some(z => inPoly(z.x, z.z, molnbo.days[2].hold.exodus.trigger)), 'på bron');
   // deterministiskt
   assert.deepEqual(a.log, b.log);
@@ -395,6 +418,13 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
   assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
 });
 
+// 0.20.1 (speltestet av 0.20.0: dag 2 tog tolv minuter i 1x): sex till sju minuter för den som läser kartan; den som inte
+// spärrar dödar långsammare och får högst cirka nio
+test('balans: dag 2 tar sex till sju minuter', () => {
+  for (const [i, r] of smart.entries()) { const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 2 && x.won); assert.ok(w.time >= 330 && w.time <= 430, `mbSmart seed ${i}: ${w.time.toFixed(0)} s`); }
+  for (const [i, r] of naive.entries()) for (const x of r.log.filter(q => q.mapId === 'molnbo' && q.day === 2 && q.won)) assert.ok(x.time <= 560, `mbNaive seed ${i}: ${x.time.toFixed(0)} s`);
+});
+
 test('balans: högst cirka 250 levande zombier samtidigt, och högst två vågor ute', () => {
   const all = [...smart, ...naive].flatMap(r => r.log);
   assert.ok(Math.max(...all.map(x => x.peak)) <= 250, `${Math.max(...all.map(x => x.peak))}`);
@@ -415,10 +445,12 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // 0.20.0: alla dagar nya, avsiktligt: kartan omritad efter satellitbilden (en bro, vägnätet, Folkets hus vid Kvarnvägen)
 // och tre dagar efter kampanjbågen (evakueringen, norra sidan faller, uttåget), sammanslagen med riktningarna (ankomsten
 // omräknad). Den andra spelaren är mbNaive (naive som följer evakueringens tips). docs/balance-log.md 0.20.0 (Mölnbo).
+// 0.20.1 (speltestet av 0.20.0): alla dagar nya, avsiktligt: dag 1 husen närmast bron först, dag 2 nästa våg tidigare,
+// hårdare svans och hp 13 till 12, dag 3 den täta flodvågen. docs/balance-log.md Mölnbo 0.20.1.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '3eb447c8', 'molnbo 2': 'c6df086e', 'molnbo 3': 'a987d15d' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c395415f', 'molnbo 2': '724a4294', 'molnbo 3': '8c95da16' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'a1c2727c', 'molnbo 2': '5ded47d4', 'molnbo 3': 'a68be77c' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c7e13ad7', 'molnbo 2': 'd3390930', 'molnbo 3': 'edc96eaf' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.
