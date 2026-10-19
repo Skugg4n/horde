@@ -1,5 +1,30 @@
 # Ändringslogg
 
+## 0.19.1: speltestet av 0.19.0 (2026-10-19)
+
+Speltestet sa NEJ (docs/playtests/2026-10-19-0.19.0.md): Mölnbo dag 3 och 4 var en mur, bjässens knuff-tips kom aldrig, Move in i hus gick i 1 av 13 hus och snubblet klumpade sig.
+
+Mölnbo dag 3 och 4 (H462). Grinden höll "högst två vågor ute", men den långa klockan släppte nästa våg 50 s efter att den senaste kommit ut, hur många av den som än levde. På Mölnbos långa vägar hade en våg knappt nått försvaret: dag 4 kom våg 4 med 63 av 73 i våg 3 kvar, och pendeltågets 50 ovanpå. Nu släpper klockan bara om 40 % av den senaste är nere (overlapMin, Mölnbo dag 3 till 5); annars väntar nästa våg på 70 %, eller tre gånger klockan. Dag 3:s våg 3 och 4 är mindre (77 och 110), dag 4:s pendeltåg kommer i tredje vågen när det är lugnare, och tåget går 420 s. I balansen har båda spelarna hela basen när tåget signalerar; den som flyttar mot perrongen klarar dagen med god marginal, den som håller betalar. Vikingavägen och Ishallen räknar som förut.
+
+En stor röd banderoll i taget (H463). Tåget går före en enhet som bryts, som går före resten (omväg, genombrott, basen). En ny med högre rang tar den stora platsen, de andra står små under.
+
+Bjässens knuff syns (H461). Tipset kom aldrig: händelsen fångades av barrikadgrenen före tipsgrenen. Nu tipset första gången, sedan "A brute shoved the cars aside on Stenbyvägen."; raden "Cars shoved aside" stiger där det hände, damm och plåt när knuffen börjar, och vraken glider längre åt sidan.
+
+Vågens svans (H464). Regeln gäller alla typer, också bjässar och pansrade (tre bjässar på väg 57: 191 till 148 s). När de sista inte syns står en plåt vid skärmkanten, "3 left: brutes, Stenbyvägen", och ett klick flyttar kameran dit.
+
+Move in i hus mitt i vågen (H465). Dörren valdes bara bland gatrutorna intill huset, och en villa på sin tomt har ingen: "Door blocked" utan synlig orsak. Nu är dörren närmaste ruta trupperna går på, en soldat i en ficka nekar inte hela gruppen, och en bod eller ett garage säger "This building can't be entered". Nytt prov över alla hus på Mölnbo och Vikingavägen.
+
+Snubblet (H466). Minst 60 m mellan två för samma löpare, utlösarna en liten chans (varje gathörn var en sväng), och inget snubbel inom 4 m och 10 s från ett annat. Ungefär var fjärde till femte löpare snubblar över Mölnbo (var nästan alla).
+
+Smått från speltestet:
+- Förrådet föreslår vilade före utmattade (H467).
+- "+20 %" och "+$" hålls ovanför köpraden och under plåtarna uppe; takets lappar döljs under dagrutan och SUPPLIES (H468).
+- Raden om "the empty X60" som skydd borta (H469).
+- Introna dag 2 och 3 säger varifrån (H470): "From Järna and from the south. Squads in houses along Stenbyvägen." och "Day 3: The train", Järna och Fagernäsvägen i öster.
+- Kortet säger "3 in reserve" mitt i vågen i stället för "All out" när några av typen redan är ute.
+
+Balansen: Mölnbo dag 3 hp 17,5 till 18, dag 4 32 till 38, dag 5 15 till 19. docs/balance-log.md 0.19.1.
+
 ## 0.19.0: Mölnbo-passet (2026-10-19)
 
 Speltestet av 0.18.1 (docs/playtests/2026-10-18-0.18.1.md) och Olas Mölnbo-lista (H428, H443, H450 till H459).
