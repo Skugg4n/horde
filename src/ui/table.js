@@ -208,7 +208,7 @@ function enemyHtml(pile, order, intel, place) {
 // 0.21.1 (speltestet, fynd 1: från ca 8 kort klipptes namnen till "PSG 9", "HEMV"): korten överlappar inte. Får de inte
 // plats i en rad läggs de i två, tre eller fyra rader med mindre kort; varje kort har namnraden, styrkan och tröttheten.
 const ZONE_H = 246, ZONE_X0 = 92;
-const CARD_STYLES = [[1, 128, 188], [2, 132, 0], [3, 132, 0], [4, 132, 0]];
+const CARD_STYLES = [[1, 128, 188], [2, 136, 0], [3, 136, 0], [4, 136, 0]];
 export function zoneLayout(nB, nR, x0, x1) {
   const avail = x1 - x0 - 18;
   let pick = null;
@@ -230,12 +230,12 @@ function cardHtml(c, x, y, z, lane, L) {
   const men = c.max ? `${c.men}/${c.max}` : '';
   const lvl = `${c.vet ? '<b class="star">★</b>' : ''}L${c.level}`;
   const pos = `--x:${x.toFixed(0)};--y:${y.toFixed(0)};--w:${L.cw};--h:${L.ch};--r:${[0.6, -0.7, 0.3, -0.4, 0.8][c.uid % 5] * (L.rows > 1 ? 0.4 : 1)};--z:${z}`;
-  const state = `<span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span>`;
+  const state = c.moved ? `<span class="mv">${esc(c.moved.short)}</span>` : `<span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span>`;
   if (L.rows === 1) return `<div class="tb-obj tb-card r1${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
     <div class="k"><span>${c.fresh ? 'NEW' : esc(c.tag)}</span><i>${men}</i></div>
-    <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl">${esc(c.role)}</div>${c.max ? `<div class="men">${Array.from({ length: c.max }, (_, i) => `<s class="${i < c.men ? 'on' : 'dead'}"></s>`).join('')}</div>` : ''}
+    <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl${c.moved ? ' mv' : ''}">${esc(c.moved ? c.moved.long : c.role)}</div>${c.max ? `<div class="men">${Array.from({ length: c.max }, (_, i) => `<s class="${i < c.men ? 'on' : 'dead'}"></s>`).join('')}</div>` : ''}
     <div class="ft" data-read>${state}<span>${lvl}</span></div></div>`;
-  return `<div class="tb-obj tb-card r${L.rows}${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
+  return `<div class="tb-obj tb-card r${L.rows}${c.fresh ? ' fresh' : ''}" title="${c.moved ? esc(c.moved.long) : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
     <div class="n" data-read data-name>${esc(c.name)}</div>
     <div class="ft" data-read>${state}<span>${men ? `<i>${men}</i> ` : ''}${L.rows === 2 ? lvl : ''}</span></div></div>`;
 }
@@ -434,14 +434,18 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (d.id.startsWith('pile:')) toggleSpread(d.id);
   });
   view.addEventListener('pointercancel', () => { drag = null; render(); });
-  addEventListener('resize', fit);
+  // 0.21.2 (speltestet av 0.21.1, fynd 1: Deploy utanför bild efter att fönstret krympts): ny layout när fönstret
+  // ändras, en gång när storleken stått still en stund
+  let resizeT = 0;
+  const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(() => fit(false), 120); };
+  addEventListener('resize', onResize);
   fit(true);
   render();
   // typsnitten kan komma efter första ritningen: snöret ritas om
   document.fonts?.ready?.then(() => drawStrings());
   return {
     el,
-    close: () => { removeEventListener('resize', fit); el.remove(); },
+    close: () => { clearTimeout(resizeT); removeEventListener('resize', onResize); el.remove(); },
     selected: () => sel,
     progress: () => p,
     // Esc: en utbredd hög läggs ihop; annars false (spelmenyn öppnas)

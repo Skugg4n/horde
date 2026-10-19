@@ -182,7 +182,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 13;
+const TABLE_SCOPES = 16;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -248,6 +248,9 @@ async function tableChecks(page, label) {
   // radion: bara natten efter en dag med sändning (efter E4 dag 3), inte dagen efter
   await show(reach('gnesta', 1), 'table-radio');
   if (!(await ev(`!!document.querySelector('#hub .tb-radio')`))) errors.push(`table-radio @${label}: ingen radio efter E4`);
+  // 0.21.2: sändningen natten efter E4 dag 2 (speltestet av 0.21.1 såg aldrig radion)
+  await show(reach('riksvagen', 3), 'table-radio-e4');
+  if (!/Södertälje and Nyköping/.test(await ev(`document.querySelector('#hub .tb-radio')?.textContent ?? ''`))) errors.push(`table-radio-e4 @${label}: ingen radioremsa natten efter E4 dag 2`);
   await show(reach('gnesta', 2), 'table-noradio');
   if (await ev(`!!document.querySelector('#hub .tb-radio')`)) errors.push(`table-noradio @${label}: radion står kvar en dag utan sändning`);
   // operationskartans steg visas inte över bordet
@@ -257,6 +260,21 @@ async function tableChecks(page, label) {
   if (les && /^after-(e4|gn-2|gn-5)\.(map|depot|north)$/.test(les)) errors.push(`table-lessons @${label}: operationskartans steg ${les} över bordet`);
   for (let i = 0; i < 6 && await ev('!!window.__horde.lesson'); i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(300); }
   await ev(seen);
+  // 0.21.2: fönstret ändras med bordet öppet: ny layout, klämbrädan ryms (speltestet av 0.21.1, fynd 1)
+  await show(reach('gnesta', 5), 'table-resize-base');
+  const vp = page.viewportSize();
+  for (const [w, h] of [[1024, 614], [1920, 1080], [vp.width, vp.height]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(600);
+    const extra = await page.evaluate(auditTableExtra, `table-resize ${w}x${h} @${label}`);
+    errors.push(...extra);
+  }
+  // 0.21.2: spelmenyn mellan dagarna heter Map table, utan fart och Restart day, på heltäckande bakgrund
+  await ev(`document.querySelector('#menubtn').click()`);
+  await page.waitForTimeout(300);
+  const menu = await ev(`(() => { const o = document.querySelector('#pausemenu'); return { h: o.querySelector('.h')?.textContent, restart: !!o.querySelector('[data-item="restart"]'), speed: !!o.querySelector('[data-item="speed"]'), solid: getComputedStyle(o).backgroundColor }; })()`);
+  if (menu.h !== 'Map table' || menu.restart || menu.speed || !/rgb\(/.test(menu.solid)) errors.push(`table-menu @${label}: ${JSON.stringify(menu)}`);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   // en utbredd hög och Requisition som klämbräda
   await show(reach('molnbo', 1), 'table-spread-base');
   await ev(`window.__horde.sheet.spread('pile:gnesta')`);

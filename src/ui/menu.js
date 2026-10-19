@@ -3,10 +3,13 @@
 
 // type: 'button' | 'choice' | 'volume'
 // enabled(ctx): false gråar raden. confirm(ctx): ger { title, text, ok } om raden ska fråga först.
+// 0.21.2: show(ctx): false döljer raden; label kan vara en funktion. Mellan dagarna (ctx.between()) heter menyn som
+// skärmen ("Map table") och har ingen fart och ingen Restart day (speltestet av 0.21.1, fynd 5).
+const between = c => !!c.between?.();
 // run(ctx): utförs av button-rader (och efter bekräftelse).
 export const MENU_ITEMS = [
-  { id: 'resume', type: 'button', label: 'Resume', main: true, kbd: 'Esc', run: c => c.resume() },
-  { id: 'speed', type: 'choice', label: 'Game speed', options: [1, 2, 3], format: n => n + 'x', kbd: 'F',
+  { id: 'resume', type: 'button', label: c => (between(c) ? 'Back' : 'Resume'), main: true, kbd: 'Esc', run: c => c.resume() },
+  { id: 'speed', type: 'choice', label: 'Game speed', show: c => !between(c), options: [1, 2, 3], format: n => n + 'x', kbd: 'F',
     enabled: c => c.canSpeed(), value: c => c.speed(), set: (c, n) => c.setSpeed(n) },
   { id: 'sound', type: 'volume', label: 'Sound', channel: 'sound' },
   { id: 'music', type: 'volume', label: 'Music', channel: 'music' },
@@ -20,11 +23,11 @@ export const MENU_ITEMS = [
   { id: 'resettips', type: 'button', label: 'Reset tips',
     confirm: () => ({ title: 'Reset tips?', text: 'Every tip shows again. What you have unlocked stays.', ok: 'Reset' }),
     run: c => c.resetTips() },
-  { id: 'restart', type: 'button', label: 'Restart day',
+  { id: 'restart', type: 'button', label: 'Restart day', show: c => !between(c),
     enabled: c => c.mode() === 'play',
     confirm: c => ({ title: 'Restart day?', text: `Day ${c.day()} starts over with the force you went in with. Your RP are kept.`, ok: 'Restart' }),
     run: c => c.restart() },
-  { id: 'main', type: 'button', label: 'Main menu',
+  { id: 'main', type: 'button', label: c => (between(c) ? 'To menu' : 'Main menu'),
     confirm: c => (c.mode() === 'play' ? { title: 'Leave the day?', text: 'Progress on this day will be lost. Your RP and units are kept.', ok: 'Main menu' } : null),
     run: c => c.toMain() },
 ];
@@ -48,24 +51,27 @@ export function mountMenu(root, ctx, items = MENU_ITEMS) {
 
   function render() {
     if (asking) { renderAsk(); return; }
-    overlay.innerHTML = `<div class="sheet plate pausesheet"><div class="h">Paused</div><div class="rows"></div></div>`;
+    overlay.classList.toggle('between', between(ctx));
+    overlay.innerHTML = `<div class="sheet plate pausesheet"><div class="h">${ctx.title?.() ?? 'Paused'}</div><div class="rows"></div></div>`;
     const rows = overlay.querySelector('.rows');
     for (const i of items) {
+      if (i.show && !i.show(ctx)) continue;
+      const label = typeof i.label === 'function' ? i.label(ctx) : i.label;
       const row = document.createElement('div');
       row.className = 'mrow ' + i.type + (enabled(i) ? '' : ' off');
       row.dataset.item = i.id;
       if (i.type === 'button') {
-        row.innerHTML = `<button type="button" class="act${i.main ? ' main' : ''}${enabled(i) ? '' : ' off'}"><span class="a">${i.label}</span>${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</button>`;
+        row.innerHTML = `<button type="button" class="act${i.main ? ' main' : ''}${enabled(i) ? '' : ' off'}"><span class="a">${label}</span>${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</button>`;
         row.querySelector('button').addEventListener('click', () => { if (enabled(i)) choose(i); });
       } else if (i.type === 'choice') {
-        row.innerHTML = `<span class="lab">${i.label}${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</span><span class="seg">${i.options.map((o, k) => `<button type="button" data-o="${k}">${i.format(o)}</button>`).join('')}</span>`;
+        row.innerHTML = `<span class="lab">${label}${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</span><span class="seg">${i.options.map((o, k) => `<button type="button" data-o="${k}">${i.format(o)}</button>`).join('')}</span>`;
         const mark = () => { for (const b of row.querySelectorAll('[data-o]')) b.classList.toggle('on', i.options[Number(b.dataset.o)] === i.value(ctx)); };
         for (const b of row.querySelectorAll('[data-o]')) b.addEventListener('click', () => { if (enabled(i)) { i.set(ctx, i.options[Number(b.dataset.o)]); mark(); } });
         mark();
       } else if (i.type === 'volume') {
         const s = ctx.settings();
-        row.innerHTML = `<span class="lab">${i.label}</span>
-          <span class="vol"><input type="range" min="0" max="100" step="1" aria-label="${i.label} volume"><b></b><button type="button" class="mute" aria-label="Mute ${i.label}"></button></span>`;
+        row.innerHTML = `<span class="lab">${label}</span>
+          <span class="vol"><input type="range" min="0" max="100" step="1" aria-label="${label} volume"><b></b><button type="button" class="mute" aria-label="Mute ${label}"></button></span>`;
         const input = row.querySelector('input'), out = row.querySelector('b'), mute = row.querySelector('.mute');
         const paint = () => {
           const cur = ctx.settings();

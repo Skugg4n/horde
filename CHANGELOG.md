@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.21.2 (kartbordet) (2026-10-19)
+
+Omtestet av 0.21.1 sa JA med förbehåll (docs/playtests/2026-10-19-0.21.1-hub.md).
+
+- Bordet gör om layouten när fönstret ändras (en gång när storleken stått still), så att Deploy aldrig hamnar utanför bild.
+- Vem som går i strid står kvar mellan dagarna. Bara tröttheten flyttar: en utmattad enhet i striden byts mot en mindre trött i reserven, och båda korten säger det ("Moved to reserve: exhausted", "Moved into battle: rested").
+- Huvudmenyn säger samma nästa strid som bordet ("Vikingavägen, day 1").
+- Ordet depot är borta där spelaren ser det: resultatet, tipsen, Field manual och ledningens rader säger Requisition.
+- Spelmenyn mellan dagarna heter Map table, på heltäckande bakgrund, utan fart och Restart day; To menu går till huvudmenyn.
+- Requisition: enheterna har samma nummer som korten (Ksp 90 1, Ksp 90 2), och i låga fönster rullar mittdelen med knapparna kvar nedtill.
+- Radion: en sändning natten efter E4 dag 2 (tågen mellan Södertälje och Nyköping är inställda), så att remsan syns tidigt.
+- Layoutprovet: radion efter E4, fönsterbyte med bordet öppet (1440 till 1024x614 och 1920x1080) och spelmenyn mellan dagarna.
+
 ## 0.21.1 (kartbordet) (2026-10-19)
 
 Speltestet av 0.21.0 sa NEJ, nära (docs/playtests/2026-10-19-0.21.0-hub.md).

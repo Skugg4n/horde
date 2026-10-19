@@ -277,6 +277,8 @@ export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
     role: ROLE[u.type] ?? WEAPONS[u.type]?.short ?? '',
     men: u.men ?? null, max, vet: !!vetOf(u), fresh: (u.wins ?? 0) === 0,
     fatigue: fatigueOn ? f : null, state: fatigueOn ? FATIGUE.names[f] : (u.men === 0 ? 'No men' : 'Ready'),
+    // 0.21.2: spelet flyttade enheten efter en vunnen dag (src/meta/operation.js finishDay)
+    moved: u.moved === 'rest:exhausted' ? { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' } : u.moved === 'battle:rested' ? { long: 'Moved into battle: rested', short: 'Moved in: rested' } : null,
   };
 }
 // Korten i sektorn: förrådets banor (lanes) som de är, ett kort per enhet.

@@ -21,7 +21,7 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
-import { recordDay, recordLoss, swapCards, campaignDay } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, nextBattle as tableNext } from './meta/table.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -2439,8 +2439,10 @@ function sheetAction(a) {
 function showMenu() {
   const started = Object.values(progress.maps).some(m => Object.keys(m.attempts).length || m.unlockedDay > 1);
   // 0.16.3: statusraden under Continue säger var operationen står
-  const id = progress.mapId, d = MAPS[id] ? nextDay(progress, id) : null;
-  const status = MAPS[id] ? { place: MAPS[id].name, day: d } : null;
+  // 0.21.2 (speltestet av 0.21.1, fynd 3: menyn sa "Ishallen" utan dag när bordet sa "Vikingavägen · Day 1"): samma nästa
+  // strid som bordet (src/meta/table.js nextBattle), fasens namn och dagen
+  const nb = tableNext(progress), id = progress.mapId, d = MAPS[id] ? nextDay(progress, id) : null;
+  const status = nb ? { place: nb.place, day: nb.n } : MAPS[id] ? { place: MAPS[id].name, day: d } : null;
   setMode('menu', () => mainMenu(uiRoot, {
     version: VERSION, started, rp: progress.rp, status,
     // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
@@ -2885,6 +2887,8 @@ const menu = mountMenu(uiRoot, {
   tipsMode: () => tipsMode(progress), setTipsMode: m => { progress = setTipsMode(progress, m); save(); },
   // 0.21.0: mellan dagarna, kartbordet eller de gamla skyltarna (jämförelse)
   hub: () => settings.hub,
+  between: () => mode === 'opmap' || mode === 'depot',
+  title: () => (mode === 'opmap' || mode === 'depot' ? (hubTable() ? 'Map table' : 'Operations map') : 'Paused'),
   setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); if (mode === 'opmap' || mode === 'depot') showBetween(); },
   manualOk: () => meta('manual'), openManual: () => openManual(),
   resetTips: () => { progress = resetTips(progress); save(); },

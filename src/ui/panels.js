@@ -73,7 +73,7 @@ const REASONS = {
   'markerad': 'Only on the marked spots.',
   'markerad-hinder': 'Only on the marked spots.',
   'låst': 'Not yet.',
-  'depå': 'Between days, at the depot',
+  'depå': 'Between days, at Requisition',
   // 0.18.0 (skiva 1): hus, ordrar och tysta pjäser
   'hus upptaget': 'Someone already holds that house',
   'hus litet': 'Too small for the whole squad',
@@ -633,8 +633,8 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   const rpTable = rp && showRp ? `<div class="rptab">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v >= 0 ? '+' : ''}${v}</b></div>`).join('')}<div class="tot"><span>Requisition points</span><b>+${rp.total}</b></div></div>` : '';
   const lost = losses.filter(l => l.men || l.destroyed);
   const lossLine = won
-    ? (!depot ? '' : lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at the depot.</p>` : '')
-    : `<p class="note-line">The day starts over with the force you went in with.${showRp && depot ? ' Spend your RP at the depot first.' : ''}</p>${manualHint ? `<button type="button" class="link mhint" data-a="manual">Field manual: ${manualHint.title}</button>` : ''}`;
+    ? (!depot ? '' : lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at Requisition.</p>` : '')
+    : `<p class="note-line">The day starts over with the force you went in with.${showRp && depot ? ' Spend your RP at Requisition first.' : ''}</p>${manualHint ? `<button type="button" class="link mhint" data-a="manual">Field manual: ${manualHint.title}</button>` : ''}`;
   // 0.14.2 (speltestet av 0.14.1: "VICTORY" följt av "The roadblock at E4 has fallen silent" lästes fortfarande
   // som en förlust): rubriken står ensam, sedan siffrorna, och sist sektorns berättelse som ett radiomeddelande
   // från ledningen i en egen ruta, tydligt skild från resultatet.

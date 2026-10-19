@@ -1372,3 +1372,16 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-spread .tb-lined { height: auto !important; min-height: 150px; }
 .hub .tb-spreadhint { bottom: 30px; }
 .hub .tb-edge .hd { justify-content: flex-start; }
+/* 0.21.2: kortet säger när spelet flyttat enheten */
+.hub .tb-card .mv { color: #f2c46b; font-style: italic; }
+/* 0.21.2: spelmenyn mellan dagarna på heltäckande bakgrund (bordet syns inte igenom) */
+#pausemenu.between { background: #1a130c; }
+/* 0.21.2 (speltestet av 0.21.1, fynd 6: Requisition trångt i 1024x614): i låga fönster rullar mittdelen (knapparna står kvar nedtill) och
+   kolumnerna får sin naturliga höjd, i stället för att varje kolumn krymper till ett kort */
+@media (max-height: 760px) {
+  #ui .sheet.depot.onclip { height: calc(100vh - 24px); top: 12px; }
+  #ui .sheet.depot.onclip > .dgrid { flex: 1 1 0; min-height: 0; height: auto; overflow-y: auto; display: block; }
+  #ui .sheet.depot.onclip > .dgrid > section { margin-bottom: 10px; }
+  #ui .sheet.depot.onclip .dgrid section, #ui .sheet.depot.onclip .dgrid .lcards { height: auto; max-height: none; overflow: visible; }
+  #ui .sheet.depot.onclip .dgrid .roster, #ui .sheet.depot.onclip .lanes, #ui .sheet.depot.onclip .lane { overflow: visible; height: auto; max-height: none; }
+}

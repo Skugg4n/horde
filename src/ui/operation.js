@@ -268,6 +268,11 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null, 
     const acc = Math.round((1 - FATIGUE.accuracy[f]) * 100), rate = Math.round((1 - FATIGUE.rate[f]) * 100);
     return `${FATIGUE.names[f]}: −${acc} % accuracy${rate ? `, −${rate} % fire rate` : ''}`;
   };
+  // 0.21.2 (speltestet av 0.21.1, fynd 6): enheterna har samma nummer som korten på bordet (Ksp 90 1, Ksp 90 2)
+  const numbered = u => {
+    const same = p.op.units.filter(x => x.sector === u.sector && x.type === u.type).sort((a, b) => a.uid - b.uid);
+    return same.length > 1 ? `${name(u.type)} ${same.findIndex(x => x.uid === u.uid) + 1}` : name(u.type);
+  };
   function unitRow(u, lane = null) {
     const max = maxMen(u, p.research), lc = levelCost(u), rc = refillCost(p, u);
     const others = multi() ? openSectors(p).filter(s => s !== u.sector && canReassign(p, u.uid, s).ok) : [];
@@ -277,7 +282,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null, 
     const rest = lane === 'rest' && fat ? `<span class="recov">${f ? `Recovers +1 rest: ${FATIGUE.names[f - 1]} tomorrow` : 'Stays rested'}</span>` : '';
     const move = lane ? `<button type="button" class="mini lanebtn" data-a="lane" data-to="${lane === 'battle' ? 'rest' : 'battle'}">${lane === 'battle' ? '→ Rest' : '→ Battle'}</button>` : '';
     return `<div class="urow ${lane ? 'ucard ' + lane : ''}" data-uid="${u.uid}"${lane ? ' draggable="true"' : ''}>
-      <div class="un"><b>${esc(name(u.type))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}${move}
+      <div class="un"><b>${esc(numbered(u))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}${move}
         <span class="men">${u.men != null ? `${u.men} / ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}</span>
         ${fat ? `<span class="fatb f${f}" data-fat title="A won day at the front tires a unit; a day in reserve rests it.">${esc(fatText(f))}</span>` : ''}${rest}</div>
       <div class="ua">
