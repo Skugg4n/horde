@@ -61,7 +61,7 @@ export default {
   name: 'Laxne',
   out: 'src/data/laxne.js',
   exportName: 'laxne',
-  version: '0.1.0',
+  version: '0.2.0',
   // Utsnittet: från bussvändslingan och Skottvångsvägen i norr (remsan mellan skog och sjö) ner till Laxne skola och
   // Hebyvägens början i söder; sjön tar östra kanten. Ca 700 x 1070 m, halv skala som de andra.
   crop: { x0: -430, x1: 270, y0: -470, y1: 600 },
@@ -83,7 +83,21 @@ export default {
   // Vägen från nordväst som möter 223 vid hållplatserna Skottvångsvägen saknar namn i OSM; hållplatsen ger det.
   roadNames: [{ at: [-400, 640], name: 'Skottvångsvägen' }],
   // Bollplanen: grusplanen vid stranden (satellitbilden), bussens hållplats Laxne Bollplan ligger vid Hebyvägen nedanför.
-  extraGround: { gravel: [[[35, 44], [70, 39], [67, -2], [30, 2]]] },
+  // Sjösidan (H501): skogen som OSM saknar mellan byn och Klämmingen, efter satellitbilden (bara var det är skog,
+  // aldrig bilden). Ett band längs stranden norr om badplatsen (vägen går tätt intill där), ett längs stranden söder
+  // om den förbi bryggorna, skogen mot sjön öster om Hebyvägen och skogen söder om Spårbacken. Badstranden, bollplanen
+  // och ängen vid Spårbacksvägen hålls öppna; träd ute i sjön och på vägarna ritas inte.
+  extraGround: {
+    gravel: [[[35, 44], [70, 39], [67, -2], [30, 2]]],
+    forest: [
+      [[-45, 352], [-33, 348], [-15, 312], [2, 298], [22, 282], [27, 262], [8, 238], [-25, 226], [-32, 200], [-28, 178], [-12, 155], [5, 145], [20, 135], [40, 135], [52, 118], [62, 98], [52, 92], [40, 108], [28, 118], [8, 120], [-10, 132], [-32, 148], [-44, 165], [-50, 195], [-48, 222], [-30, 240], [-10, 255], [-8, 272], [-25, 288], [-45, 305], [-55, 330]],
+      [[78, 75], [100, 68], [110, 60], [128, 58], [138, 42], [148, 30], [158, 20], [168, 15], [178, 0], [186, -18], [200, -18], [210, -30], [200, -55], [180, -45], [165, -30], [150, -15], [135, -5], [120, 15], [100, 35], [80, 48], [72, 55]],
+      [[210, -30], [250, -60], [275, -82], [292, -100], [292, -220], [240, -228], [205, -210], [188, -170], [185, -120], [195, -80], [200, -55]],
+      [[140, -225], [190, -212], [240, -228], [292, -220], [292, -305], [274, -308], [220, -343], [198, -337], [188, -330], [160, -275], [148, -245]],
+    ],
+  },
+  // Strandkanten: vass och stenar i vattenbrynet längs hela sjösidan i spelytan, utom vid badstranden och bryggorna.
+  shore: { step: 2.6, reed: 0.55, rock: 0.25, beachPad: 8 },
   landmarks: [
     { osm: 529544672, kind: 'laxneSchool', name: 'Laxne skola' },
     { osm: 529544710, kind: 'laxnegarden', name: 'Laxnegården' },
@@ -94,6 +108,7 @@ export default {
     { kind: 'pier', at: [100, 65], to: [114, 81], name: 'Bryggan vid badplatsen' },
     { kind: 'pier', at: [161, 15], to: [176, 25], name: 'Brygga 2' },
     { kind: 'pier', at: [179, -20], to: [189, -13], name: 'Brygga 3' },
+    { kind: 'pier', at: [-4, 143], to: [4.5, 156.5], name: 'Bryggan norr om badplatsen' },   // satellitbilden, läget ungefärligt
     // målen i planens kortändar (planen går nord-syd); ry i spelets ram, nätet bakåt
     { kind: 'goal', free: true, at: [52, 39], ry: 0, name: 'Målet (norr)' },
     { kind: 'goal', free: true, at: [49, 4], ry: Math.PI, name: 'Målet (söder)' },

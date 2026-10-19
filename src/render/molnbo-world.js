@@ -6,6 +6,8 @@ import { mesh, PALETTE } from './kit.js';
 import { GP, UNIT, createBatch, frame, seeded, villa, lamp, curb, car, gardenTree, spruce, pine, birch, hedge, fence, furniture, trampoline } from './gnesta-kit.js';
 import { farmhouse, barn, hayBale, shed } from './e4-kit.js';
 import { fogSheet } from './gnesta-ghost.js';
+import { now, add } from '../meta/load-timing.js';
+import { nearLine } from '../data/road-field.js';
 import { createFortify } from './fortify.js';
 import { pattern } from './gnesta-world.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
@@ -155,6 +157,7 @@ function paintLand(map, { bounds, ppm, fadeEdges = false }) {
 
 // ---------- hela scenen ----------
 export function buildMolnbo(scene, map) {
+  let tl = now(); const id = map.id;
   const sur = map.surroundings, crisp = sur.crisp, EXT = sur.extent;
   const gb = map.ground.bounds;
   // mark: spelytan skarp, omgivningen grov under, och diset bortom
@@ -181,6 +184,7 @@ export function buildMolnbo(scene, map) {
     if (o < REACH) railChunks.push({ u0: u, u1: u + 20, near: o < 22 });
   }
 
+  tl = add(id + ':mark', tl);
   // ---------- järnvägen ----------
   for (const ch of railChunks) {
     const bb = ch.near ? b : fb;
@@ -307,15 +311,17 @@ export function buildMolnbo(scene, map) {
   for (const c of map.cars) { b.tag = { kind: 'car', x: c.x, z: c.z, ry: c.ry }; car(b, frame(null, c.x, 0, c.z, c.ry), GP.car[c.color % GP.car.length]); }
   b.tag = null;
 
+  tl = add(id + ':hus och gator', tl);
   // ---------- träd ----------
   const roadsW = map.roads.filter(o => o.walk || o.paint !== false);
-  const blocked = (x, z, pad = 3.5) => roadsW.some(o => distPolyline(x, z, o.pts) < o.width / 2 + pad)
+  const blocked = (x, z, pad = 3.5) => roadsW.some(o => nearLine(x, z, o.pts, o.width / 2 + pad))   // 0.20.0 (H502): samma svar, snabbare
     || map.buildings.some(h => Math.hypot(h.x - x, h.z - z) < Math.max(h.w, h.d) / 2 + 3)
     || inRailBand(x, z) || inPoly(x, z, map.ground.lake) || Math.hypot(x - FOLKETS.x, z - FOLKETS.z) < 16;
   let trees = 0;
   map.ground.forest.forEach(poly => {
     const xs = poly.map(p => p[0]), zs = poly.map(p => p[1]);
-    for (let z = Math.min(...zs); z < Math.max(...zs); z += 3.6) for (let x = Math.min(...xs); x < Math.max(...xs); x += 3.6) {
+    const [mnx, mxx, mnz, mxz] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];   // en gång, inte per varv (H502)
+    for (let z = mnz; z < mxz; z += 3.6) for (let x = mnx; x < mxx; x += 3.6) {
       const px = x + r.range(-1.4, 1.4), pz = z + r.range(-1.4, 1.4);
       if (!inPoly(px, pz, poly) || blocked(px, pz)) continue;
       const o = outsideD(crisp, px, pz);
@@ -401,11 +407,13 @@ export function buildMolnbo(scene, map) {
     if (inPoly(x, z, map.ground.field) && outsideD(crisp, x, z) < REACH) hayBale(fb, x, z, r() * 3);
   }
 
+  tl = add(id + ':träd', tl);
   // ---------- ut i scenen ----------
   const meshes = b.flush(scene);
   scene.userData.fortify = createFortify(scene, { tagged: b.tagged });
   const farGroup = new THREE.Group(); farGroup.name = 'molnbo-far';
   const farMeshes = fb.flush(farGroup);
+  tl = add(id + ':instanser', tl);
   const mats = new Map();
   for (const m of farMeshes) {
     const key = m.material.uuid;

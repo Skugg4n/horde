@@ -1,6 +1,8 @@
 // Gemensamt för kartor som scripts/osm-to-map.mjs skriver (Björnlunda först): rutnätet ur vägarna, mjuka kurvor och
 // en enkel väg genom rutnätet för förhandsvisningens skisser. Ren data, ingen three.js, testbar i node.
 // Kartdata i de kartorna: © OpenStreetMap contributors (ODbL).
+import { now, add } from '../meta/load-timing.js';
+import { eachRoadCell } from './road-field.js';
 
 export function distSeg(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
@@ -42,19 +44,21 @@ export function smooth(pts, step = 1.5) {
 // (samma regler som Gnesta och Mölnbo). Vägarnas mjuka linjer läggs på map.roads (rd.line) för ritningen.
 // Järnvägen och husen är aldrig väg; plankorsningen är gångbar för att vägen går över.
 export function osmGrid(map, bounds, cellSize = 2) {
+  const tl = now();
+  try { return osmGridAt(map, bounds, cellSize); } finally { add(map.id + ':rutnät', tl); }
+}
+function osmGridAt(map, bounds, cellSize) {
   for (const rd of map.roads) rd.line ??= rd.smoothed || rd.pts.length <= 2 ? rd.pts.map(p => [...p]) : smooth(rd.pts);
   const { x0, z0, x1, z1 } = bounds;
   const gw = Math.round((x1 - x0) / cellSize), gh = Math.round((z1 - z0) / cellSize);
   const walk = new Uint8Array(gw * gh), terrain = new Uint8Array(gw * gh);
   const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
   const roads = map.roads.filter(r => r.walk !== false);
+  // 0.20.0 (H502): varje vägbit räknar bara sina egna rutor (src/data/road-field.js); samma rutnät som förut
+  const reached = new Map(roads.map(r => [r, []]));
+  eachRoadCell(roads, { x0, z0, gw, gh, cellSize }, 0.25, (ri, k, d) => { const r = roads[ri]; if (!(d > r.width / 2 + 0.25)) reached.get(r).push(k); }, 'line');
   for (const r of roads) {
-    const xs = r.line.map(p => p[0]), zs = r.line.map(p => p[1]), pad = r.width / 2 + 0.25;
-    const i0 = Math.max(0, Math.floor((Math.min(...xs) - pad - x0) / cellSize)), i1 = Math.min(gw - 1, Math.ceil((Math.max(...xs) + pad - x0) / cellSize));
-    const j0 = Math.max(0, Math.floor((Math.min(...zs) - pad - z0) / cellSize)), j1 = Math.min(gh - 1, Math.ceil((Math.max(...zs) + pad - z0) / cellSize));
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-      const k = j * gw + i;
-      if (distPolyline(cx(i), cz(j), r.line) > pad) continue;
+    for (const k of reached.get(r)) {
       walk[k] = 1;
       if (!terrain[k] || r.surface === 'asphalt') terrain[k] = r.surface === 'gravel' ? 2 : 1;
     }

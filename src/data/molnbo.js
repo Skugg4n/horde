@@ -18,7 +18,10 @@
 //   - Mölnbo är inte kampanjens final
 import { makeRng } from '../sim/rng.js';
 import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
-import { smooth, distPolyline, inPoly } from './gnesta.js';
+import { smooth, distPolyline, inPoly, roadNear } from './gnesta.js';
+import { timed } from '../meta/load-timing.js';
+import { lazy } from './lazy.js';
+import { nearLine } from './road-field.js';
 
 export const MOLNBO_VERSION = '0.1.1';
 
@@ -162,7 +165,7 @@ function clearOfRoads(x, z, ry, w, d, pad = 0.3) {
     const lx = a * w / 2, lz = b * d / 2;
     pts.push([x + lx * c + lz * sn, z - lx * sn + lz * c]);
   }
-  return !ROADS.some(r => r.walk && pts.some(([px, pz]) => distPolyline(px, pz, r.pts) < r.width / 2 + pad));
+  return !ROADS.some(r => r.walk && pts.some(([px, pz]) => nearLine(px, pz, r.pts, r.width / 2 + pad)));
 }
 
 // ---------- byggnaderna ----------
@@ -398,10 +401,12 @@ export function molnboGrid(cellSize = 2) {
   const linkPoly = RS([[LINK.u0, LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v - LINK.w / 2], [uOn(FOOT, LINK.v), LINK.v + LINK.w / 2], [LINK.u0, LINK.v + LINK.w / 2]]);
   // Rutor som aldrig är gångbara: tornen och tåget (även om en väglinje passerar nära).
   const solid = (x, z) => TOWERS.some(t => { const [u, v] = toRail(x, z); return Math.abs(u - t.at[0]) <= t.size / 2 && Math.abs(v - t.at[1]) <= t.size / 2; });
-  const open = (x, z) => walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25) || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
+  // 0.20.0 (H502): vägarnas avstånd ur fältet (gnesta.js roadNear), samma svar som förut
+  const { onRoad, nearest } = roadNear(walkRoads, { x0, z0, gw, gh, cellSize });
+  const open = (x, z, k) => onRoad[k] || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const x = cx(i), z = cz(j);
-    if (!open(x, z) || solid(x, z)) continue;
+    if (!open(x, z, j * gw + i) || solid(x, z)) continue;
     // i järnvägen: bara broarna, perrongen, trappan och banvallen
     if (inRail(x, z)) {
       const [u, v] = toRail(x, z);
@@ -423,8 +428,7 @@ export function molnboGrid(cellSize = 2) {
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const k = j * gw + i;
     if (!walk[k]) continue;
-    let near = null, nd = Infinity;
-    for (const r of walkRoads) { const d = distPolyline(cx(i), cz(j), r.pts) - r.width / 2; if (d < nd) { nd = d; near = r; } }
+    const { near, nd } = nearest(k, cx(i), cz(j));
     terrain[k] = near?.surface === 'gravel' && nd < 0.5 ? 2 : 1;
   }
   const cellOf = ([x, z]) => [Math.min(gw - 1, Math.max(0, Math.floor((x - x0) / cellSize))), Math.min(gh - 1, Math.max(0, Math.floor((z - z0) / cellSize)))];
@@ -746,7 +750,6 @@ export const molnbo = {
   railFrame: { R, RAIL_RY }, fences: FENCES, garden: GARDEN,
   // Basen: Folkets hus igenspikade dörrar (render/models.js rinkEntranceModel), samma som ishallens entré.
   iceRink: FOLKETS, baseModel: 'rink',
-  grid: molnboGrid(),
   // Bilden lyfter zombierna på bron och perrongen (render/view.js). Simuleringen är platt.
   groundY,
   guns: 5, frontage: 10, baseHp: 20, days: DAYS,
@@ -756,4 +759,6 @@ export const molnbo = {
   // Öppnar när Hagstumosse · Vikingavägen dag 5 är vunnen.
   unlock: { map: 'gnesta-norr', day: 5 },
 };
-molnbo.place = molnboPlacement(molnbo.grid);
+// 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
+lazy(molnbo, 'grid', () => timed('molnbo:rutnät', () => molnboGrid()));
+lazy(molnbo, 'place', () => timed('molnbo:placering', () => molnboPlacement(molnbo.grid)));

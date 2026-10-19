@@ -5,6 +5,8 @@ import { gnestaNorr } from './gnesta-norr.js';
 import * as E4 from './e4-lastringe.js';
 // 0.17.0-molnbo: sektorn Mölnbo (src/data/molnbo.js), efter Hagstumosse
 import { molnbo } from './molnbo.js';
+import { timed } from '../meta/load-timing.js';
+import { lazy } from './lazy.js';
 
 export const MAPS = {
   riksvagen: {
@@ -26,7 +28,6 @@ export const MAPS = {
     shadowBounds: { x0: -64, x1: 70, z0: -36, z1: 46 },
     roads: E4.ROADS, ground: E4.GROUND, spawns: E4.SPAWNS, base: E4.BASE, surroundings: E4.SURROUNDINGS,
     props: E4.PROPS, signs: E4.SIGNS, gantries: E4.GANTRIES, lamps: E4.LAMPS, rocks: E4.ROCKS, rails: E4.RAILS, junction: E4.JUNCTION,
-    grid: E4.e4Grid(),
     // Vägspärren vid stammens ände (render/models.js roadblockModel), vänd nedför stammen.
     basePlace: E4.BASE.place, baseModel: 'roadblock',
     baseHp: 20,
@@ -48,4 +49,6 @@ export const MAPS = {
   'gnesta-norr': gnestaNorr,
   molnbo,
 };
-MAPS.riksvagen.place = E4.e4Placement(MAPS.riksvagen.grid);
+// 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
+lazy(MAPS.riksvagen, 'grid', () => timed('riksvagen:rutnät', () => E4.e4Grid()));
+lazy(MAPS.riksvagen, 'place', () => timed('riksvagen:placering', () => E4.e4Placement(MAPS.riksvagen.grid)));

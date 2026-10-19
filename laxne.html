@@ -25,6 +25,7 @@
 <div id="stage" class="grade"></div>
 <div class="vignette"></div>
 <div class="grain"></div>
+<script src="loadbar.js" data-name="Laxne" data-modules="25" data-share="0.3"></script>
 <div id="labels"></div>
 <div id="head" class="plate">
   <div class="t">LAXNE</div>
@@ -37,6 +38,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { VERSION } from './src/version.js';
+import { mark, now as tNow, add as tAdd } from './src/meta/load-timing.js';
 import { laxne as map, LAXNE_VERSION } from './src/data/laxne.js';
 import { gridPath } from './src/data/osm-map.js';
 import { createScene } from './src/render/scene.js';
@@ -45,6 +47,7 @@ import { buildOsmWorld, sketchOverlay } from './src/render/osm-world.js';
 import { busStop } from './src/render/bjornlunda-kit.js';
 import { pier } from './src/render/gnesta-centrum-kit.js';
 import { laxneSchool, laxnegarden, fjaderfabriken, goal } from './src/render/laxne-kit.js';
+mark('moduler');   // laddtiden (H502): moduler och kartans data klara
 
 // Förhandsvisningen har inget ljud; ?mute finns för att provkörningarna ska kunna säga det utan att något låter.
 document.getElementById('ver').textContent = `Laxne ${LAXNE_VERSION} · v${VERSION}`;
@@ -58,7 +61,12 @@ const KIT = {
   goal: (b, M) => goal(b, M),
   busStop,
 };
+// 0.20.0 (H502): mätaren (loadbar.js) följer stegen: världen, shaderprogrammen, första bildrutan
+const nextPaint = () => new Promise(r => requestAnimationFrame(() => r()));
+window.__loadbar?.step('Raising the houses', 0.05); await nextPaint();
+const tWorld = tNow();
 const world = buildOsmWorld(scene, map, { kit: KIT });
+tAdd(map.id + ':värld', tWorld);
 const grid = gridOverlay(map.grid); grid.visible = false; scene.add(grid);
 const sketch = sketchOverlay(map, gridPath); scene.add(sketch.group);
 
@@ -147,6 +155,7 @@ function tick(now) {
   }
   world.update(dt, time);
   renderer.render(scene, camera);
+  if (!tick.drawn) { tick.drawn = true; mark('första bild'); window.__loadbar?.done(); }
   for (const l of labels) {
     v3.copy(l.p).project(camera);
     l.el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px';
@@ -160,6 +169,10 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
 }
+// shaderprogrammen kompileras parallellt medan skylten står, i stället för i första bildrutan
+window.__loadbar?.step('Mixing the paint', 0.75); await nextPaint();
+{ const t = tNow(); try { await renderer.compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
+  scene.traverse(o => { if (o.material?.map) renderer.initTexture(o.material.map); }); tAdd(map.id + ':shader', t); }
 requestAnimationFrame(tick);
 // för felsökning: window.__laxne
 window.__laxne = { renderer, scene, camera, map, world, sketch, target, setView(v) { view = v; applyCamera(); }, focus(x, z, v) { target.set(x, 0, z); if (v) view = v; applyCamera(); },
