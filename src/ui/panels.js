@@ -648,7 +648,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">${next}</span><kbd>Enter</kbd></button>`
-    : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">Operations map</span></button>`;
+    : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">${next === 'Map table' ? 'Map table' : 'Operations map'}</span></button>`;
   const p = plate(root, 'result' + (won ? ' won' : ' lost') + (sectorDone ? ' victory' : ''), `
     <div class="h">${head}</div>
     ${evacLine}

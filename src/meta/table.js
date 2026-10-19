@@ -42,7 +42,8 @@ export function normalizeTable(t) {
   if (isObj(t.log)) for (const [k, v] of Object.entries(t.log)) {
     if (!isObj(v)) continue;
     const e = {};
-    for (const f of ['kills', 'waves', 'lost', 'saved', 'total']) if (num(v[f]) != null && v[f] >= 0) e[f] = Math.round(v[f]);
+    for (const f of ['kills', 'waves', 'lost', 'saved', 'total', 'cleared']) if (num(v[f]) != null && v[f] >= 0) e[f] = Math.round(v[f]);
+    if (v.by === 'civilians' || v.by === 'base') e.by = v.by;
     out.log[k] = e;
   }
   return out;
@@ -68,16 +69,32 @@ export function recordDay(p, { mapId, day, kills = 0, waves = 0, lost = 0, saved
   return { ...p, table: { ...t, log: { ...t.log, [`${mapId}:${day}`]: normalizeTable({ log: { x: e } }).log.x } } };
 }
 
+// 0.21.1 (speltestet, fynd 5): en förlorad dag får ett blad i högen. Siffrorna från det senaste försöket.
+export function recordLoss(p, { mapId, day, kills = 0, cleared = 0, waves = 0, lostBy = null }) {
+  const t = tableOf(p), e = normalizeTable({ log: { x: { kills, cleared, waves } } }).log.x;
+  if (lostBy === 'civilians' || lostBy === 'base') e.by = lostBy;
+  return { ...p, table: { ...t, log: { ...t.log, [`lost:${mapId}:${day}`]: e } } };
+}
+
 // ---------- kampanjens dagar ----------
-// Kampanjens ordning är upplåsningsschemat (src/meta/unlocks.js STAGES). En dag kan säga sitt eget nummer med
-// day.campaignDay (när kampanjbågen kortar banorna), annars räknas dagarna i ordning.
+// Kampanjens ordning är upplåsningsschemat (src/meta/unlocks.js STAGES).
+// 0.21.1 (speltestet av 0.21.0, fynd 4: bordet sa dag 6 när introt, HUD:en och menyn sa dag 3): bordet visar banans egen
+// dag, samma nummer som överallt. Kroken för kampanjbågens numrering: day.campaignDay går före när en bana har det.
 export const CAMPAIGN = STAGES.filter(s => s.map).map(s => ({ map: s.map, day: s.day }));
 export function campaignDay(mapId, day) {
   const own = MAPS[mapId]?.days?.[day - 1]?.campaignDay;
-  if (Number.isInteger(own) && own > 0) return own;
-  const i = CAMPAIGN.findIndex(c => c.map === mapId && c.day === day);
-  return i >= 0 ? i + 1 : day;
+  return Number.isInteger(own) && own > 0 ? own : day;
 }
+// Index i kampanjens ordning (för att sortera), -1 utanför schemat
+export const campaignIndex = (mapId, day) => CAMPAIGN.findIndex(c => c.map === mapId && c.day === day);
+// Dagen före i kampanjen (den senast vunna när (map, day) är nästa strid), eller null
+export function dayBefore(mapId, day) {
+  const i = campaignIndex(mapId, day);
+  return i > 0 ? CAMPAIGN[i - 1] : null;
+}
+// Platsens namn på klämbrädan: fasen i Hagstumosse, annars sektorns korta namn (samma som menyn)
+const PHASE = { gnesta: 'Ishallen', 'gnesta-norr': 'Vikingavägen' };
+export const placeShort = map => PHASE[map] ?? SECTORS.find(s => s.maps?.includes(map))?.short ?? MAPS[map]?.name ?? map;
 // Nästa strid: sektorn (den valda om den har en dag kvar), banan och dagen. null när inget återstår.
 export function nextBattle(p, sector = null) {
   const open = openSectors(p).filter(id => currentMap(p, id));
@@ -85,7 +102,7 @@ export function nextBattle(p, sector = null) {
   const id = want && open.includes(want) ? want : open.includes(poolOf(p.mapId)) ? poolOf(p.mapId) : open[0];
   if (!id) return null;
   const map = currentMap(p, id), day = mapState(p, map).unlockedDay;
-  return { sector: id, map, day, n: campaignDay(map, day), title: titleOf(map, day) };
+  return { sector: id, map, day, n: campaignDay(map, day), title: titleOf(map, day), place: placeShort(map) };
 }
 const releaseOf = (map, day) => RELEASES.find(r => r.map === map && r.day === day) ?? null;
 // "Day 3: Brutes" -> "Brutes"
@@ -131,14 +148,23 @@ export function synthReport(p, map, day) {
   if (e.saved != null) parts.push(`${e.saved}${e.total ? ` of ${e.total}` : ''} civilians brought in.`);
   return { lead, text: parts.join(' ') };
 }
+// Bladet för en förlorad dag (högst 12 ord i rubriken, utfallet under)
+export function lostSheet(p, map, day) {
+  const e = tableOf(p).log[`lost:${map}:${day}`], n = campaignDay(map, day);
+  const out = [];
+  if (e?.waves) out.push(`${e.cleared ?? 0} of ${e.waves} waves held.`);
+  if (e?.kills) out.push(`${e.kills} infected down.`);
+  out.push(e?.by === 'civilians' ? 'Too many civilians fell.' : 'The base fell.');
+  return { id: `lost:${map}:${day}`, kind: 'lost', map, day, n, lead: `Day ${n} lost.`, text: 'Try again at dawn.', outcome: out.join(' '), stamp: 'LOST' };
+}
 // Slutbladet på en klar sektor: första meningen ur banans outro (eller outro.summary), dagarna och stämpeln.
 export function closedSheet(p, s) {
   const maps = s.maps.filter(m => MAPS[m]);
   const last = maps[maps.length - 1], first = maps[0];
   const o = MAPS[last]?.outro;
   const text = o?.summary ?? (o?.text ? o.text.split(/(?<=\.)\s/)[0] : `${s.name} holds.`);
-  const a = campaignDay(first, 1), b = campaignDay(last, MAPS[last].days.length);
-  return { id: `closed:${s.id}`, kind: 'closed', sector: s.id, name: s.full ?? s.name, text, days: [a, b], stamp: 'HELD' };
+  const days = maps.reduce((a, m) => a + MAPS[m].days.length, 0);
+  return { id: `closed:${s.id}`, kind: 'closed', sector: s.id, name: s.short ?? s.name, text, days, stamp: 'HELD' };
 }
 
 // ---------- uppdragshögarna ----------
@@ -154,6 +180,7 @@ export function missionPiles(p) {
       const st = mapState(p, m), last = Math.min(st.unlockedDay, MAPS[m].days.length);
       for (let d = 1; d <= last; d++) {
         sheets.push(orderSheet(m, d));
+        if ((st.losses?.[d] ?? 0) > 0 && tableOf(p).log[`lost:${m}:${d}`]) sheets.push(lostSheet(p, m, d));
         if (d < st.unlockedDay) sheets.push(reportSheet(p, m, d));
       }
     }
@@ -227,20 +254,16 @@ export function intelNote(p, nb = nextBattle(p)) {
 }
 
 // ---------- radion ----------
-const afterKey = ([m, d]) => campaignDay(m, d);
-export function radioStrips(p) {
-  const out = [];
-  for (const c of CAMPAIGN) {
-    const st = mapState(p, c.map), r = MAPS[c.map]?.days?.[c.day - 1]?.report;
-    if (MAPS[c.map] && mapUnlocked(p, c.map) && st.unlockedDay > c.day && isObj(r) && r.from === 'P4 Sörmland' && typeof r.text === 'string')
-      out.push({ id: `radio:${c.map}:${c.day}`, at: r.at ?? '', from: 'P4 Sörmland', text: r.text.trim(), k: campaignDay(c.map, c.day) });
-  }
-  for (const r of RADIO) {
-    if (!MAPS[r.after[0]] || !stageReached(p, { after: r.after })) continue;
-    if (out.some(x => x.k === afterKey(r.after))) continue;   // dagens egen radio går före
-    out.push({ id: r.id, at: r.at ?? '', from: 'P4 Sörmland', text: r.text, k: afterKey(r.after) });
-  }
-  return out.sort((a, b) => a.k - b.k);
+// 0.21.1 (speltestet, fynd 7: samma remsa från dag 6 till 13): radion säger något bara natten efter en dag som har
+// en sändning (dagen före nästa strid). Andra dagar ligger ingen remsa på bordet.
+export function radioStrips(p, nb = nextBattle(p)) {
+  const prev = nb ? dayBefore(nb.map, nb.day) : null;
+  if (!prev || !stageReached(p, { after: [prev.map, prev.day] })) return [];
+  const r = MAPS[prev.map]?.days?.[prev.day - 1]?.report;
+  if (isObj(r) && r.from === 'P4 Sörmland' && typeof r.text === 'string')
+    return [{ id: `radio:${prev.map}:${prev.day}`, at: r.at ?? '', from: 'P4 Sörmland', text: r.text.trim() }];
+  const f = RADIO.find(x => x.after[0] === prev.map && x.after[1] === prev.day);
+  return f ? [{ id: f.id, at: f.at ?? '', from: 'P4 Sörmland', text: f.text }] : [];
 }
 
 // ---------- truppkorten ----------
@@ -262,7 +285,9 @@ export function cardZones(p, sector) {
   const nth = new Map(), count = {};
   for (const u of [...here].sort((a, b) => a.uid - b.uid)) { count[u.type] = (count[u.type] ?? 0) + 1; nth.set(u.uid, count[u.type]); }
   const card = u => unitCard(p, u, nth.get(u.uid), count[u.type] > 1, fatigueOn);
-  return { sector: poolOf(sector), cap: L.cap, battle: L.battle.map(card), rest: L.rest.map(card) };
+  // 0.21.1 (speltestet, fynd 11: ordningen kastades om när ett kort flyttades): fast ordning, typ och nummer
+  const TYPES = Object.keys(TAG), ord = (a, b) => (TYPES.indexOf(a.type) - TYPES.indexOf(b.type)) || a.uid - b.uid;
+  return { sector: poolOf(sector), cap: L.cap, battle: [...L.battle].sort(ord).map(card), rest: [...L.rest].sort(ord).map(card) };
 }
 // Byt plats på två kort i var sin bana: den i striden vilar, den i reserven går in. Samma regler som förrådets banor
 // (setLane): nekas något står framsteget orört.
@@ -285,7 +310,7 @@ export function tableState(p, { sector = null } = {}) {
   const meta = metaFeatures(p), nb = nextBattle(p, sector);
   const piles = missionPiles(p).map(pl => ({ ...pl, current: !pl.closed && nb?.sector === pl.sector }));
   const enemies = enemyPile(p, nb);
-  const radio = radioStrips(p);
+  const radio = radioStrips(p, nb);
   const depot = meta.has('depot');
   const state = {
     next: nb, opmap: meta.has('opmap'), piles, enemies, radio,
@@ -297,24 +322,47 @@ export function tableState(p, { sector = null } = {}) {
   state.objects = ['map', ...piles.map(x => x.id), ...(radio.length ? ['radio'] : []), ...(enemies ? ['enemies'] : []), ...(state.clipboard ? ['clipboard'] : []), ...(state.zones ? ['zones'] : [])];
   return state;
 }
+// 0.21.1 (speltestet, fynd 2 och 8: Deploy klipptes i 1024x614 och 1920x1080, text på 6 till 7 px): bordets yta följer
+// fönstret. Skalan är minst MIN_SCALE (texten minst 11 px); är fönstret mindre än 1440 x 900 i den skalan blir bordet
+// mindre, och kartbladet krymper för att ge plats åt korten. Klämbrädan och fiendehögen står mot högerkanten,
+// korten och klämbrädan mot nederkanten.
+export const MIN_SCALE = 0.8;
+export function frameFor(vw = TABLE_W, vh = TABLE_H) {
+  const scale = Math.max(MIN_SCALE, Math.min(vw / TABLE_W, vh / TABLE_H));
+  const W = Math.max(960, vw / scale), H = Math.max(600, vh / scale);
+  const zoneY = H - 272, mapS = Math.max(0.55, Math.min(1, (zoneY - 46) / 600, (W - 560) / 880));
+  return { scale, W, H, zoneY, mapS, mapX: 300, mapY: 30, clipX: W - 232, clipY: H - 400, enemyX: W - 300 };
+}
+const F0 = frameFor();
 // Startläget för ett föremål: { x, y, r }.
-export function defaultPlace(state, id) {
-  if (id === 'map') return { x: 300, y: 30, r: -0.5 };
+export function defaultPlace(state, id, fr = F0) {
+  const onMap = ([x, y]) => [Math.round(fr.mapX + (x - 300) * fr.mapS), Math.round(fr.mapY + (y - 30) * fr.mapS)];
+  if (id === 'map') return { x: fr.mapX, y: fr.mapY, r: -0.5 };
   if (id === 'radio') return { x: 22, y: 40, r: -2 };
-  if (id === 'enemies') return { x: 1158, y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
-  if (id === 'clipboard') return { x: 1212, y: 516, r: 1.2 };
+  if (id === 'enemies') return { x: Math.round(fr.enemyX), y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
+  if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 1.2 };
   if (id.startsWith('pile:')) {
     const pl = state.piles.find(x => x.id === id), s = pl?.sector;
     const row = SECTOR_TABLE[s];
-    if (row) { const [x, y] = pl.closed ? row.closed : row.current; return { x, y, r: 0 }; }
-    const spare = state.piles.filter(x => !SECTOR_TABLE[x.sector]).findIndex(x => x.id === id);
-    const [x, y] = SPARE_SLOTS[Math.max(0, spare) % SPARE_SLOTS.length];
+    let xy;
+    if (row) xy = pl.closed ? onMap(row.closed) : row.current;
+    else { const spare = state.piles.filter(x => !SECTOR_TABLE[x.sector]).findIndex(x => x.id === id); xy = onMap(SPARE_SLOTS[Math.max(0, spare) % SPARE_SLOTS.length]); }
+    // nästa strids hög: så högt att den inte når ned i korten (högen är ca 390 hög med två blad), och inte in i klämbrädan
+    let [x, y] = xy;
+    if (pl.current) {
+      const right = state.clipboard ? fr.clipX - 350 : fr.W - 350, bottom = state.zones ? fr.zoneY - 400 : fr.H - 420;
+      if (x > fr.W / 2) x = Math.min(x, Math.round(right));
+      y = Math.max(100, Math.min(y, Math.round(bottom)));
+      // under fiendehögen: kanterna (72 över högen) får inte gå in i den; ryms den inte under flyttas högen åt vänster
+      const eb = state.enemies ? 28 + (state.enemies.sheets.length - 1) * 30 + 2 + 196 + 8 : 0;
+      if (state.enemies && x + 330 > fr.enemyX && y - 72 < eb) x = Math.round(fr.enemyX - 340);
+    }
     return { x, y, r: 0 };
   }
   return { x: 0, y: 0, r: 0 };
 }
 // Var föremålet ligger: spelarens läge om det finns, annars startläget.
-export function placeOf(p, state, id) {
-  const d = defaultPlace(state, id), s = tableOf(p).layout[id];
-  return s ? { ...d, x: s.x, y: s.y, moved: true } : d;
+export function placeOf(p, state, id, fr = F0) {
+  const d = defaultPlace(state, id, fr), s = tableOf(p).layout[id];
+  return s ? { ...d, x: Math.min(s.x, Math.round(fr.W - 80)), y: Math.min(s.y, Math.round(fr.H - 60)), moved: true } : d;
 }

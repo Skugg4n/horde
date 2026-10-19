@@ -21,7 +21,7 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
-import { recordDay, swapCards, campaignDay } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay } from './meta/table.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -2040,7 +2040,10 @@ function lessonCond(c) {
 // Lektionerna där spelaren är: dagens steg i striden; mellan dagarna stegen för den tid mellan dagarna som nåtts.
 function lessonList() {
   if (mode === 'play') { const i = dayStage(map.id, day); return [...(i >= 0 ? LESSONS[STAGES[i].id] ?? [] : []), ...LESSONS.any]; }
-  if (mode === 'opmap' || mode === 'depot' || mode === 'result') return STAGES.filter(s => s.after && stageReached(progress, s)).flatMap(s => LESSONS[s.id] ?? []);
+  // 0.21.1 (speltestet av 0.21.0, fynd 3): operationskartans steg ("Open the sector", "The depot opens...") hör inte till
+  // kartbordet; där finns ingen sektor att öppna och de låg över Requisition. Med bordet visas de inte (Classic har kvar dem).
+  if (mode === 'opmap' || mode === 'depot' || mode === 'result') return STAGES.filter(s => s.after && stageReached(progress, s)).flatMap(s => LESSONS[s.id] ?? [])
+    .filter(l => !(l.when === 'opmap' && hubTable()));
   return [];
 }
 function uiRect(sel) {
@@ -2615,7 +2618,7 @@ function finishDay() {
   if (won) {
     const lost = (report?.units ?? []).reduce((a, u) => { const unit = before.op.units.find(x => x.uid === u.uid); return a + (unit?.men != null && u.alive != null ? Math.max(0, unit.men - u.alive) : 0); }, 0);
     progress = recordDay(progress, { mapId: map.id, day, kills: sim.kills, waves: sim.dayCfg.waves.length, lost, saved: sim.evac?.safe ?? null, total: sim.evac?.total ?? null });
-  }
+  } else progress = recordLoss(progress, { mapId: map.id, day, kills: sim.kills, cleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lostBy: sim.lostBy ?? null });
   save();
   // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)
   const losses = (report?.units ?? []).map(u => {

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newCampaign, debugReach, finishDay, lanes, setLane, unitsIn, deployCap } from '../src/meta/operation.js';
 import { tableState, campaignDay, missionPiles, moveObject, tidy, placeOf, defaultPlace, tableOf, normalizeTable, recordDay,
-  reportSheet, orderSheet, radioStrips, enemyPile, swapCards, cardZones, bringToTop, nextBattle } from '../src/meta/table.js';
+  reportSheet, orderSheet, radioStrips, enemyPile, swapCards, cardZones, bringToTop, nextBattle, recordLoss, campaignIndex, frameFor, MIN_SCALE } from '../src/meta/table.js';
 import { loadProgress, saveProgress } from '../src/meta/save.js';
 import { MAPS } from '../src/data/maps.js';
 import { RADIO } from '../src/data/table.js';
@@ -32,9 +32,10 @@ test('dag 1: bara kartan och en lapp (ordern för dag 1)', () => {
 
 test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan', () => {
   const p = day8(), s = tableState(p);
-  assert.equal(campaignDay('gnesta', 5), 8);
-  assert.equal(s.next.n, 8);
-  for (const id of ['map', 'pile:riksvagen', 'pile:gnesta', 'radio', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
+  // 0.21.1: bordet visar banans egen dag (samma som introt, HUD:en och menyn)
+  assert.equal(s.next.n, 5);
+  assert.equal(s.next.place, 'Ishallen');
+  for (const id of ['map', 'pile:riksvagen', 'pile:gnesta', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
   const e4 = s.piles.find(x => x.sector === 'riksvagen'), gn = s.piles.find(x => x.sector === 'gnesta');
   assert.equal(e4.closed, true);
   assert.equal(e4.sheets.at(-1).kind, 'closed');
@@ -44,6 +45,7 @@ test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan',
   assert.equal(gn.sheets.at(-2).id, 'report:gnesta:4', 'gårdagens rapport ligger under ordern');
   assert.deepEqual(s.enemies.sheets.filter(x => x.status !== 'REPORTED').map(x => x.type), ['walker', 'runner', 'brute']);
   assert.ok(s.intel?.text, 'What we face');
+  assert.ok(!s.objects.includes('radio'), 'ingen sändning natten före Ishallen dag 5');
   assert.equal(s.zones.cap, deployCap(p, 'gnesta'));
   assert.equal(s.zones.battle.length + s.zones.rest.length, unitsIn(p, 'gnesta').length, 'ett kort per enhet');
 });
@@ -66,10 +68,10 @@ test('saker kommer i kampanjens takt: fiendehögen efter första mötet, korten 
 test('högarnas ordning: order och rapport per dag i tidsordning, nyast överst', () => {
   const p = day8();
   for (const pl of missionPiles(p)) {
-    let last = 0;
+    let last = -1;
     for (const sh of pl.sheets) {
       if (sh.kind === 'closed') { assert.equal(sh, pl.sheets.at(-1), 'slutbladet ligger överst'); continue; }
-      const k = campaignDay(sh.map, sh.day) * 2 + (sh.kind === 'report' ? 1 : 0);
+      const k = campaignIndex(sh.map, sh.day) * 3 + ({ order: 0, lost: 1, report: 2 })[sh.kind];
       assert.ok(k > last, `${pl.id}: ${sh.id} i fel ordning`);
       last = k;
     }
@@ -103,10 +105,46 @@ test('lägesrapporten: dagens egen text när den finns, annars ur dagens siffror
   } finally { delete d.report; }
 });
 
-test('radion: remsor när steget är nått, i kampanjens ordning', () => {
+test('radion: en remsa bara natten efter en dag med sändning, annars ingen (0.21.1)', () => {
   assert.deepEqual(radioStrips(newCampaign()), []);
-  const ids = radioStrips(debugReach(newCampaign(), 'molnbo', 1)).map(x => x.id);
-  assert.deepEqual(ids, RADIO.map(r => r.id));
+  for (const r of RADIO) {
+    const i = campaignIndex(...r.after) + 1;
+    // dagen efter sändningen
+    const p = debugReach(newCampaign(), ...nextOf(i));
+    assert.deepEqual(radioStrips(p).map(x => x.id), [r.id], r.id);
+  }
+  // två dagar senare: ingen remsa
+  assert.deepEqual(radioStrips(debugReach(newCampaign(), 'gnesta', 2)), []);
+  assert.deepEqual(radioStrips(debugReach(newCampaign(), 'molnbo', 2)), []);
+});
+import { CAMPAIGN } from '../src/meta/table.js';
+const nextOf = i => [CAMPAIGN[i].map, CAMPAIGN[i].day];
+
+test('en förlorad dag får ett blad i högen med utfallet (0.21.1)', () => {
+  let p = debugReach(newCampaign(), 'gnesta', 3);
+  p = finishDay(p, { mapId: 'gnesta', day: 3, won: false, intelEarned: 0 }).progress;
+  p = recordLoss(p, { mapId: 'gnesta', day: 3, kills: 120, cleared: 2, waves: 5, lostBy: 'base' });
+  const pile = missionPiles(p).find(x => x.sector === 'gnesta');
+  const top = pile.sheets.at(-1);
+  assert.equal(top.kind, 'lost');
+  assert.equal(top.lead, 'Day 3 lost.');
+  assert.equal(top.text, 'Try again at dawn.');
+  assert.match(top.outcome, /2 of 5 waves held\. 120 infected down\. The base fell\./);
+  assert.equal(pile.sheets.at(-2).id, 'order:gnesta:3');
+  // vinner man dagen ligger förlustbladet kvar i historien, under rapporten
+  const won = finishDay(p, { mapId: 'gnesta', day: 3, won: true, intelEarned: 0, report: { units: [] } }).progress;
+  const ids = missionPiles(won).find(x => x.sector === 'gnesta').sheets.map(x => x.id);
+  assert.ok(ids.indexOf('lost:gnesta:3') < ids.indexOf('report:gnesta:3'));
+});
+
+test('bordets yta: skalan minst MIN_SCALE, klämbrädan och korten inne i ytan (0.21.1)', () => {
+  for (const [w, h] of [[1024, 614], [1440, 900], [1920, 1080], [1280, 720]]) {
+    const f = frameFor(w, h);
+    assert.ok(f.scale >= MIN_SCALE, `${w}x${h}`);
+    assert.ok(f.W * f.scale <= w + 0.5 && f.H * f.scale <= h + 0.5, `${w}x${h}: ytan ryms`);
+    assert.ok(f.clipY + 376 <= f.H - 12 && f.clipX + 212 <= f.W, `${w}x${h}: klämbrädan`);
+    assert.ok(f.zoneY + 246 <= f.H - 12, `${w}x${h}: korten`);
+  }
 });
 
 test('ordern: högst 12 ord, rapport och radio inom sina gränser, inga tankstreck', () => {
@@ -142,8 +180,9 @@ test('dra och släpp: läget sparas per föremål, hålls på bordet, och Tidy l
 test('korten följer förrådets regler: taket, tomma enheter och bytet', () => {
   let p = debugReach(newCampaign(), 'molnbo', 1);
   const z = cardZones(p, 'molnbo'), L = lanes(p, 'molnbo');
-  assert.deepEqual(z.battle.map(c => c.uid), L.battle.map(u => u.uid));
-  assert.deepEqual(z.rest.map(c => c.uid), L.rest.map(u => u.uid));
+  const ids = xs => xs.map(x => x.uid).sort((a, b) => a - b);
+  assert.deepEqual(ids(z.battle), ids(L.battle));
+  assert.deepEqual(ids(z.rest), ids(L.rest));
   assert.equal(new Set([...z.battle, ...z.rest].map(c => c.uid)).size, unitsIn(p, 'molnbo').length, 'ett kort per enhet, aldrig ×2');
   // full stridsbana: ett reservkort in nekas med förrådets skäl
   const out = L.rest.find(u => u.men == null || u.men > 0);
@@ -188,10 +227,10 @@ test('en sparfil från före bordet (v4 utan table) läses som förut och får e
   assert.deepEqual(normalizeTable('trasigt'), { layout: {}, log: {} });
 });
 
-test('kampanjens dag: i schemats ordning, eller dagens eget campaignDay', () => {
+test('dagens nummer: banans egen dag, eller dagens eget campaignDay (kroken för kampanjbågen)', () => {
   assert.equal(campaignDay('riksvagen', 1), 1);
-  assert.equal(campaignDay('gnesta', 1), 4);
-  assert.equal(campaignDay('molnbo', 1), 14);
+  assert.equal(campaignDay('gnesta', 1), 1);
+  assert.equal(campaignDay('molnbo', 1), 1);
   const d = MAPS.molnbo.days[0];
   try { d.campaignDay = 8; assert.equal(campaignDay('molnbo', 1), 8); } finally { delete d.campaignDay; }
 });

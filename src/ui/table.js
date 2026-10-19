@@ -17,7 +17,7 @@
 import { MAPS } from '../data/maps.js';
 import { SECTORS } from '../data/depot.js';
 import { TABLE_W, TABLE_H, MAP_W, MAP_H, gx, gy, PLACES, SEA, MALAREN, LAKES, ISLANDS, ROADS, RAILS, TOWNS, SECTOR_TABLE } from '../data/table.js';
-import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet } from '../meta/table.js';
+import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor } from '../meta/table.js';
 import { intelFor, compass } from '../meta/intel.js';
 import { FOE_ICONS } from './icons.js';
 
@@ -67,7 +67,7 @@ export function mapSvg(state, sel) {
       const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector));
       const blue = pl.status === 'held';
       s += `<g class="sec st-${pl.status}" data-sector="${pl.sector}"><circle cx="${x}" cy="${y}" r="18" class="hit"/><circle cx="${x}" cy="${y}" r="8.5" fill="${blue ? 'rgba(143,196,232,.30)' : 'rgba(138,128,112,.35)'}" stroke="${blue ? '#8fc4e8' : '#8a8070'}" stroke-width="1.5"/></g>`;
-      s += pen(x, y + 50, `${pl.status === 'silent' ? 'secure' : 'held'}, days ${c.days[0]} to ${c.days[1]}`, 'middle');
+      s += pen(x, y + 50, `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} days`, 'middle');
     } else {
       const thr = pl.status === 'threatened';
       s += `<g class="sec st-${pl.status}" data-sector="${pl.sector}"><circle cx="${x}" cy="${y}" r="18" class="hit"/>${thr ? `<circle cx="${x}" cy="${y}" r="16" class="pulse"/>` : ''}<circle cx="${x}" cy="${y}" r="9" fill="${thr ? 'rgba(224,96,60,.3)' : 'rgba(159,196,106,.28)'}" stroke="${thr ? '#e0603c' : '#9fc46a'}" stroke-width="1.6"/></g>`;
@@ -105,61 +105,74 @@ export function mapSvg(state, sel) {
 export function insetSheet() { return ''; }
 
 // ---------- bladen ----------
-const orderHtml = (o, { deploy = false, stamp = false } = {}) => `
-  <div class="hd"><span>${esc(o.from.toUpperCase())}</span><span>ORDER ${two(o.n)}</span></div>
+const orderHtml = (o, { deploy = false, stamp = false, top = true } = {}) => `
+  <div class="hd"${top ? '' : ' data-read'}><span>${esc(o.from.toUpperCase())}</span><span>ORDER ${two(o.n)}</span></div>
   <div class="meta">TO: ${esc(o.to)}<br>VALID: ${esc(o.valid)}</div>
   <div class="txt" data-read>${esc(o.text)}</div>
   ${o.sig ? `<div class="sig">${esc(o.sig)}</div>` : ''}
   ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${o.n} · ENTER</button>` : ''}
   ${stamp ? `<div class="tb-stamp" style="right:10px;bottom:-12px;transform:rotate(-7deg);font-size:15px">RECEIVED<small>GNESTA</small></div>` : ''}`;
 // top: bladet ligger överst (texten ska gå att läsa); under ett annat blad räcker rubriken
-const reportHtml = (r, top = true) => `
+const reportHtml = (r, top = true) => `${top ? '' : '<div class="tb-l2" data-read aria-hidden="true"></div>'}
   <div class="h"${top ? '' : ' data-read'}>Situation · night ${r.n}</div>
   <div class="txt"${top ? ' data-read' : ''}>${r.lead ? `<b>${esc(r.lead)}</b> ` : ''}${esc(r.text)}</div>
   <div class="sig">${esc(r.from)}</div>`;
 const closedHtml = c => `
-  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>DAYS ${c.days[0]} TO ${c.days[1]}</span></div>
+  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} DAYS</span></div>
   <div class="txt" data-read>${esc(c.text)}</div>
   <div class="tb-stamp olive" style="right:12px;bottom:6px;transform:rotate(-5deg);font-size:14px">${esc(c.stamp)}</div>`;
 // Bara rubrikraden syns (ett blad under ett annat)
-const edgeHead = sh => sh.kind === 'order' ? `<span>ORDER ${two(sh.n)}</span><span>${esc(sh.from.toUpperCase())}</span>`
-  : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span><span></span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')}</span><span>HELD</span>`;
+const edgeHead = sh => sh.kind === 'order' ? `<span>ORDER ${two(sh.n)}</span>`
+  : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span>` : sh.kind === 'lost' ? `<span>DAY ${sh.n} · LOST</span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')} · HELD</span>`;
+// 0.21.1 (speltestet, fynd 5): en förlorad dag
+const lostHtml = (l, deploy) => `
+  <div class="hd"><span>DAY ${l.n}</span><span>LOST</span></div>
+  <div class="txt" data-read><b>${esc(l.lead)}</b> ${esc(l.text)}</div>
+  <div class="out" data-read>${esc(l.outcome)}</div>
+  ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${l.n} · ENTER</button>` : ''}
+  <div class="tb-stamp" style="right:12px;bottom:8px;transform:rotate(-6deg);font-size:15px">${esc(l.stamp)}</div>`;
 function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, top = true }) {
   const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`;
   if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
-  if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${orderHtml(sh, { deploy, stamp })}<div class="tb-clip" data-clip></div></div>`;
+  if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order${top ? '' : ' under'}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${orderHtml(sh, { deploy, stamp, top })}<div class="tb-clip" data-clip></div></div>`;
   if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh, top)}</div>`;
+  if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy)}</div>`;
   return `<div class="tb-obj tb-paper tb-report" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:34px">${closedHtml(sh)}</div>`;
 }
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
-function pileHtml(pl, place, { deploy }) {
+function pileHtml(pl, place, { deploy, spreadSrc = false }) {
   const sh = pl.sheets, n = sh.length, top = sh[n - 1], under = sh[n - 2];
   const rot = k => [-1.8, 1.6, -3, 2.2, -1.2][k % 5], edge = k => [-0.7, 0.5, -0.4][k % 3];
   let html = '';
-  if (pl.current && under?.kind === 'report') {
+  // 0.21.1 (speltestet, fynd 6: ordern täckte rapportens andra rad): bladet ovanpå ligger så långt ned att de två
+  // översta raderna på bladet under går att läsa
+  if (pl.current && (under?.kind === 'report' || under?.kind === 'order')) {
     const older = sh.slice(Math.max(0, n - 4), n - 2);
     older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false }); });
     html += sheetHtml(under, { x: 0, y: 0, r: -1.8, z: 5, full: true, top: false });
-    html += sheetHtml(top, { x: 34, y: 92, r: 1.6, z: 6, full: true, deploy, stamp: !deploy });
+    html += sheetHtml(top, { x: 34, y: under.kind === 'report' ? 128 : 176, r: 1.6, z: 6, full: true, deploy, stamp: !deploy && top.kind === 'order' });
   } else {
     const older = sh.slice(Math.max(0, n - 3), n - 1);
     older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: 14 + 6 * (d - 1), y: -36 * d, r: edge(k), z: k + 1, full: false }); });
     html += sheetHtml(top, { x: 0, y: 0, r: pl.closed ? 1 : 2.2, z: 6, full: true, deploy });
   }
   const more = n > 4 ? `<span class="tb-more">${n} sheets</span>` : '';
-  return `<div class="tb-pile${pl.current ? ' current' : ''}${pl.closed ? ' closed' : ''}" data-obj="${pl.id}" data-sector="${pl.sector}" style="--x:${place.x};--y:${place.y};--z:${pl.current ? 12 : 9}" title="Click to spread">${html}${more}</div>`;
+  return `<div class="tb-pile${pl.current ? ' current' : ''}${pl.closed ? ' closed' : ''}${spreadSrc ? ' spreadsrc' : ''}" data-obj="${pl.id}" data-sector="${pl.sector}" style="--x:${place.x};--y:${place.y};--z:${pl.current ? 12 : 9}" title="Click to spread">${html}${more}</div>`;
 }
 // Utbredd hög: bladen i rader över bordet, nyast först (högst åtta)
-function spreadHtml(pl) {
-  const list = [...pl.sheets].reverse().slice(0, 8), cols = 4, cw = 330, rh = 360, sc = 0.78;
-  const x0 = (TABLE_W - cols * cw * sc) / 2 + 8, y0 = 70;
+function spreadHtml(pl, fr) {
+  // skalan så att texten är minst 11 px (bordets skala gånger bladets), så många blad som ryms
+  const cw = 330, rh = 300, sc = Math.min(1, Math.max(0.82, 11.2 / (13.75 * fr.scale)));
+  const cols = Math.max(1, Math.min(4, Math.floor((fr.W - 40) / (cw * sc)))), rows = Math.max(1, Math.floor((fr.H - 110) / (rh * sc)));
+  const list = [...pl.sheets].reverse().slice(0, Math.min(8, cols * rows));
+  const x0 = (fr.W - cols * cw * sc) / 2 + 8, y0 = 40;
   const cells = list.map((sh, i) => {
     const x = x0 + (i % cols) * cw * sc, y = y0 + Math.floor(i / cols) * rh * sc;
     return `<div class="tb-cell" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;transform:scale(${sc}) rotate(${[-1, 0.8, -0.5, 1.2][i % 4]}deg)">${sheetHtml(sh, { x: 0, y: 0, r: 0, z: 1, full: true })}</div>`;
   }).join('');
   const older = pl.sheets.length - list.length;
-  return `<div class="tb-spread" data-spread="${pl.id}"><div class="tb-shade"></div>${cells}<div class="tb-spreadhint">${older > 0 ? `${older} older sheets in the pile · ` : ''}Click to stack</div></div>`;
+  return `<div class="tb-spread" data-spread="${pl.id}"><div class="tb-shade"></div>${cells}<div class="tb-spreadhint" data-read>${older > 0 ? `${older} older sheets in the pile · ` : ''}Click to stack</div></div>`;
 }
 
 // ---------- radion ----------
@@ -168,7 +181,7 @@ function radioHtml(strips, order, place) {
   const n = list.length;
   const html = list.map((s, k) => {
     const top = k === n - 1;
-    return `<div class="tb-obj tb-strip${top ? '' : ' under'}" data-strip="${s.id}" style="--x:${k * 5};--y:${k * 28};--w:226;--r:${[-2, 1.2, -1][k % 3]};--z:${k + 1}">
+    return `<div class="tb-obj tb-strip${top ? '' : ' under'}" data-strip="${s.id}" style="--x:${k * 5};--y:${k * 28};--w:246;--r:${[-2, 1.2, -1][k % 3]};--z:${k + 1}">
       <div class="h" data-read><span>RADIO</span><i>${esc(s.at)}</i><span>${esc(s.from.toUpperCase())}</span></div>${top ? `<div class="txt" data-read>${esc(s.text)}</div>` : ''}</div>`;
   }).join('');
   return `<div class="tb-pile tb-radio" data-obj="radio" style="--x:${place.x};--y:${place.y};--z:8">${html}</div>`;
@@ -177,68 +190,78 @@ function radioHtml(strips, order, place) {
 // ---------- fiendehögen ----------
 function enemyHtml(pile, order, intel, place) {
   const list = order.map(id => pile.sheets.find(s => s.id === id)).filter(Boolean);
-  const n = list.length, H = 230, STEP = 26;
+  const n = list.length, H = 196, STEP = 30;
   const html = list.map((e, k) => {
     const top = k === n - 1, grey = e.status === 'REPORTED';
     const tab = `<div class="tab" data-read><b>${esc(e.name)}</b>${e.status === 'NEW' ? `<i>${two(e.no)} · NEW</i>` : `<span>${two(e.no)} · ${e.status}</span>`}</div>`;
-    if (!top) return `<div class="tb-obj tb-paper tb-enemy${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:${[6, 0, 8, 2][k % 4]};--y:${k * STEP};--w:210;--h:${H};--r:${[0.6, -0.5, 0.4, -0.6][k % 4]};--z:${k + 1}">${tab}</div>`;
-    return `<div class="tb-obj tb-paper tb-enemy top${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:4;--y:${k * STEP + 2};--w:210;--h:${H};--r:0.8;--z:${k + 1}">${tab}
+    if (!top) return `<div class="tb-obj tb-paper tb-enemy${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:${[6, 0, 8, 2][k % 4]};--y:${k * STEP};--w:236;--h:${H};--r:${[0.6, -0.5, 0.4, -0.6][k % 4]};--z:${k + 1}">${tab}</div>`;
+    return `<div class="tb-obj tb-paper tb-enemy top${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:4;--y:${k * STEP + 2};--w:236;--h:${H};--r:0.8;--z:${k + 1}">${tab}
       <div class="body"><div class="t" data-read>${esc(e.text)}</div><span class="fig">${FOE_ICONS[e.type] ?? FOE_ICONS.unknown}</span></div>
-      <div class="stats" data-read>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
+      <div class="stats"${intel ? '' : ' data-read'}>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
   }).join('');
   const topY = (n - 1) * STEP + 2 + H;
-  const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:26;--y:${topY - 6};--w:184;--r:-3.5;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
-  return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:11">${html}${note}</div>`;
+  const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:30;--y:${topY - 58};--w:206;--r:-3;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
+  return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:14">${html}${note}</div>`;
 }
 
 // ---------- korten ----------
-const menHtml = c => (c.max ? `<div class="men">${Array.from({ length: c.max }, (_, i) => `<s class="${i < c.men ? 'on' : 'dead'}"></s>`).join('')}</div>` : '');
-function cardHtml(c, x, z, lane) {
-  const bad = c.fatigue != null ? c.fatigue > 0 : c.men === 0;
-  const tail = `${c.vet ? '<b class="star">★</b>' : ''}L${c.level}`;
-  return `<div class="tb-obj tb-card${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="--x:${x.toFixed(0)};--y:0;--w:128;--r:${[0.8, -1, 0.4, -0.6, 1.1][c.uid % 5]};--z:${z}">
-    <div class="spine" data-read>${esc(c.tag)}<i class="f${c.fatigue ?? 0}"></i></div>
-    <div class="k"><span>${c.fresh ? 'NEW' : esc(c.tag)}</span>${c.max ? `<i>${c.men}/${c.max}</i>` : ''}</div>
-    <div class="n">${esc(c.name)}</div><div class="rl">${esc(c.role)}</div>${menHtml(c)}
-    <div class="ft"><span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span><span>${tail}</span></div></div>`;
-}
-const ZONE_Y = 676, ZONE_H = 206, ZONE_X0 = 92, ZONE_X1 = 1196, CARD_W = 128;
-// Fältens bredd: båda får plats för sina kort bredvid varandra om det går. Annars får varje fält sitt minsta (korten
-// överlappar så att ryggen syns: 44 px i striden, 30 px i reserven) och resten delas efter hur mycket som saknas.
-export function zoneGeometry(cap, nRest) {
-  const avail = ZONE_X1 - ZONE_X0 - 18;
-  const span = (k, step) => 16 + CARD_W + Math.max(0, k - 1) * step;
-  const nb = Math.max(1, Number.isFinite(cap) ? cap : 1), nr = Math.max(1, nRest);
-  const wb = span(nb, CARD_W + 8), wr = Math.max(200, span(nr, CARD_W + 8));
-  let battle, rest;
-  if (wb + wr <= avail) { battle = wb; rest = avail - wb; }
-  else {
-    const mb = span(nb, 44), mr = Math.max(200, span(nr, 30)), extra = Math.max(0, avail - mb - mr);
-    const gb = Math.max(0, wb - mb), gr = Math.max(0, wr - mr), k = gb + gr ? extra / (gb + gr) : 0;
-    battle = Math.min(wb, mb + gb * k); rest = avail - battle;
+// 0.21.1 (speltestet, fynd 1: från ca 8 kort klipptes namnen till "PSG 9", "HEMV"): korten överlappar inte. Får de inte
+// plats i en rad läggs de i två, tre eller fyra rader med mindre kort; varje kort har namnraden, styrkan och tröttheten.
+const ZONE_H = 246, ZONE_X0 = 92;
+const CARD_STYLES = [[1, 128, 188], [2, 132, 0], [3, 132, 0], [4, 132, 0]];
+export function zoneLayout(nB, nR, x0, x1) {
+  const avail = x1 - x0 - 18;
+  let pick = null;
+  for (const [rows, cw] of CARD_STYLES) {
+    const cb = Math.ceil(Math.max(1, nB) / rows), cr = Math.ceil(Math.max(1, nR) / rows);
+    const wb = cb * (cw + 8) + 16, wr = Math.max(170, cr * (cw + 8) + 16);
+    pick = { rows, cw, cb, cr, wb, wr };
+    if (wb + wr <= avail) break;
   }
-  return { battle: { x: ZONE_X0, w: Math.round(battle) }, rest: { x: Math.round(ZONE_X0 + battle + 18), w: Math.round(rest) } };
+  const { rows, cw, cb, cr, wb, wr } = pick;
+  const ch = rows === 1 ? 188 : Math.floor((ZONE_H - 18 - (rows - 1) * 6) / rows);
+  // ryms de inte ens i fyra rader delas bredden efter antalet kolumner (korten överlappar i raden)
+  const bw = wb + wr <= avail ? Math.max(wb, avail - wr) : Math.round(avail * cb / (cb + cr));
+  const rw = avail - bw;
+  return { rows, cw, ch, battle: { x: x0, w: Math.round(bw), cols: cb }, rest: { x: Math.round(x0 + bw + 18), w: Math.round(rw), cols: cr } };
 }
-const cardStep = (n, w) => (n <= 1 ? 0 : Math.min(CARD_W + 8, (w - 16 - CARD_W) / (n - 1)));
-function zonesHtml(z, note) {
-  const g = zoneGeometry(z.cap, z.rest.length);
-  const row = (list, geo, lane) => { const st = cardStep(list.length, geo.w); return list.map((c, i) => cardHtml(c, geo.x + 8 + i * st, i + 1, lane)).join(''); };
+function cardHtml(c, x, y, z, lane, L) {
+  const bad = c.fatigue != null ? c.fatigue > 0 : c.men === 0;
+  const men = c.max ? `${c.men}/${c.max}` : '';
+  const lvl = `${c.vet ? '<b class="star">★</b>' : ''}L${c.level}`;
+  const pos = `--x:${x.toFixed(0)};--y:${y.toFixed(0)};--w:${L.cw};--h:${L.ch};--r:${[0.6, -0.7, 0.3, -0.4, 0.8][c.uid % 5] * (L.rows > 1 ? 0.4 : 1)};--z:${z}`;
+  const state = `<span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span>`;
+  if (L.rows === 1) return `<div class="tb-obj tb-card r1${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
+    <div class="k"><span>${c.fresh ? 'NEW' : esc(c.tag)}</span><i>${men}</i></div>
+    <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl">${esc(c.role)}</div>${c.max ? `<div class="men">${Array.from({ length: c.max }, (_, i) => `<s class="${i < c.men ? 'on' : 'dead'}"></s>`).join('')}</div>` : ''}
+    <div class="ft" data-read>${state}<span>${lvl}</span></div></div>`;
+  return `<div class="tb-obj tb-card r${L.rows}${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
+    <div class="n" data-read data-name>${esc(c.name)}</div>
+    <div class="ft" data-read>${state}<span>${men ? `<i>${men}</i> ` : ''}${L.rows === 2 ? lvl : ''}</span></div></div>`;
+}
+function zonesHtml(z, note, fr, clip) {
+  const x1 = clip ? fr.clipX - 14 : fr.W - 24;
+  const L = zoneLayout(z.battle.length, z.rest.length, ZONE_X0, x1), zy = fr.zoneY;
+  const place = (list, geo, lane) => {
+    const cols = Math.max(1, Math.ceil(list.length / L.rows)), step = cols <= 1 ? 0 : Math.min(L.cw + 8, (geo.w - 16 - L.cw) / (cols - 1));
+    return list.map((c, i) => cardHtml(c, geo.x + 8 + (i % cols) * step, zy + 12 + Math.floor(i / cols) * (L.ch + 6), i + 1, lane, L)).join('');
+  };
   const nb = note ? `<span class="tb-znote">${esc(note.text)}</span>` : '';
-  return `<div class="tb-zone battle" data-zone="battle" style="--x:${g.battle.x};--y:${ZONE_Y};--w:${g.battle.w};--h:${ZONE_H}"><div class="lbl" data-read><b>INTO BATTLE</b> · ${z.battle.length} of ${Number.isFinite(z.cap) ? z.cap : z.battle.length}</div>${note?.lane === 'battle' ? nb : ''}</div>
-    <div class="tb-zone rest" data-zone="rest" style="--x:${g.rest.x};--y:${ZONE_Y};--w:${g.rest.w};--h:${ZONE_H}"><div class="lbl" data-read><b>RESERVE</b> · ${z.rest.length}</div>${note?.lane === 'rest' ? nb : ''}</div>
-    <div class="tb-cards" style="--y:${ZONE_Y + 10}">${row(z.battle, g.battle, 'battle')}${row(z.rest, g.rest, 'rest')}</div>`;
+  return `<div class="tb-zone battle" data-zone="battle" style="--x:${L.battle.x};--y:${zy};--w:${L.battle.w};--h:${ZONE_H}"><div class="lbl" data-read><b>INTO BATTLE</b> · ${z.battle.length} of ${Number.isFinite(z.cap) ? z.cap : z.battle.length}</div>${note?.lane === 'battle' ? nb : ''}</div>
+    <div class="tb-zone rest" data-zone="rest" style="--x:${L.rest.x};--y:${zy};--w:${L.rest.w};--h:${ZONE_H}"><div class="lbl" data-read><b>RESERVE</b> · ${z.rest.length}</div>${note?.lane === 'rest' ? nb : ''}</div>
+    <div class="tb-cards">${place(z.battle, L.battle, 'battle')}${place(z.rest, L.rest, 'rest')}</div>`;
 }
 
 // ---------- klämbrädan ----------
 function clipboardHtml(cb, place) {
   const nb = cb.next;
-  return `<div class="tb-obj tb-clipboard" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:208;--h:350;--r:${place.r};--z:13"><div class="jaw"></div><div class="pg">
+  return `<div class="tb-obj tb-clipboard" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:212;--h:376;--r:${place.r};--z:13"><div class="jaw"></div><div class="pg">
     <div class="h">Next battle</div>
-    <div class="nb" data-read>${nb ? `${esc(SECTORS.find(x => x.id === nb.sector)?.short ?? MAPS[nb.map].name)} · Day ${nb.n}<small>${esc(nb.title)}</small>` : 'Nothing planned<small>Every sector is held</small>'}</div>
+    <div class="nb" data-read>${nb ? `${esc(nb.place)} · Day ${nb.n}<small>${esc(nb.title)}</small>` : 'Nothing planned<small>Every sector is held</small>'}</div>
     ${cb.rp != null ? `<div class="rp" data-read><span>REQUISITION</span><b>${cb.rp}</b></div>` : ''}
     <div class="grow"></div>
-    <button type="button" class="tb-btn" data-a="req">Requisition<span class="p">Units and upgrades · R</span></button>
-    ${nb ? `<button type="button" class="tb-btn main" data-a="go">Deploy day ${nb.n}<br><kbd>Enter</kbd></button>` : ''}
+    <button type="button" class="tb-btn" data-a="req" data-read><span class="one">Requisition <kbd>R</kbd></span><span class="p">Units, upgrades</span></button>
+    ${nb ? `<button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy day ${nb.n}</span><kbd>Enter</kbd></button>` : ''}
   </div></div>`;
 }
 
@@ -254,42 +277,45 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20;
   const zOf = {};
   // ---------- skalan: designrummet till fönstret ----------
-  let scale = 1, ox = 0, oy = 0;
-  const fit = () => {
+  // 0.21.1: bordets yta följer fönstret (src/meta/table.js frameFor): skalan minst MIN_SCALE, ytan W x H
+  let scale = 1, ox = 0, oy = 0, fr = frameFor(TABLE_W, TABLE_H);
+  const fit = (first = false) => {
     const W = el.clientWidth || innerWidth, H = el.clientHeight || innerHeight;
-    scale = Math.min(W / TABLE_W, H / TABLE_H);
-    ox = (W - TABLE_W * scale) / 2; oy = (H - TABLE_H * scale) / 2;
+    const f = frameFor(W, H), changed = f.W !== fr.W || f.H !== fr.H;
+    fr = f; scale = f.scale;
+    ox = (W - f.W * scale) / 2; oy = (H - f.H * scale) / 2;
+    view.style.width = f.W + 'px'; view.style.height = f.H + 'px';
     view.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`;
-    drawStrings();
+    if (changed && !first) render(); else drawStrings();
   };
   const toTable = (cx, cy) => { const r = el.getBoundingClientRect(); return [(cx - r.left - ox) / scale, (cy - r.top - oy) / scale]; };
 
   function render() {
     const state = tableState(p, { sector: sel });
     if (sel == null || !state.piles.some(x => x.sector === sel)) sel = state.next?.sector ?? sel;
-    const place = id => placeOf(p, state, id);
+    const place = id => placeOf(p, state, id, fr);
     enemyOrder = state.enemies ? keepOrder(enemyOrder, state.enemies.sheets.map(s => s.id), state.enemies.top) : null;
     radioOrder = keepOrder(radioOrder, state.radio.map(s => s.id), state.radio[state.radio.length - 1]?.id);
     const mp = place('map');
     const deployOnNote = !state.clipboard;
-    let html = `<div class="tb-obj tb-paper tb-map" data-obj="map" style="--x:${mp.x};--y:${mp.y};--w:880;--h:600;--r:${mp.r};--z:${zOf.map ?? 2}">
+    let html = `<div class="tb-obj tb-paper tb-map" data-obj="map" style="--x:${mp.x};--y:${mp.y};--w:880;--h:600;--r:${mp.r};--s:${fr.mapS.toFixed(3)};--z:${zOf.map ?? 2}">
       ${mapSvg(state, sel)}<div class="crease v"></div><div class="crease h"></div>
       <div class="marg l">LANTMÄTERIET · 1:250 000 · SÖDERMANLAND</div><div class="marg r">${state.next && state.next.n > 1 ? `CORRECTED NIGHT ${state.next.n - 1}` : 'FIRST ISSUE'}</div>
       ${pinMarks(state)}</div>${insetSheet()}`;
     for (const pl of state.piles) {
       const pp = place(pl.id);
-      html += pileHtml(pl, pp, { deploy: deployOnNote && pl.current });
+      html += pileHtml(pl, pp, { deploy: deployOnNote && pl.current, spreadSrc: spread === pl.id });
     }
     if (state.radio.length) html += radioHtml(state.radio, radioOrder, place('radio'));
     if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'));
     if (state.clipboard) html += clipboardHtml(state.clipboard, place('clipboard'));
-    if (state.zones) html += zonesHtml(state.zones, laneNote);
+    if (state.zones) html += zonesHtml(state.zones, laneNote, fr, !!state.clipboard);
     const moved = Object.keys(tableOf(p).layout).length > 0;
     html += `<div class="tb-ring" style="left:1060px;top:60px;width:92px;height:92px;opacity:.7"></div>`;
-    html += state.zones ? `<div class="tb-pencil" style="left:40px;top:640px;width:150px;transform:rotate(-58deg)"><i></i></div>`
+    html += state.zones ? `<div class="tb-pencil" style="left:40px;top:${Math.round(fr.zoneY - 30)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
       : `<div class="tb-pencil" style="left:1030px;top:780px;width:170px;transform:rotate(-14deg)"><i></i></div>`;
     if (moved) html += `<button type="button" class="tb-tidy" data-a="tidy">Tidy the table <kbd>T</kbd></button>`;
-    if (spread) { const pl = state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl); else spread = null; }
+    if (spread) { const pl = state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl, fr); else spread = null; }
     html += '<svg class="tb-strings"></svg>';
     view.innerHTML = html;
     view.dataset.objects = state.objects.join(' ');
@@ -409,8 +435,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   });
   view.addEventListener('pointercancel', () => { drag = null; render(); });
   addEventListener('resize', fit);
+  fit(true);
   render();
-  fit();
   // typsnitten kan komma efter första ritningen: snöret ritas om
   document.fonts?.ready?.then(() => drawStrings());
   return {
