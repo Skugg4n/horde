@@ -175,6 +175,9 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // 0.18.1: en kort rad som stiger över en zombie (korseldens "+20 %"), samma rörelse som pengarna
   // 0.19.1: life (ms) för en längre rad ("Cars shoved aside" står kvar en stund)
   function flash(x, y, text, cls = '', life = FLOAT_LIFE) {
+    // 0.19.1: gamla rader räknas bort här också (förut bara i bounty, så en full lista utan nya pengar stoppade "+20 %")
+    const now = performance.now();
+    for (let i = floats.length - 1; i >= 0; i--) if (now - floats[i].t0 > FLOAT_LIFE) floats.splice(i, 1);
     if (floats.length >= FLOAT_MAX) return;
     y = clampFloat(x, y);
     const node = document.createElement('div');

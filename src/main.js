@@ -1093,6 +1093,8 @@ function blockLines() {
   return lines;
 }
 function barricadeFailing(ev) {
+  // 0.19.1: skrotbilar som en bjässe knuffar undan "går inte sönder", knuffen säger sig själv (carsShoved)
+  if (sim.obstacles[ev.cell]?.shove) return;
   if (failingWarned.has(ev.id)) return;
   failingWarned.add(ev.id);
   note(uiRoot, 'Barricade failing', 'warn');
@@ -1414,7 +1416,11 @@ function updateTailArrow() {
   const cx = innerWidth / 2, cy = innerHeight / 2, dx = s.sx - cx, dy = s.sy - cy;
   const k = Math.min(Math.abs((cx - BASE_EDGE - 60) / (dx || 1e-6)), Math.abs((cy - BASE_EDGE - 40) / (dy || 1e-6)));
   tailArrow.hidden = false;
-  tailArrow.style.left = (cx + dx * k) + 'px'; tailArrow.style.top = (cy + dy * k) + 'px';
+  // aldrig över köpraden och vågens rad nere eller plåtarna uppe
+  let bottom = innerHeight - 60;
+  for (const id of ['buildbar', 'wavebar']) { const r = document.getElementById(id)?.getBoundingClientRect(); if (r?.height) bottom = Math.min(bottom, r.top); }
+  const y = Math.max(150, Math.min(bottom - 30, cy + dy * k));
+  tailArrow.style.left = (cx + dx * k) + 'px'; tailArrow.style.top = y + 'px';
   tailArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
   const txt = tailArrow.querySelector('.txt'), str = tailText(t);
   if (txt.textContent !== str) txt.textContent = str;

@@ -733,7 +733,11 @@ function dropNote(root, el) {
 export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false, rank = null } = {}) {
   const st = noteStack(root);
   rank ??= /\bwarn\b/.test(cls) ? 1 : 0;
-  if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) { const old = st.querySelector('.note'); if (old) { clearTimeout(old._t); old.remove(); } }
+  // 0.19.1: den som får gå är den med lägst rang (äldst vid lika), inte den översta (det var den stora banderollen)
+  if (prio && st.querySelectorAll('.note').length >= NOTE_MAX && !noteQueue.some(q => q.text === text)) {
+    const old = [...st.querySelectorAll('.note')].sort((a, b) => (a._rank ?? 0) - (b._rank ?? 0))[0];
+    if (old && (old._rank ?? 0) <= rank) { clearTimeout(old._t); old.remove(); }
+  }
   const same = [...st.querySelectorAll('.note')].find(n => n.textContent === text);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
   if (noteQueue.some(q => q.text === text)) return;

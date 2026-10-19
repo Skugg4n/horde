@@ -351,7 +351,9 @@ const scenes = {
       let seen = 0, text = null;
       const mo = new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('xf')) { seen++; text ??= n.textContent; } });
       mo.observe(document.querySelector('#ui') ?? document.body, { childList: true, subtree: true });
-      for (let t = 0; t < 120 && H.sim.phase === 'wave' && !seen; t += 2) { H.advance(2); await new Promise(r => setTimeout(r, 0)); }
+      // 0.19.1: genom nedräkningen till nästa våg också (förrådets förslag ställer nu ut en starkare trupp, som tar våg 1
+      // innan någon hamnar i korselden)
+      for (let t = 0; t < 240 && H.sim.phase !== 'won' && H.sim.phase !== 'lost' && !seen; t += 2) { H.advance(2); await new Promise(r => setTimeout(r, 0)); }
       mo.disconnect();
       return { flashes: seen, text };
     });
