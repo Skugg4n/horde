@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { mesh, PALETTE } from './kit.js';
 import { GP, UNIT, createBatch, frame, seeded, villa, lamp, curb, car, spruce, pine, birch, hedge, fence, mailbox, playground } from './gnesta-kit.js';
 import { MP, track, catenaryPortal, wires, meshFence } from './molnbo-kit.js';
-import { farmhouse, barn, hayBale } from './e4-kit.js';
+import { farmhouse, barn, hayBale, boulder, EP } from './e4-kit.js';
 import { fogSheet } from './gnesta-ghost.js';
 import { pattern } from './gnesta-world.js';
 import { apartment } from './molnbo-kit.js';
@@ -122,6 +122,11 @@ function paintLand(map, { bounds, ppm, fadeEdges = false, detail = true }) {
   // vatten: sjön med mörkare djup ut från stranden, strandkant i grus, bäckarna som smala band
   for (const p of G.water ?? []) { poly(p, '#6f6b55', 3); }
   for (const p of G.water ?? []) { poly(p, '#3f5560', 2); g.save(); g.filter = `blur(${6 * ppm}px)`; g.beginPath(); p.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.closePath(); g.clip(); g.lineWidth = 9 * ppm; g.strokeStyle = 'rgba(120,140,130,0.55)'; g.stroke(); g.restore(); }
+  // strandkanten: grunt, grönbrunt vatten under vassen och grus under stenarna
+  for (const [x, z, kind, size] of G.shore ?? []) {
+    g.save(); g.filter = `blur(${1.5 * ppm}px)`; g.fillStyle = kind ? 'rgba(110,104,84,0.75)' : 'rgba(84,92,58,0.8)';
+    g.beginPath(); g.arc(X(x), Z(z), (kind ? size * 1.8 : size + 1.6) * ppm, 0, Math.PI * 2); g.fill(); g.restore();
+  }
   for (const s of map.streams ?? []) { line(s.pts, 2.4, '#5a5a44', { blur: 2, alpha: 0.6 }); line(s.pts, 1.4, '#3f5560'); }
   // vägarna: grus först, asfalt sist, mörkare kant under. Grusvägar på landet har diken (mörkare gräsband).
   const order = { gravel: 0, asphalt: 1 };
@@ -421,16 +426,29 @@ export function buildOsmWorld(scene, map, opts = {}) {
   // ---------- skog ----------
   const blocked = (x, z) => roads.some(o => distPolyline(x, z, o.line) < o.width / 2 + 2.5)
     || map.buildings.some(h => Math.abs(h.x - x) < 25 && Math.abs(h.z - z) < 25 && inRect(h, x, z, 2.5)) || railD(x, z) < (rail?.half ?? 0) + 2;
+  // sjön och bryggornas fästen: inga träd i vattnet eller på bryggan (skog som ritats ända ut i sjön, H501)
+  const lakes = (map.ground.water ?? []).map(fastInPoly), piers = (map.props ?? []).filter(p => p.kind === 'pier').map(p => p.at);
+  const wet = (x, z) => lakes.some(f => f(x, z)) || piers.some(([px, pz]) => Math.hypot(px - x, pz - z) < 4);
   let trees = 0;
   for (const poly of map.ground.forest) {
     const xs = poly.map(p => p[0]), zs = poly.map(p => p[1]);
     for (let z = Math.min(...zs); z < Math.max(...zs); z += 3.8) for (let x = Math.min(...xs); x < Math.max(...xs); x += 3.8) {
       const px = x + r.range(-1.5, 1.5), pz = z + r.range(-1.5, 1.5);
-      if (!reach(px, pz) || !inPoly(px, pz, poly) || blocked(px, pz)) continue;
+      if (!reach(px, pz) || !inPoly(px, pz, poly) || blocked(px, pz) || (lakes.length && wet(px, pz))) continue;
       const o = outsideD(crisp, px, pz), bb = o < 6 ? (isFar(pickB(px, pz)) ? b : pickB(px, pz)) : farB(px, pz), k = r(), hgt = r.range(9, 15);
       if (bb === b) b.tag = { kind: 'tree', x: px, z: pz };
       if (k < 0.45) spruce(bb, px, pz, hgt, r); else if (k < 0.75) pine(bb, px, pz, hgt, r); else birch(bb, px, pz, hgt * 0.85, r);
       b.tag = null; trees++;
+    }
+  }
+  // strandkanten (ground.shore): vasstuvor ute i vattnet, stenar i vattenbrynet
+  for (const [x, z, kind, size, rot] of map.ground.shore ?? []) {
+    const bb = pickB(x, z);
+    if (kind === 1) { boulder(bb, x, z, size, r); continue; }
+    const n = 10 + ((r() * 8) | 0), c = r.pick(['#a39a5e', '#b0a468', '#8f8a52', '#9c9a5a']);
+    for (let i = 0; i < n; i++) {
+      const a = rot + r() * 6.28, d = r.range(0, size), h = r.range(1.4, 2.6);
+      bb.put(UNIT.cone, null, x + Math.cos(a) * d, h / 2, z + Math.sin(a) * d, 0.3, h, 0.3, i % 4 ? c : EP.grass[2], 'matte', 0, r.range(-0.2, 0.2), r.range(-0.2, 0.2), { noShadow: true });
     }
   }
   // balar på åkrarna i diset
@@ -463,6 +481,26 @@ export function buildOsmWorld(scene, map, opts = {}) {
   };
 }
 
+// Punkt i polygon för stora polygoner (sjön har hundratals hörn): kanterna sorterade i band om 2 m i z, så att en
+// fråga bara går igenom kanterna som korsar bandet. Samma svar som inPoly.
+function fastInPoly(poly) {
+  let z0 = Infinity, z1 = -Infinity;
+  for (const p of poly) { z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+  const B = 2, rows = Array.from({ length: Math.floor((z1 - z0) / B) + 1 }, () => []);
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = Math.min(poly[i][1], poly[j][1]), c = Math.max(poly[i][1], poly[j][1]);
+    for (let k = Math.floor((a - z0) / B); k <= Math.floor((c - z0) / B); k++) rows[k].push(i, j);
+  }
+  return (px, pz) => {
+    if (pz < z0 || pz > z1) return false;
+    const e = rows[Math.floor((pz - z0) / B)]; let inside = false;
+    for (let k = 0; k < e.length; k += 2) {
+      const [xi, zi] = poly[e[k]], [xj, zj] = poly[e[k + 1]];
+      if ((zi > pz) !== (zj > pz) && px < (xj - xi) * (pz - zi) / (zj - zi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+}
 function inRect(h, x, z, pad = 0) {
   const dx = x - h.x, dz = z - h.z, c = Math.cos(h.ry), s = Math.sin(h.ry);
   return Math.abs(dx * c - dz * s) <= h.w / 2 + pad && Math.abs(dx * s + dz * c) <= h.d / 2 + pad;

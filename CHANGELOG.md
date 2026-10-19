@@ -1,5 +1,9 @@
 # Ändringslogg
 
+## 0.20.0 (laddtid och Laxne) (2026-10-19)
+
+Laxne, sjösidan (H501). Remsan mellan byn och Klämmingen var gräs. OSM saknar skogen där; satellitbilden visar den (bara var det är skog, aldrig bilden). Nu skog i ett band längs stranden norr om badplatsen, där 223 går tätt intill vattnet, längs stranden söder om badplatsen förbi bryggorna, mot sjön öster om Hebyvägen och söder om Spårbacken. Badstranden, bollplanen och ängen vid Spårbacksvägen är öppna, och inga träd står i sjön eller på bryggorna. Strandkanten har vass ute i vattnet och stenar i vattenbrynet (ny inställning `shore` i konverteraren, bara Laxne använder den), och en fjärde brygga norr om badplatsen (läget ungefärligt). Björnlunda och Gnesta centrum genereras byte för byte som förut. Skärmbilder: docs/laxne-preview-oversikt.png, docs/laxne-preview-sjon.png.
+
 ## 0.19.2: speltestet av 0.19.1 (2026-10-19)
 
 Speltestet sa NEJ, men nära (docs/playtests/2026-10-19-0.19.1.md): det mesta från 0.19.0 höll, men tåget dag 4 var en klocka och inte ett val, och dag 4 läckte utan att man såg var.
