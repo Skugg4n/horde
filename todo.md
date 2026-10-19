@@ -431,3 +431,6 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats.
 - [ ] H488 | balans | Varje dag slutar med $700 till $1 300 oanvänt (speltestet av 0.19.1). Något att köpa, eller mindre i kassan.
 - [ ] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"?
+- [ ] H490 | molnbo | Tåget (speltest 0.19.2): märkningen "Platform: they come out here" och pilarna pekar på perrongen, men det som lönar sig är foten av södra trappan och bara inom några sekunder. Peka dit det lönar sig, och ge längre tid (markeringen försvinner efter ~26 s speltid, 13 s i 2X).
+- [ ] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt.
+- [ ] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad).
