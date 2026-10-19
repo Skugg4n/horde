@@ -315,3 +315,13 @@ Det här dokumentet ändrar inte kampanjplanen, men tre saker ur Olas inspel hö
 
 ## 10. Olas inspel (2026-10-18)
 Förrådet, trupplistan och underrättelserna ska byggas runt ledningsplatsen som ett bord med "fysiska" lappar, symboler och kort som man kan läsa och dra runt: truppkort som läggs i högen "Into battle" eller "Reserve", underrättelselappar på kartan, ordern som ett papper. Samma dra-och-släpp som förrådets nya två banor (0.18.1), men diegetiskt på kartbordet i vagnhallen.
+
+## 11. Beslut om kartbordet (Ola 2026-10-19, efter mockuperna kontrollrum-1 och -2)
+
+- **Bordet** vinner (docs/mockups/kontrollrum-1.png), men snörena och de halvgenomskinliga kartorna från väggen var omtyckta och får gärna komma tillbaka som detaljer på bordet.
+- **Ingen tejp i hörnen**: sakerna ligger på ett bord. Den fysiska känslan är det viktiga: papper med kant och skugga, en lapp man kan dra, kort som ligger lite snett. Saker kan läggas till senare (en monofon med spiralsladd, en ficklampa).
+- **En sak i taget.** I början ligger bara kartan och en infolapp på bordet. Lappar staplas på varandra per uppdrag, så att det nyaste ligger överst och de gamla syns under.
+- **Modulärt.** Tre högar med tydliga roller: uppdragslappar (order och lägesrapport) på kartan, truppkorten (Into battle / Reserve) vid kanten, och en egen hög med underrättelser om fienden och monstren. Man ska kunna flytta runt saker om man vill.
+- **Truppkorten:** ett kort per enhet, aldrig "×2". Man väljer en i taget.
+- **Översiktskartan** behöver bli bättre: en stor översikt över Södermanland, och senare en inzoomad över Gnesta.
+- Nästa steg: rita om bordet (kontrollrum-3) efter detta och prova.
