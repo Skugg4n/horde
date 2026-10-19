@@ -29,3 +29,11 @@ test('svansen gäller inte så länge fler än fem lever', () => {
   for (let i = 0; i < 300; i++) step(sim, 0.1);
   assert.ok(!sim.zombies.some(z => z.hurry));
 });
+
+// 0.19.1 (speltestet av 0.19.0, fynd 2: tre bjässar sist gav 90 till 150 s väntan): svansen gäller alla typer
+test('svansen: tre bjässar sist skyndar också', () => {
+  const a = arrive(3, 'brute');
+  assert.ok(a.hurried != null && a.hurried >= TAIL.after - 0.2, `skyndar vid ${a.hurried}`);
+  // utan svansen gick de i sin egen takt hela vägen (191 s på väg 57 till Folkets hus, nu cirka 150)
+  assert.ok(a.t < 170, `klar efter ${a.t.toFixed(0)} s`);
+});

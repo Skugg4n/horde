@@ -18,6 +18,7 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
+import { ZOMBIES } from './data/zombies.js';
 import { OBSTACLES } from './data/obstacles.js';
 import { buyState, inBar } from './sim/buy.js';
 import { abandonDay, mapState, mapUnlocked, selectMap, hintSeen, markHintSeen } from './meta/progress.js';
@@ -34,7 +35,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -764,7 +765,7 @@ function forwardClick(x, y) {
   if (btn && !btn.closest('#coach')) btn.click();
 }
 // Med något i handen: ett klick på något i gränssnittet som inte gör något säger det vid pekaren
-const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual';
+const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #tailarrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual';
 addEventListener('click', e => {
   if (!placing || mode !== 'play' || e.button !== 0) return;
   const t = e.target;
@@ -1373,6 +1374,49 @@ function goToBase() {
   if (mode !== 'play' || !sim || !rig?.canPan) return;
   const c = baseCenter();
   rig.focus(c.x, c.z, Math.min(rig.view, sim.map.camera.zoom?.[1] ?? rig.view));
+  audio.ui('click');
+}
+
+// ---------- vågens svans (0.19.1, speltestet av 0.19.0 fynd 2) ----------
+// "NEXT WAVE · 3 STILL OUT" och inga zombier i bild. När svansen pågått TAIL_SHOW s (högst TAIL.n kvar, inget mer att
+// släppa) och de som är kvar inte syns, står en plåt vid skärmkanten mot dem: "3 left: brutes, Stenbyvägen". Klick
+// flyttar kameran dit.
+const tailArrow = document.createElement('button');
+tailArrow.type = 'button'; tailArrow.id = 'tailarrow'; tailArrow.hidden = true;
+tailArrow.innerHTML = '<span class="chev"><i></i></span><span class="txt"></span>';
+tailArrow.addEventListener('click', () => goToTail());
+uiRoot.appendChild(tailArrow);
+const TAIL_SHOW = 6;
+const TAIL_NAMES = { walker: 'walkers', runner: 'runners', brute: 'brutes', armored: 'armoured', crawler: 'crawlers' };
+function tailLeft() {
+  if (mode !== 'play' || !sim || sim.phase !== 'wave' || sim.spawnQueue.length || !((sim.tail ?? 0) >= TAIL_SHOW)) return null;
+  const left = sim.zombies.filter(z => !z.dead);
+  if (!left.length || left.length > TAIL.n) return null;
+  const ps = left.map(z => zombiePos(sim, z));
+  return { left, ps, x: ps.reduce((a, p) => a + p.x, 0) / ps.length, z: ps.reduce((a, p) => a + p.z, 0) / ps.length };
+}
+function tailText(t) {
+  const types = [...new Set(t.left.map(z => z.type))];
+  const one = t.left.length === 1, name = ty => (one ? (ZOMBIES[ty]?.name ?? ty).toLowerCase() : TAIL_NAMES[ty] ?? ty);
+  const street = sim.route.kind === 'grid' ? streetAt(sim.map, t.x, t.z) : null;
+  return `${t.left.length} left: ${types.map(name).join(', ')}${street ? ', ' + street : ''}`;
+}
+function updateTailArrow() {
+  const t = !menu.isOpen() && tailLeft();
+  if (!t || t.ps.some(p => onScreen(p.x, p.z, 40).in)) { tailArrow.hidden = true; return; }
+  const s = onScreen(t.x, t.z, 40);
+  const cx = innerWidth / 2, cy = innerHeight / 2, dx = s.sx - cx, dy = s.sy - cy;
+  const k = Math.min(Math.abs((cx - BASE_EDGE - 60) / (dx || 1e-6)), Math.abs((cy - BASE_EDGE - 40) / (dy || 1e-6)));
+  tailArrow.hidden = false;
+  tailArrow.style.left = (cx + dx * k) + 'px'; tailArrow.style.top = (cy + dy * k) + 'px';
+  tailArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  const txt = tailArrow.querySelector('.txt'), str = tailText(t);
+  if (txt.textContent !== str) txt.textContent = str;
+}
+function goToTail() {
+  const t = tailLeft();
+  if (!t || !rig?.canPan) return;
+  rig.focus(t.x, t.z, Math.min(rig.view, sim.map.camera.zoom?.[1] ?? rig.view));
   audio.ui('click');
 }
 
@@ -2602,6 +2646,7 @@ function tick(now) {
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
   updateLessons();
   updateBaseArrow();
+  updateTailArrow();
   if (sim) updateNewSpawn();
   updateEnemies();
   updateReveals();

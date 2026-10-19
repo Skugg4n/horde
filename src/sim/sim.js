@@ -513,9 +513,10 @@ const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every
 // 0.19.0 (speltestet av 0.18.1, fynd 5: fem krypare kröp i cirka 100 s efter att resten dött, "5 of 91 left" stod still): vågens
 // svans. När alla grupper har kommit ut (inget kvar att släppa) och högst TAIL.n lever, och så har det varit i TAIL.after
 // sekunder, går eftersläntrarna fortare mot basen: krypare och de som har mer än TAIL.far av vägen kvar, TAIL.mul
-// gånger sin fart. Bjässar och pansrade (TAIL.keep) går i sin egen takt: de är svansens hot, inte dess väntan.
-// Deterministiskt (bara läget och klockan). sim.tail: sekunder som svansen pågått.
-export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5, keep: ['brute', 'armored'] };
+// gånger sin fart. Deterministiskt (bara läget och klockan). sim.tail: sekunder som svansen pågått.
+// 0.19.1 (speltestet av 0.19.0, fynd 2: nu blev bjässarna svansen, tre bjässar sist gav 90 till 150 s väntan med inget i
+// bild): regeln gäller alla typer, också bjässar och pansrade. Spelaren ser dessutom var de är (main.js, tailArrow).
+export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5 };
 function tailHurry(sim, dt) {
   const alive = sim.spawnQueue.length ? Infinity : sim.zombies.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
   sim.tail = alive > 0 && alive <= TAIL.n ? (sim.tail ?? 0) + dt : 0;
@@ -581,7 +582,7 @@ function moveZombies(sim, dt) {
     const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
     if (def.stumble && mul > 0) mul *= stumble(sim, z, def.stumble, dt, fog);
     // vågens svans: eftersläntrarna går fortare (krypare och de långt bort)
-    if (hurry && mul > 0 && !TAIL.keep.includes(z.type) && (z.type === 'crawler' || sim.route.fraction(z) < 1 - TAIL.far)) { mul *= TAIL.mul; z.hurry = true; }
+    if (hurry && mul > 0 && (z.type === 'crawler' || sim.route.fraction(z) < 1 - TAIL.far)) { mul *= TAIL.mul; z.hurry = true; }
     const speed = def.speed * mul * (sim.map.pace ?? 1) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed;
     z.run = (z.run ?? 0) + speed * dt;
