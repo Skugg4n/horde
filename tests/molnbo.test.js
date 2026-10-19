@@ -389,8 +389,10 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
     assert.equal(r.stuck, null, `seed ${i}: ${a}`);
     for (const d of [1, 2]) assert.ok(a[d] >= 1 && a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
   }
-  const won = naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day >= 2 && x.won));
-  assert.ok(won.reduce((s, x) => s + x.baseHp, 0) / won.length <= 12, `snitt bas ${won.map(x => x.baseHp)}`);
+  // dag 3 (uttågets dag) kostar mest; dag 2 kostar ibland försök (seed 1 fyra), annars en del av basen
+  const won = d => naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day === d && x.won));
+  assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 12, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
+  assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
 });
 
 test('balans: högst cirka 250 levande zombier samtidigt, och högst två vågor ute', () => {
@@ -411,12 +413,12 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
 // 0.20.0: alla dagar nya, avsiktligt: kartan omritad efter satellitbilden (en bro, vägnätet, Folkets hus vid Kvarnvägen)
-// och tre dagar efter kampanjbågen (evakueringen, norra sidan faller, uttåget). Den andra spelaren är mbNaive (naive som
-// följer evakueringens tips). docs/balance-log.md 0.20.0.
+// och tre dagar efter kampanjbågen (evakueringen, norra sidan faller, uttåget), sammanslagen med riktningarna (ankomsten
+// omräknad). Den andra spelaren är mbNaive (naive som följer evakueringens tips). docs/balance-log.md 0.20.0 (Mölnbo).
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'cb983217', 'molnbo 2': '6219ae1d', 'molnbo 3': '6b79badf' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '6a7fdc42', 'molnbo 2': 'c2b3f881', 'molnbo 3': 'aaab289f' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '315c4e39', 'molnbo 2': '51f27812', 'molnbo 3': 'a3be0c8a' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'a3f18a8c', 'molnbo 2': 'a80a70f3', 'molnbo 3': '1324623a' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

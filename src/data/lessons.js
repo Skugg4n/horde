@@ -23,19 +23,16 @@ export const LESSONS = {
     { id: 'e4-1.start', kind: 'step', when: 'placed:m249', done: 'waveStarted', target: { ui: '#go' }, text: 'Ready. Start the wave.', keys: ['Space'], manual: 'start' },
     { id: 'e4-1.second', kind: 'step', when: 'arrived:m249', done: 'placing:m249|placed:m249:2', target: { ui: '#buildbar .card[data-id="m249"]' }, text: 'A second Ksp 90. Place it too.' },
   ],
-  // 0.16.4 (Olas feedback: "dag 2 är orättvis"): båda ingångarna sägs före första vågen, och Move (M) kommer när
-  // Södertälje är på väg (efter våg 1). Fartknappen flyttade till dag 3.
+  // 0.16.4 (Olas feedback: "dag 2 är orättvis"): båda ingångarna sägs före första vågen. Fartknappen flyttade till dag 3.
+  // 0.20.0 (H497): Move (M) kom här efter våg 1; nu Ishallen dag 3 med radion. Mellan vågorna flyttas allt fritt.
   'e4-2': [
     { id: 'e4-2.two', kind: 'show', when: 'start', target: { world: 'entry:sodertalje' }, text: 'Two roads in. Södertälje joins from wave 2.' },
     { id: 'e4-2.supplies', kind: 'show', when: 'start', target: { ui: '#res .cash-box' }, text: 'Supplies. Spend them on defences during the day.', manual: 'supplies' },
     { id: 'e4-2.wire', kind: 'step', when: 'start', done: 'obstacle:wire', target: { ui: '#buildbar .card[data-id="wire"]' }, text: 'Wire slows them. Lay it across the road.', manual: 'wire' },
-    { id: 'e4-2.move', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Units can relocate. Click one, then press', keys: ['M'], manual: 'move' },
-    { id: 'e4-2.where', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Click where it goes. No fire while moving.' },
   ],
   'e4-3': [
     { id: 'e4-3.aim', kind: 'step', when: 'start', done: 'placing:m2|placed:m2', target: { ui: '#buildbar .card[data-id="m2"]' }, text: 'The Ksp 88 covers a narrow arc. Aim it.', manual: 'arc' },
     { id: 'e4-3.drag', kind: 'caption', when: 'placing:m2', target: { world: 'pointer' }, text: 'Click places it. Hold, then drag toward the road to aim.' },
-    { id: 'e4-3.rotate', kind: 'show', when: 'placed:m2', target: { world: 'gun:m2' }, text: 'Wrong way? Select it and press', keys: ['R'], manual: 'arc' },
     { id: 'e4-3.speed', kind: 'caption', when: 'afterWave1', target: { ui: '#speedcd' }, text: 'Faster:', keys: ['F'], manual: 'speed' },
   ],
   'after-e4': [
@@ -73,6 +70,11 @@ export const LESSONS = {
   // vägen (en andra väg in, känd från E4), de vilande husen dag 4, Next wave med bonus dag 5
   'gn-3': [
     { id: 'gn-2.cover', kind: 'caption', when: 'placed:hv', target: { world: 'gun:hv' }, text: 'Squads find their own cover.' },
+    // 0.20.0 (H497, kampanjbågens dag 6): Hemvärnet har radio till enheterna. Move (M) och Rotate (R) mitt i striden,
+    // förut E4 dag 2 och 3. Olas text. wait: false, så att sanity-plåten inte väntar på våg 1.
+    { id: 'gn-3.move', kind: 'show', when: 'afterWave1', wait: false, target: { world: 'gun' }, text: 'Radios for every unit. Press M to move them mid-fight.', manual: 'move' },
+    { id: 'gn-3.where', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Click where it goes. No fire while moving.' },
+    { id: 'gn-3.rotate', kind: 'caption', when: 'afterWave1', target: { world: 'gun' }, text: 'Turn an arc: select a unit, press', keys: ['R'], manual: 'arc' },
     // 0.18.0 (skiva 1, kampanjplanens dag 6): sanity-mätaren kommer med Hemvärnet, bara mätaren och dess verkan
     // 0.18.1 (speltestet av 0.18.0: tipset kom mitt i våg 1 och pekade på en annan enhet än den som vacklade): en paus
     // första gången en enhets sanity verkligen sjunker, och den pekar på just den enheten
@@ -211,13 +213,13 @@ export const MANUAL = [
   { id: 'cars', group: 'Defences', title: 'Junk cars', text: 'Wrecks pushed across a street, cheaper than concrete. The horde walks around them, but a brute shoves them aside in moments. Concrete holds against brutes.' },
   { id: 'route', group: 'Defences', title: 'Horde route', text: 'Red arrows show the way the horde will walk now. Hold a barricade over a street to see the new way first.', keys: ['V'] },
   { id: 'unitSupplies', group: 'Defences', title: 'Supplies on units', text: 'Click a unit: an ammo crate makes it fire faster for the day, sandbags dig a squad in, a grenade kit throws at crowds.' },
-  { id: 'arc', group: 'Units', title: 'Arc and rotate', icon: 'm2', text: 'Each gun fires only inside its arc. A click faces it at the road. Press, hold and drag to aim it, or right-drag. Select a gun and press R to turn it.', keys: ['R'] },
-  { id: 'move', group: 'Units', title: 'Move', text: 'Select a unit and press M, then click where it goes. Shift-click adds waypoints. No fire while moving, and the team can be caught.', keys: ['M'] },
+  { id: 'arc', group: 'Units', title: 'Arc and rotate', icon: 'm2', text: 'Each gun fires only inside its arc. A click faces it at the road. Press, hold and drag to aim it, or right-drag. Once units have radios, select a gun and press R to turn it.', keys: ['R'] },
+  { id: 'move', group: 'Units', title: 'Move', text: 'Radios let units move mid-fight. Select one and press M, then click where it goes. Shift-click adds waypoints. No fire while moving, and the team can be caught.', keys: ['M'] },
   { id: 'squads', group: 'Units', title: 'Squads', icon: 'hv', text: 'Squads drop on a spot and each man finds his own cover. Corners, cars, hedges and ditches.' },
   { id: 'roofs', group: 'Units', title: 'Snipers', icon: 'psg90', text: 'The Psg 90 goes on flat roofs, the ridge by a chimney, tall buildings and towers. Height lets it see over the houses.' },
   { id: 'veterancy', group: 'Units', title: 'Veterans', icon: 'star', text: 'A unit that survives three won days earns a star: slightly better aim and reload.' },
   { id: 'losses', group: 'Units', title: 'Losses', icon: 'losses', text: 'Lose a day and it starts over with the force you went in with. Win, and the fallen stay lost until you refill them at the depot.' },
-  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to safety, a few at a time. Red patches show where the horde meets them. Choose which to cover, and move your units when the next houses go.' },
+  { id: 'evac', group: 'Operation', title: 'Evacuation', text: 'Marked houses evacuate along the yellow lines to safety, a few at a time. Red patches show where the horde meets them. Choose which to cover, and shift your units between waves when the next houses go.' },
   { id: 'minimap', group: 'Operation', title: 'Map', text: 'The map shows your units, the horde and where they come in. Click it to look there.', keys: ['Tab'] },
   { id: 'map', group: 'Operation', title: 'Operations map', text: 'Between days you pick the sector and read what command has sent.' },
   { id: 'rp', group: 'Operation', title: 'RP', text: 'Requisition points. Earned in battle by kills, waves and objectives, spent at the depot between days.' },

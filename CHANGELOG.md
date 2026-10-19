@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.20.0 (riktningarna)
+
+Horden kommer nu varifrån kampanjbågen säger (H496, kampanjplanen avsnitt 10), och Move har en anledning (H497).
+
+E4 Lästringe. Gruppen går norrut längs E4 från Nyköping och ska stoppas innan den når väg 224; Södertälje är dag 2:s överraskning. Kartan gjorde redan så, nu säger texterna det: introt dag 1 "North up the E4 from Nyköping. Keep them off väg 224.", dag 3 "Brutes from Nyköping and Södertälje.", ledningens order och slutet ("They never reached väg 224").
+
+Hagstumosse · Ishallen. Alla tre ingångarna ligger österut från ishallen (Sigtunavägen öst, Norra vägen i nordost, skogsvägen i sydost), och varje dags intro säger varifrån. Slutet: större grupper samlar sig väster, söder och norr om ishallen.
+
+Hagstumosse · Vikingavägen. Anfall från väst, syd och nord: Sigtunavägen västerifrån förbi ishallen, skogsvägen söderifrån (flanken dag 4 och mycket av dag 5, bakom linjen i norr) och Dansutvägen och Vikingavägen norrifrån. Östra Storgatan och Sigtunavägen öst är borta. Kartan når nu skogsvägens dimkant i söder. Dag 4 hp 7 till 9 (flanken söderifrån går inte förbi dödszonen vid radhusen). Slutet: "A larger horde from Södertälje has taken Järna. Mölnbo is next." i stället för "the last way north". INTEL-rutan säger söder och norr för skogsvägen och Vikingavägen (de kommer in i kartans södra och norra kant).
+
+Move och Rotate med radion (H497). Move (`M`) och Rotate (`R`) låses upp på Ishallen dag 3, kampanjbågens dag 6, när Hemvärnet kommer: "Radios for every unit. Press M to move them mid-fight." Före dess gör `M` ingenting och ingen knapp visar `M`; uppställningens fria flytt (Reposition, före vågen och mellan vågorna, med knappen eller genom att dra) finns kvar från början. E4 dag 3 lär fortfarande ut skjutbågen och att dra för att sikta. Inlärningsspecen har det gällande schemat.
+
+Balansen: alla dagar på första försöket för den skickliga, den vanliga inom 1 till 3; Mölnbos ankomst omräknad. docs/balance-log.md 0.20.0 (riktningarna).
+
 ## 0.19.2: speltestet av 0.19.1 (2026-10-19)
 
 Speltestet sa NEJ, men nära (docs/playtests/2026-10-19-0.19.1.md): det mesta från 0.19.0 höll, men tåget dag 4 var en klocka och inte ett val, och dag 4 läckte utan att man såg var.

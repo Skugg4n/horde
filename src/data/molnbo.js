@@ -731,7 +731,7 @@ export const DAYS = [
     intro: { title: 'Day 1: Hold the bridge', text: 'From Järna down väg 57. Hold the bridge, get them across.' },
     objective: 'Get the north side over the bridge.',
     // all: dagen vinns först när vågorna är hållna OCH de civila är över (src/sim/sim.js checkEvac)
-    evac: { need: 20, all: true, safeZone: SOUTH_SIDE,
+    evac: { need: 19, all: true, safeZone: SOUTH_SIDE,
       groups: [{ house: EVAC_HOMES[0], count: 4, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 4, at: 6, wave: 0 },
         { house: EVAC_HOMES[2], count: 4, at: 6, wave: 1 }, { house: EVAC_HOMES[3], count: 4, at: 16, wave: 1 },
         { house: EVAC_HOMES[4], count: 4, at: 4, wave: 2 }, { house: EVAC_HOMES[5], count: 4, at: 14, wave: 2 }] },
@@ -739,7 +739,7 @@ export const DAYS = [
              say('North of the tracks, along Norrängsvägen!', { groups: [g('walker', 18, 0.55, 0, 's1'), g('walker', 12, 0.6, 6, 's3'), g('runner', 6, 0.6, 14, 's1')] }),
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 16, overlap: 50, overlapMin: 0.4,
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 13, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 2: The north side', text: 'From Järna, both sides of the tracks. And the south.' },
     objective: 'Hold Folkets hus.',
     arrival: { wave: 2, at: 35, warn: 12, doors: INBOUND.doors,

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1440">
+<title>Kontrollrum 1: Bordet</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Saira+Stencil+One&family=IBM+Plex+Mono:wght@500;600&display=swap');
+:root{--ink:#16120e;--paper:#e9dfc9;--paper-dim:#b9ad94;--rust:#b5532a;--blood:#7a1b14;--olive:#5d6343;--plate:rgba(22,18,14,.82);--plate-edge:rgba(233,223,201,.14);--bone:#ddd3ba;--pencil:#3b352c}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:#1b1813}
+body{font-family:'Oswald',sans-serif;color:var(--paper);position:relative}
+.abs{position:absolute}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 50%,rgba(10,8,5,.7) 100%);z-index:50}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.13;mix-blend-mode:overlay;z-index:51;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.paper{box-shadow:0 2px 2px rgba(0,0,0,.35),0 10px 22px rgba(0,0,0,.45)}
+/* order: typed sheet */
+.order{background:linear-gradient(176deg,#e4dac2,#d3c8ac);color:#221d16;padding:18px 20px 16px;font-family:'IBM Plex Mono',monospace}
+.order .hd{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;font-weight:600;border-bottom:1.5px solid #221d16;padding-bottom:6px}
+.order .meta{font-size:10.5px;line-height:1.55;margin:9px 0 10px;color:#3a3226}
+.order .txt{font-size:15.5px;font-weight:600;line-height:1.38}
+.order .sig{font-size:10px;margin-top:12px;color:#4a4030;letter-spacing:.06em}
+.stamp{position:absolute;border:3px double rgba(150,40,26,.78);color:rgba(150,40,26,.82);font-family:'Saira Stencil One',sans-serif;padding:4px 10px 3px;letter-spacing:.08em;text-align:center;line-height:1.05;mix-blend-mode:multiply;-webkit-mask-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.6'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.stamp small{display:block;font:600 8.5px 'IBM Plex Mono',monospace;letter-spacing:.14em}
+/* sitrep: lined paper, pencil */
+.lined{background-color:#d8cfb6;background-image:linear-gradient(90deg,transparent 38px,rgba(150,60,50,.45) 38px,rgba(150,60,50,.45) 39.5px,transparent 39.5px),repeating-linear-gradient(180deg,transparent 0 25px,rgba(70,95,110,.32) 25px 26px);background-position:0 0,0 46px;color:var(--pencil);padding:20px 18px 18px 50px}
+.lined .h{font:600 12px Oswald,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#5a5040;height:26px}
+.lined .txt{font:400 17.5px/26px Oswald,sans-serif;letter-spacing:.015em;color:#2f2a22;padding-top:1px}
+.lined .txt b{font-weight:600}
+.lined .sig{font:italic 400 14px/26px Oswald,sans-serif;color:#5a5040;text-align:right}
+/* radio strip */
+.strip{background:#cbc4af;color:#2b261e;font-family:'IBM Plex Mono',monospace;padding:12px 22px;clip-path:polygon(0 4%,2% 0,4% 6%,6% 1%,9% 5%,12% 0,100% 0,100% 100%,97% 96%,94% 100%,91% 95%,88% 100%,85% 96%,82% 100%,0 100%,1.5% 70%,0 45%,1.5% 25%)}
+.strip .h{font-size:10px;font-weight:600;letter-spacing:.16em;color:#5a4f3c;display:flex;gap:10px}
+.strip .h i{font-style:normal;color:#8a3a20}
+.strip .txt{font-size:13px;line-height:1.5;margin-top:5px;font-weight:500}
+/* post-it intel */
+.postit{background:linear-gradient(170deg,#c2aa63,#ad9552);color:#2a2418;padding:14px 14px 12px}
+.postit .h{font:600 12px Oswald,sans-serif;letter-spacing:.18em;color:#4a3d22}
+.postit .txt{font:400 15px/1.3 Oswald,sans-serif;margin-top:4px}
+.postit svg{display:block}
+.tape{position:absolute;background:rgba(214,205,175,.55);box-shadow:0 1px 2px rgba(0,0,0,.2);mix-blend-mode:normal}
+/* unit cards (laminated) */
+.ucard{position:absolute;width:138px;height:188px;border-radius:7px;background:linear-gradient(160deg,#2a261e,#1c1914);border:1px solid rgba(233,223,201,.22);padding:10px 11px;box-shadow:0 3px 4px rgba(0,0,0,.4),0 10px 18px rgba(0,0,0,.45);overflow:hidden}
+.ucard::after{content:'';position:absolute;inset:0;border-radius:7px;background:linear-gradient(125deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 32%,rgba(255,255,255,0) 70%,rgba(255,255,255,.06) 100%);pointer-events:none}
+.ucard.short{height:162px}
+.ucard .k{white-space:nowrap;font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--paper-dim);display:flex;justify-content:space-between}
+.ucard .k i{font-style:normal;color:#d9a441}
+.ucard .n{font:600 16px/1.05 Oswald,sans-serif;text-transform:uppercase;letter-spacing:.03em;margin-top:6px}
+.ucard .r{font:400 12px Oswald,sans-serif;color:var(--paper-dim);margin-top:3px;letter-spacing:.03em}
+.ucard .men{display:flex;gap:3px;margin-top:10px;flex-wrap:wrap}
+.ucard .men s{width:9px;height:9px;border:1px solid rgba(233,223,201,.5);text-decoration:none}
+.ucard .men s.on{background:var(--paper)}
+.ucard .men s.dead{border-color:rgba(224,96,60,.6);background:repeating-linear-gradient(45deg,transparent 0 2px,rgba(224,96,60,.6) 2px 3px)}
+.ucard .ft{position:absolute;left:11px;right:11px;bottom:10px;font:600 10.5px 'IBM Plex Mono',monospace;color:var(--paper-dim);display:flex;justify-content:space-between;align-items:end}
+.ucard .ft .ok{color:#9fc46a}.ucard .ft .bad{color:#e0603c}
+.ucard .sil{position:absolute;right:8px;bottom:30px;opacity:.5}
+.ucard.new{border-color:rgba(217,164,65,.6)}
+.btn{display:block;width:100%;font:600 17px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--paper);text-align:center;padding:12px 10px 10px;border:1px solid rgba(233,223,201,.3);border-radius:2px;background:var(--plate)}
+.btn.main{background:var(--rust);font-size:20px;padding:14px 10px 12px}
+.btn kbd{display:inline-block;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:none;padding:1px 6px;border:1px solid rgba(233,223,201,.45);border-radius:2px;margin-top:4px}
+.btn .p{display:block;font:600 12px 'IBM Plex Mono',monospace;color:#f2d18a;letter-spacing:.02em;text-transform:none;margin-top:3px}
+
+.table{position:absolute;inset:0;background:
+ radial-gradient(ellipse 60% 55% at 50% 42%,rgba(255,196,120,.16),transparent 70%),
+ repeating-linear-gradient(91deg,rgba(0,0,0,.08) 0 2px,transparent 2px 9px),
+ linear-gradient(180deg,#3a352a,#2c281f 60%,#26221b)}
+.table::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(178deg,transparent 0 180px,rgba(0,0,0,.25) 180px 182px);opacity:.6}
+.edge{position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(180deg,#1a1712,#0d0b08)}
+.map{left:360px;top:44px;width:700px;height:500px;transform:rotate(-.7deg);box-shadow:0 3px 4px rgba(0,0,0,.4),0 14px 30px rgba(0,0,0,.5)}
+.map svg{width:100%;height:100%;display:block}
+.map .title{position:absolute;left:22px;top:24px;font:24px 'Saira Stencil One',sans-serif;color:rgba(233,223,201,.85)}
+.map .title small{display:block;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:var(--paper-dim);margin-top:2px}
+.ring{position:absolute;border-radius:50%;border:5px solid rgba(70,40,18,.28);box-shadow:inset 0 0 6px rgba(70,40,18,.25),0 0 3px rgba(70,40,18,.2)}
+.pile{position:absolute;border:1.5px dashed rgba(233,223,201,.22);border-radius:6px}
+.pile .lbl{position:absolute;left:12px;top:-11px;background:#2a261e;padding:0 8px;font:600 13px Oswald,sans-serif;letter-spacing:.2em;color:var(--paper-dim)}
+.pile .lbl b{color:var(--paper)}
+.pencil{position:absolute;height:9px;border-radius:2px;background:linear-gradient(180deg,#8a6f2c,#6a5420 50%,#4f3e17);box-shadow:0 3px 4px rgba(0,0,0,.45)}
+.pencil::before{content:'';position:absolute;left:-22px;top:0;border-right:22px solid #c9b58a;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.pencil::after{content:'';position:absolute;left:-22px;top:3px;border-right:7px solid #2a2520;border-top:1.5px solid transparent;border-bottom:1.5px solid transparent}
+.pencil i{position:absolute;right:-16px;top:0;width:16px;height:9px;background:linear-gradient(180deg,#9a9890,#6c6a62);border-radius:0 3px 3px 0}
+.torch{position:absolute;width:190px;height:38px;border-radius:6px;background:linear-gradient(180deg,#3c3f36,#24261f 55%,#161712);box-shadow:0 5px 8px rgba(0,0,0,.55)}
+.torch::before{content:'';position:absolute;right:-16px;top:-6px;width:26px;height:50px;border-radius:6px;background:linear-gradient(180deg,#4a4d43,#22241d)}
+.torch::after{content:'';position:absolute;left:40px;top:9px;width:56px;height:20px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.4) 0 2px,transparent 2px 5px);border-radius:3px}
+.torch i{position:absolute;left:112px;top:12px;width:14px;height:14px;border-radius:3px;background:#b5532a}
+.clip{position:absolute;left:1180px;top:470px;width:236px;height:400px;transform:rotate(1.2deg);border-radius:6px;background:linear-gradient(170deg,#4a3f2e,#352d20);padding:46px 16px 16px;box-shadow:0 4px 6px rgba(0,0,0,.45),0 16px 30px rgba(0,0,0,.5)}
+.clip .jaw{position:absolute;left:58px;top:-8px;width:120px;height:40px;border-radius:5px 5px 10px 10px;background:linear-gradient(180deg,#9d9a90,#5e5c55);box-shadow:0 3px 4px rgba(0,0,0,.5)}
+.clip .sheet{background:#d9cfb6;color:#2b261e;border-radius:1px;padding:12px 12px 14px;height:100%;display:flex;flex-direction:column;gap:10px}
+.clip .sheet .h{font:600 11px Oswald,sans-serif;letter-spacing:.2em;color:#5a5040;text-transform:uppercase}
+.clip .sheet .nb{font:22px 'Saira Stencil One',sans-serif;color:#2b261e;line-height:1}
+.clip .sheet .nb small{display:block;font:500 11px 'IBM Plex Mono',monospace;color:#5a5040;margin-top:4px}
+.clip .rp{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid rgba(43,38,30,.3);padding-top:8px;font:600 11px Oswald,sans-serif;letter-spacing:.18em;color:#5a5040}
+.clip .rp b{font:600 22px 'IBM Plex Mono',monospace;color:#8a3a20;letter-spacing:0}
+.clip .grow{flex:1}
+</style></head><body>
+<div class="table"></div>
+
+<!-- kartan -->
+<div class="abs map"><svg id="map"></svg><div class="title">Operation Södermanland<small>SHEET 2 · NIGHT 7 TO DAY 8</small></div></div>
+<div class="tape" style="left:350px;top:34px;width:70px;height:22px;transform:rotate(-38deg)"></div>
+<div class="tape" style="left:1000px;top:30px;width:70px;height:22px;transform:rotate(36deg)"></div>
+<div class="tape" style="left:1004px;top:528px;width:70px;height:22px;transform:rotate(-34deg)"></div>
+<div class="ring" style="left:920px;top:420px;width:96px;height:96px"></div>
+<div class="ring" style="left:934px;top:440px;width:70px;height:70px;border-width:2px;opacity:.6"></div>
+
+<!-- ordern -->
+<div class="abs paper order" style="left:34px;top:36px;width:304px;transform:rotate(-2.4deg)">
+  <div class="hd"><span>FÖRSVARSMAKTEN</span><span>ORDER 08</span></div>
+  <div class="meta">TO: Commander, Gnesta<br>FROM: Staff, Södermanland<br>VALID: Day 8, from 05:00</div>
+  <div class="txt">Evacuate north Mölnbo. Hold the railway bridge until the last civilians cross.</div>
+  <div class="sig">Confirm on the radio. Out.</div>
+  <div class="stamp" style="right:8px;bottom:-16px;transform:rotate(-7deg);font-size:17px">RECEIVED<small>GNESTA · 23:10</small></div>
+</div>
+
+<!-- radiologgen -->
+<div class="abs paper strip" style="left:30px;top:340px;width:312px;transform:rotate(2.2deg)">
+  <div class="h"><span>RADIO LOG</span><i>04:40</i><span>P4 SÖRMLAND</span></div>
+  <div class="txt">Trains between Södertälje and Gnesta are cancelled. People in Järna are told to stay indoors. In Mölnbo, Folkets hus is open for anyone heading west. Bring water.</div>
+</div>
+
+<!-- lägesrapporten -->
+<div class="abs paper lined" style="left:1088px;top:34px;width:322px;height:410px;transform:rotate(1.6deg)">
+  <div class="h">Situation · night 7</div>
+  <div class="txt"><b>Gnesta held.</b> The ice rink is safe and Vikingavägen is quiet. But a larger horde from Södertälje has taken Järna overnight. It moves west along the railway. <b>Mölnbo is next.</b> Get the north side out over the bridge. One road crosses the tracks. Hold it until they are through.</div>
+  <div class="sig">MCF, Gnesta</div>
+</div>
+<div class="tape" style="left:1210px;top:22px;width:80px;height:24px;transform:rotate(3deg)"></div>
+
+<!-- underrättelselappen -->
+<div class="abs paper postit" style="left:566px;top:318px;width:206px;height:200px;transform:rotate(-4deg)">
+  <div class="h">WHAT WE FACE</div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <div class="txt" style="flex:1">From Järna, along the tracks. Walkers, 200 or more. Runners out front. <b>3 big ones.</b></div>
+    <svg width="66" height="120" viewBox="0 0 66 120" fill="none" stroke="#3a3122" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".85">
+      <path d="M30 10c6-3 12 0 12 7s-5 10-11 9-8-5-7-9 3-6 6-7z"/>
+      <path d="M22 28c10-4 24-3 30 4 5 7 7 20 6 30M22 28c-8 4-12 14-13 26M28 30c-2 12 0 24 4 34 2 6 2 12 0 18M44 34c2 12 1 22-2 32"/>
+      <path d="M58 62l2 16M9 54l-3 18M6 72l3 4M60 78l-3 4"/>
+      <path d="M30 82l-6 30M38 82l6 30M22 112h6M42 112h7"/>
+      <path d="M15 40c6 2 10 2 16 0M18 48c8 2 16 2 26-1" stroke-width=".8" opacity=".7"/>
+      <path d="M2 2v116" stroke-dasharray="2 3" stroke-width=".8"/>
+    </svg>
+  </div>
+  <div class="txt" style="font-size:12.5px;color:#4a3d22;margin-top:4px">Taller than a door. Wire won't stop them.</div>
+</div>
+
+<!-- högarna -->
+<div class="pile" style="left:360px;top:592px;width:600px;height:290px"><div class="lbl"><b>INTO BATTLE</b> · 4 of 5</div></div>
+<div class="pile" style="left:982px;top:592px;width:186px;height:290px"><div class="lbl"><b>RESERVE</b></div></div>
+<div id="into"></div><div id="res"></div>
+
+<!-- saker -->
+<div class="pencil" style="left:120px;top:640px;width:170px;transform:rotate(-24deg)"><i></i></div>
+<div class="torch" style="left:70px;top:770px;transform:rotate(8deg)"><i></i></div>
+<div class="ring" style="left:190px;top:530px;width:92px;height:92px;opacity:.8"></div>
+
+<!-- klämbrädan -->
+<div class="clip"><div class="jaw"></div><div class="sheet">
+  <div class="h">Next battle</div>
+  <div class="nb">Mölnbo · Day 8<small>The railway bridge</small></div>
+  <div class="rp"><span>REQUISITION POINTS</span><b>240</b></div>
+  <div class="grow"></div>
+  <div class="btn">Requisition<span class="p">Units and upgrades</span></div>
+  <div class="btn main">Deploy day 8<br><kbd>Enter</kbd></div>
+</div></div>
+
+<div class="edge"></div>
+<div class="vignette"></div><div class="grain"></div>
+<script>
+// Södermanland, samma geometri som src/ui/operation.js (0..1 över ytan), ritad som SVG.
+function drawOpMap(svg, W, H) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const X = x => 14 + x * (W - 28), Y = y => 14 + y * (H - 28);
+  const SEA = [[0.70,1],[0.74,0.86],[0.83,0.78],[0.86,0.66],[0.94,0.6],[1,0.52],[1,1]];
+  const LAKES = [[[0.08,0.5],[0.16,0.44],[0.27,0.47],[0.3,0.56],[0.2,0.63],[0.1,0.6]],[[0.5,0.36],[0.55,0.34],[0.57,0.38],[0.52,0.41]],[[0.25,0.74],[0.31,0.71],[0.35,0.76],[0.29,0.8]],[[0.38,0.3],[0.42,0.28],[0.43,0.32],[0.39,0.34]]];
+  const ROADS = [{ pts: [[1,0.2],[0.82,0.33],[0.7,0.44],[0.6,0.52],[0.5,0.64],[0.43,0.78],[0.3,0.92],[0.18,1]], label: 'E4', at: [0.73,0.4] },{ pts: [[0.47,0.3],[0.53,0.42],[0.6,0.52]], label: '57', at: [0.53,0.46] },{ pts: [[0.6,0.53],[0.7,0.63],[0.78,0.72]], label: '218', at: [0.69,0.66] }];
+  const RAIL = [[1,0.06],[0.78,0.1],[0.62,0.15],[0.47,0.3],[0.3,0.38],[0,0.42]];
+  const TOWNS = [{ n: 'Södertälje', x: 0.93, y: 0.18 }, { n: 'Flen', x: 0.12, y: 0.36 }];
+  const P = pts => pts.map(([x, y], i) => (i ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(y).toFixed(1)).join(' ');
+  let s = `<rect width="${W}" height="${H}" fill="#14160f"/>`;
+  for (let i = 0; i <= 8; i++) { const x = X(i / 8); s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="rgba(160,170,130,0.09)"/>`; if (i < 8) s += `<text x="${x + 3}" y="11" class="grid">${String.fromCharCode(65 + i)}</text>`; }
+  for (let i = 0; i <= 6; i++) { const y = Y(i / 6); s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(160,170,130,0.09)"/>`; if (i < 6) s += `<text x="3" y="${y + 12}" class="grid">${i + 1}</text>`; }
+  s += `<path d="${P(SEA)}Z" fill="rgba(70,90,95,0.35)" stroke="rgba(143,196,232,0.25)"/>`;
+  for (const l of LAKES) s += `<path d="${P(l)}Z" fill="rgba(70,90,95,0.45)" stroke="rgba(143,196,232,0.2)"/>`;
+  s += `<path d="${P(RAIL)}" fill="none" stroke="rgba(205,200,175,0.3)" stroke-dasharray="5 4"/>`;
+  for (const r of ROADS) s += `<path d="${P(r.pts)}" fill="none" stroke="${r.label === 'E4' ? 'rgba(217,164,65,0.55)' : 'rgba(205,200,175,0.4)'}" stroke-width="${r.label === 'E4' ? 2.2 : 1.3}"/><text x="${X(r.at[0]) + 4}" y="${Y(r.at[1])}" class="rd">${r.label}</text>`;
+  for (const t of TOWNS) s += `<rect x="${X(t.x) - 1.5}" y="${Y(t.y) - 1.5}" width="3" height="3" fill="rgba(200,205,170,0.5)"/><text x="${X(t.x) + 5}" y="${Y(t.y) + 4}" class="town">${t.n.toUpperCase()}</text>`;
+  // Horden: Södertälje -> Järna (tagen) -> mot Mölnbo längs spåret
+  const jx = X(0.66), jy = Y(0.48);
+  s += `<path d="M${X(0.92)} ${Y(0.22)} Q ${X(0.8)} ${Y(0.36)} ${jx + 12} ${jy - 10}" class="arrow"/>`;
+  s += `<path d="M${jx + 4} ${jy - 16} Q ${X(0.7)} ${Y(0.3)} ${X(0.645)} ${Y(0.2)}" class="arrow"/>`;
+  s += `<path d="M${X(0.645) - 7} ${Y(0.2) + 9} L${X(0.645)} ${Y(0.2)} L${X(0.645) + 9} ${Y(0.2) + 5}" class="arrowhead"/>`;
+  s += `<path d="M${X(0.92) - 10} ${Y(0.22) - 4} L${X(0.92) + 2} ${Y(0.22) + 3}" class="arrowhead" opacity="0"/>`;
+  // Järna: överstruken
+  s += `<circle cx="${jx}" cy="${jy}" r="13" fill="rgba(122,27,20,0.45)" stroke="#b5532a" stroke-width="1.5"/>`;
+  s += `<path d="M${jx - 10} ${jy - 10} L${jx + 10} ${jy + 10} M${jx + 10} ${jy - 10} L${jx - 10} ${jy + 10}" stroke="#e0603c" stroke-width="2"/>`;
+  s += `<text x="${jx + 18}" y="${jy + 4}" class="sec" fill="#e0603c">JÄRNA</text><text x="${jx + 18}" y="${jy + 18}" class="pen">taken, night 7</text>`;
+  const sec = (x, y, name, c, fill, extra = '') => { const cx = X(x), cy = Y(y); return `<circle cx="${cx}" cy="${cy}" r="9" fill="${fill}" stroke="${c}" stroke-width="1.5" ${extra}/><text x="${cx + 15}" y="${cy - 2}" class="sec">${name}</text>`; };
+  s += `<circle cx="${X(0.6)}" cy="${Y(0.5)}" r="9" fill="#8a807055" stroke="#8a8070" stroke-width="1.5"/><text x="${X(0.6) - 15}" y="${Y(0.5) + 4}" text-anchor="end" class="sec">SECTOR E4</text><text x="${X(0.6) - 15}" y="${Y(0.5) + 16}" text-anchor="end" class="st" fill="#8a8070">SECURE</text>`;
+  s += sec(0.46, 0.29, 'HAGSTUMOSSE', '#8fc4e8', '#8fc4e855') + `<text x="${X(0.46) + 15}" y="${Y(0.29) + 12}" class="st" fill="#8fc4e8">HELD</text>`;
+  s += `<circle cx="${X(0.49)}" cy="${Y(0.21)}" r="9" fill="rgba(20,22,15,0.9)" stroke="#4f4a3f" stroke-dasharray="3 3" stroke-width="1.5"/><text x="${X(0.49) + 15}" y="${Y(0.21) - 2}" class="sec" fill="rgba(200,205,170,0.35)">GNESTA CENTRUM</text>`;
+  for (const [x, y, n] of [[0.78, 0.72, 'TROSA'], [0.42, 0.8, 'NYKÖPING']]) s += `<circle cx="${X(x)}" cy="${Y(y)}" r="9" fill="rgba(20,22,15,0.9)" stroke="#4f4a3f" stroke-dasharray="3 3" stroke-width="1.5"/><text x="${X(x) + 15}" y="${Y(y) - 2}" class="sec" fill="rgba(200,205,170,0.35)">${n}</text>`;
+  const mx = X(0.62), my = Y(0.15);
+  s += `<circle cx="${mx}" cy="${my}" r="19" fill="none" stroke="rgba(224,96,60,0.5)" stroke-width="2"/>`;
+  s += sec(0.62, 0.15, 'MÖLNBO', '#e0603c', '#e0603c55') + `<text x="${mx + 15}" y="${my + 12}" class="st" fill="#e0603c">THREATENED</text>`;
+  // blyerts: bron och dag 8
+  s += `<path d="M${mx - 22} ${my - 12} l8 8 M${mx - 22} ${my - 4} l8 -8" class="penline"/><text x="${mx - 28}" y="${my - 4}" text-anchor="end" class="pen">rail bridge, one road</text>`;
+  s += `<path d="M${mx + 4} ${my - 26} q 40 -14 82 0 q 30 12 4 30" class="penline"/><text x="${mx + 20}" y="${my - 34}" class="pen big">DAY 8</text>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = `<style>.grid{font:9px 'IBM Plex Mono',monospace;fill:rgba(200,205,170,0.35)}.rd{font:600 10px 'IBM Plex Mono',monospace;fill:rgba(217,164,65,0.8)}.town{font:10px Oswald,sans-serif;fill:rgba(200,205,170,0.5)}.sec{font:500 12px Oswald,sans-serif;fill:#e9dfc9;letter-spacing:.04em}.st{font:600 9px Oswald,sans-serif;letter-spacing:.16em}.arrow{fill:none;stroke:#b5532a;stroke-width:3;stroke-dasharray:9 5;opacity:.85}.arrowhead{fill:none;stroke:#b5532a;stroke-width:3}.pen{font:italic 400 12px Oswald,sans-serif;fill:rgba(205,200,175,0.7);letter-spacing:.03em}.pen.big{font-size:15px;font-style:normal;fill:rgba(233,223,201,0.75);letter-spacing:.12em}.penline{fill:none;stroke:rgba(205,200,175,0.6);stroke-width:1.3}</style>` + s;
+}
+
+const INTO = [
+  { k: 'HV · 1', n: 'Hemvärnet 1', r: 'Rifle squad · Ak 4', men: [8, 0, 8], star: 1, ft: ['Rested', 'ok'] },
+  { k: 'HV · 2', n: 'Hemvärnet 2', r: 'Rifle squad · Ak 4', men: [7, 1, 8], ft: ['Rested', 'ok'] },
+  { k: 'KSP 58', n: 'Ksp 58 team', r: 'General MG · 7.62', men: [3, 0, 3], ft: ['Rested', 'ok'] },
+  { k: 'NEW', n: 'A-tractors ×2', r: 'Carry people out. Block a road.', ft: ['Delivered', 'ok'], cls: 'new' },
+];
+const RESERVE = [
+  { k: 'TIRED', n: 'Volunteers', r: 'Hunting rifles', men: [5, 3, 8], ft: ['Tired', 'bad'], rest: 2 },
+  { k: 'REFILL 100 RP', n: 'Army squad', r: 'Ak 5', men: [4, 4, 8], ft: ['Refill 100 RP', 'bad'] },
+  { k: 'EPA', n: 'Welded pillbox', r: 'Stays at the ice rink', men: null, ft: ['Garrison', ''] },
+];
+function card(u) {
+  const men = u.men ? '<div class="men">' + Array.from({ length: u.men[2] }, (_, i) => `<s class="${i < u.men[0] ? 'on' : i < u.men[0] + u.men[1] ? 'dead' : ''}"></s>`).join('') + '</div>' : '';
+  const rest = u.rest != null ? `<span>${'▮'.repeat(u.rest)}${'▯'.repeat(3 - u.rest)}</span>` : (u.star ? '<span style="color:#d9a441">★</span>' : '<span></span>');
+  return `<div class="ucard ${u.cls ?? ''}"><div class="k"><span>${u.k}</span>${u.men ? `<i>${u.men[0]}/${u.men[2]}</i>` : ''}</div><div class="n">${u.n}</div><div class="r">${u.r}</div>${men}<div class="ft"><span class="${u.ft[1]}">${u.ft[0]}</span>${rest}</div></div>`;
+}
+
+drawOpMap(document.getElementById('map'), 700, 500);
+const place = (el, list, x0, y0, dx, rots) => { el.innerHTML = list.map(card).join(''); [...el.children].forEach((c, i) => { c.style.left = (x0 + i * dx) + 'px'; c.style.top = y0 + (i % 2 ? 6 : 0) + 'px'; c.style.transform = `rotate(${rots[i]}deg)`; }); };
+place(document.getElementById('into'), INTO, 384, 640, 146, [-2, 1.5, -1, 2.5]);
+const R = document.getElementById('res'); R.innerHTML = RESERVE.map(card).join('');
+[...R.children].forEach((c, i) => { c.classList.add('short'); c.style.left = (1004 + i * 4) + 'px'; c.style.top = (612 + i * 52) + 'px'; c.style.transform = `rotate(${[-1.5, 1.2, -0.6][i]}deg)`; });
+</script>
+</body></html>

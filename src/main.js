@@ -1950,7 +1950,8 @@ addEventListener('keydown', e => {
     if (!e.repeat && feat('minimap')) { mmOn = !mmOn; minimap.toggle(mmOn); try { localStorage.setItem(MM_KEY, mmOn ? 'on' : 'off'); } catch { /* ingen lagring */ } }
   }
   const unitId = () => (hovered?.kind === 'gun' ? hovered.id : selected?.kind === 'gun' ? selected.id : null);
-  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow() && (feat('move') || canReposition(sim))) {
+  // 0.20.0 (H497): M gör ingenting förrän radion kommer (Move, Ishallen dag 3); uppställningens flytt går med knappen eller dragningen
+  if (e.code === 'KeyM' && !e.repeat && !e.metaKey && !e.ctrlKey && mode === 'play' && !placing && canPlaceNow() && feat('move')) {
     const id = unitId();
     if (id != null) guideMove(id);
   }

@@ -16,6 +16,8 @@ export const TYPE_ORDER = ['walker', 'runner', 'crawler', 'armored', 'brute'];
 export function compass(map, spawnId) {
   const s = map.spawns?.find(x => x.id === spawnId), b = map.base?.at;
   if (!s?.at || !b) return null;
+  // 0.20.0: en ingång kan ange sitt håll själv (Vikingavägens skogsväg kommer in i kartans södra kant)
+  if (s.dir) return s.dir;
   const a = Math.atan2(s.at[0] - b[0], -(s.at[1] - b[1]));          // 0 = norr, medurs
   const names = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
   return names[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];

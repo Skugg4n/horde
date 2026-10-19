@@ -118,6 +118,8 @@ Upplåsningen hör till kampanjen, inte till om tipsen är på. En spelare som s
 
 ## 3. Upplåsningsschema dag för dag
 
+Gällande schema: tabellen i avsnittet "Ändrat i 0.20.0" sist i dokumentet. Tabellerna här är utkastet från 0.16.0.
+
 Läsanvisning: **Steg** är pausade lektionssteg med exakt spelartext (engelska). **Tyst** är en upplåsning utan paus. **Stunden** är tips som kan komma från och med den dagen när de behövs. Ordantalet står inom parentes.
 
 Utgångspunkt för E4: den nya militära vägspärren vid trafikplats Lästringe. Jag antar markerade platser för pjäserna och en spärr med bom; layouten är inte klar, så platserna i stegen kan behöva justeras.
@@ -359,3 +361,28 @@ Det ska INTE gå att rekvirera hur mycket som helst. Ola tyckte begränsningen v
 | Vikingavägen dag 1 | Förnödenheter på enheten, Psg 90 |
 | Vikingavägen dag 2 | Pingar, skrotbilar |
 | Vikingavägen dag 3 | Frontbredd och reserv |
+
+## Ändrat i 0.20.0 (riktningarna, H497)
+
+Kampanjbågen (kampanjplanen avsnitt 10) säger att Move kommer dag 6 eller 7 med en anledning: "vi har fått tag på kommunikationsradio till enheterna och kan ge nya order under pågående strid". Dag 6 är Ishallen dag 3, när Hemvärnet kommer.
+
+- **Move (`M`) och Rotate (`R`)** låses upp på **Ishallen dag 3** (förut E4 dag 2 och E4 dag 3). Efter våg 1, hård paus, Olas text: **"Radios for every unit. Press M to move them mid-fight."** (10). Bildtexter efter: **"Click where it goes. No fire while moving."** när flytten pågår, **"Turn an arc: select a unit, press R."** Plåten håller inte upp sanity-plåten (wait: false).
+- Före Ishallen dag 3 gör `M` ingenting och ingen knapp visar `M`. Uppställningens fria flytt (Reposition, före vågen och mellan vågorna, med knappen eller genom att dra enheten) finns kvar från början; det är så man byter korsning på Ishallen dag 1 och möter Södertälje på E4 dag 2.
+- E4 dag 3 lär fortfarande ut skjutbågen och att dra för att sikta (`aim`); steget "Wrong way? Select it and press R." är borta därifrån. Enhetspanelen visar siffror och knappar från E4 dag 3 som förut (följer `aim` i stället för `rotate`).
+- Field manual: Move och Arc and rotate säger att radion behövs.
+
+| Dag | Begrepp |
+|---|---|
+| E4 dag 1 | Ställ ut en pjäs, starta vågen |
+| E4 dag 2 | Förnödenheter och taggtråd; två vägar in (Södertälje från våg 2) |
+| E4 dag 3 | Sikta (båge, dra); tyst: fart (`F`) |
+| Ishallen dag 1 | Evakueringen, välj korsningar (byt mellan vågorna med Reposition) |
+| Ishallen dag 2 | Barrikader, hordens väg, korselden |
+| Ishallen dag 3 | Hemvärnet, Norra vägen, sanity; **radion: Move (`M`) och Rotate (`R`)** |
+| Ishallen dag 4 | Vilande hus, Ksp 58; tyst: waypoints (`Shift`) |
+| Ishallen dag 5 | Next wave med bonus, Ksp 88, Ak 5 |
+| Vikingavägen dag 1 | Förnödenheter på enheten, Psg 90 |
+| Vikingavägen dag 2 | Pingar, skrotbilar |
+| Vikingavägen dag 3 | Frontbredd och reserv |
+| Vikingavägen dag 4 | Mål-läget (`T`), krypare |
+| Vikingavägen dag 5 | Trupper i hus |

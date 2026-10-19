@@ -89,16 +89,16 @@ const NORTH_ALL = ['civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
 export const RELEASES = [
   // ---------- E4: arméns vägspärr ----------
   { id: 'e4-1', map: 'riksvagen', day: 1, from: 'FM',
-    text: 'Hold the E4 roadblock at Lästringe. You have an infantry squad and two Ksp 90 teams.',
+    text: 'A group moves north along the E4. Stop it before väg 224. Infantry and two Ksp 90 teams.',
     grant: [{ type: 'inf' }, { type: 'm249', count: 2 }], unlock: ['inf', 'm249'], tiers: ['block.1'] },
   { id: 'e4-2', map: 'riksvagen', day: 2, from: 'FM',
-    text: 'Runners reported on the E4. The trucks brought barbed wire.' },
+    text: 'Runners on the E4 from Nyköping. Watch the Södertälje side too. The trucks brought barbed wire.' },
   { id: 'e4-3', map: 'riksvagen', day: 3, from: 'FM',
     text: 'A mounted Ksp 88 and a welded EPA pillbox reach the roadblock. Brutes tonight.',
     grant: [{ type: 'm2' }, { type: 'epa' }], unlock: ['m2', 'epa'], tiers: ['m2.1'] },
   // ---------- Gnesta South ----------
   { id: 'gn-1', map: 'gnesta', day: 1, from: 'MCF',
-    text: 'You take command in Hagstumosse. Hunters and neighbours form three volunteer groups. Get the civilians into the ice rink.',
+    text: 'They are coming at eastern Gnesta. Hunters and neighbours form three volunteer groups. Get the civilians into the ice rink.',
     grant: [{ type: 'civ', count: 3 }], unlock: ['civ'] },
   // 0.16.2 (speltestet av 0.16.1): Hemvärnets grupp kommer dag 3, så att dag 2 bara lär ut barrikaderna
   { id: 'gn-2', map: 'gnesta', day: 2, from: 'MCF',
@@ -108,7 +108,7 @@ export const RELEASES = [
   // och pillboxen dag 4, Ksp 88 och Ak 5 dag 5, Psg 90 på Vikingavägen dag 1. Den extra Ksp 90 släpps dag 4, när
   // rekvisitionen har öppnat (förut lovade dag 3:s meddelande en Ksp 90 som inte gick att få).
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'MCF',
-    text: 'Hemvärnet sends a rifle squad to Gnesta. They also come along Norra vägen.',
+    text: 'Hemvärnet sends a rifle squad, and radios for every unit. They also come along Norra vägen.',
     grant: [{ type: 'hv' }], unlock: ['hv'] },
   { id: 'gn-4', map: 'gnesta', day: 4, from: 'FM',
     text: 'A Ksp 58 team and a welded pillbox for Gnesta. One more Ksp 58 and one Ksp 90 released.',
@@ -120,7 +120,7 @@ export const RELEASES = [
     ups: { grenade: 2, ksp58: 2 } },
   // ---------- Gnesta North ----------
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'The fog lifts. They are circling north, up Vikingavägen. A Psg 90 sniper joins you.',
+    text: 'Larger groups gather west, south and north of the ice rink. A Psg 90 sniper joins you.',
     grant: [{ type: 'm249' }, { type: 'ksp58' }, { type: 'psg90' }], unlock: NORTH_ALL, tiers: ['psg90.1'], stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
     ups: { m2: 2, budget: 1 } },
   { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',

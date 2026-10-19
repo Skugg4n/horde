@@ -176,6 +176,19 @@ const CLASS = {
 const SKIP_ROADS = new Set(['platform', 'steps', 'construction', 'proposed']);
 
 export function convert(plan, cfg) {
+  // cfg.extraBuildings: hus som OSM saknar (läge och storlek avlästa ur en referensbild, aldrig bilden själv), i
+  // plan.json-meter; de får added: true i modulen så att det syns vilka som inte kommer från OSM.
+  // cfg.roadNames: namn på namnlösa OSM-vägar (närmast punkten), t.ex. ur en hållplats med vägens namn.
+  if (cfg.extraBuildings?.length || cfg.roadNames?.length) {
+    const roadsN = plan.roads.map(rd => ({ ...rd }));
+    for (const { at, name } of cfg.roadNames ?? []) {
+      let best = null;
+      for (const rd of roadsN) if (!rd.name) { const q = nearestOn(at[0], at[1], rd.pts); if (!best || q.d < best.d) best = { d: q.d, rd }; }
+      if (best && best.d < 30) best.rd.name = name;
+    }
+    const extra = (cfg.extraBuildings ?? []).map(e => ({ id: e.id, type: e.type ?? 'yes', name: null, h: e.h ?? 6.5, h_source: 'added', levels: null, area_m2: Math.round(polyArea(e.pts)), pts: [...e.pts, e.pts[0]], added: true }));
+    plan = { ...plan, roads: roadsN, buildings: [...plan.buildings, ...extra] };
+  }
   const S = cfg.scale, BS = cfg.buildingScale, crop = cfg.crop;
   const cx = (crop.x0 + crop.x1) / 2, cy = (crop.y0 + crop.y1) / 2;
   const T = ([x, y]) => [(x - cx) * S, -(y - cy) * S];
@@ -315,6 +328,8 @@ export function convert(plan, cfg) {
   ground.rock = [];
   for (const l of plan.landuse) { const c = (l.name && cfg.landuseByName?.[l.name]) ?? CAT[l.type]; if (c) (ground[c] ??= []).push(simplify(TP(l.pts), 0.3).map(P2)); }
   for (const w of plan.wood) ground.forest.push(simplify(TP(w.pts), 0.4).map(P2));
+  // cfg.extraGround: ytor som OSM saknar (en grusplan), per sort i plan.json-meter
+  for (const [k, polys] of Object.entries(cfg.extraGround ?? {})) for (const p of polys) (ground[k] ??= []).push(TP(p).map(P2));
   // landsbygdskanten målas som åker under allt annat (skog, gårdsplaner och tomter läggs ovanpå)
   for (const p of ruralPolys) ground.field.unshift(p.map(P2));
   // vatten (sjöar) och vattendrag
@@ -369,7 +384,7 @@ export function convert(plan, cfg) {
     let lw = long, sd = short;
     if (cl) { lw = Math.min(cl[0][1], Math.max(cl[0][0], long)); sd = Math.min(cl[1][1], Math.max(cl[1][0], short)); }
     if (eu >= ev) { eu = lw; ev = sd; } else { ev = lw; eu = sd; }
-    const h = { id: `b${b.id}`, osm: b.id, kind, x: gx, z: gz, area: Math.round(area), hReal: b.h, eu, ev, ua: [R.ux, -R.uy], far, landmark: L?.name ?? null, lmH: L?.h, front: L?.front ? [L.front[0], -L.front[1]] : null, ctx };
+    const h = { id: `b${b.id}`, osm: b.id, added: !!b.added, kind, x: gx, z: gz, area: Math.round(area), hReal: b.h, eu, ev, ua: [R.ux, -R.uy], far, landmark: L?.name ?? null, lmH: L?.h, front: L?.front ? [L.front[0], -L.front[1]] : null, ctx };
     houses.push(h);
   }
   // framsidan mot närmaste gata: lokal +z åt det av fyra håll som pekar mest mot gatan; w längs gatan
@@ -440,6 +455,7 @@ export function convert(plan, cfg) {
     const hr = rng(h.osm % 2147483647);
     const o = { id: h.id, osm: h.osm, kind: h.kind, x: r2(h.x), z: r2(h.z), ry: r2(h.ry), w: r2(h.w), d: r2(h.d) };
     if (h.far) o.far = true;
+    if (h.added) o.added = true;
     if (h.landmark) o.name = h.landmark;
     if (h.kind === 'villa') {
       o.storeys = h.hReal > 7 || (h.area > 150 && hr() < 0.5) || hr() < 0.18 ? 1.5 : 1;
@@ -535,7 +551,7 @@ export function convert(plan, cfg) {
     return best?.rd ?? null;
   };
   const sk = cfg.sketch ?? {};
-  const spawns = (sk.spawns ?? []).map(s => {
+  const snapEnd = s => {
     const rd = findRoad(s.road, s.at);
     if (!rd) throw new Error(`skiss ${s.id}: hittar ingen väg ${s.road}`);
     const g = T(s.at);
@@ -551,9 +567,13 @@ export function convert(plan, cfg) {
     const o = { id: s.id, name: s.name, road: rd.id, at: P2(at), note: s.note };
     if (s.field) o.field = P2(T(s.field));
     return o;
-  });
+  };
+  const spawns = (sk.spawns ?? []).map(snapEnd);
+  // utgångarna (dit konvojen ska): samma läge i dimkanten som ingångarna
+  const exits = (sk.exits ?? []).map(snapEnd);
   const sketch = {
     spawns,
+    ...(exits.length ? { exits } : {}),
     base: sk.base ? { at: P2(T(sk.base.at)), name: sk.base.name } : null,
     defence: (sk.defence ?? []).map(d => ({ kind: d.kind, at: P2(T(d.at)), note: d.note, ...(d.name ? { name: d.name } : {}) })),
     // linjer mellan försvarspunkterna (triangeln), bara bild
@@ -709,6 +729,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(`${cfg.out}: ${d.roads.length} vägar, ${d.buildings.length} hus (${d.buildings.filter(b => !b.far).length} i spelytan) ${JSON.stringify(kinds)}`);
   console.log(`trädgårdar: ${d.gardens.hedges.length} häckar, ${d.gardens.fences.length} staket, ${d.gardens.trees.length} träd, ${d.gardens.sheds.length} bodar, ${d.gardens.mailboxes.length} brevlådor`);
   console.log(`stumpar strukna: ${d.report.stubs ?? 0}, hus på åkern strukna: ${d.report.rural ?? 0}, korsningar: ${d.joins.length}`);
+  if (cfg.extraBuildings?.length) console.log(`tillagda hus (inte OSM): ${d.buildings.filter(b => b.added).length} av ${cfg.extraBuildings.length}`);
   console.log(`krockar: ${d.report.moved} flyttade, ${d.report.shrunk} krympta, ${d.report.dropped.length} strukna ${d.report.dropped.join(', ')}`);
-  console.log(`spelytan ${JSON.stringify(d.CRISP)}, ingångar ${d.sketch.spawns.map(s => s.id + '@' + s.at).join(' ')}`);
+  console.log(`spelytan ${JSON.stringify(d.CRISP)}, ingångar ${d.sketch.spawns.map(s => s.id + '@' + s.at).join(' ')}${d.sketch.exits ? ', utgångar ' + d.sketch.exits.map(s => s.id + '@' + s.at).join(' ') : ''}`);
 }

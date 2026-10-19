@@ -354,7 +354,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H457 | spel | Utred Olas fall på Mölnbo dag 2: spärr av skrotbilar, horden gick rätt bana, efter våg X krossade bjässar spärren och alla vände. Var det en ny ingång där bilarna låg på enda vägen, eller en bugg i flödesfältet (garnisonshus som "tjock" ruta som stängde den andra vägen)? Repro i sim.
 - [x] H458 | ui | Varning när man ställer spärren som stänger sista vägen ("This shuts every road. They will smash through.") och hela vägvyn visas då.
 - [x] H459 | spel | (skärper H428) Soldaterna "in house" står UTANFÖR huset vid fasaden och i trädgården (Olas skärmbild Mölnbo 2026-10-18), Ksp 58 med sandsäckar på gräsmattan. De ska synas I huset: halvkroppar i fönsterkarmarna, mynningsflammor och ljus i fönstret som skjuter, inga ringar på gräset, trupplappen på taket.
-- [ ] H460 | karta | Battle for Laxne (Ola 2026-10-18): byn norr om Gnesta vid väg 223. Horden från norr (223/Laxnevägen), vill söderut mot Gnesta (223 förbi skolan, Hebyvägen). Sjön som flank. Underlag i horde-refs/laxne (OSM, plan, Olas karta + satellit, beskrivning). Placera i kampanjplanen (docs/superpowers/specs/2026-10-18-kampanjplan.md) och bygg förhandsvisning som Björnlunda.
+- [x] H460 | karta | (preview klar 2026-10-19: laxne.html, src/data/laxne.js, docs/laxne-preview-*.png; spelbar karta och Olas svar på kampanjplanens Laxne-frågor kvar) Battle for Laxne (Ola 2026-10-18): byn norr om Gnesta vid väg 223. Horden från norr (223/Laxnevägen), vill söderut mot Gnesta (223 förbi skolan, Hebyvägen). Sjön som flank. Underlag i horde-refs/laxne (OSM, plan, Olas karta + satellit, beskrivning). Placera i kampanjplanen (docs/superpowers/specs/2026-10-18-kampanjplan.md) och bygg förhandsvisning som Björnlunda.
 
 ## Skiva 1 och speltestet av 0.17.2 (2026-10-18)
 
@@ -437,7 +437,10 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H493 | kampanj | Olas kampanjbåge dag 0 till 21 (kampanjplan avsnitt 10) är nu bärande plan. Skriv ledningscentralens texter per dag (order, lägesrapport, radio/TV-inslag) och koppla varje dag till sin anledning.
 - [ ] H494 | molnbo | Rätta Mölnbo-kartan efter satellitbilden: EN väg över spåret (bron, väg 57), vägnätet (Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen), Folkets hus läge. Ref horde-refs/molnbo/satellit-ola-2026-10-19.jpg.
 - [ ] H495 | molnbo | Mölnbo dag 1 till 3 enligt bågen: dag 1 hålla bron så folk hinner över, dag 2 norrsidan förloras (ingen placering där efteråt) + tåget, dag 3 hålla en tid, sedan uttåg mot Gnesta och flodvåg över bron (menyerna försvinner, trupperna packar, bilden tonar ut).
-- [ ] H496 | kampanj | Rätta E4 (norrut längs E4) och Hagstumosse (österifrån) spawns efter bågen, inte tvärtom.
-- [ ] H497 | kampanj | Move låses upp dag 6 eller 7 med "radio till enheterna".
+- [x] H496 | kampanj | Rätta E4 (norrut längs E4) och Hagstumosse (österifrån) spawns efter bågen, inte tvärtom. (0.20.0 riktningarna: E4 var rätt, texterna rättade; Ishallen österut; Vikingavägen väst, syd och nord)
+- [x] H497 | kampanj | Move låses upp dag 6 eller 7 med "radio till enheterna". (0.20.0: Move och Rotate Ishallen dag 3)
 - [ ] H498 | kampanj | Slutet i Björnlunda (Ola 2026-10-19): kraschad smittotransport på spåret i Björnlunda, köttiga nervtrådar ur tåget, dag 20 hålla, dag 21 eskortera EPA med sprängämnen in i monstret. Grustaget utgår. Egen spec.
 - [ ] H499 | kampanj | Nya mekaniker som behöver spec: reträtt dag 16, pushback dag 18 (victory locations?), dag 19 spår av något konstigt, Laxne som valfri skådeplats.
+- [ ] H500 | hub | Kartbordet v3 efter Olas beslut (mellansnack avsnitt 11): ingen tejp, fysisk känsla, en sak i taget (karta + en lapp först), lappar staplade per uppdrag, egen hög för fiendeinfo, ett kort per enhet (ingen ×2), bättre översiktskarta (stor + inzoomad Gnesta senare), snören som detalj. Mockup kontrollrum-3.
+- [ ] H501 | laxne | Sjösidan är tom: fyll med skog efter kartöversikten (kontrollera mot OSM wood och satellitbilden), bryggor och strandkant.
+- [ ] H502 | prestanda | Kartorna känns långsamma att ladda (Ola). Mät laddtid per karta (trädgenerering, modeller, importmap), visa laddningsmätare, cacha genererade träd, sänk polygoner där det inte syns. Laxne: 1,3 M trianglar, 223 anrop, 120 fps på Olas dator.
