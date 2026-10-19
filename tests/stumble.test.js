@@ -10,7 +10,8 @@ import { ZOMBIES } from '../src/data/zombies.js';
 
 const DT = 1 / 30;
 const E4 = MAPS.riksvagen;
-const map = { ...E4, baseHp: 999, days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'runner', count: 30, interval: 0.7, delay: 0, spawn: 'nykoping' }, { type: 'walker', count: 10, interval: 1, delay: 0, spawn: 'nykoping' }] }] }] };
+// 0.19.1: 120 löpare (var 30): snubblet är nu så sällsynt att 30 inte visar alla tre varianterna
+const map = { ...E4, baseHp: 999, days: [{ n: 1, startCash: 0, waves: [{ groups: [{ type: 'runner', count: 120, interval: 0.3, delay: 0, spawn: 'nykoping' }, { type: 'walker', count: 10, interval: 1, delay: 0, spawn: 'nykoping' }] }] }] };
 function run(seed = 3, m = map) {
   const sim = createSim({ map: m, day: 1, cash: 0, seed });
   startWave(sim);
@@ -71,3 +72,30 @@ test('taggtråden kan fälla löparen', async () => {
   while (sim.phase === 'wave' && sim.time < 200) { step(sim, DT); for (const e of sim.events) if (e.t === 'stumble') why[e.why] = (why[e.why] ?? 0) + 1; }
   assert.ok(why.wire > 0, JSON.stringify(why));
 });
+
+// 0.19.1 (speltestet av 0.19.0, fynd 5: dag 4 snubblade 10 av 16 löpare, flera två och tre gånger, och tre till fyra på
+// samma ruta vid brofästet inom 1,5 s). Mätt över en hel korsning av Mölnbo (inget försvar, god mode): ungefär var femte
+// löpare snubblar, nästan ingen två gånger, och inga två snubbel inom 4 m och 10 s.
+for (const day of [1, 4]) {
+  test(`Mölnbo dag ${day}: ungefär var femte löpare snubblar, sällan två gånger, aldrig flera på samma ställe`, () => {
+    const sim = createSim({ map: MAPS.molnbo, day, cash: 0, seed: 1, tweaks: { god: true } });
+    startWave(sim);
+    const trips = new Map(), runners = new Set(), at = [];
+    while (sim.phase !== 'won' && sim.phase !== 'lost' && sim.time < 900) {
+      step(sim, DT);
+      for (const z of sim.zombies) if (z.type === 'runner') runners.add(z.id);
+      for (const e of sim.events) if (e.t === 'stumble') {
+        trips.set(e.id, (trips.get(e.id) ?? 0) + 1);
+        const z = sim.zombies.find(q => q.id === e.id);
+        at.push({ x: z.x, z: z.z, t: sim.time });
+      }
+    }
+    const share = trips.size / runners.size, twice = [...trips.values()].filter(n => n > 1).length;
+    assert.ok(share >= 0.1 && share <= 0.33, `${trips.size} av ${runners.size} snubblade`);
+    assert.ok(twice <= Math.max(1, runners.size * 0.06), `${twice} snubblade mer än en gång`);
+    for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
+      const a = at[i], b = at[j];
+      assert.ok(!(Math.abs(a.t - b.t) < 10 - 1e-6 && Math.hypot(a.x - b.x, a.z - b.z) < 4 - 0.5), `två snubbel på samma ställe vid ${a.t.toFixed(1)} och ${b.t.toFixed(1)}`);
+    }
+  });
+}

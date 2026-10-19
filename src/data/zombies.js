@@ -8,7 +8,10 @@ export const ZOMBIES = {
   // 0.19.0: fart 3,4 till 3,22. Snubblet var förut var 50:e meter och kostade cirka 1 s (ungefär 6 % av farten); nu är
   // det sällsynt, så farten sänks lika mycket för att hålla tempot (docs/balance-log.md 0.19.0).
   runner: { id: 'runner', name: 'Runner', fear: 1.2, hp: 18, speed: 3.22, bounty: 6, intel: 1, baseDamage: 1, hitDamage: 6, scale: 0.95,
-    stumble: { every: [40, 90], chance: 0.2, gap: 12, turn: 55, trigger: { heavy: 0.5, wire: 0.35, turn: 0.25 },
+    // 0.19.1 (speltestet av 0.19.0, fynd 5: 10 av 16 löpare snubblade, flera gånger, på samma ruta): minst gap 60 m mellan
+    // två snubbel för samma löpare, utlösarna en chans (inte nästan säkert: varje gathörn var en sväng), och spot: inget
+    // snubbel inom 4 m från ett annat de senaste 10 s. Mål: ungefär var femte löpare snubblar en gång över kartan.
+    stumble: { every: [70, 130], chance: 0.06, gap: 60, turn: 55, spot: [4, 10], trigger: { heavy: 0.3, wire: 0.15, turn: 0.04 },
       variants: [
         { id: 'trip', w: 0.6, time: 0.6, speed: [[0, 1], [0.35, 0.55], [1, 1]] },
         { id: 'slide', w: 0.25, time: 1.1, fall: true, speed: [[0, 1], [0.2, 0.85], [0.6, 0.18], [0.8, 0.3], [1, 0.85]] },

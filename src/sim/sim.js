@@ -624,9 +624,19 @@ function stumbleKind(st, r, fall = false) {
   for (const v of vs) { acc += v.w / tot; if (r < acc) return v.id; }
   return vs[vs.length - 1].id;
 }
+// 0.19.1 (speltestet av 0.19.0, fynd 5: dag 4 snubblade 10 av 16 löpare, flera två och tre gånger, och tre till fyra på
+// samma ruta vid brofästet inom 1,5 s): ett ställe fäller inte alla. Har någon snubblat inom st.spot[0] m de senaste
+// st.spot[1] s blir det inget snubbel där (sim.trips, de senaste snubblen). Deterministiskt (läget och klockan).
+function spotTaken(sim, z, st) {
+  if (!st.spot) return false;
+  const [r, secs] = st.spot, p = zombiePos(sim, z);
+  sim.trips = (sim.trips ?? []).filter(q => sim.time - q.t < secs);
+  return sim.trips.some(q => Math.hypot(q.x - p.x, q.z - p.z) < r);
+}
 function startStumble(sim, z, st, kind, why) {
   const v = st.variants.find(q => q.id === kind);
   z.stumbleT = v.time; z.stumbleK = kind; z.stumbleAt = z.run ?? 0;
+  if (st.spot) { const p = zombiePos(sim, z); (sim.trips ??= []).push({ x: p.x, z: p.z, t: sim.time }); }
   sim.events.push({ t: 'stumble', id: z.id, kind, why });
 }
 // Utlöst snubbel (H454): why 'heavy' | 'wire' | 'turn'. Chansen trigger[why], inte strax efter ett annat snubbel
@@ -637,7 +647,7 @@ function tripBy(sim, z, why) {
   if ((z.run ?? 0) - (z.stumbleAt ?? -Infinity) < st.gap) return;
   if (sim.route.kind === 'grid' && fogFactor(sim.map, z.x, z.z) > 1 + 1e-9) return;
   const n = z.trigN = (z.trigN ?? 0) + 1;
-  if (stumbleRoll(sim, z, n, 7) >= st.trigger[why]) return;
+  if (stumbleRoll(sim, z, n, 7) >= st.trigger[why] || spotTaken(sim, z, st)) return;
   startStumble(sim, z, st, stumbleKind(st, stumbleRoll(sim, z, n, 8), why === 'heavy'), why);
 }
 function stumble(sim, z, st, dt, fog) {
@@ -661,7 +671,7 @@ function stumble(sim, z, st, dt, fog) {
   z.tripN = n + 1;
   z.trip = z.run + st.every[0] + (st.every[1] - st.every[0]) * stumbleRoll(sim, z, n + 1, 1);
   if (fog > 1 + 1e-9 || stumbleRoll(sim, z, n, 2) >= st.chance) return 1;
-  if ((z.run ?? 0) - (z.stumbleAt ?? -Infinity) < st.gap) return 1;
+  if ((z.run ?? 0) - (z.stumbleAt ?? -Infinity) < st.gap || spotTaken(sim, z, st)) return 1;
   startStumble(sim, z, st, stumbleKind(st, stumbleRoll(sim, z, n, 3)), 'run');
   return stumble(sim, z, st, 0, fog);
 }
