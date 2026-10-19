@@ -396,3 +396,17 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
 - [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12).
 - [x] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
+
+## Speltestet av 0.19.0 (docs/playtests/2026-10-19-0.19.0.md)
+
+- [x] H461 | ux | Bjässens knuff-tips kom aldrig (barrikadgrenen i main.js tog händelsen först); knuffen syns knappt. Tipset första gången, "Cars shoved aside" där det sker, vraken glider längre undan, damm och plåt. (0.19.1)
+- [ ] H462 | balans | Mölnbo dag 3 och 4 är en mur: våg 3 och 4 ovanpå varandra (150 till 200 ute), basen 3-4 när tåget kommer. Utred grinden, trimma så att tåget blir ett val.
+- [ ] H463 | ux | Tre röda banderoller samtidigt (tåget, basen, bjässarna). En stor banderoll i taget med prioritet (tåget > flykt > omväg/genombrott), resten i kö eller små.
+- [ ] H464 | balans | Vågens svans: 1 till 3 bjässar sist gav 90 till 150 s väntan utan något i bild. Svansregeln för alla typer, och en plåt "3 left: brutes, Stenbyvägen" som flyttar kameran dit.
+- [ ] H465 | spel | Move in i hus mitt i vågen nekas nästan överallt (1 av 13): "Door blocked" utan synlig orsak. Hitta orsaken, prov över alla hus på Mölnbo och Vikingavägen.
+- [ ] H466 | zombier | Snubblet klumpar sig: 10 av 16 löpare dag 4, flera gånger, samma ruta vid brofästet. Nedkylning per zombie, utlösarna som chans, inte samma ställe för alla. Mål cirka 1 av 5 per korsning.
+- [ ] H467 | ux | Förrådet föreslår utmattade enheter för striden fast vilade finns i reserven.
+- [ ] H468 | ux | "+20 %" och "+$" ritas över köpraden.
+- [ ] H469 | text | Kommandotexten om "the empty X60" som skydd står kvar (struket i 0.18.1).
+- [ ] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer.
+

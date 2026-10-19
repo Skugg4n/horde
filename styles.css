@@ -1044,6 +1044,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .fat.f1, .depot .fat.f2 { color: #e8c48a; }
 /* 0.18.1: korseldens "+20 %" över zombien */
 .bounty.xf { color: #f0b347; font-size: 12px; letter-spacing: 0.04em; }
+/* 0.19.1 (H461): bjässen knuffade undan bilarna, raden står kvar en stund där det hände */
+.bounty.shove { color: #f2e6c8; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(120,40,24,0.82); padding: 2px 7px; border-radius: 2px; animation: shove 2.4s ease-out forwards; }
+@keyframes shove { 0% { opacity: 0; transform: translate(-50%, -20%); } 10% { opacity: 1; transform: translate(-50%, -50%); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -140%); } }
 /* 0.18.1 (speltestet av 0.18.0: panelen täckte dagrutan och tågklockan): i låga fönster en kompaktare panel, så att
    den får plats bredvid klockorna; knapparna fyra i bredd, fast höjd som förut men lägre */
 @media (max-height: 760px) {

@@ -163,7 +163,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     setTimeout(() => node.remove(), FLOAT_LIFE);
   }
   // 0.18.1: en kort rad som stiger över en zombie (korseldens "+20 %"), samma rörelse som pengarna
-  function flash(x, y, text, cls = '') {
+  // 0.19.1: life (ms) för en längre rad ("Cars shoved aside" står kvar en stund)
+  function flash(x, y, text, cls = '', life = FLOAT_LIFE) {
     if (floats.length >= FLOAT_MAX) return;
     const node = document.createElement('div');
     node.className = 'bounty ' + cls;
@@ -172,7 +173,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     root.appendChild(node);
     const f = { node, x, y, t0: performance.now() - FLOAT_MERGE, sum: 0 };
     floats.push(f);
-    setTimeout(() => { node.remove(); const i = floats.indexOf(f); if (i >= 0) floats.splice(i, 1); }, FLOAT_LIFE);
+    setTimeout(() => { node.remove(); const i = floats.indexOf(f); if (i >= 0) floats.splice(i, 1); }, life);
   }
   function clearFloats() { for (const f of floats) f.node.remove(); floats.length = 0; }
 

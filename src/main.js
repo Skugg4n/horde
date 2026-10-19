@@ -1133,16 +1133,27 @@ function updateNewSpawn() {
     if (at) alerts.push({ x: at.x, z: at.z, until: time + 10, kind: 'spawn' });
   }
 }
-function barricadeBroken(ev) {
+function barricadeBroken(ev, shoved = false) {
   // en lucka i spärren räcker för horden: första rutan som går sönder säger det, en gång per spärr
   const id = ev.line != null ? 'l' + ev.line : 'c' + ev.cell;
   if (failingWarned.has('down:' + id)) return;
   failingWarned.add('down:' + id);
   // 0.17.1: var spärren gick sönder (gatan), och att resten av spärren inte stoppar någon längre
   const c = sim.route.cellCenter(ev.cell), street = sim.route.kind === 'grid' ? streetAt(sim.map, c.x, c.z) : null;
-  note(uiRoot, street ? `Barricade down on ${street}. They are through the gap.` : 'Barricade down. They are taking another way.', 'warn');
+  // 0.19.1: första knuffen säger tipset själv, sedan raden om gatan
+  if (shoved) { if (!tip('tip.shove')) note(uiRoot, street ? `A brute shoved the cars aside on ${street}.` : 'A brute shoved the cars aside.', 'warn'); }
+  else note(uiRoot, street ? `Barricade down on ${street}. They are through the gap.` : 'Barricade down. They are taking another way.', 'warn');
   routeFlash = 4;
   alerts.push({ x: c.x, z: c.z, until: time + 8, kind: 'barricade' });
+}
+
+// 0.19.1 (H461): en bjässe knuffade undan skrotbilarna. Raden "Cars shoved aside" stiger där det hände (varje gång),
+// tipset första gången, och spärren räknas som nere (vägvyn och pingen) som en barrikad
+function carsShoved(ev) {
+  const [x, z] = cellWorld(ev.cell);
+  tmpV.set(x, 2.6, z).project(camera);
+  if (tmpV.z < 1) hud.flash((tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, 'Cars shoved aside', 'shove', 2400);
+  barricadeBroken(ev, true);
 }
 
 // 0.18.1: "Hemvärnet squad breaks!", "Volunteer squad breaks!", "Ksp 90 crew breaks!"
@@ -1182,6 +1193,9 @@ function handleEvents() {
     // 0.12.2: en grupp sent i vågen säger till när den kommer (vändningen)
     else if (ev.t === 'groupToast') note(uiRoot, ev.text, 'warn');
     else if (ev.t === 'earlyBonus') hud.early(ev.amount);
+    // 0.19.1 (speltestet av 0.19.0, fynd 1: tipset kom aldrig, den allmänna barrikadgrenen tog händelsen först): knuffen
+    // före barrikaden, och den syns där den sker
+    else if (ev.t === 'obstacleBroken' && ev.shoved) carsShoved(ev);
     else if (ev.t === 'obstacleBroken' && OBSTACLES[ev.type]?.kind === 'block') barricadeBroken(ev);
     else if (ev.t === 'barricadeFailing') barricadeFailing(ev);
     // 0.13.0: de civila, pillboxen och lagen på väg
@@ -1211,8 +1225,6 @@ function handleEvents() {
     else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
     // 0.18.0 (skiva 1): pansaret, sanity, flykten, husen och de tysta pjäserna
     else if (ev.t === 'hit' && ev.armor) tip('tip.armor');
-    // 0.19.0 (H456)
-    else if (ev.t === 'obstacleBroken' && ev.shoved) tip('tip.shove', cellWorld(ev.cell));
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
     // 0.18.1 (speltestet av 0.18.0: "flykt sker utan banderoll"): banderollen mitt uppe, pingen på minikartan och flykten i bild
     // 0.19.0 (speltestet av 0.18.1, fynd 5): banderollen är röd och överst bland raderna, inte grå bakom omvägen
@@ -2003,8 +2015,9 @@ function tip(id, at = null) {
   if (!shows(progress, t.kind === 'show' ? 'show' : 'tip') && !(t.kind === 'show' && shows(progress, 'show'))) return;
   tipAt.set(id, time);
   if (at) civDownAt = at;
-  if (t.kind === 'show' && mode === 'play' && !lesson && !card && startLesson({ ...t, kind: 'show' })) return;
+  if (t.kind === 'show' && mode === 'play' && !lesson && !card && startLesson({ ...t, kind: 'show' })) return true;
   note(uiRoot, t.text);
+  return true;
 }
 // HUD:ens delar dyker upp med en diskret animation första gången (designen avsnitt 4).
 function updateReveals() {

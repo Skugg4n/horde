@@ -912,16 +912,17 @@ export function createView(scene, initialSim) {
   function shoveCell(e, i, k) {
     const c = cellCenter(i);
     if (!e.home) e.home = { x: e.group.position.x, z: e.group.position.z, ry: e.group.rotation.y, dx: c.dirX, dz: c.dirZ, side: (i & 1) ? 1 : -1 };
-    const h = e.home, push = 1.4 * k, side = 0.9 * k * h.side;
+    // 0.19.1 (speltestet av 0.19.0: "knuffen syns knappt"): längre åt sidan och mer vriden
+    const h = e.home, push = 1.4 * k, side = 1.4 * k * h.side;
     e.group.position.x = h.x + h.dx * push - h.dz * side; e.group.position.z = h.z + h.dz * push + h.dx * side;
-    e.group.rotation.y = h.ry + h.side * 0.5 * k;
+    e.group.rotation.y = h.ry + h.side * 0.8 * k;
   }
   // En undanknuffad bilruta: modellen ligger kvar en stund vid sidan av gatan (glider klart), sedan bort.
   function shoveAway(i) {
     const e = cells.get(i); if (!e) return false;
     cells.delete(i); cellObjects.delete(i);
     shoveCell(e, i, 1);
-    wrecks.push({ e, t: 0, from: { x: e.group.position.x, z: e.group.position.z }, d: { x: e.home.dx * 1.2 - e.home.dz * 1.4 * e.home.side, z: e.home.dz * 1.2 + e.home.dx * 1.4 * e.home.side } });
+    wrecks.push({ e, t: 0, from: { x: e.group.position.x, z: e.group.position.z }, d: { x: e.home.dx * 1.2 - e.home.dz * 2.2 * e.home.side, z: e.home.dz * 1.2 + e.home.dx * 2.2 * e.home.side } });
     return true;
   }
   function syncWrecks(dt) {
@@ -1107,10 +1108,18 @@ export function createView(scene, initialSim) {
           fx.chips(c.x - c.dirX * 0.7, rnd(0.5, 1), c.z + rnd(-sp, sp), 3);
           break;
         }
+        // 0.19.1 (H461): bjässen tar tag i bilarna: damm och plåtbitar när knuffen börjar, så att den syns
+        case 'carShove': {
+          const c = cellCenter(ev.cell);
+          for (let k = 0; k < 3; k++) fx.puff(c.x + rnd(-0.6, 0.6), c.z + rnd(-0.6, 0.6), 4);
+          fx.chips(c.x, 0.9, c.z, 6);
+          break;
+        }
         case 'obstacleBroken': {
           const c = cellCenter(ev.cell), sp = sim.route.kind === 'grid' ? 0.9 : 3.5;
           for (let k = 0; k < (sp < 1 ? 2 : 4); k++) fx.puff(c.x, c.z + rnd(-sp, sp), 4);
-          if (ev.type === 'block' || ev.type === 'car') for (let k = 0; k < (sp < 1 ? 3 : 5); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
+          if (ev.type === 'block' || ev.type === 'car') for (let k = 0; k < (sp < 1 ? 3 : 5) + (ev.shoved ? 4 : 0); k++) fx.chips(c.x, 0.8, c.z + rnd(-sp - 0.5, sp + 0.5), 4);
+          if (ev.shoved) for (let k = 0; k < 4; k++) fx.puff(c.x + rnd(-1.2, 1.2), c.z + rnd(-1.2, 1.2), 5);
           if (!(ev.shoved && shoveAway(ev.cell))) removeCell(ev.cell);
           break;
         }
