@@ -17,7 +17,8 @@ export const MAPS = {
     // 0.16.0 (textgenomgången, speltestet av 0.14.2: VICTORY bredvid "fallen silent" lästes som en förlust)
     // 0.16.4 (Olas rättelse: "vi VANN vid E4", och de civila ska IN i ishallen, de sitter inte fast där): en vinst
     // läses som en vinst, och befälhavaren skickas dit det behövs. Ingen reträtt.
-    outro: { text: 'E4 holds. Reports of a smaller outbreak in eastern Gnesta. Command is sending you to Hagstumosse. Get the civilians into the ice rink.', next: 'gnesta', withdraw: true },
+    // 0.20.0 (kampanjbågen): de nådde aldrig väg 224, och nästa grupp kommer österifrån mot Gnesta
+    outro: { text: 'E4 holds. They never reached väg 224. A group is closing on eastern Gnesta. Command is sending you to Hagstumosse. Get the civilians into the ice rink.', next: 'gnesta', withdraw: true },
     // 0.15.0 (Olas önskan: "känns som amerikansk öken, inte Sörmland"): banan är trafikplats 137 Lästringe
     // (src/data/e4-lastringe.js). Ett rutnät som Gnesta: kameran går att panorera och zooma, och längst ut
     // ryms hela trafikplatsen på en skärm i 1440 x 900 (camera-rig.js crispView).
