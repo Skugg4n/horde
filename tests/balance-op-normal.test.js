@@ -88,7 +88,10 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // 0.19.0: alla steg utom E4 dag 1 nya, avsiktligt: löparnas snubbel sällsynt och utlöst (förut samma tärning för alla) och
 // farten 3,4 till 3,22, stormningens tärning rättad (30 % i stället för alla), vågens svans, bjässarna och skrotbilarna.
 // docs/balance-log.md 0.19.0.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"986b0d39","riksvagen 3":"317daa74","gnesta 1":"96f58429","gnesta 2":"5951f597","gnesta 3":"fcbce262","gnesta 4":"720b0848","gnesta 5":"e9668299","gnesta-norr 1":"106cddff","gnesta-norr 2":"bc6d5c4b","gnesta-norr 3":"de320769","gnesta-norr 4":"eb822697","gnesta-norr 5":"cc3c2361"};
+// 0.19.1: alla steg utom E4 dag 1 nya, avsiktligt: snubblets nedkylning (60 m, utlösarna en liten chans, inte två på samma
+// ställe), vågens svans för alla typer, dörrarna in i husen och förrådets förslag (vilade före utmattade). Grinden på
+// Vikingavägen och Ishallen är oförändrad (overlapMin bara på Mölnbo). docs/balance-log.md 0.19.1.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"64696f50","gnesta 1":"92dfca36","gnesta 2":"a532570f","gnesta 3":"1f38a7e5","gnesta 4":"c2e3bc83","gnesta 5":"a1838b44","gnesta-norr 1":"b6376170","gnesta-norr 2":"3ddf1905","gnesta-norr 3":"f25586bc","gnesta-norr 4":"4689acb8","gnesta-norr 5":"bc908954"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

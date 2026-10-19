@@ -1116,3 +1116,47 @@ Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 (och naive Mölnbo dag 5 som 
 - normal: riksvagen 2 986b0d39, riksvagen 3 317daa74, gnesta 1 96f58429, gnesta 2 5951f597, gnesta 3 fcbce262, gnesta 4 720b0848, gnesta 5 e9668299, gnesta-norr 1 106cddff, gnesta-norr 2 bc6d5c4b, gnesta-norr 3 de320769, gnesta-norr 4 eb822697, gnesta-norr 5 cc3c2361
 - mbSmart: 9dc4609e, 59bca231, b8d99010, f7072057, 40f8ba59; naive: c4418990, 8cb11324, b8edeaab, 839ed928, 741638a5
 - simuleringens kvitto: E4 day 2 a4f9fd50, Gnesta South day 3 7007da68, Gnesta North day 2 5a8260b6
+
+## 0.19.1: speltestet av 0.19.0
+
+Speltestet sa NEJ (docs/playtests/2026-10-19-0.19.0.md): Mölnbo dag 3 och 4 var en mur, testaren förlorade två och fem gånger, och pendeltåget kom när basen hade 3 till 4 kvar.
+
+Orsaken (H462): grinden höll "högst två vågor ute", men den långa klockan (dayCfg.overlap, 50 s på Mölnbo) släppte nästa våg 50 s efter att den senaste kommit ut, hur många av den som än levde. Spårat i balansen (naive, seed 0): dag 4 kom våg 4 vid 240 s med 63 av 73 i våg 3 kvar, och tågets 50 räknades in i våg 4 ovanpå (156 i vågen); dag 3 kom våg 4 (154) med våg 3 knappt rörd. På Mölnbos långa vägar har en våg knappt nått försvaret efter 50 s. Tåget räknades inte utanför grinden: dess 50 ligger i vågens kö och håller grinden stängd tills de klivit ur.
+
+Ändringar:
+- dayCfg.overlapMin (src/sim/sim.js overlapGate): den långa klockan släpper bara om så stor del av den senaste vågen är nere; annars väntar nästa våg på 70 % som förut, eller på OVERLAP_STALL (3) gånger klockan så att dagen aldrig står still. Mölnbo dag 3 till 5: 0,4. Vikingavägen och Ishallen dag 4 och 5 har inget overlapMin och räknar som förut (speltestade med den gamla klockan).
+- Mölnbo dag 3: våg 3 99 till 77 (30 löpare, 36 vandrare, 8 krypare, 3 bjässar), våg 4 154 till 110 (44 + 36 vandrare, 26 löpare, 4 bjässar). hp 17,5 till 18.
+- Mölnbo dag 4: pendeltåget i tredje vågen (var fjärde), 35 s in och förvarningen 12 s före (var 30 och 9); tredje vågen 73 till 43 (22 + 16 vandrare, 3 pansrade, 2 bjässar), fjärde 101 till 89 (30 löpare, 30 + 24 vandrare, 5 bjässar). Avgången 380 till 420 s (med grinden hinner tåget annars inte in före avgången). hp 32 till 38.
+- Mölnbo dag 5: hp 15 till 19 (grinden gör dagen lättare).
+- Prövat dag 4: hp 32 och 37 gav naive bas 5 till 12 på första försöket utan förlust, hp 40 gav naive fast i en seed och vinst med 2 till 3 i två; 36 vann alla med 6 till 12. Valt 38.
+
+Spelet utanför Mölnbo:
+- Snubblet (H466): minst 60 m mellan två snubbel för samma löpare (var 12), utlösarna en liten chans (sväng 0,25 till 0,04: varje gathörn var en sväng; taggtråd 0,35 till 0,15; tung träff 0,5 till 0,3), slumpsnubblet var 70 till 130 m med chansen 0,06 (var 40 till 90 m, 0,2), och inget snubbel inom 4 m och 10 s från ett annat. Över Mölnbo utan försvar: dag 1 5 till 6 av 24 löpare (var 20), dag 4 13 till 17 av 62 (var 55), nästan ingen två gånger. Löparnas fart står kvar på 3,22.
+- Vågens svans (H464) gäller alla typer, också bjässar och pansrade: tre bjässar på väg 57 191 till 148 s.
+- Dörren in i ett hus (H465) är närmaste ruta trupperna går på. Påverkar bara flytten mitt i en våg.
+- Förrådets förslag (H467) väger tröttheten hårdare (0,4 för utmattad i stället för 0,75), så att utvilade går före. Påverkar vilka som går ut i varje kampanj.
+
+Mätt (fem seeds):
+
+    skilled  alla dagar på första försöket i alla seeds
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  3  1  1  1  1  1
+    1         1  1  1  1  1  1  2  3  1  1  1  1  1
+    2         1  1  1  1  1  1  2  1  1  1  1  2  1
+    3         1  1  1  1  1  1  2  1  1  1  1  3  1
+    4         1  1  1  1  1  1  2  1  1  1  1  3  1
+
+    mbSmart  alla dagar på första försöket; bas vid tågets signal dag 4: 20 i alla; bas dag 3: 20, 20, 9, 20, 20; dag 4: 18, 20,
+             20, 20, 20; dag 5: 14, 15, 10, 13, 15
+    naive    M1 till M4 på första försöket i alla seeds, M5 på första eller andra; bas vid tågets signal dag 4: 20 i alla; bas dag 3:
+             17, 17, 2, 14, 11; dag 4: 10, 9, 1, 7, 2; dag 5: 7, 2, 11, 1, 11
+
+Naive är den som ställer ut förnuftigt men aldrig spärrar. Han når nu dag 5, och tåget dag 4 kostar honom: han håller, kartläsaren flyttar en grupp mot perrongen och klarar sig med 18 till 20. Provet i tests/molnbo.test.js: basen minst 15 vid signalen för båda, kartläsaren minst 12 efter dag 4, naive högst 12 när han håller.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1:
+- skilled: riksvagen 2 d8e825ab, riksvagen 3 64696f50, gnesta 1 a63420bf, gnesta 2 aa76c39f, gnesta 3 2cf1cf0c, gnesta 4 9704aede, gnesta 5 79d1335f, gnesta-norr 1 c06849ef, gnesta-norr 2 d8a5ca05, gnesta-norr 3 ebe37682, gnesta-norr 4 5041e265, gnesta-norr 5 0184be22
+- normal: riksvagen 2 d8e825ab, riksvagen 3 64696f50, gnesta 1 92dfca36, gnesta 2 a532570f, gnesta 3 1f38a7e5, gnesta 4 c2e3bc83, gnesta 5 a1838b44, gnesta-norr 1 b6376170, gnesta-norr 2 3ddf1905, gnesta-norr 3 f25586bc, gnesta-norr 4 4689acb8, gnesta-norr 5 bc908954
+- mbSmart: d71cc6d9, c73e046d, 92e246da, 0c272f1e, 03a530a8; naive: 579bb76c, 972a565c, a84d179d, cf77065c, 2d2e2051
+- simuleringens kvitto: E4 day 2 5d0128c1 (vinner med 18, var 20), Gnesta South day 3 8a57a9a2, Gnesta North day 2 dabfdccd
+- Ankomsten till Mölnbo (src/data/arrival.js) omräknad: wireTough.1 med i forskningen, infanterigruppen på nivå 1 saknas, M2 och Ak 5 på nivå 2.

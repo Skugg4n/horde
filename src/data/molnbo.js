@@ -669,7 +669,7 @@ export const DAYS = [
              say('A smaller group from the south, up Stenbyvägen!', { groups: [g('walker', 18, 0.6, 0, 's2'), g('walker', 48, 0.4, 4, 's1'), tell('Armoured ones on Stenbyvägen! Small arms barely bite.', g('armored', 3, 2.4, 10, 's1'))] }),
              { groups: [g('runner', 40, 0.3, 0, 's1'), g('walker', 40, 0.35, 6, 's1'), g('crawler', 8, 1.2, 12, 's1'), g('brute', 3, 3.5, 20, 's1')] },
              { groups: [g('walker', 50, 0.3, 0, 's1'), g('walker', 46, 0.3, 14, 's1'), tell('Brutes on väg 57!', g('brute', 4, 3, 18, 's1')), g('armored', 4, 2, 10, 's1'), g('runner', 30, 0.35, 26, 's1')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 19, overlap: 50, overlapMin: 0.4, train: { at: 420 },
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 18, overlap: 50, overlapMin: 0.4, train: { at: 420 },
     // 0.19.1 (speltestet av 0.19.0, fynd 9): varifrån, och dag 3 heter inte "the last train" (det är dag 5)
     intro: { title: 'Day 3: The train', text: 'From Järna, and from the east along Fagernäsvägen. Hold until the train.' },
     objective: 'Hold Folkets hus until the train leaves.',
@@ -682,7 +682,7 @@ export const DAYS = [
   // arrival (H452): 30 s in i fjärde vågen ("Brutes at the bridge!") står pendeltåget vid norra perrongen; förvarningen
   // 9 s före. 50 kliver ut. hp 38 till 32 (tåget i tredje vågen med hp 38 tog basen i alla seeds, och balansens
   // uppställning utan policyns ordrar förlorade dag 4 med 34; docs/balance-log.md 0.19.0).
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 40, overlap: 50, overlapMin: 0.4, train: { at: 420 },
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 38, overlap: 50, overlapMin: 0.4, train: { at: 420 },
     arrival: { wave: 2, at: 35, warn: 12, doors: INBOUND.doors,
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
     intro: { title: 'Day 4: North side', text: 'More of them north of the tracks. Close the bridges.' },
@@ -694,7 +694,7 @@ export const DAYS = [
              { groups: [g('walker', 46, 0.26, 0, 's4'), g('runner', 29, 0.3, 8, 's3'), g('crawler', 10, 1.0, 4, 's4'), g('armored', 4, 2, 16, 's4'), g('brute', 4, 3, 14, 's4')] } ] },
   // 0.19.0 (H450): "the last train north" stämmer inte när horden kommer norrifrån; tåget heter nu bara det sista.
   // Banvallen västerifrån är de som gått runt.
-  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 21, overlap: 50, overlapMin: 0.4, train: { at: 420, last: true },
+  { n: 5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 19, overlap: 50, overlapMin: 0.4, train: { at: 420, last: true },
     intro: { title: 'Day 5: Along the tracks', text: 'The last train out. Everyone who can, gets on.' },
     objective: 'Hold Folkets hus until the last train leaves.',
     waves: [ say('Fagernäsvägen and Stenbyvägen.', { groups: [g('walker', 10, 0.6, 0, 's3', 14), g('walker', 7, 0.7, 4, 's2')] }),

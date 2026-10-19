@@ -245,23 +245,37 @@ test('balans: kartläsaren vinner dag 1 till 3 inom 2 försök, dag 4 inom 2 och
   }
   // 0.17.2 (H301): med tornen och de höga husen vinner kartläsaren på första försöket, men dag 4 (bron) kostar basen
   // (MB05, H295: dag 4 och 5 var knivseggar, Ola förlorade dag 4; dag 4 hp 31 till 36, docs/balance-log.md 0.17.2)
-  for (const [i, r] of smart.entries()) {
-    const d4 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 4 && x.won)[0];
-    // 0.19.0: högst 14 (hp 32 så att balansens uppställning utan ordrar, Quick jump, också håller; docs/balance-log.md 0.19.0)
-    assert.ok(d4 && d4.baseHp <= 14, `seed ${i}: dag 4 bas ${d4?.baseHp}`);
+});
+
+// 0.19.1 (speltestet av 0.19.0, fynd 4: basen hade 3 till 4 kvar när pendeltåget kom, och tåget avgjorde inget): båda
+// spelarna har en hel bas när tåget signalerar, och tåget är ett val. Kartläsaren flyttar en grupp mot perrongen och
+// klarar sig med god marginal; den som håller kvar betalar.
+test('balans: pendeltåget dag 4 kommer till en hel bas, och den som inte flyttar betalar', () => {
+  for (const [name, rs] of [['mbSmart', smart], ['naive', naive]]) for (const [i, r] of rs.entries()) {
+    const d4 = r.log.filter(x => x.mapId === 'molnbo' && x.day === 4);
+    for (const x of d4) assert.ok(x.trainBase != null && x.trainBase >= 15, `${name} seed ${i} försök ${x.attempt}: basen ${x.trainBase} vid signalen`);
   }
+  for (const [i, r] of smart.entries()) {
+    const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 4 && x.won);
+    assert.ok(w && w.baseHp >= 12, `mbSmart seed ${i}: dag 4 bas ${w?.baseHp}`);
+  }
+  const held = naive.map(r => r.log.find(x => x.mapId === 'molnbo' && x.day === 4 && x.attempt === 1)).filter(Boolean);
+  assert.ok(held.every(x => !x.won || x.baseHp <= 12), `naive dag 4: ${held.map(x => x.baseHp)}`);
 });
 
 // 0.17.2 (H301): prickskyttarna i tornen och på de höga husen bär den som inte spärrar genom dag 3; bron dag 4 stoppar
 // honom (i minst fyra av fem seeds). Förut: förlorade från dag 3.
-test('balans: den som aldrig spärrar förlorar senast på dag 4', () => {
-  let stuck = 0;
+// 0.19.1 (speltestet av 0.19.0: dag 3 och 4 var en mur, testaren förlorade två och fem gånger): den som aldrig spärrar är
+// den vanliga spelaren som ställer ut förnuftigt. Han vinner dag 1 och 2 direkt och tar sig igenom dag 3 och 4 inom
+// fyra försök, men dag 3 till 5 kostar basen.
+test('balans: den som aldrig spärrar klarar Mölnbo, men dag 3 till 5 kostar', () => {
   for (const [i, r] of naive.entries()) {
     const a = mbAttempts(r.log);
     assert.deepEqual(a.slice(0, 2), [1, 1], `seed ${i}`);
-    if (r.stuck && r.stuck.day <= 4) stuck++;
+    for (const d of [2, 3]) assert.ok(a[d] >= 1 && a[d] <= 4, `seed ${i} dag ${d + 1}: ${a}`);
   }
-  assert.ok(stuck >= 4, `${stuck} av 5 fastnar`);
+  const won = naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day >= 3 && x.won));
+  assert.ok(won.reduce((s, x) => s + x.baseHp, 0) / won.length <= 12, `snitt bas ${won.map(x => x.baseHp)}`);
 });
 
 test('balans: högst cirka 250 levande zombier samtidigt', () => {
@@ -301,10 +315,14 @@ test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => 
 // 0.19.0: alla dagar nya, avsiktligt: horden från Järna (H450), gruppen söderifrån (H451), pendeltåget dag 4 i fjärde
 // vågen och hp 38 till 32 (H452), kartläsaren flyttar en grupp vid signalen och spärrar inte Kvarnvägen, snubblet, stormningens
 // tärning, vågens svans och bjässarna mot skrotbilarna. Naive dag 5 nås inte och står kvar. docs/balance-log.md 0.19.0.
+// 0.19.1: alla dagar nya, avsiktligt: ankomsten (omräknad), grindens overlapMin dag 3 till 5 (den långa klockan släpper bara
+// om 40 % är nere), pendeltåget i tredje vågen och avgången 420 s dag 4, våg 3 och 4 mindre, hp dag 3 17,5 till 18, dag 4 32
+// till 38, dag 5 15 till 19, snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag. Naive når dag 5.
+// docs/balance-log.md 0.19.1.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '9dc4609e', 'molnbo 2': '59bca231', 'molnbo 3': 'b8d99010', 'molnbo 4': 'f7072057', 'molnbo 5': '40f8ba59' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c4418990', 'molnbo 2': '8cb11324', 'molnbo 3': 'b8edeaab', 'molnbo 4': '839ed928', 'molnbo 5': '741638a5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'd71cc6d9', 'molnbo 2': 'c73e046d', 'molnbo 3': '92e246da', 'molnbo 4': '0c272f1e', 'molnbo 5': '03a530a8' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '579bb76c', 'molnbo 2': '972a565c', 'molnbo 3': 'a84d179d', 'molnbo 4': 'cf77065c', 'molnbo 5': '2d2e2051' });
 });
 
 // 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").

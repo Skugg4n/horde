@@ -24,9 +24,9 @@ export function buyState(sim, id) {
     // 0.19.1 (speltestet av 0.19.0: "KSP 58 All out" mitt i vågen fast tre fanns i reserven): held, de som väntar i
     // reserven men inte går att ställa ut nu (reserven går ut bara i uppställningen)
     if (!count) {
+      if (!sim.deployed?.some(d => d.type === id)) return { state: 'absent', cost: 0, need: 0 };
       const held = reserveCount(sim, id);
-      if (held) return { state: 'out', cost: 0, need: 0, count: 0, held };
-      return sim.deployed?.some(d => d.type === id) ? { state: 'out', cost: 0, need: 0, count: 0 } : { state: 'absent', cost: 0, need: 0 };
+      return { state: 'out', cost: 0, need: 0, count: 0, ...(held ? { held } : {}) };
     }
     if (capFull(sim, id)) return { state: 'full', cost: 0, need: 0, count };
     return { state: 'ok', cost: 0, need: 0, count };

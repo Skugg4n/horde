@@ -73,10 +73,13 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // hp 2,7, inga vilande hus). docs/balance-log.md 0.16.4.
 // 0.19.0: alla tre nya, avsiktligt: löparnas snubbel (sällsynt, utlöst, en tärning per zombie) och farten 3,22, och vågens
 // svans (docs/balance-log.md 0.19.0).
+// 0.19.1: alla tre nya, avsiktligt: snubblets nedkylning (60 m, utlösarna en liten chans, inte två på samma ställe) och
+// vågens svans för alla typer. E4 dag 2 vinns med 18 (var 20), South dag 3 med 20 och North dag 2 förloras som förut, på
+// samma tid inom en sekund (docs/balance-log.md 0.19.1).
 const RECEIPTS = {
-  'E4 day 2': 'a4f9fd50',
-  'Gnesta South day 3': '7007da68',
-  'Gnesta North day 2': '5a8260b6',
+  'E4 day 2': '5d0128c1',
+  'Gnesta South day 3': '8a57a9a2',
+  'Gnesta North day 2': 'dabfdccd',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {
