@@ -60,6 +60,43 @@ Laxne, sjösidan (H501). Remsan mellan byn och Klämmingen var gräs. OSM saknar
 Laddtiden (H502, Olas "kartorna känns långsamma att ladda"). Mätt huvudlöst innan något ändrades, rapporten i docs/reports/2026-10-19-laddtid.md. Det som tog tiden: spelet räknade rutnät och placering för alla fyra banorna vid varje start (drygt en sekund, mest Gnesta Norr och Mölnbo), skogen i förhandsvisningarna räknade om polygonens gränser för varje provpunkt, och rutnätens avstånd till vägarna gick igenom varje väg för varje ruta. Nu räknas en banas rutnät och placering först när banan laddas, avstånden till vägarna bara nära vägarna, och skogens gränser en gång. Samma rutnät, samma placering och samma träd på samma ställen som förut (provat bit för bit). Första bildrutan: E4 från 2,1 till 0,6 s, Ishallen 1,9 till 0,4 s, Vikingavägen 2,1 till 0,7 s, Mölnbo 1,9 till 0,5 s, Laxne 1,8 till 0,6 s, Björnlunda 0,8 till 0,5 s, Gnesta centrum (tills den går jämnt) 2,6 till 1,6 s; där är shaderprogrammen kvar som det största, se rapporten.
 
 Laddningsmätaren. Skylten "Loading" står från första stund (loadbar.js, ett vanligt skript före modulerna) och mätaren följer det som faktiskt händer: hämtade filer mot hur många sidan laddar (räknat ur importerna, scripts/importmap.mjs håller talet aktuellt), sedan banans steg (rutnätet, världen, trupperna, shaderprogrammen). Förhandsvisningarna kompilerar shaderprogrammen medan skylten står, inte i första bildrutan.
+## 0.21.2 (kartbordet) (2026-10-19)
+
+Omtestet av 0.21.1 sa JA med förbehåll (docs/playtests/2026-10-19-0.21.1-hub.md).
+
+- Bordet gör om layouten när fönstret ändras (en gång när storleken stått still), så att Deploy aldrig hamnar utanför bild.
+- Vem som går i strid står kvar mellan dagarna. Bara tröttheten flyttar: en utmattad enhet i striden byts mot en mindre trött i reserven, och båda korten säger det ("Moved to reserve: exhausted", "Moved into battle: rested").
+- Huvudmenyn säger samma nästa strid som bordet ("Vikingavägen, day 1").
+- Ordet depot är borta där spelaren ser det: resultatet, tipsen, Field manual och ledningens rader säger Requisition.
+- Spelmenyn mellan dagarna heter Map table, på heltäckande bakgrund, utan fart och Restart day; To menu går till huvudmenyn.
+- Requisition: enheterna har samma nummer som korten (Ksp 90 1, Ksp 90 2), och i låga fönster rullar mittdelen med knapparna kvar nedtill.
+- Radion: en sändning natten efter E4 dag 2 (tågen mellan Södertälje och Nyköping är inställda), så att remsan syns tidigt.
+- Layoutprovet: radion efter E4, fönsterbyte med bordet öppet (1440 till 1024x614 och 1920x1080) och spelmenyn mellan dagarna.
+
+## 0.21.1 (kartbordet) (2026-10-19)
+
+Speltestet av 0.21.0 sa NEJ, nära (docs/playtests/2026-10-19-0.21.0-hub.md).
+
+- Korten går att läsa med många enheter: de överlappar inte längre utan läggs i två, tre eller fyra rader med mindre kort när de inte ryms i en. Varje kort har namnet, styrkan och tröttheten utan hovring, och ordningen står still när ett kort flyttas.
+- Bordet följer fönstret: skalan är minst 0,8 (texten minst 11 px i 1024x614), ytan blir mindre i små fönster och kartbladet krymper för att ge korten plats. Klämbrädan står mot nederkanten och ryms i varje storlek, och "Deploy day 13" står på en rad.
+- Operationskartans tips ("Open the sector", "The depot opens before the day") visas inte på bordet; Classic har kvar dem.
+- Samma dagnummer överallt: bordet visar banans dag ("Ishallen · Day 3", ORDER 03), som introt, HUD:en och menyn. day.campaignDay är kvar som krok för kampanjbågen.
+- En förlorad dag får ett blad överst i högen: "Day 3 lost. Try again at dawn." med utfallet. Resultatet efter en förlust säger Map table.
+- Ordern ligger lägre på rapporten, så att rapportens två översta rader går att läsa. Radion har en remsa bara natten efter en dag med sändning.
+- Layoutprovet går igenom bordet också i 1440x900 och 1920x1080, med 16 och 20 enheter, en förlorad dag, radio och ingen radio, dagnumret, tipsen, textstorleken och Deploy-knappen.
+
+## 0.21.0 (kartbordet) (2026-10-19)
+
+Mellan dagarna ligger nu ett kartbord i brandstationen i Gnesta, byggt efter mockupen docs/mockups/kontrollrum-3.html och Olas beslut i mellansnack avsnitt 11 (H500). Det ersätter operationskartan och förrådet som två skyltar; de gamla finns kvar i spelmenyn under Between days: Classic. Spec: docs/superpowers/specs/2026-10-19-kartbordet-bygge.md. Skärmbilder: docs/hub-0.21-start.png, docs/hub-0.21-day8.png, docs/hub-0.21-molnbo.png.
+
+- En sak i taget: dag 1 är kartan och en lapp med dagens order och Deploy. Fiendehögen kommer efter första mötet, radion med första remsan, truppkorten och klämbrädan när förrådet öppnar.
+- Kartan är större och tydligare: E4, E20, 57, 223, 224, järnvägarna, sjöarna, Mälaren, Östersjön och orterna. Sektorerna med läge (holding, threatened, held, secure) och DAY n vid nästa strid, med hordens riktning. Ett klick väljer en sektor.
+- Uppdragshögar per sektor: ordern överst, gårdagens lägesrapport under, äldre blad som kanter, HELD på klara sektorer. Klick breder ut högen. Lägesrapporten är dagens egen text när banan har en (day.report), annars skriven ur dagens siffror.
+- Fiendehögen: ett blad per mött typ, klick på en kant lägger det överst. Gula lappen What we face är nästa strids underrättelser.
+- Truppkorten: ett kort per enhet i Into battle och Reserve, med förrådets regler. Klicka för att flytta, dra mellan fälten eller släpp på ett kort för att byta.
+- Requisition (R) är förrådet som en klämbräda över bordet. Enter ställer upp, Esc öppnar menyn, T städar bordet.
+- Föremålen går att dra; läget sparas i sparfilen (table.layout) och Tidy lägger tillbaka allt. Sparfilen är kvar på v4.
+- Layoutprovet går igenom bordet dag 1, 2, 8 och Mölnbo dag 1, en utbredd hög och Requisition i tre bredder.
 
 ## 0.19.2: speltestet av 0.19.1 (2026-10-19)
 

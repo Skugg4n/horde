@@ -155,7 +155,8 @@ export function setLane(p, uid, lane) {
   // de föreslagna låses i sin bana när spelaren väljer, så att förslaget inte flyttar någon annan i stället
   const inBattle = new Set(L.battle.map(u => u.uid));
   for (const x of op.units) if (x.sector === sector) x.lane = inBattle.has(x.uid) ? 'battle' : 'rest';
-  op.units.find(x => x.uid === uid).lane = lane;
+  const mv = op.units.find(x => x.uid === uid);
+  mv.lane = lane; delete mv.moved;
   return { ok: true, progress: { ...q, op } };
 }
 // 0.16.0: garnisonen. Tryckpunkter som en öppen sektor får för en vunnen dag någon annanstans: 1, eller
@@ -490,8 +491,20 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
       else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + pressureGain(q, s));
     }
     for (const s of Object.keys(op.pressure)) if (!op.pressure[s]) delete op.pressure[s];
-    // 0.18.1: banornas val gäller en dag; i morgon föreslår förrådet igen efter den nya tröttheten
-    for (const u of op.units) if (u.sector === poolOf(mapId)) delete u.lane;
+    // 0.21.2 (speltestet av 0.21.1, fynd 2: valet nollställdes efter en vunnen dag utan besked): spelarens val står kvar
+    // mellan dagarna. Bara tröttheten flyttar: en utmattad i striden byts mot en mindre trött i reserven, och båda får en
+    // rad om varför (u.moved, visas på kortet tills spelaren flyttar enheten eller nästa dag vinns).
+    const pool = poolOf(mapId), here = op.units.filter(u => u.sector === pool);
+    for (const u of here) delete u.moved;
+    if (featuresFor(mapId, day).has('fatigue')) {
+      const spare = here.filter(u => u.lane === 'rest' && (u.fatigue ?? 0) < 2 && fit(u)).sort((a, b) => (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid);
+      for (const u of here.filter(x => x.lane === 'battle' && (x.fatigue ?? 0) >= 2)) {
+        const sub = spare.shift();
+        if (!sub) break;
+        u.lane = 'rest'; u.moved = 'rest:exhausted';
+        sub.lane = 'battle'; sub.moved = 'battle:rested';
+      }
+    }
     q = { ...q, op };
   }
   return { progress: syncOperation(q), rp, attempt };

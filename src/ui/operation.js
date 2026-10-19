@@ -198,9 +198,11 @@ const upgradeText = (st) => {
 const upgradeName = id => ({ budget: 'Supply budget' })[id] ?? null;
 
 // handlers: { act(kind, ...args) -> { ok, reason, progress }, onDone(), onDeploy() }. sector: sektorn som visas först.
+// 0.21.0: deploy.n är dagens nummer som det står på kartbordet (kampanjens dag); deploy.day är banans dag.
 // 0.14.1 (speltestet av 0.14.0: förrådet var lätt att gå förbi): deploy = { day } när förrådet är steget
 // mellan kartan och dagen; då är huvudknappen Deploy (Enter) och Operations map går tillbaka (Esc).
-export function depotSheet(root, progress0, sector0, handlers, { deploy = null } = {}) {
+// 0.21.0: back = namnet på skylten Esc går tillbaka till ('Map table' med kartbordet)
+export function depotSheet(root, progress0, sector0, handlers, { deploy = null, back = 'Operations map' } = {}) {
   const el = document.createElement('div');
   el.className = 'sheet plate depot';
   root.appendChild(el);
@@ -266,6 +268,11 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const acc = Math.round((1 - FATIGUE.accuracy[f]) * 100), rate = Math.round((1 - FATIGUE.rate[f]) * 100);
     return `${FATIGUE.names[f]}: −${acc} % accuracy${rate ? `, −${rate} % fire rate` : ''}`;
   };
+  // 0.21.2 (speltestet av 0.21.1, fynd 6): enheterna har samma nummer som korten på bordet (Ksp 90 1, Ksp 90 2)
+  const numbered = u => {
+    const same = p.op.units.filter(x => x.sector === u.sector && x.type === u.type).sort((a, b) => a.uid - b.uid);
+    return same.length > 1 ? `${name(u.type)} ${same.findIndex(x => x.uid === u.uid) + 1}` : name(u.type);
+  };
   function unitRow(u, lane = null) {
     const max = maxMen(u, p.research), lc = levelCost(u), rc = refillCost(p, u);
     const others = multi() ? openSectors(p).filter(s => s !== u.sector && canReassign(p, u.uid, s).ok) : [];
@@ -275,7 +282,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const rest = lane === 'rest' && fat ? `<span class="recov">${f ? `Recovers +1 rest: ${FATIGUE.names[f - 1]} tomorrow` : 'Stays rested'}</span>` : '';
     const move = lane ? `<button type="button" class="mini lanebtn" data-a="lane" data-to="${lane === 'battle' ? 'rest' : 'battle'}">${lane === 'battle' ? '→ Rest' : '→ Battle'}</button>` : '';
     return `<div class="urow ${lane ? 'ucard ' + lane : ''}" data-uid="${u.uid}"${lane ? ' draggable="true"' : ''}>
-      <div class="un"><b>${esc(name(u.type))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}${move}
+      <div class="un"><b>${esc(numbered(u))}</b> <span class="lv">L${u.level}</span>${vetOf(u) ? '<span class="star" title="Veteran: slightly better aim and reload">★</span>' : ''}${move}
         <span class="men">${u.men != null ? `${u.men} / ${max} men` : 'crew'}${u.wins ? ` · ${u.wins} day${u.wins > 1 ? 's' : ''} held` : ''}</span>
         ${fat ? `<span class="fatb f${f}" data-fat title="A won day at the front tires a unit; a day in reserve rests it.">${esc(fatText(f))}</span>` : ''}${rest}</div>
       <div class="ua">
@@ -384,7 +391,7 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const isNext = !!sector && sector === nextBattle()?.id;
     const rosterHead = `<h4>${sector ? 'Roster · ' + esc(sname(sector)) : 'Unassigned units'}${sector && multi() ? ` <span class="gar ${count(sector) < garrisonOf(sector) ? 'under' : ''}">Garrison ${count(sector)} / ${garrisonOf(sector)}</span>` : ''}</h4>`;
     const roster = `<section class="roster ${isNext ? 'next' : ''}">${rosterHead}${sector ? capLine(sector) : ''}${bulk()}${sentRows()}${sector ? laneHtml(sector) : (here.map(u => unitRow(u)).join('') || '<p class="muted">None.</p>')}</section>`;
-    const intel = `<section class="intel"><h4>Intel${isNext ? ` · Day ${nextBattle().day}` : ''}</h4>${intelHtml()}</section>`;
+    const intel = `<section class="intel"><h4>Intel${isNext ? ` · Day ${deploy?.n ?? nextBattle().day}` : ''}</h4>${intelHtml()}</section>`;
     const noRp = p.rp <= 0;
     const reqs = m.has('requisition') ? `<section class="reqs"><h4>Requisition</h4><p class="sub">New units released by command${sector ? ' for ' + esc(sname(sector)) : ''}</p>${sector ? types.map(t => reqCard(t, sector)).join('') || '<p class="muted">Nothing released here yet.</p>' : '<p class="muted">Pick a sector.</p>'}</section>` : '';
     const upsHtml = m.has('upgrades') ? `<section class="ups"><h4>Upgrades</h4><p class="sub">Improve what you have${noRp ? ' · <em>No RP. Earn RP in battle.</em>' : ''}</p>${ups.map(st => `<button type="button" class="req up ${st.ok ? '' : 'off'}" data-up="${st.id}" ${st.ok ? '' : 'aria-disabled="true"'}>
@@ -392,13 +399,13 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null }
     const lower = [reqs, upsHtml].filter(Boolean);
     el.innerHTML = `
       <div class="oh"><div class="h">${deploy ? 'Requisition' : 'Depot'}</div><div class="rp"><span>Requisition points</span><b>${p.rp}</b></div></div>
-      ${deploy ? `<div class="flow"><span>Operations map</span><i>›</i><span class="on">Requisition</span><i>›</i><span>Deploy day ${deploy.day}</span></div>` : ''}
-      ${nextBattle() && m.has('depot') ? `<div class="nextb"><span>Next battle</span><b>${esc(MAPS[nextBattle().map].name)} · Day ${nextBattle().day}</b></div>` : ''}
+      ${deploy ? `<div class="flow"><span>${esc(back)}</span><i>›</i><span class="on">Requisition</span><i>›</i><span>Deploy day ${deploy.n ?? deploy.day}</span></div>` : ''}
+      ${nextBattle() && m.has('depot') ? `<div class="nextb"><span>Next battle</span><b>${esc(MAPS[nextBattle().map].name)} · Day ${deploy?.n ?? nextBattle().day}</b></div>` : ''}
       ${multi() ? `<div class="slines">${openSectors(p).filter(id => id !== nextBattle()?.id).map(sectorLine).join('')}</div>` : ''}
       ${tabs().length > 1 ? `<div class="tabs">${tabs().map(s => `<button type="button" class="tab ${s === sector ? 'on' : ''}" data-tab="${s ?? ''}">${s ? esc(sname(s)) : 'Unassigned'} <span>${p.op.units.filter(u => u.sector === s).length}</span>${s && s === nextBattle()?.id ? '<em>Next battle</em>' : ''}</button>`).join('')}</div>` : ''}
       <div class="dgrid ${lower.length ? '' : 'top'} l${lower.length}">${roster}${intel}${lower.join('')}</div>
       <div class="dmsg ${msg || confirm ? 'show' : ''} ${msgGood ? 'good' : ''} ${confirm ? 'ask' : ''}">${confirm ? `<span>${esc(confirm.text)}</span><button type="button" class="mini warn" data-a="yes">${confirm.ok}</button><button type="button" class="mini" data-a="no">${confirm.no}</button>` : esc(msg)}</div>
-      <div class="acts">${deploy ? `<button type="button" class="act main deploy" data-a="deploy"><span class="a">Deploy</span><span class="sub">${esc(MAPS[sector0].name)} · Day ${deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">Operations map</span><kbd>Esc</kbd></button>`
+      <div class="acts">${deploy ? `<button type="button" class="act main deploy" data-a="deploy"><span class="a">Deploy</span><span class="sub">${esc(MAPS[sector0].name)} · Day ${deploy.n ?? deploy.day}</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="done"><span class="a">${esc(back)}</span><kbd>Esc</kbd></button>`
         : '<button type="button" class="act main" data-a="done"><span class="a">Done</span><kbd>Esc</kbd></button>'}</div>`;
     for (const b of el.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { sector = b.dataset.tab || null; msg = ''; render(); });
     for (const r of el.querySelectorAll('.urow')) {

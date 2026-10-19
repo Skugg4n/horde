@@ -29,7 +29,7 @@ test('banorna: stridsbanan håller taket, och över taket vägrar den med ett sk
   assert.equal(canSetLane(p, L2.rest[0].uid, 'battle').reason, 'laneFull');
 });
 
-test('förslaget: de utvilade först vid samma värde, och valet följer inte med till nästa dag', () => {
+test('förslaget: de utvilade först vid samma värde, och valet står kvar till nästa dag (0.21.2)', () => {
   let p = mb();
   const L = lanes(p, 'molnbo');
   // trötta ned den bästa: den ska åka ut ur förslaget före en utvilad av samma typ och nivå
@@ -41,8 +41,31 @@ test('förslaget: de utvilade först vid samma värde, och valet följer inte me
   }
   p = setLane(p, lanes(p, 'molnbo').battle[0].uid, 'rest').progress;
   assert.ok(unitsIn(p, 'molnbo').every(u => u.lane));
+  const before = Object.fromEntries(unitsIn(p, 'molnbo').map(u => [u.uid, u.lane]));
   const won = finishDay(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;
-  assert.ok(unitsIn(won, 'molnbo').every(u => !u.lane), 'nästa dag föreslår förrådet igen');
+  // ingen gick ut (report.units tom), ingen blev utmattad: spelarens val står kvar
+  for (const u of unitsIn(won, 'molnbo')) assert.equal(u.lane, before[u.uid], `${u.uid}`);
+  assert.ok(unitsIn(won, 'molnbo').every(u => !u.moved));
+});
+
+test('tröttheten flyttar: en utmattad i striden byts mot en mindre trött i reserven, och kortet säger det (0.21.2)', () => {
+  let p = mb();
+  const L = lanes(p, 'molnbo');
+  for (const u of L.battle) p = setLane(p, u.uid, 'battle').progress;
+  const out = L.battle[0];
+  // en vunnen dag ute gör den utmattad (fatigue 1 före, +1 = 2)
+  p = { ...p, op: { ...p.op, units: p.op.units.map(u => (u.uid === out.uid ? { ...u, fatigue: 1 } : u)) } };
+  const won = finishDay(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [{ uid: out.uid }] } }).progress;
+  const u = unitsIn(won, 'molnbo').find(x => x.uid === out.uid);
+  assert.equal(u.fatigue, 2);
+  assert.equal(u.lane, 'rest');
+  assert.equal(u.moved, 'rest:exhausted');
+  const sub = unitsIn(won, 'molnbo').find(x => x.moved === 'battle:rested');
+  assert.ok(sub && sub.lane === 'battle');
+  assert.equal(lanes(won, 'molnbo').battle.length, L.cap, 'taket står');
+  // spelaren flyttar själv: raden försvinner
+  const again = setLane(won, sub.uid, 'rest').progress;
+  assert.ok(!unitsIn(again, 'molnbo').find(x => x.uid === sub.uid).moved);
 });
 
 test('uppställningen erbjuder bara stridsbanans enheter', () => {

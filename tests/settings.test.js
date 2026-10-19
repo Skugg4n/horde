@@ -15,7 +15,7 @@ test('sparade inställningar läses tillbaka, under nyckeln horde.settings', () 
   const s = fake();
   assert.equal(saveSettings({ sound: 0.3, music: 0, soundMuted: true, musicMuted: false }, s), true);
   assert.ok(s.m.has('horde.settings'));
-  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false, speed: 1, shriek: 'classic' });
+  assert.deepEqual(loadSettings(s), { sound: 0.3, music: 0, soundMuted: true, musicMuted: false, speed: 1, shriek: 'classic', hub: 'table' });
 });
 
 test('trasig eller konstig data ger standardvärden och nivåerna hålls mellan 0 och 1', () => {
@@ -59,4 +59,12 @@ test('springarens skrik: classic som standard, torn går att välja, okänt blir
   assert.equal(loadSettings(s).shriek, 'torn');
   assert.equal(normalizeSettings({ shriek: 'gurgle' }).shriek, 'classic');
   assert.equal(normalizeSettings({}).shriek, 'classic');
+});
+
+test('mellan dagarna: kartbordet som standard, de gamla skyltarna går att välja, okänt blir bordet (0.21.0)', () => {
+  assert.equal(DEFAULT_SETTINGS.hub, 'table');
+  const s = fake();
+  saveSettings({ ...DEFAULT_SETTINGS, hub: 'classic' }, s);
+  assert.equal(loadSettings(s).hub, 'classic');
+  assert.equal(normalizeSettings({ hub: 'wall' }).hub, 'table');
 });
