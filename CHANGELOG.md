@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.21.1 (kartbordet) (2026-10-19)
+
+Speltestet av 0.21.0 sa NEJ, nära (docs/playtests/2026-10-19-0.21.0-hub.md).
+
+- Korten går att läsa med många enheter: de överlappar inte längre utan läggs i två, tre eller fyra rader med mindre kort när de inte ryms i en. Varje kort har namnet, styrkan och tröttheten utan hovring, och ordningen står still när ett kort flyttas.
+- Bordet följer fönstret: skalan är minst 0,8 (texten minst 11 px i 1024x614), ytan blir mindre i små fönster och kartbladet krymper för att ge korten plats. Klämbrädan står mot nederkanten och ryms i varje storlek, och "Deploy day 13" står på en rad.
+- Operationskartans tips ("Open the sector", "The depot opens before the day") visas inte på bordet; Classic har kvar dem.
+- Samma dagnummer överallt: bordet visar banans dag ("Ishallen · Day 3", ORDER 03), som introt, HUD:en och menyn. day.campaignDay är kvar som krok för kampanjbågen.
+- En förlorad dag får ett blad överst i högen: "Day 3 lost. Try again at dawn." med utfallet. Resultatet efter en förlust säger Map table.
+- Ordern ligger lägre på rapporten, så att rapportens två översta rader går att läsa. Radion har en remsa bara natten efter en dag med sändning.
+- Layoutprovet går igenom bordet också i 1440x900 och 1920x1080, med 16 och 20 enheter, en förlorad dag, radio och ingen radio, dagnumret, tipsen, textstorleken och Deploy-knappen.
+
 ## 0.21.0 (kartbordet) (2026-10-19)
 
 Mellan dagarna ligger nu ett kartbord i brandstationen i Gnesta, byggt efter mockupen docs/mockups/kontrollrum-3.html och Olas beslut i mellansnack avsnitt 11 (H500). Det ersätter operationskartan och förrådet som två skyltar; de gamla finns kvar i spelmenyn under Between days: Classic. Spec: docs/superpowers/specs/2026-10-19-kartbordet-bygge.md. Skärmbilder: docs/hub-0.21-start.png, docs/hub-0.21-day8.png, docs/hub-0.21-molnbo.png.

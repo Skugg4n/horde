@@ -1,4 +1,4 @@
-# Kartbordet: vad som byggdes (0.21.0, 2026-10-19)
+# Kartbordet: vad som byggdes (0.21.0 och 0.21.1, 2026-10-19)
 
 Efter mockupen docs/mockups/kontrollrum-3.html och mellansnack avsnitt 10 och 11. Skärmbilder: docs/hub-0.21-start.png (dag 1), docs/hub-0.21-day8.png (kampanjens dag 8 = Ishallen dag 5, efter en riktig dag 7 med Quick jump och Auto-deploy) och docs/hub-0.21-molnbo.png (mockupens läge, Mölnbo dag 1).
 
@@ -12,19 +12,21 @@ Efter mockupen docs/mockups/kontrollrum-3.html och mellansnack avsnitt 10 och 11
 - En sak i taget. Dag 1: kartan och en lapp (dagens order) med Deploy på lappen. Fiendehögen kommer efter första mötet, radion med första remsan, korten och klämbrädan (Next battle, RP, Requisition, Deploy) med förrådet (efter Ishallen dag 2). Sektorernas lägen på kartan, rapporterade fiender och lappen What we face kommer med operationskartan (efter E4 dag 3). Grindarna är src/meta/unlocks.js, oförändrade.
 - Uppdragshögar: en per sektor, order och lägesrapport per dag i tidsordning, nyast överst. Nästa strids hög har gårdagens rapport under ordern och ett snöre till platsen. En klar sektor får ett slutblad med stämpeln HELD. Klick breder ut högen (de åtta nyaste bladen), klick eller Esc lägger ihop den.
 - Fiendehögen: ett blad per mött typ (ENEMIES i src/data/lessons.js, siluetten från FOE_ICONS). Klick på en kant lägger bladet överst.
-- Korten: förrådets två banor (lanes, setLane) som två fält. Klick flyttar ett kort till andra fältet, dra till fältet eller släpp på ett kort i andra fältet för att byta (swapCards = två setLane). Taket, tomma grupper och skälen är förrådets. Varje kort har en rygg med typ och nummer som syns även när korten ligger tätt.
+- Korten: förrådets två banor (lanes, setLane) som två fält. Klick flyttar ett kort till andra fältet, dra till fältet eller släpp på ett kort i andra fältet för att byta (swapCards = två setLane). Taket, tomma grupper och skälen är förrådets. 0.21.1: korten överlappar inte; ryms de inte i en rad blir de mindre i två till fyra rader, alltid med namn, styrka och trötthet.
 - Requisition (R eller knappen) är förrådets skylt som en klämbräda över bordet; Esc går tillbaka till bordet, Enter ställer upp.
 - Tangenter: Enter Deploy, Esc lägger ihop en utbredd hög eller öppnar menyn, R Requisition, T Tidy.
 - Deploy på bordet startar dagen direkt. Första gången förrådet har ett steg som inte setts (nivåer, rekvisition, uppgraderingar, tröttheten) går Deploy via Requisition, så att lektionerna kommer där de hör hemma.
-- Dagens nummer på bordet är kampanjens dag (ORDER 08, DAY 8). Dagens banor räknas i schemats ordning: E4 1 till 3, Ishallen 4 till 8, Vikingavägen 9 till 13, Mölnbo 14 till 18. Introkortet i striden visar fortfarande banans egen titel.
+- Dagens nummer på bordet är banans egen dag (0.21.1, speltestet: två nummer förvirrade), som introt, HUD:en och menyn: "Ishallen · Day 3", ORDER 03. day.campaignDay går före när en bana har det.
+- Bordets yta (0.21.1, src/meta/table.js frameFor): skalan minst 0,8 så att texten blir minst 11 px; i mindre fönster blir ytan mindre och kartbladet krymper. Korten och klämbrädan står mot nederkanten, fiendehögen och klämbrädan mot högerkanten.
+- En förlorad dag (0.21.1) lägger ett blad överst i högen med utfallet (table.log['lost:bana:dag']). Radion har en remsa bara natten efter en dag med sändning. Operationskartans tips visas inte på bordet.
 
 ## Sparfilen
 progress.table = { layout: { id: { x, y } }, log: { 'bana:dag': { kills, waves, lost, saved, total } } }. Valfritt fält i v4 (ingen ny version, ingen sparfil raderas); saknas eller är trasigt blir bordet tomt (normalizeTable, i loadProgress). log skrivs när en dag vinns och är det lägesrapporten skrivs ur när banan saknar egen text.
 
 ## Datafält som andra grenar fyller (alla valfria, med standard i läsande kod)
-- day.report = { from: 'MCF' | 'Försvarsmakten' | 'P4 Sörmland', text, at? }: lägesrapporten efter dagen, 40 till 60 ord. from 'P4 Sörmland' blir en radioremsa (högst 40 ord, at = klockslag "04:40"). Saknas den skrivs en kort rapport ur dagens siffror.
+- day.report = { from: 'MCF' | 'Försvarsmakten' | 'P4 Sörmland', text, at? }: lägesrapporten efter dagen, 40 till 60 ord. from 'P4 Sörmland' blir en radioremsa natten efter dagen (högst 40 ord, at = klockslag "04:40"). Saknas den skrivs en kort rapport ur dagens siffror.
 - day.order = { from, text }: ordern för dagen, högst 12 ord. Saknas den används intro.text och leveransens from (RELEASES).
-- day.campaignDay: kampanjens dagnummer på bordet (t.ex. Mölnbo dag 1 = 8 när bågen är byggd). Saknas det räknas dagarna i schemats ordning.
+- day.campaignDay: kampanjens dagnummer på bordet (t.ex. Mölnbo dag 1 = 8 när bågen är byggd). Saknas det står banans egen dag.
 - map.outro.summary: slutbladets rad (annars första meningen i outro.text).
 - Ny sektor: en rad i SECTOR_TABLE (place, current, closed, day) i src/data/table.js; utan den får högen en ledig plats och ingen markör.
 - Radio utan banans fält: RADIO i src/data/table.js (after: [bana, dag]); dagens egen P4-rapport går före.
