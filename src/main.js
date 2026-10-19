@@ -19,6 +19,9 @@ import { rerouteStreet, streetAt } from './sim/streets.js';
 import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
 import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
+// 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
+import { tableSheet } from './ui/table.js';
+import { recordDay, swapCards, campaignDay } from './meta/table.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -769,7 +772,7 @@ function forwardClick(x, y) {
   if (btn && !btn.closest('#coach')) btn.click();
 }
 // Med något i handen: ett klick på något i gränssnittet som inte gör något säger det vid pekaren
-const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #tailarrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual';
+const CLICKABLE = 'button, a, input, select, label, .card, .panel, #minimap, .pip, .sqtag, .arcflag, .entry, #basearrow, #tailarrow, #coach, #enemycard, #pausemenu, .sheet, #debug, #manual, #hub, #hubback';
 addEventListener('click', e => {
   if (!placing || mode !== 'play' || e.button !== 0) return;
   const t = e.target;
@@ -1877,6 +1880,8 @@ addEventListener('keydown', e => {
   // 0.17.1: Esc har en enda ordning (src/sim/clock.js escapeAction): det man håller, panelen, lektionsraden, menyn
   if (e.key === 'Escape') {
     e.preventDefault();
+    // 0.21.0: på kartbordet lägger Esc ihop en utbredd hög, annars öppnas spelmenyn
+    if (mode === 'opmap' && sheet?.escape && !menu.isOpen()) { if (!e.repeat && !sheet.escape()) menu.show(); return; }
     const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
       category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS,
       lesson: !!lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption') });
@@ -1905,6 +1910,11 @@ addEventListener('keydown', e => {
     const r = chord.press(/^Key/.test(e.code) ? e.code.slice(-1) : Number(e.code.slice(-1)), performance.now() / 1000);
     if (r.t === 'pick') startPlacing(r.id);
     else if (r.t === 'category' || r.t === 'close') audio.ui('click');
+  }
+  // 0.21.0: kartbordet, R öppnar Requisition och T städar bordet
+  if (mode === 'opmap' && sheet?.requisition && !menu.isOpen() && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (e.code === 'KeyR') { e.preventDefault(); sheet.requisition(); return; }
+    if (e.code === 'KeyT') { e.preventDefault(); sheet.tidy(); return; }
   }
   // en Enter gör en sak (skylten byts i samma tryck: else if)
   if (e.key === 'Enter' && !e.repeat) {
@@ -2431,9 +2441,46 @@ function showMenu() {
   setMode('menu', () => mainMenu(uiRoot, {
     version: VERSION, started, rp: progress.rp, status,
     // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
-    onContinue: () => (meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
-    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
+    // 0.21.0: med kartbordet börjar varje dag vid bordet (dag 1: kartan och en lapp)
+    onContinue: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
+    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); if (hubTable()) showTable(); else loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
   }));
+}
+// ---------- kartbordet (0.21.0, src/ui/table.js) ----------
+const hubTable = () => settings.hub !== 'classic';
+// Skylten mellan dagarna: kartbordet, eller operationskartan med inställningen Classic
+function showBetween() { if (hubTable()) showTable(); else showOpMap(); }
+// Förrådets steg som inte setts än (lektionerna i förrådet): då går Deploy på bordet via Requisition en gång, så att
+// inlärningens steg (nivåer, rekvisition, uppgraderingar, tröttheten) kommer där de hör hemma
+function depotLessonPending() {
+  return STAGES.filter(s => s.after && stageReached(progress, s)).flatMap(s => LESSONS[s.id] ?? [])
+    .some(l => l.when === 'depot' && !isSeen(progress, l.id) && shows(progress, l.kind));
+}
+const TABLE_ACTS = {
+  lane: (p, uid, lane) => setLane(p, uid, lane),
+  swap: (p, a, b) => swapCards(p, a, b),
+};
+function showTable() {
+  setMode('opmap', () => tableSheet(uiRoot, progress, {
+    onGo: id => tableGo(id),
+    onRequisition: id => { const m = currentMap(progress, id) ?? id, d = MAPS[m] ? nextDay(progress, m) : null; showDepot(m, 'table', d ? { day: d, n: campaignDay(m, d) } : null); },
+    act: (kind, ...args) => {
+      const r = TABLE_ACTS[kind](progress, ...args);
+      if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
+      return r;
+    },
+    save: p => { progress = p; save(); },
+  }));
+  // inkorgen räknas som läst (bordet visar ledningens rader som order)
+  progress = markRead(progress); save();
+}
+// Deploy på bordet: korten är redan valda, dagen startar (första gången förrådet har ett steg att visa: via Requisition)
+function tableGo(sectorId) {
+  const id = currentMap(progress, sectorId) ?? sectorId;
+  const d = MAPS[id] ? nextDay(progress, id) : null;
+  if (!d) return;
+  if (meta('depot') && depotLessonPending()) { showDepot(id, 'table', { day: d, n: campaignDay(id, d) }); return; }
+  deploySector(id);
 }
 // ---------- operationskartan och förrådet (0.14.0) ----------
 function showOpMap() {
@@ -2458,7 +2505,7 @@ function goSector(sectorId) {
 }
 function deploySector(id) {
   const d = meta('opmap') ? nextDay(progress, id) : Math.min(mapState(progress, id).unlockedDay, MAPS[id].days.length);
-  if (!d) { showOpMap(); return; }
+  if (!d) { showBetween(); return; }
   progress = selectMap(progress, id); save();
   loadMap(id).then(() => { hud.reset(); startDay(d); });
 }
@@ -2477,20 +2524,28 @@ const DEPOT_ACTS = {
 };
 function showDepot(sector, from = 'opmap', deploy = null) {
   void from;
-  setMode('depot', () => depotSheet(uiRoot, progress, sector, {
-    act: (kind, ...args) => {
-      const r = DEPOT_ACTS[kind](progress, ...args);
-      if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
-      return r;
-    },
-    onDone: () => showOpMap(),
-    onDeploy: () => deploySector(sector),
-  }, { deploy }));
+  // 0.21.0: med kartbordet ligger förrådet som en klämbräda över bordet (bordet syns bakom), och Esc går tillbaka dit
+  const table = hubTable();
+  setMode('depot', () => {
+    const back = table ? tableSheet(uiRoot, progress, {}, { backdrop: true }) : null;
+    const d = depotSheet(uiRoot, progress, sector, {
+      act: (kind, ...args) => {
+        const r = DEPOT_ACTS[kind](progress, ...args);
+        if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
+        return r;
+      },
+      onDone: () => showBetween(),
+      onDeploy: () => deploySector(sector),
+    }, { deploy, back: table ? 'Map table' : 'Operations map' });
+    if (!back) return d;
+    d.el.classList.add('onclip');
+    return { ...d, close: () => { d.close(); back.close(); } };
+  });
 }
 function startDay(n) {
   victoryWait = null;
   const cfg = opStartConfig(progress, n);
-  if (!cfg) { showOpMap(); return; }
+  if (!cfg) { showBetween(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
   failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
@@ -2556,6 +2611,11 @@ function finishDay() {
   const before = progress;
   const f = finishOpDay(progress, { mapId: map.id, day, won, intelEarned: sim.intelEarned, report, evac: sim.evac });
   progress = f.progress;
+  // 0.21.0: kartbordets lägesrapport skrivs ur dagens siffror när banan saknar egen text (src/meta/table.js)
+  if (won) {
+    const lost = (report?.units ?? []).reduce((a, u) => { const unit = before.op.units.find(x => x.uid === u.uid); return a + (unit?.men != null && u.alive != null ? Math.max(0, unit.men - u.alive) : 0); }, 0);
+    progress = recordDay(progress, { mapId: map.id, day, kills: sim.kills, waves: sim.dayCfg.waves.length, lost, saved: sim.evac?.safe ?? null, total: sim.evac?.total ?? null });
+  }
   save();
   // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)
   const losses = (report?.units ?? []).map(u => {
@@ -2577,11 +2637,11 @@ function showResult() {
   // 0.16.0: RP syns först när förrådet öppnar; före kartan går knappen direkt till nästa dag; efter en förlust
   // föreslås dagens uppslag i Field manual (designen avsnitt 5.3)
   const i = dayStage(map.id, day), entry = !lastResult.won && meta('manual') ? (LESSONS[STAGES[i]?.id] ?? []).map(l => manualEntry(l.manual)).find(Boolean) : null;
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: meta('opmap') ? 'Operations map' : 'Next day',
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
     manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
-    onRetry: () => (meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
-    onOpMap: () => (meta('opmap') ? showOpMap() : deploySector(map.id)),
+    onRetry: () => (meta('depot') ? showDepot(map.id, 'result', hubTable() ? { day, n: campaignDay(map.id, day) } : { day }) : startDay(day)),
+    onOpMap: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(map.id)),
     onMenu: showMenu,
     onManual: id => openManual(id),
   }));
@@ -2687,6 +2747,8 @@ if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return ro
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
   showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
+  // 0.21.0: kartbordet (prov och skärmbilder)
+  showTable: () => showTable(), get hub() { return settings.hub; }, setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); }, get sheet() { return sheet; },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
@@ -2818,6 +2880,9 @@ const menu = mountMenu(uiRoot, {
   // Öppnandet avbryter placering och panel: inget ska hänga kvar när spelet fortsätter.
   onOpen: () => { stopPlacing(); closePanel(); hovered = null; },
   tipsMode: () => tipsMode(progress), setTipsMode: m => { progress = setTipsMode(progress, m); save(); },
+  // 0.21.0: mellan dagarna, kartbordet eller de gamla skyltarna (jämförelse)
+  hub: () => settings.hub,
+  setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); if (mode === 'opmap' || mode === 'depot') showBetween(); },
   manualOk: () => meta('manual'), openManual: () => openManual(),
   resetTips: () => { progress = resetTips(progress); save(); },
   onClose: () => {},

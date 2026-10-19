@@ -13,6 +13,9 @@ export const MENU_ITEMS = [
   // 0.16.0 (inlärningen, designen avsnitt 5.4): tipsens läge, Field manual och Reset tips
   { id: 'tips', type: 'choice', label: 'Tips', options: ['on', 'new', 'off'], format: o => ({ on: 'On', new: 'New only', off: 'Off' })[o],
     value: c => c.tipsMode(), set: (c, o) => c.setTipsMode(o) },
+  // 0.21.0: mellan dagarna kartbordet (standard) eller de gamla skyltarna, operationskartan och förrådet
+  { id: 'hub', type: 'choice', label: 'Between days', options: ['table', 'classic'], format: o => ({ table: 'Map table', classic: 'Classic' })[o],
+    enabled: c => !!c.hub, value: c => c.hub?.() ?? 'table', set: (c, o) => c.setHub?.(o) },
   { id: 'manual', type: 'button', label: 'Field manual', kbd: 'J', enabled: c => c.manualOk(), run: c => c.openManual() },
   { id: 'resettips', type: 'button', label: 'Reset tips',
     confirm: () => ({ title: 'Reset tips?', text: 'Every tip shows again. What you have unlocked stays.', ok: 'Reset' }),
