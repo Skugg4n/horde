@@ -9,7 +9,7 @@ import { fogSheet } from './gnesta-ghost.js';
 import { createFortify } from './fortify.js';
 import { pattern } from './gnesta-world.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
-import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS, INBOUND } from '../data/molnbo.js';
+import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS, INBOUND, LINK, uOnBridge } from '../data/molnbo.js';
 import {
   MP, seg, bridge, stairTower, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
   cafeHarmoni, missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn,
@@ -127,14 +127,14 @@ function paintLand(map, { bounds, ppm, fadeEdges = false }) {
   const roads = map.roads.filter(rd => rd.paint !== false && !rd.bridge).sort((a, b) => order[a.surface] - order[b.surface]);
   for (const rd of roads) if (rd.surface === 'asphalt') line(rd.pts, rd.width + 0.5, '#8d887a'); else line(rd.pts, rd.width + 1.2, GP.gravelDark, { blur: 2, alpha: 0.5 });
   for (const rd of roads) line(rd.pts, rd.width, rd.surface === 'asphalt' ? P.asphalt : P.gravel);
-  // brofästenas asfalt på marken (där ramperna når marken) och folkets hus plan
-  for (const id of ['v57', 'foot']) {
+  // brofästenas asfalt på marken (där ramperna når marken)
+  for (const id of ['v57']) {
     const rd = map.roads.find(x => x.id === id), [a, b] = rd.rail;
     for (const [s, e] of [[a, [a[0] + (b[0] - a[0]) * 0.07, a[1] + (b[1] - a[1]) * 0.07]], [b, [b[0] + (a[0] - b[0]) * 0.07, b[1] + (a[1] - b[1]) * 0.07]]]) line(rail([s, e]), rd.width, P.asphalt);
   }
   for (const rd of map.roads.filter(x => x.center)) line(rd.pts, 0.14, 'rgba(225,218,200,0.5)', { dash: [3, 6], cap: 'butt' });
-  // övergångsställen vid korsningen
-  for (const [u, v, a] of [[-12, 31.5, 0], [0, 40, Math.PI / 2], [6, 32, Math.PI / 2]]) {
+  // övergångsställen vid korsningen vid caféet (J)
+  for (const [u, v, a] of [[-21, 37.5, 0], [-11, 40, Math.PI / 2], [-6, 33, Math.PI / 2]]) {
     const [x, z] = R(u, v);
     g.save(); g.translate(X(x), Z(z)); g.rotate(-RAIL_RY + a); g.fillStyle = 'rgba(225,218,200,0.6)';
     for (let k = -3; k <= 3; k++) g.fillRect(k * 0.9 * ppm - 0.25 * ppm, -2.2 * ppm, 0.5 * ppm, 4.4 * ppm);
@@ -190,18 +190,17 @@ export function buildMolnbo(scene, map) {
   }
   // kontaktledningen: portaler var 30:e meter, linorna i ett anrop
   const wirePairs = [];
-  // portalerna står var 30:e meter, men inte på broarna: en på var sida (u -38 och 32), och linorna går
-  // inte genom däcken (glappet mellan dem)
-  const portalUs = [];
-  for (let u = -300; u <= 300; u += 30) portalUs.push(u === -30 ? -38 : u === 30 ? 32 : u);
+  // portalerna står var 30:e meter, men inte under bron (0.20.0: vägbron korsar spåret snett, mellan u där däcket
+  // ligger över spåren), och linorna går inte genom däcket (glappet där en portal fattas)
+  const bu0 = Math.min(uOnBridge(RAIL.corridor[0]), uOnBridge(RAIL.corridor[1])) - 8, bu1 = Math.max(uOnBridge(RAIL.corridor[0]), uOnBridge(RAIL.corridor[1])) + 8;
   let lastU = null;
-  for (const u of portalUs) {
-    if (u === 0) { lastU = null; continue; }
+  for (let u = -300; u <= 300; u += 30) {
+    if (u > bu0 && u < bu1) { lastU = null; continue; }
     const [x, z] = R(u, -1); const o = outsideD(crisp, x, z);
     if (o > REACH) { lastU = null; continue; }
     catenaryPortal(o < 22 ? b : fb, RM, u, [-14.2, 11.4]);
-    if (lastU != null && o < 60 && !(lastU === -38 && u === 32)) for (const v of RAIL.tracks) { wirePairs.push([[lastU, 5.7, v], [u, 5.7, v]]); wirePairs.push([[lastU, 6.9, v], [u, 6.9, v]]); }
-    lastU = u === 32 || u !== 0 ? u : null;
+    if (lastU != null && o < 60) for (const v of RAIL.tracks) { wirePairs.push([[lastU, 5.7, v], [u, 5.7, v]]); wirePairs.push([[lastU, 6.9, v], [u, 6.9, v]]); }
+    lastU = u;
   }
   scene.add(wires(RM, wirePairs));
   // perrongerna, väntkurerna, avgångsskylten och namnskylten
@@ -215,29 +214,25 @@ export function buildMolnbo(scene, map) {
     b.box(M, -1.4, 2.1, 0, 0.12, 2.6, 0.12, MP.shelterFrame, 'metal'); b.box(M, 1.4, 2.1, 0, 0.12, 2.6, 0.12, MP.shelterFrame, 'metal');
     signs.add(placeIn(signMesh('Mölnbo', 3.2, 0.7, { bg: '#2c3033', fg: '#e8e6df', font: 'Arial, sans-serif', weight: 600 }), M, 0, 3.1, 0.08));
   }
-  // broarna och trapptornen
+  // bron och trapptornen (0.20.0: en bro, väg 57; trapptornen står vid vägbrons västra kant)
   bridge(b, RM, map.bridge, DECK_H, {});
-  bridge(b, RM, map.foot, DECK_H, { foot: true, pillars: [-3.25, 1.4] });
-  // 0.17.1: trappan på sidan bort från spåren, gångbryggan i däckets höjd mot gångbron
-  for (const t of TOWERS) {
-    const fu = map.foot.a[0] + (map.foot.a[1] - t.at[1]) * (map.foot.b[0] - map.foot.a[0]) / (map.foot.a[1] - map.foot.b[1]);
-    stairTower(b, frame(RM, t.at[0], 0, t.at[1]), t.size, t.h, { side: t.at[1] < 0 ? -1 : 1, deck: DECK_H, link: fu - map.foot.width / 2 - t.at[0] });
-  }
-  // trappan ner från gångbron till norra perrongen
-  for (let k = 0; k < 9; k++) b.box(RM, -12.2 + k * 0.85, RAIL.platformN.h + 0.2 + k * (DECK_H - RAIL.platformN.h) / 9, -9.4, 0.85, 0.25, 2.3, MP.concreteLight);
-  // 0.17.1: bröstning och ledstång längs trappan, som trapptornens lopp
+  // 0.17.1: trappan på sidan bort från spåren, gångbryggan i däckets höjd mot vägbrons kant
+  const westEdge = v => uOnBridge(v) - map.bridge.width / 2;
+  for (const t of TOWERS) stairTower(b, frame(RM, t.at[0], 0, t.at[1]), t.size, t.h, { side: t.at[1] < 0 ? -1 : 1, deck: DECK_H, link: westEdge(t.at[1]) - t.at[0] });
+  // trappan från norra perrongen upp på vägbrons däck (LINK), med bröstning och ledstång som trapptornens lopp
   {
-    const y0 = RAIL.platformN.h + 0.2, y1 = RAIL.platformN.h + 0.2 + 8 * (DECK_H - RAIL.platformN.h) / 9;
-    for (const v of [-10.6, -8.2]) {
-      seg(b, RM, [-12.6, y0 + 0.35, v], [-5.0, y1 + 0.35, v], 0.14, 0.9, MP.concrete);
-      seg(b, RM, [-12.6, y0 + 1.0, v], [-5.0, y1 + 1.0, v], 0.06, 0.06, MP.steel, 'metal');
+    const n = 14, u0 = LINK.u0 + 1, u1 = LINK.u1 - 1.2, du = (u1 - u0) / n, y0 = RAIL.platformN.h + 0.2;
+    for (let k = 0; k < n; k++) b.box(RM, u0 + du * (k + 0.5), y0 + (k + 0.5) * (DECK_H - y0) / n, LINK.v, du + 0.02, 0.25, LINK.w - 0.1, MP.concreteLight);
+    for (const v of [LINK.v - LINK.w / 2 - 0.05, LINK.v + LINK.w / 2 + 0.05]) {
+      seg(b, RM, [u0, y0 + 0.35, v], [u1, DECK_H + 0.35, v], 0.14, 0.9, MP.concrete);
+      seg(b, RM, [u0, y0 + 1.0, v], [u1, DECK_H + 1.0, v], 0.06, 0.06, MP.steel, 'metal');
     }
   }
-  // räcket och bergskärningen längs Fagernäsvägen
-  roadRail(b, RM, 20, 78, 25.3); roadRail(b, RM, 106, 118, 25.6);
+  // räcket och bergskärningen längs Fagernäsvägen (räcket mellan vägen och spårets slänt)
+  roadRail(b, RM, -4, 40, 30.2); roadRail(b, RM, 44, 92, 31.6);
   for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v + 0.6), u1 - u0, ROCK.depth, ROCK.h, r);
   // slänten ner mot spåret söder om perrongen: buskar
-  for (let u = -110; u < 60; u += 4.2) { const [x, z] = R(u + r.range(-1, 1), 13.5 + r.range(0, 2)); if (inC(x, z, 10)) b.put(UNIT.blob, null, x, 0.6, z, r.range(1.6, 2.6), r.range(1.0, 1.7), r.range(1.6, 2.6), r.pick(GP.hedge), 'matte', r() * 6); }
+  for (let u = -110; u < 60; u += 4.2) { const v = 13.5 + r.range(0, 2), [x, z] = R(u + r.range(-1, 1), v); if (inC(x, z, 10) && Math.abs(u - uOnBridge(v)) > 7) b.put(UNIT.blob, null, x, 0.6, z, r.range(1.6, 2.6), r.range(1.0, 1.7), r.range(1.6, 2.6), r.pick(GP.hedge), 'matte', r() * 6); }
 
   // ---------- tåget ----------
   const tb = createBatch();
@@ -251,7 +246,9 @@ export function buildMolnbo(scene, map) {
   // ---------- husen ----------
   const fronts = new Map();
   scene.userData.houseFronts = fronts;
-  const KIT = { station: stationHouse, mission: missionHouse, yellow: yellowHouse, white: whiteHouse, chain: chainHouses, hembygd: hembygdsgard, kvarn: kvarnen, apartment };
+  // 24Food (0.20.0): en liten butik på stationsparkeringen, som en grå bod
+  const shop = (bb, M, h) => shed(bb, M, { w: h.w, d: h.d, color: '#8c8c86' });
+  const KIT = { station: stationHouse, mission: missionHouse, yellow: yellowHouse, white: whiteHouse, chain: chainHouses, hembygd: hembygdsgard, kvarn: kvarnen, apartment, shop };
   for (const h of map.buildings) {
     const M = frame(null, h.x, 0, h.z, h.ry), bb = pickB(h.x, h.z);
     if (h.kind === 'villa') {
@@ -265,11 +262,11 @@ export function buildMolnbo(scene, map) {
     const F = FOLKETS;
     signs.add(folketsHus(b, frame(null, F.x, 0, F.z, F.ry), F));
   }
-  // gärdsgården runt Hembygdsgården
-  { const hb = map.buildings.find(h => h.id === 'hembygd'); logFence(pickB(hb.x, hb.z), frame(null, hb.x, 0, hb.z, hb.ry), [[-11, -8], [11, -8], [11, 8], [-11, 8], [-11, -2]]); }
+  // gärdsgården runt Hembygdsgården (finns den på kartan)
+  { const hb = map.buildings.find(h => h.id === 'hembygd'); if (hb) logFence(pickB(hb.x, hb.z), frame(null, hb.x, 0, hb.z, hb.ry), [[-11, -8], [11, -8], [11, 8], [-11, 8], [-11, -2]]); }
   // trafikljusen vid korsningen, vända mot korsningens mitt
   {
-    const [jx, jz] = R(-6, 34);
+    const [jx, jz] = R(map.bridge.a[0], map.bridge.a[1]);
     map.lights.forEach(([x, z], i) => trafficLight(b, frame(null, x, 0, z, Math.atan2(-(jz - z), jx - x)), i % 3));
   }
   // kantsten och gatlyktor (som Gnesta)
@@ -463,7 +460,22 @@ export function buildMolnbo(scene, map) {
   inbound.add(broken);
   inbound.rotation.y = RAIL_RY; inbound.visible = false;
   scene.add(inbound);
+  // ---------- förlorad mark (0.20.0, Mölnbo dag 3) ----------
+  // setLost(poly): en mörkröd hinna över norra sidan (polygonen i världen, klippt till omgivningen), null tar bort den.
+  let lostMesh = null;
+  const setLost = poly => {
+    if (lostMesh) { scene.remove(lostMesh); lostMesh.geometry.dispose(); lostMesh.material.dispose(); lostMesh = null; }
+    if (!poly) return;
+    const cl = poly.map(([x, z]) => [Math.min(EXT.x1, Math.max(EXT.x0, x)), Math.min(EXT.z1, Math.max(EXT.z0, z))]);
+    const shape = new THREE.Shape(cl.map(([x, z]) => new THREE.Vector2(x, -z)));
+    const geo = new THREE.ShapeGeometry(shape);
+    geo.rotateX(-Math.PI / 2);
+    lostMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#6b1410', transparent: true, opacity: 0.32, depthWrite: false }));
+    lostMesh.position.y = 0.12; lostMesh.renderOrder = 2; lostMesh.name = 'molnbo-lost';
+    scene.add(lostMesh);
+  };
   scene.userData.molnbo = {
+    setLost,
     depart() { if (!dep) dep = { t: 0 }; },
     reset() { dep = null; train.position.copy(home); train.visible = true; inbound.visible = false; },
     get departed() { return !!dep; },
