@@ -1160,3 +1160,31 @@ Fingeravtrycken, alla nya avsiktligt utom E4 dag 1:
 - mbSmart: d71cc6d9, c73e046d, 92e246da, 0c272f1e, 03a530a8; naive: 579bb76c, 972a565c, a84d179d, cf77065c, 2d2e2051
 - simuleringens kvitto: E4 day 2 5d0128c1 (vinner med 18, var 20), Gnesta South day 3 8a57a9a2, Gnesta North day 2 dabfdccd
 - Ankomsten till Mölnbo (src/data/arrival.js) omräknad: wireTough.1 med i forskningen, infanterigruppen på nivå 1 saknas, M2 och Ak 5 på nivå 2.
+
+## 0.19.2: speltestet av 0.19.1
+
+Speltestet sa NEJ, men nära (docs/playtests/2026-10-19-0.19.1.md). Dag 4: "vandrare med cirka 1 140 hp gick förbi mitt kluster till basen från cirka 270 s, tre försök i rad", och det syntes inte var.
+
+Läckorna mätta med läckmarkeringen (src/ui/leaks.js, samma regel som i spelet: förbi de sista försvararna, ingen enhet täcker resten av vägen) över naive dag 4, seed 0 till 2, hp 38:
+
+    seed 0  288 s Stenbyvägen (38, 91), 310 till 369 s Folkets hus (59, 103) fyra gånger, 410 s Stenbyvägen
+    seed 1  291 s Stenbyvägen (36, 91), 329 och 374 s Folkets hus, 408 s Stenbyvägen (fyra på en gång)
+    seed 2  408 och 417 s Skolvägen (70, 58)
+
+Läckan är den sista biten av Stenbyvägen fram till Folkets hus, där alla tre ingångarna (väg 57, Fagernäsvägen och Norrbacken) går ihop. Täckningen längs vägarna vid 200 s (enheter som har rutan inom räckvidd och sikt, var femte ruta, de sista fjorton):
+
+    naive    Stenbyvägen 1 till 4, Folkets hus 1, 1, 0
+    mbSmart  Stenbyvägen 0 till 7, Folkets hus 1, 1, 0
+
+Vägen går alltså att täcka med en vanlig uppställning (naive har 2 till 4 enheter på den), och kartläsaren har inte mer vid Folkets hus än naive; skillnaden är att han samlar elden längs Stenbyvägen. Det är ingen väg som inte går att försvara, men trycket när pendeltåget signalerar (dagens hp 38: en vandrare tål 38 gånger sin grund) var för högt för den som håller. Nu när läckan syns ska det gå att se och flytta mot den.
+
+Ändringar:
+- Mölnbo dag 4: hp 38 till 36. Prövat i 0.19.1: 36 vann alla med 6 till 12 för naive. Inget annat ändrat.
+
+Mätt (fem seeds), bas vid dagens slut:
+
+    mbSmart  dag 4: 19, 19, 20, 20, 20 (var 18, 20, 20, 20, 20); dag 5: 14, 15, 10, 13, 15 (oförändrat)
+    naive    dag 4: 9, 12, 11, 12, 6 (var 10, 9, 1, 7, 2); dag 5: 7, 6, 11, 7, 11 (var 7, 2, 11, 1, 11)
+             alla dagar på första försöket; basen vid tågets signal 20 i alla
+
+Den som håller betalar fortfarande (naive högst 12 dag 4, provet i tests/molnbo.test.js), men ingen seed slutar på 1 eller 2. Fingeravtrycken dag 4 och 5 nya, avsiktligt: mbSmart a7c97377, a447e4e0; naive 06a2f8c6, 6b3b70bd. Dag 1 till 3 orörda.

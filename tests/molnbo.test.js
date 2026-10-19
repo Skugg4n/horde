@@ -319,10 +319,12 @@ test('vågorna: högst två ute samtidigt på varje dag, båda spelarna', () => 
 // om 40 % är nere), pendeltåget i tredje vågen och avgången 420 s dag 4, våg 3 och 4 mindre, hp dag 3 17,5 till 18, dag 4 32
 // till 38, dag 5 15 till 19, snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag. Naive når dag 5.
 // docs/balance-log.md 0.19.1.
+// 0.19.2: dag 4 och 5 nya, avsiktligt: dag 4 hp 38 till 36 (speltestet av 0.19.1: vandrarna läckte förbi vid Folkets hus
+// från cirka 270 s, tre försök i rad). Dag 1 till 3 orörda. docs/balance-log.md 0.19.2.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och naive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'd71cc6d9', 'molnbo 2': 'c73e046d', 'molnbo 3': '92e246da', 'molnbo 4': '0c272f1e', 'molnbo 5': '03a530a8' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': '579bb76c', 'molnbo 2': '972a565c', 'molnbo 3': 'a84d179d', 'molnbo 4': 'cf77065c', 'molnbo 5': '2d2e2051' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'd71cc6d9', 'molnbo 2': 'c73e046d', 'molnbo 3': '92e246da', 'molnbo 4': 'a7c97377', 'molnbo 5': 'a447e4e0' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '579bb76c', 'molnbo 2': '972a565c', 'molnbo 3': 'a84d179d', 'molnbo 4': '06a2f8c6', 'molnbo 5': '6b3b70bd' });
 });
 
 // 0.19.0 (H457, Olas Mölnbo dag 2: "horden gick rätt bana, efter en våg krossade bjässar skrotbilarna och alla vände").

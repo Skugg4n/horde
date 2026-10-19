@@ -697,7 +697,9 @@ export const DAYS = [
   // arrival (H452): 30 s in i fjärde vågen ("Brutes at the bridge!") står pendeltåget vid norra perrongen; förvarningen
   // 9 s före. 50 kliver ut. hp 38 till 32 (tåget i tredje vågen med hp 38 tog basen i alla seeds, och balansens
   // uppställning utan policyns ordrar förlorade dag 4 med 34; docs/balance-log.md 0.19.0).
-  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 38, overlap: 50, overlapMin: 0.4, train: { at: 420 },
+  // 0.19.2 (speltestet av 0.19.1: vandrarna läckte förbi vid Folkets hus från cirka 270 s, tre försök i rad): hp 38 till 36.
+  // Läckan är den sista biten av Stenbyvägen, där alla tre ingångarna går ihop; den går att täcka, men trycket var för högt.
+  { n: 4, supplies: 600, arsenal: ALL, startCash: 2200, hp: 36, overlap: 50, overlapMin: 0.4, train: { at: 420 },
     arrival: { wave: 2, at: 35, warn: 12, doors: INBOUND.doors,
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
     intro: { title: 'Day 4: North side', text: 'More of them north of the tracks. Close the bridges.' },
