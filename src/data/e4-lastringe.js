@@ -8,7 +8,8 @@
 // motorvägen, parallellt, och väg 224 går norrut från 800 vid busshållplatsen. Två ramper svänger upp
 // från E4 och går ihop i en stam som möter väg 800 i en T-korsning. Där står vägspärren (basen).
 //
-// Horden kommer längs E4 från sydväst (Nyköping) och tar avfarten upp mot korsningen (dag 1). Dag 2
+// Horden kommer norrut längs E4 från sydväst (Nyköping) och tar avfarten upp mot korsningen och väg 224 (dag 1; kampanjbågen,
+// kampanjplanen avsnitt 10: "hindra gruppen från att nå väg 224 vid trafikplats Lästringe"). Dag 2
 // kommer en andra grupp från nordost och går uppför påfarten, fel håll. Mellan ramperna står en
 // knäckt långtradare och en bilkö tvärs över motorvägen: där går ingen, så dag 1 har bara en väg.
 import { buildPlace, rect, inRect, KIND } from '../sim/placement.js';
@@ -387,15 +388,16 @@ const INF_AT = [1, -13], EPA_AT = [7, -13];
 export const E4_SPOTS = [[3, -3], [-1, 1], [-15, 13], [-29, 17]];
 export const DAYS = [
   { n: 1, intel: 'known', supplies: 300, startCash: 700, hp: 2.8,
-    intro: { title: 'Day 1: The roadblock', text: 'Hold the E4 at Lästringe.' },
+    intro: { title: 'Day 1: The roadblock', text: 'North up the E4 from Nyköping. Keep them off väg 224.' },
     preset: [{ type: 'inf', at: INF_AT }], late: [{ type: 'm249', wave: 1 }], spots: E4_SPOTS,
     waves: [ { groups: [g('walker', 14, 1.2, 0, 'nykoping')] },
              { groups: [g('walker', 22, 0.8, 0, 'nykoping')] },
              // 0.16.1 (speltestet av 0.16.0: "sista vågen 2 till 3 gånger den näst sista", 14 / 22 / 40): 32 i våg 3
              { groups: [g('walker', 20, 0.6, 0, 'nykoping'), g('walker', 12, 0.5, 18, 'nykoping')] } ] },
   // 0.16.4 (Olas feedback: "dag 2 är orättvis, Södertälje kommer plötsligt och man kan inte flytta"): båda ingångarna
-  // syns från början (foretell: etiketten "From wave 2" och vägen därifrån), raden före våg 2 varnar, och Move (M)
-  // är dagens andra lektion, så att den som ställt allt mot Nyköping kan flytta en pjäs (src/data/lessons.js e4-2).
+  // syns från början (foretell: etiketten "From wave 2" och vägen därifrån) och raden före våg 2 varnar. Move (M) var
+  // dagens andra lektion; 0.20.0 (H497) kommer den med radion på Ishallen dag 3, och här flyttar man i uppställningen
+  // mellan vågorna (Reposition). Kampanjbågen: gruppen går norrut längs E4 från Nyköping, Södertälje är dag 2:s överraskning.
   { n: 2, supplies: 250, startCash: 800, hp: 3.2, bounty: 0.6, foretell: ['sodertalje'],
     intro: { title: 'Day 2: Two roads', text: 'Runners from Nyköping, then Södertälje. Wire buys you time.' },
     preset: [{ type: 'inf', at: INF_AT }],
@@ -408,7 +410,7 @@ export const DAYS = [
   // fyra klungor (var 36 i fem). Förut kom all skada i våg 3. Bounty 0,4 till 0,3: överskottet efter dagen var
   // 420 till 470 dollar och går nu till trådarna (170 till 200 kvar).
   { n: 3, supplies: 200, startCash: 1200, hp: 1.0, bounty: 0.3,
-    intro: { title: 'Day 3: Brutes', text: 'Brutes tonight. The Ksp 88 hits hard.' },
+    intro: { title: 'Day 3: Brutes', text: 'Brutes from Nyköping and Södertälje. The Ksp 88 hits hard.' },
     preset: [{ type: 'epa', at: EPA_AT }, { type: 'inf', at: INF_AT }],
     waves: [ { groups: [g('walker', 18, 0.9, 0, 'nykoping'), g('runner', 8, 1.2, 5, 'sodertalje')] },
              { groups: [g('walker', 16, 0.8, 0, 'nykoping'), g('runner', 16, 0.5, 4, 'sodertalje'), g('brute', 7, 1.5, 10, 'nykoping'),

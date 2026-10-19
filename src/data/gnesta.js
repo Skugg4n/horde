@@ -842,7 +842,8 @@ export function gnestaTown() {
 export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
-// dag 5 allt). Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
+// dag 5 allt). 0.20.0 (kampanjbågen dag 4 till 6: "fiender närmar sig östra Gnesta"): alla tre ingångarna ligger österut från
+// ishallen (Sigtunavägen öst, Norra vägen i nordost, skogsvägen i sydost); introna säger varifrån. Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 // lead (0.10.2, tempot): gruppen har redan gått så många sekunder när vågen startar (src/sim/sim.js),
 // så att första skottet kommer efter 15 till 20 s. Dagens första grupp delas: de första går före.
@@ -867,7 +868,7 @@ const ARSENAL = [
 export const DAYS = [
   { n: 1, supplies: 350, startCash: 700, hp: 1.9, arsenal: ARSENAL[0], squads: 4,
     // 0.16.0 (inlärningen): introt är en rubrik och en rad; de civila, linjen och de frivilliga lär lektionerna ut
-    intro: { title: 'Day 1: Civilians', text: 'Get the civilians to the ice rink.' },
+    intro: { title: 'Day 1: Civilians', text: 'They come from the east. Get the civilians to the ice rink.' },
     objective: 'Hold until the civilians reach the ice rink.',
     // de civila: fem familjer i villorna öster om rondellen, ut när vågen börjar och in mot ishallen
     // 0.14.1 (speltestet av 0.14.0: familjerna dog utanför bild långt österut): husen närmare rondellen
@@ -891,7 +892,7 @@ export const DAYS = [
   // 0.16.2 (speltestet av 0.16.1: "en mur", 45 / 70 / 98 och två förluster, och fem nyheter före första vågen):
   // ett begrepp, barrikaderna och hordens väg. En ingång (Sigtunavägen öst); Norra vägen kommer dag 3 och
   // Hemvärnet med den. Vågorna DAYS2_WAVES (se balansloggen 0.16.2).
-  { n: 2, supplies: 450, startCash: 1300, hp: 1.8, arsenal: ARSENAL[1], intro: { title: 'Day 2: Barricades', text: 'Block a street and they walk around.' },
+  { n: 2, supplies: 450, startCash: 1300, hp: 1.8, arsenal: ARSENAL[1], intro: { title: 'Day 2: Barricades', text: 'East again, up Sigtunavägen. Block a street and they walk around.' },
     waves: [ { groups: [g('runner', 4, 1.2, 0, 'east1', LEAD_RUN), g('walker', 26, 0.5, 3, 'east1')] },
              { groups: [g('walker', 30, 0.45, 0, 'east1'), g('runner', 14, 0.5, 12, 'east1')] },
              { groups: [g('walker', 36, 0.4, 0, 'east1'), g('runner', 22, 0.4, 14, 'east1')] } ] },
@@ -901,18 +902,18 @@ export const DAYS = [
   // 0.16.2: Hemvärnet och Norra vägen flyttade hit från dag 2; skogsvägen kommer dag 4 (förut här)
   // 0.16.4 (speltestet av 0.16.2: vågorna 49 / 94 / 190 och sex-sju nyheter): Hemvärnet och Norra vägen är dagens
   // två saker; de vilande husen flyttar till dag 4. Vågorna utan dubbla hopp (balansloggen 0.16.4).
-  { n: 3, supplies: 500, startCash: 1300, hp: 2.7, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. They also come along Norra vägen.' },
+  { n: 3, supplies: 500, startCash: 1300, hp: 2.7, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. From the east, and down Norra vägen from the north-east.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 18, 0.5, 3, 'east1'), g('walker', 16, 0.6, 4, 'east2')] },
              { groups: [g('walker', 26, 0.4, 0, 'east2'), g('runner', 34, 0.3, 4, 'east1')] },
              { groups: [g('walker', 32, 0.35, 0, 'east2'), g('runner', 32, 0.25, 5, 'east1'), g('walker', 20, 0.4, 10, 'east2')] } ] },
   // 0.16.4: de vilande husen (förut dag 3) är dagens begrepp; Ksp 58 är dagens nya pjäs mot bjässarna
-  { n: 4, supplies: 600, startCash: 1800, hp: 1.3, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes on the forest road. Infected hiding in a house.' },
+  { n: 4, supplies: 600, startCash: 1800, hp: 1.3, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes down Norra vägen. Runners up the forest road from the south-east.' },
     dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
               { house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
              { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
              { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, supplies: 600, startCash: 1600, hp: 2.1, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'Everything they have, from three roads.' },
+  { n: 5, supplies: 600, startCash: 1600, hp: 2.1, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'Everything they have: east, north-east and the forest road.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
              { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
              { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
@@ -923,7 +924,8 @@ export const gnesta = {
   id: 'gnesta', name: 'Hagstumosse · Ishallen', version: GNESTA_VERSION,
   // 0.16.0 (Olas beslut): samma sektor, kartan vidgas norrut; trupperna följer med
   // 0.16.4 (Olas rättelse): en vinst läses som en vinst; nästa uppdrag är i samma stadsdel
-  outro: { text: 'The ice rink holds. The civilians are safe inside. A new column is circling north, up Vikingavägen. Hold it there.', next: 'gnesta-norr' },
+  // 0.20.0 (kampanjbågen dag 7): flera större grupper samlar sig mot ishallen från väst, syd och nord
+  outro: { text: 'The ice rink holds. The civilians are safe inside. Larger groups are gathering west, south and north of it. Break them.', next: 'gnesta-norr' },
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
   // Längst ut 84 m igen (0.11.0, Olas önskan; 68 m i 0.5.2 till 0.10.2). Utzoomad ritas horden lite
   // större (view.js setZoom), och en taktisk minikarta kommer.

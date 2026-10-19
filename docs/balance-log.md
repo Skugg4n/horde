@@ -1188,3 +1188,42 @@ Mätt (fem seeds), bas vid dagens slut:
              alla dagar på första försöket; basen vid tågets signal 20 i alla
 
 Den som håller betalar fortfarande (naive högst 12 dag 4, provet i tests/molnbo.test.js), men ingen seed slutar på 1 eller 2. Fingeravtrycken dag 4 och 5 nya, avsiktligt: mbSmart a7c97377, a447e4e0; naive 06a2f8c6, 6b3b70bd. Dag 1 till 3 orörda.
+
+## 0.20.0 (riktningarna)
+
+Varför: kampanjbågen (kampanjplanen avsnitt 10, H496 och H497). Kartornas ingångar ska följa berättelsen, och Move kommer med radion dag 6.
+
+Ändringar som flyttar balansen:
+- Move och Rotate låses upp Ishallen dag 3 (förut E4 dag 2 och 3). Policyerna flyttar i uppställningen (Reposition, direkt och gratis när ingen zombie lever) före det: Ishallen dag 1 mellan vågorna och E4 dag 2 före Södertälje-vågen. Policyns vridning av sysslolösa pjäser (reaim) nekas på E4 dag 3 och Ishallen dag 1 och 2. E4 dag 3 slutar med bas 12 till 14 (var 10 till 11) för båda policyerna; skillnaden är vridningen, orsaken i detalj inte utredd.
+- Vikingavägen: Östra Storgatan (dag 4 och 5) och Sigtunavägen öst (dag 5) ersatta av skogsvägen söderifrån (samma grupper, samma storlekar och tider). Rutnätet når skogsvägens dimkant (z 64 till 88). Skogsvägen är 137 rutor till ishallen (Östra Storgatan 131, Sigtunavägen öst 118), men den går inte förbi radhusen och dödszonen vid Gångvägen som policyerna bevakar.
+- Första försöket bytte Sigtunavägen öst mot Sigtunavägen väst (sigW) dag 5: väster är 84 rutor och ingen av policyerna står där dag 5, så 25 vandrare och 25 löpare tog basen 20 till 0 i alla seeds. De gick till skogsvägen i stället; väster har bara "Behind you, from the west!" (15 vandrare) som förut.
+- Vikingavägen dag 4 hp 7 till 9. Med 7 vann den vanliga spelaren dag 4 på första försöket i alla seeds (flanken söderifrån träffar inte dödszonen vid radhusen som Östra Storgatan gjorde) och provet "grind spelar roll" fick 7 förlorade försök av minst 10. Prövat: hp 8 gav samma, hp 10 gav den skickliga 2 till 3 försök i tre seeds. Dag 5 hp 13 prövat och förkastat (den skickliga bas 1 till 6).
+
+Mätt (fem seeds), försök per dag och bas kvar:
+
+    skilled  alla dagar på första försöket i alla seeds
+             bas N4: 4, 5, 7, 6, 4 (var 14, 14, 14, 14, 15); N5: 9, 8, 7, 9, 8 (var 14, 14, 14, 13, 14)
+
+    normal   E1 E2 E3 S1 S2 S3 S4 S5 N1 N2 N3 N4 N5
+    0         1  1  1  1  1  1  2  1  1  1  1  1  1
+    1         1  1  1  1  1  1  2  3  1  1  1  1  1
+    2         1  1  1  1  1  1  2  1  1  1  1  2  1
+    3         1  1  1  1  1  1  2  1  1  1  1  2  1
+    4         1  1  1  1  1  1  2  1  1  1  1  2  1
+             bas N4: 5, 14, 2, 3, 1; N5: 4, 9, 10, 10, 8 (var 14, 14, 14, 14, 14 och 17, 17, 14, 14, 14)
+
+Slutet av Vikingavägen kostar mer än förut för båda: dag 5 var den lätta avslutningen (14 till 17 kvar), nu är den tät (4 till 10). Ett speltest får visa om skogsvägen bakom linjen känns rättvis; den syns från dag 4:s intro och INTEL ("south").
+
+Mölnbo: inget i Mölnbo ändrat, men ankomsten (src/data/arrival.js, skilled seed 0) är omräknad. Truppen är något svagare (Ksp 88 och Ak 5 nivå 1, två Ksp 58 nivå 2, färre forskningar: wireTough.1 och budget.2 saknas).
+
+    mbSmart  alla dagar på första försöket; bas dag 3: 18, 20, 12, 12, 20 (var 20, 20, 9, 20, 20); dag 4: 19, 20, 20, 20, 20;
+             dag 5: 15, 9, 12, 7, 15 (var 14, 15, 10, 13, 15)
+    naive    dag 4 på andra försöket i två seeds (var första i alla), bas dag 4: 2, 11, 7, 4, 4; dag 5: 9, 6, 11, 2, 3
+
+Mölnbo-ombygget (parallell gren) behöver räkna om ankomsten och sina fingeravtryck efter sammanslagningen.
+
+Fingeravtrycken, alla nya avsiktligt utom E4 dag 1 och 2:
+- skilled: riksvagen 3 68ec2156, gnesta 1 d96cbf0f, gnesta 2 5f4a1c00, gnesta 3 80c5a52c, gnesta 4 e92cbac4, gnesta 5 7f63db14, gnesta-norr 1 51c1bd54, gnesta-norr 2 e11d5c87, gnesta-norr 3 121f1e3b, gnesta-norr 4 7de0a2a9, gnesta-norr 5 1acdea9f
+- normal: riksvagen 3 68ec2156, gnesta 1 fd3928f0, gnesta 2 e241945c, gnesta 3 36ccafe6, gnesta 4 6d5430d7, gnesta 5 74f7cd97, gnesta-norr 1 b09c19db, gnesta-norr 2 8a2bce69, gnesta-norr 3 f7edf9aa, gnesta-norr 4 c16098c9, gnesta-norr 5 cac14819
+- mbSmart: f2206923, 93f0f3c1, 302de2ca, f8da80b0, d3449bdf; naive: bf232dc6, 9d10cad9, 1d769ec2, aaf25304, cc8a9d61
+- simuleringens kvitto (tests/sim-receipt.test.js) oförändrat
