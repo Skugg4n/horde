@@ -403,10 +403,10 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H462 | balans | Mölnbo dag 3 och 4 är en mur: våg 3 och 4 ovanpå varandra (150 till 200 ute), basen 3-4 när tåget kommer. Utred grinden, trimma så att tåget blir ett val.
 - [ ] H463 | ux | Tre röda banderoller samtidigt (tåget, basen, bjässarna). En stor banderoll i taget med prioritet (tåget > flykt > omväg/genombrott), resten i kö eller små.
 - [ ] H464 | balans | Vågens svans: 1 till 3 bjässar sist gav 90 till 150 s väntan utan något i bild. Svansregeln för alla typer, och en plåt "3 left: brutes, Stenbyvägen" som flyttar kameran dit.
-- [ ] H465 | spel | Move in i hus mitt i vågen nekas nästan överallt (1 av 13): "Door blocked" utan synlig orsak. Hitta orsaken, prov över alla hus på Mölnbo och Vikingavägen.
+- [x] H465 | spel | Move in i hus mitt i vågen nekas nästan överallt (1 av 13): "Door blocked" utan synlig orsak. Orsaken: dörren valdes bara bland gatrutorna intill huset, och en villa på sin tomt har ingen. Nu närmaste ruta trupperna går på; en soldat i en ficka nekar inte hela gruppen; bodarna säger "This building can't be entered". Prov över alla hus på Mölnbo och Vikingavägen. (0.19.1)
 - [ ] H466 | zombier | Snubblet klumpar sig: 10 av 16 löpare dag 4, flera gånger, samma ruta vid brofästet. Nedkylning per zombie, utlösarna som chans, inte samma ställe för alla. Mål cirka 1 av 5 per korsning.
 - [ ] H467 | ux | Förrådet föreslår utmattade enheter för striden fast vilade finns i reserven.
 - [ ] H468 | ux | "+20 %" och "+$" ritas över köpraden.
 - [ ] H469 | text | Kommandotexten om "the empty X60" som skydd står kvar (struket i 0.18.1).
 - [ ] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer.
-
+- [ ] H471 | spel | En villa på sin tomt kan inte stormas: stormningen (sim.js, assaults) läser husets touch (gatrutorna intill), och villorna har ingen. Avgör med Ola om villorna ska gå att storma (dörren i doorCells), räkna om balansen.

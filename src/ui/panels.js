@@ -82,6 +82,8 @@ const REASONS = {
   'hus dörr': 'Door blocked',
   'hus ingen väg': 'No path to the door',
   'hus bruten': 'That house was broken into today',
+  // 0.19.1
+  'byggnad': "This building can't be entered",
   'viker': 'Already falling back',
   'tyst': 'The gun is silent',
   'nedkylning': 'Not yet. The men need a moment',

@@ -11,6 +11,7 @@
 //
 // Kapacitet: husets yta delat med AREA_PER_MAN, mellan CAP_MIN och CAP_MAX soldater, eller en pjäs.
 import { KIND, rect, inRect, lineOfSightH } from './placement.js';
+import { crewPassable } from './crew-path.js';
 
 export const FLOOR_EYE = 3.2;     // fönstrets höjd (m), högst husets höjd
 export const AREA_PER_MAN = 11;   // kvadratmeter per soldat
@@ -117,6 +118,34 @@ export function pickWindows(p, h, count, radius, weight) {
   // trångt (ett litet hus): fyll på utan avstånd
   for (const c of cands) { if (picked.length >= count) break; if (!picked.includes(c)) picked.push(c); }
   return picked;
+}
+// 0.19.1 (speltestet av 0.19.0, fynd 3: Move in i ett hus mitt i vågen gick i 1 av 13 hus, villorna sa "Door blocked"):
+// dörren valdes bland touch, rutorna horden går på intill huset. En villa står på sin tomt med trädgård runt, så ingen
+// gata rör huset och touch är tom: ingen dörr fanns. Dörrarna är nu de rutor trupperna kan gå på (crewPassable) närmast
+// huset: den första ringen runt husets rutor som har någon, högst DOOR_RINGS ut (husets egna markrutor kan ligga
+// emellan). Beror bara på banan; sparas på huset.
+export const DOOR_RINGS = 3;
+export function doorCells(p, h) {
+  if (h.doors) return h.doors;
+  const mine = new Set(h.cells);
+  let ring = new Set(h.cells), seen = new Set(h.cells), out = [];
+  for (let r = 1; r <= DOOR_RINGS && !out.length; r++) {
+    const next = new Set();
+    for (const k of ring) {
+      const i = k % p.w, j = (k - i) / p.w;
+      for (const [di, dj] of N8) {
+        const a = i + di, b = j + dj;
+        if (a < 0 || b < 0 || a >= p.w || b >= p.h) continue;
+        const q = b * p.w + a;
+        if (seen.has(q) || mine.has(q)) continue;
+        seen.add(q); next.add(q);
+      }
+    }
+    out = [...next].filter(q => crewPassable(p, q)).sort((x, y) => x - y);
+    ring = next;
+  }
+  h.doors = out;
+  return out;
 }
 // Dörren ett hus slås på: husets mitt räknas som dörrens plats (bara för avstånd).
 export const houseRect = h => rect(h.x, h.z, h.ry, h.w, h.d);

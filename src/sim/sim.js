@@ -9,7 +9,7 @@ import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_
 import { emplacement } from './emplace.js';
 import { SQUAD, isSquad, squadSize, soldierHp, planSquad, makeSoldier, unionSight, runTime, hordeWeight, inArc, RISE_TIME, SETTLE_TIME } from './squad.js';
 import { SANITY, FATIGUE, hasSanity, resilience, fearAt, sanityFactor } from './sanity.js';
-import { housesOf, houseAtKey, houseById, pickWindows, windowSight, DOOR_HP, ASSAULT, BREAK_HIT } from './houses.js';
+import { housesOf, houseAtKey, houseById, doorCells, pickWindows, windowSight, DOOR_HP, ASSAULT, BREAK_HIT } from './houses.js';
 
 export const WAVE_INTEL = 2;      // forskning per klarad våg
 // Överlevarnas lärdom (0.10.1): ett förlorat försök ger alltid minst så mycket forskning (dödade,
@@ -922,6 +922,8 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   const kind = p.kind[key];
   // 0.18.0: trupper i hus (allow 'garrison')
   if (kind === KIND.house && type && !onRoof(sim, key, type)) { const gc = garrisonCheck(sim, key, type, moved); if (gc) return gc; }
+  // 0.19.1 (speltestet av 0.19.0: bodar och garage sa "Something in the way"): en byggnad som inte går att gå in i säger det
+  if (kind === KIND.thing && type && p.bldg?.[key] && !onRoof(sim, key, type)) return { ok: false, reason: 'byggnad' };
   if (kind !== KIND.open && !onRoof(sim, key, type)) return { ok: false, reason: kind === KIND.house && WEAPONS[type]?.roof ? 'kant' : KIND_REASON[kind] || 'okänd' };
   const c = p.center(key);
   if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
@@ -1134,18 +1136,28 @@ export function checkMove(sim, id, key, via = [], { path = true } = {}) {
 // når, närmast först (lika: lägst nyckel; högst DOOR_TRIES provas). { ok, door, routes } (en väg per soldat, null för
 // en stupad; för en pjäs en väg), eller { ok: false, reason }: 'hus anfall' (de döda står vid huset), 'hus bruten',
 // 'hus dörr' (ingen ruta vid huset går att gå på) eller 'hus ingen väg' (ingen väg dit). Ren funktion av läget.
-const DOOR_TRIES = 6;
+const DOOR_TRIES = 6, DOOR_FOE = 3;
 export function doorRoute(sim, g, h) {
   if (!h) return { ok: false, reason: 'okänd' };
   if ((sim.brokenHouses ?? []).includes(h.id)) return { ok: false, reason: 'hus bruten' };
-  for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(sim.place.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; }
+  // 0.19.1: dörrarna är rutorna trupperna går på närmast huset (houses.js doorCells), inte bara gatan intill. En dörr med
+  // en levande zombie inom DOOR_FOE m räknas inte; har alla dörrar det (eller står de döda vid huset) nekas flytten.
   const p = sim.place, at = g.squad ? (unitPos(g) ?? g) : { x: g.x, z: g.z };
-  const doors = [...h.touch].filter(k => crewPassable(p, k)).map(k => { const q = p.center(k); return { k, d: Math.hypot(q.x - at.x, q.z - at.z) }; })
+  const foes = [];
+  for (const z of sim.zombies) { if (z.dead) continue; const q = zombiePos(sim, z); if (h.touch.has(p.keyAt(q.x, q.z))) return { ok: false, reason: 'hus anfall' }; foes.push(q); }
+  const all = doorCells(p, h);
+  if (!all.length) return { ok: false, reason: 'hus dörr' };
+  const doors = all.filter(k => { const c = p.center(k); return !foes.some(q => Math.hypot(q.x - c.x, q.z - c.z) < DOOR_FOE); })
+    .map(k => { const q = p.center(k); return { k, d: Math.hypot(q.x - at.x, q.z - at.z) }; })
     .sort((a, b) => a.d - b.d || a.k - b.k);
-  if (!doors.length) return { ok: false, reason: 'hus dörr' };
+  if (!doors.length) return { ok: false, reason: 'hus anfall' };
   const starts = g.squad ? g.soldiers.map(q => (q.down ? null : q.run > 0 ? soldierAt(q) : { x: q.x, z: q.z })) : [{ x: g.x, z: g.z }];
+  // 0.19.1: står en soldat i en ficka utan väg ut (en inhägnad trädgårdsbit), springer han gruppens väg (från enhetens
+  // plats); förut nekade en enda sådan soldat hela flytten ("No path to the door" i alla hus på Vikingavägen).
+  const anchor = { x: g.x, z: g.z };
   for (const { k } of doors.slice(0, DOOR_TRIES)) {
-    const routes = starts.map(st => (st ? crewPathTo(sim, st, k) : null));
+    let common;
+    const routes = starts.map(st => (st ? crewPathTo(sim, st, k) ?? (common ??= crewPathTo(sim, anchor, k)) : null));
     if (starts.every((st, i) => !st || routes[i])) return { ok: true, door: k, routes };
   }
   return { ok: false, reason: 'hus ingen väg' };
