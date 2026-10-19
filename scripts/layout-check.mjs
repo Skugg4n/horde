@@ -8,6 +8,10 @@
 // 0.17.1: och gränssnittet i striden (auditHud): köpraden, plåtarna, lektionsplåten med PAUSED, ingångarnas etiketter
 // och raderna, på Mölnbo dag 1 och 4 och E4 dag 2. 0.19.2: lektionerna dag 2 och 4 mot köpraden, dag 5:s skyltar,
 // pendeltågets signal och perrongen, och världens lappar (märkena, lägena, etiketten, raderna) mot allt annat.
+// 0.21.0: kartbordet (auditTable) dag 1, dag 2, dag 8 och Mölnbo dag 1, en utbredd hög och Requisition som klämbräda.
+// Högarna får ligga på varandra; det som ska läsas ([data-read]: översta bladets text, kanternas rubriker, kortens rygg,
+// lapparna, klämbrädan) får inte vara täckt av något annat föremål och ska ligga inne i fönstret och i sitt föremål.
+// De gamla skyltarna (operationskartan, förrådet) provas med inställningen Classic.
 // Utfallet: en rad per fel, och exit-kod 1 om något fel finns.
 //
 //   node scripts/layout-check.mjs [--port 8146] [--shots katalog]
@@ -132,6 +136,47 @@ function auditHud(scope) {
   return { errors: [...new Set(out)], texts: texts.length };
 }
 
+// 0.21.0: kartbordet. Varje [data-read] provas i ett rutnät av punkter (elementFromPoint): punkten ska träffa det egna
+// föremålet. Mer än 15 % täckt är ett fel. Texten ska ligga i fönstret och i sitt föremål.
+function auditTable(scope) {
+  const out = [];
+  const hub = document.querySelector('#hub');
+  if (!hub) return { errors: [`${scope}: inget kartbord`], texts: 0 };
+  const W = innerWidth, H = innerHeight;
+  const owner = el => el.closest('.tb-card, .tb-cell, [data-sheet], .tb-enemy, .tb-strip, .tb-postit, .tb-clipboard, .tb-zone, .tb-obj');
+  // en utbredd hög täcker bordet med flit: då provas bara bladen i den
+  const scopeSel = document.querySelector('#hub .tb-spread') ? '#hub .tb-spread [data-read]' : '#hub [data-read]';
+  const reads = [...document.querySelectorAll(scopeSel)].filter(n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden');
+  // föremålen är vridna och skalade: punkterna läggs i elementets eget plan (de linjära delarna av alla transform uppåt)
+  const linear = el => {
+    let m = new DOMMatrix();
+    for (let a = el; a && a !== document.body; a = a.parentElement) { const t = getComputedStyle(a).transform; if (t && t !== 'none') { const q = new DOMMatrix(t); m = new DOMMatrix([q.a, q.b, q.c, q.d, 0, 0]).multiply(m); } }
+    return m;
+  };
+  const name = el => (el.tagName.toLowerCase() + '.' + String(el.className).trim().split(/\s+/).join('.')).slice(0, 50);
+  for (const el of reads) {
+    const r = el.getBoundingClientRect(), o = owner(el), txt = el.textContent.trim().replace(/\s+/g, ' ').slice(0, 36);
+    if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1) out.push(`${scope}: "${txt}" utanför fönstret`);
+    const ob = o.getBoundingClientRect(), straddle = el.matches('.tb-zone .lbl');   // fältets etikett ligger på kanten med flit
+    if (r.left < ob.left - 2 || r.right > ob.right + 2 || (!straddle && (r.top < ob.top - 2 || r.bottom > ob.bottom + 2))) out.push(`${scope}: "${txt}" går utanför ${name(o)}`);
+    let n = 0, hidden = 0;
+    const m = linear(el), cx = r.left + r.width / 2, cy = r.top + r.height / 2, w = el.offsetWidth, h = el.offsetHeight;
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+      const u = (w - 4) * ((i + 0.5) / 6 - 0.5), v = (h - 4) * ((j + 0.5) / 3 - 0.5);
+      const x = cx + m.a * u + m.c * v, y = cy + m.b * u + m.d * v;
+      if (x < 0 || y < 0 || x > W || y > H) continue;
+      n++;
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || !o.contains(hit)) hidden++;
+    }
+    if (n && hidden / n > 0.15) {
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      out.push(`${scope}: "${txt}" (${name(el)}) är täckt till ${Math.round(hidden / n * 100)} %${hit ? ' av ' + name(hit.closest('[data-obj], .tb-card, .tb-obj') ?? hit) : ''}`);
+    }
+  }
+  return { errors: out, texts: reads.length };
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
   let errors = [], checked = 0;
@@ -164,6 +209,8 @@ async function run() {
       await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
     };
     const skipLessons = async () => { for (let i = 0; i < 6; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(120); if (!(await ev('window.__horde.lesson'))) break; } await ev(`document.querySelector('#menu .sheet') && window.__horde.sheetAction?.('continue')`); };
+    // 0.21.0: de gamla skyltarna provas med inställningen Classic; kartbordet sist
+    await ev(`window.__horde.setHub('classic')`);
     await check('menu');
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 1); H.startDay(1); })()`);
     await check('intro');
@@ -293,6 +340,28 @@ async function run() {
     await checkHud('hud-molnbo-4-platform');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
+    // 0.21.0: kartbordet
+    await ev(`window.__horde.setHub('table')`);
+    const checkTable = async scope => {
+      await page.waitForTimeout(700);
+      const r = await page.evaluate(auditTable, `${scope} @${W}`);
+      errors = errors.concat(r.errors); checked++;
+      if (!r.texts) errors.push(`${scope} @${W}: ingen text på bordet`);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${scope}-${W}.png` });
+    };
+    const allSeen = `(async () => { const H = window.__horde, L = await import('/src/data/lessons.js'); H.setProgress({ ...H.progress, lessons: { ...H.progress.lessons, seen: [...Object.values(L.LESSONS).flat().map(l => l.id), ...Object.keys(L.ENEMIES).map(t => 'enemy:' + t)] } }); })()`;
+    const table = async (setup, scope) => { await ev(setup); await ev(allSeen); await ev(`window.__horde.showTable()`); await page.mouse.move(2, Math.round(W * 0.3)); await clearLessons(); await checkTable(scope); };
+    await table(`(async () => { const H = window.__horde, O = await import('/src/meta/operation.js'); H.setProgress(O.newCampaign()); })()`, 'table-day1');
+    await table(`(async () => { const H = window.__horde, O = await import('/src/meta/operation.js'); H.setProgress(O.debugReach(O.newCampaign(), 'riksvagen', 2)); })()`, 'table-day2');
+    await table(`(async () => { const H = window.__horde, O = await import('/src/meta/operation.js'); H.setProgress(O.debugReach(O.newCampaign(), 'gnesta', 5)); })()`, 'table-day8');
+    await table(`(async () => { const H = window.__horde, O = await import('/src/meta/operation.js'); H.setProgress(O.debugReach(O.newCampaign(), 'molnbo', 1)); })()`, 'table-molnbo-1');
+    // en utbredd hög (alla blad i rutnätet ska gå att läsa) och Requisition som klämbräda över bordet
+    await ev(`window.__horde.sheet.spread('pile:gnesta')`);
+    await checkTable('table-spread');
+    await ev(`window.__horde.sheet.escape()`);
+    await ev(`window.__horde.sheet.requisition()`);
+    await check('table-requisition');
+    if (await ev('window.__horde.mode') !== 'depot') errors.push(`table-requisition @${W}: R öppnade inte Requisition`);
     if (pageErrors.length) errors.push(...pageErrors.map(e => `@${W} konsolfel: ${e}`));
     await page.close();
   }

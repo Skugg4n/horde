@@ -1247,9 +1247,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-order .meta { font-size: 10.5px; line-height: 1.55; margin: 9px 0 10px; color: #3a3226; }
 .hub .tb-order .txt { font-size: 15.5px; font-weight: 600; line-height: 1.38; }
 .hub .tb-order .sig { font-size: 10px; margin-top: 12px; color: #4a4030; letter-spacing: .04em; line-height: 1.45; }
-.hub .tb-kbd { display: inline-block; margin-top: 14px; font: 600 11px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; background: rgba(255,250,235,.25);
+#ui .hub .tb-kbd { display: inline-block; margin-top: 14px; font: 600 11px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; background: rgba(255,250,235,.25);
   border: 1.5px solid #221d16; padding: 4px 9px 3px; border-radius: 2px; cursor: pointer; }
-.hub .tb-kbd:hover { background: #221d16; color: #e4dac2; }
+#ui .hub .tb-kbd:hover { background: #221d16; color: #e4dac2; }
 .hub .tb-stamp { position: absolute; border: 3px double rgba(150,40,26,.78); color: rgba(150,40,26,.82); font-family: 'Saira Stencil One', sans-serif; padding: 4px 10px 3px; letter-spacing: .08em;
   text-align: center; line-height: 1.05; mix-blend-mode: multiply; pointer-events: none; }
 .hub .tb-stamp small { display: block; font: 600 8.5px 'IBM Plex Mono', monospace; letter-spacing: .14em; }
@@ -1340,11 +1340,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-clipboard .rp { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid rgba(43,38,30,.3); padding-top: 8px; font: 600 11px Oswald, sans-serif; letter-spacing: .18em; color: #5a5040; }
 .hub .tb-clipboard .rp b { font: 600 22px 'IBM Plex Mono', monospace; color: #8a3a20; letter-spacing: 0; }
 .hub .tb-clipboard .grow { flex: 1; }
-.hub .tb-btn { display: block; width: 100%; font: 600 16px Oswald, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--paper); text-align: center; padding: 10px 8px 8px;
+#ui .hub .tb-btn { display: block; width: 100%; font: 600 16px Oswald, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--paper); text-align: center; padding: 10px 8px 8px;
   border: 1px solid rgba(233,223,201,.3); border-radius: 2px; background: var(--plate); cursor: pointer; }
-.hub .tb-btn:hover { background: rgba(40,33,25,.95); }
-.hub .tb-btn.main { background: var(--rust); font-size: 19px; padding: 12px 8px 10px; }
-.hub .tb-btn.main:hover { background: #c55f33; }
+#ui .hub .tb-btn:hover { background: rgba(40,33,25,.95); }
+#ui .hub .tb-btn.main { background: var(--rust); font-size: 19px; padding: 12px 8px 10px; }
+#ui .hub .tb-btn.main:hover { background: #c55f33; }
 .hub .tb-btn kbd { display: inline-block; font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: .06em; text-transform: none; padding: 1px 6px; border: 1px solid rgba(233,223,201,.45); border-radius: 2px; margin-top: 4px; }
 .hub .tb-btn .p { display: block; font: 600 11px 'IBM Plex Mono', monospace; color: #f2d18a; letter-spacing: .02em; text-transform: none; margin-top: 3px; }
 /* småsaker */
@@ -1355,10 +1355,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-strings { position: absolute; inset: 0; width: 1440px; height: 900px; z-index: 40; pointer-events: none; overflow: visible; }
 .hub .tb-strings .str { fill: none; stroke: #a3261a; stroke-width: 1.8; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.4)); }
 .hub .tb-strings .pinhead { fill: #9a2a1c; stroke: #5a160e; stroke-width: 1; }
-.hub .tb-tidy { position: absolute; left: 24px; top: 8px; z-index: 50; font: 600 11px Oswald, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim);
+#ui .hub .tb-tidy { position: absolute; left: 24px; top: 8px; z-index: 50; font: 600 11px Oswald, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim);
   background: rgba(22,18,14,.6); border: 1px solid rgba(233,223,201,.2); border-radius: 2px; padding: 3px 9px; cursor: pointer; }
 .hub .tb-tidy kbd { font: 500 10px 'IBM Plex Mono', monospace; margin-left: 4px; opacity: .8; }
-.hub .tb-tidy:hover { color: var(--paper); }
+#ui .hub .tb-tidy:hover { color: var(--paper); }
 /* Requisition som klämbräda över bordet: förrådets skylt på papper */
 .sheet.depot.onclip { z-index: 5; background: linear-gradient(176deg, #3a3124, #2b241a); border: 1px solid rgba(233,223,201,.18); box-shadow: 0 3px 4px rgba(0,0,0,.45), 10px 24px 40px rgba(0,0,0,.55); }
 .sheet.depot.onclip::before { content: ''; position: absolute; left: 50%; top: -9px; width: 140px; height: 26px; margin-left: -70px; border-radius: 5px 5px 10px 10px; background: linear-gradient(180deg, #a5a297, #5e5c55); box-shadow: 0 3px 4px rgba(0,0,0,.5); }
+.hub .tb-view.briefing .tb-clip { display: none; }

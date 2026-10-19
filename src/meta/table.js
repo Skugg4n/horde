@@ -302,7 +302,7 @@ export function defaultPlace(state, id) {
   if (id === 'map') return { x: 300, y: 30, r: -0.5 };
   if (id === 'radio') return { x: 22, y: 40, r: -2 };
   if (id === 'enemies') return { x: 1158, y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
-  if (id === 'clipboard') return { x: 1212, y: 500, r: 1.2 };
+  if (id === 'clipboard') return { x: 1212, y: 516, r: 1.2 };
   if (id.startsWith('pile:')) {
     const pl = state.piles.find(x => x.id === id), s = pl?.sector;
     const row = SECTOR_TABLE[s];

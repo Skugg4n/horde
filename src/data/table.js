@@ -54,7 +54,7 @@ export const TOWNS = [['SÖDERTÄLJE', 'sodertalje', 1, 8, -6], ['NYKÖPING', 'n
 // övre vänstra hörn på bordet. En hög spelaren flyttat står där spelaren lade den (table.layout). day: var "DAY n"
 // skrivs, från markören (kartans bildpunkter), där inga ortnamn står.
 export const SECTOR_TABLE = {
-  riksvagen: { place: 'lastringe', current: [1010, 392], closed: [986, 452], day: [44, -38] },
+  riksvagen: { place: 'lastringe', current: [1010, 392], closed: [926, 456], day: [44, -38] },
   gnesta: { place: 'hagstumosse', current: [248, 318], closed: [588, 360], day: [22, -46] },
   molnbo: { place: 'molnbo', current: [248, 318], closed: [960, 168], day: [-14, -52] },
 };

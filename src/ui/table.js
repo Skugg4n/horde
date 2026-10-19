@@ -112,9 +112,10 @@ const orderHtml = (o, { deploy = false, stamp = false } = {}) => `
   ${o.sig ? `<div class="sig">${esc(o.sig)}</div>` : ''}
   ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${o.n} · ENTER</button>` : ''}
   ${stamp ? `<div class="tb-stamp" style="right:10px;bottom:-12px;transform:rotate(-7deg);font-size:15px">RECEIVED<small>GNESTA</small></div>` : ''}`;
-const reportHtml = r => `
-  <div class="h">Situation · night ${r.n}</div>
-  <div class="txt" data-read>${r.lead ? `<b>${esc(r.lead)}</b> ` : ''}${esc(r.text)}</div>
+// top: bladet ligger överst (texten ska gå att läsa); under ett annat blad räcker rubriken
+const reportHtml = (r, top = true) => `
+  <div class="h"${top ? '' : ' data-read'}>Situation · night ${r.n}</div>
+  <div class="txt"${top ? ' data-read' : ''}>${r.lead ? `<b>${esc(r.lead)}</b> ` : ''}${esc(r.text)}</div>
   <div class="sig">${esc(r.from)}</div>`;
 const closedHtml = c => `
   <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>DAYS ${c.days[0]} TO ${c.days[1]}</span></div>
@@ -123,28 +124,28 @@ const closedHtml = c => `
 // Bara rubrikraden syns (ett blad under ett annat)
 const edgeHead = sh => sh.kind === 'order' ? `<span>ORDER ${two(sh.n)}</span><span>${esc(sh.from.toUpperCase())}</span>`
   : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span><span></span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')}</span><span>HELD</span>`;
-function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null }) {
+function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, top = true }) {
   const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`;
   if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
   if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${orderHtml(sh, { deploy, stamp })}<div class="tb-clip" data-clip></div></div>`;
-  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh)}</div>`;
+  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh, top)}</div>`;
   return `<div class="tb-obj tb-paper tb-report" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:34px">${closedHtml(sh)}</div>`;
 }
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
 function pileHtml(pl, place, { deploy }) {
   const sh = pl.sheets, n = sh.length, top = sh[n - 1], under = sh[n - 2];
-  const rot = k => [-1.8, 1.6, -3, 2.2, -1.2][k % 5];
+  const rot = k => [-1.8, 1.6, -3, 2.2, -1.2][k % 5], edge = k => [-0.7, 0.5, -0.4][k % 3];
   let html = '';
   if (pl.current && under?.kind === 'report') {
     const older = sh.slice(Math.max(0, n - 4), n - 2);
-    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -24 * d, r: rot(k + 2), z: k + 1, full: false }); });
-    html += sheetHtml(under, { x: 0, y: 0, r: -1.8, z: 5, full: true });
+    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false }); });
+    html += sheetHtml(under, { x: 0, y: 0, r: -1.8, z: 5, full: true, top: false });
     html += sheetHtml(top, { x: 34, y: 92, r: 1.6, z: 6, full: true, deploy, stamp: !deploy });
   } else {
     const older = sh.slice(Math.max(0, n - 3), n - 1);
-    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: 14 + 6 * (d - 1), y: -26 * d, r: rot(k), z: k + 1, full: false }); });
-    html += sheetHtml(top, { x: 0, y: 0, r: pl.closed ? 1.4 : 2.2, z: 6, full: true, deploy });
+    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: 14 + 6 * (d - 1), y: -36 * d, r: edge(k), z: k + 1, full: false }); });
+    html += sheetHtml(top, { x: 0, y: 0, r: pl.closed ? 1 : 2.2, z: 6, full: true, deploy });
   }
   const more = n > 4 ? `<span class="tb-more">${n} sheets</span>` : '';
   return `<div class="tb-pile${pl.current ? ' current' : ''}${pl.closed ? ' closed' : ''}" data-obj="${pl.id}" data-sector="${pl.sector}" style="--x:${place.x};--y:${place.y};--z:${pl.current ? 12 : 9}" title="Click to spread">${html}${more}</div>`;
@@ -176,16 +177,16 @@ function radioHtml(strips, order, place) {
 // ---------- fiendehögen ----------
 function enemyHtml(pile, order, intel, place) {
   const list = order.map(id => pile.sheets.find(s => s.id === id)).filter(Boolean);
-  const n = list.length, H = 252;
+  const n = list.length, H = 230, STEP = 26;
   const html = list.map((e, k) => {
     const top = k === n - 1, grey = e.status === 'REPORTED';
     const tab = `<div class="tab" data-read><b>${esc(e.name)}</b>${e.status === 'NEW' ? `<i>${two(e.no)} · NEW</i>` : `<span>${two(e.no)} · ${e.status}</span>`}</div>`;
-    if (!top) return `<div class="tb-obj tb-paper tb-enemy${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:${[6, 0, 8, 2][k % 4]};--y:${k * 27};--w:210;--h:${H};--r:${[1.4, -1.6, 1.2, -1.2][k % 4]};--z:${k + 1}">${tab}</div>`;
-    return `<div class="tb-obj tb-paper tb-enemy top${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:4;--y:${k * 27 + 2};--w:210;--h:${H};--r:0.8;--z:${k + 1}">${tab}
+    if (!top) return `<div class="tb-obj tb-paper tb-enemy${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:${[6, 0, 8, 2][k % 4]};--y:${k * STEP};--w:210;--h:${H};--r:${[0.6, -0.5, 0.4, -0.6][k % 4]};--z:${k + 1}">${tab}</div>`;
+    return `<div class="tb-obj tb-paper tb-enemy top${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:4;--y:${k * STEP + 2};--w:210;--h:${H};--r:0.8;--z:${k + 1}">${tab}
       <div class="body"><div class="t" data-read>${esc(e.text)}</div><span class="fig">${FOE_ICONS[e.type] ?? FOE_ICONS.unknown}</span></div>
       <div class="stats" data-read>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
   }).join('');
-  const topY = (n - 1) * 27 + 2 + H;
+  const topY = (n - 1) * STEP + 2 + H;
   const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:26;--y:${topY - 6};--w:184;--r:-3.5;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
   return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:11">${html}${note}</div>`;
 }
@@ -231,7 +232,7 @@ function zonesHtml(z, note) {
 // ---------- klämbrädan ----------
 function clipboardHtml(cb, place) {
   const nb = cb.next;
-  return `<div class="tb-obj tb-clipboard" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:208;--h:376;--r:${place.r};--z:13"><div class="jaw"></div><div class="pg">
+  return `<div class="tb-obj tb-clipboard" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:208;--h:350;--r:${place.r};--z:13"><div class="jaw"></div><div class="pg">
     <div class="h">Next battle</div>
     <div class="nb" data-read>${nb ? `${esc(SECTORS.find(x => x.id === nb.sector)?.short ?? MAPS[nb.map].name)} · Day ${nb.n}<small>${esc(nb.title)}</small>` : 'Nothing planned<small>Every sector is held</small>'}</div>
     ${cb.rp != null ? `<div class="rp" data-read><span>REQUISITION</span><b>${cb.rp}</b></div>` : ''}
@@ -292,6 +293,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     html += '<svg class="tb-strings"></svg>';
     view.innerHTML = html;
     view.dataset.objects = state.objects.join(' ');
+    view.classList.toggle('briefing', state.briefing);
     // z-ordningen: senast flyttade överst
     for (const [id, z] of Object.entries(zOf)) { const o = view.querySelector(`[data-obj="${id}"]`); if (o) o.style.setProperty('--z', z); }
     wire();
@@ -314,7 +316,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     const svg = view.querySelector('.tb-strings');
     if (!svg) return;
     const clip = view.querySelector('.tb-pile.current [data-sheet^="order"] [data-clip]'), pin = view.querySelector('.tb-pin');
-    if (!clip || !pin || spread) { svg.innerHTML = ''; return; }
+    // dag 1 (bara kartan och lappen) har inget snöre, som i mockupen
+    if (!clip || !pin || spread || view.classList.contains('briefing')) { svg.innerHTML = ''; return; }
     // gemet sitter på den sida av ordern som vetter mot platsen (snöret går inte över texten)
     const sheetR = clip.parentElement.getBoundingClientRect(), q = pin.getBoundingClientRect();
     clip.classList.toggle('side', q.left < sheetR.left && q.top > sheetR.top - 40);
