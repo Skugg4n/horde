@@ -11,6 +11,7 @@ import { buildE4Far } from './e4-far.js';
 import { createFortify } from './fortify.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
 import { offsetLine, FOREST_EDGE } from '../data/e4-lastringe.js';
+import { now, add } from '../meta/load-timing.js';
 
 const LINE = 'rgba(232,228,214,0.86)';
 
@@ -219,6 +220,7 @@ export function paintLand(map, { bounds, ppm: PPM, far = null, fadeEdges = false
 }
 
 export function buildE4(scene, map) {
+  let tl = now(); const id = map.id;
   const { x0, x1, z0, z1 } = map.ground.bounds;
   // 0.16.3: genomskinliga kanter, ritas först av de genomskinliga (renderOrder) så att linjer och ringar ligger över
   const ground = mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ map: paintLand(map, { bounds: map.ground.bounds, ppm: map.ground.ppm, fadeEdges: true }), roughness: 1, transparent: true }));
@@ -226,6 +228,7 @@ export function buildE4(scene, map) {
   ground.renderOrder = -1;
   scene.add(ground);
   const ghosts = buildE4Far(scene, map, paintLand);
+  tl = add(id + ':mark', tl);
 
   const b = createBatch();
   const r = seeded(1370);
@@ -272,6 +275,7 @@ export function buildE4(scene, map) {
   // ---------- stenar ----------
   for (const k of map.rocks) boulder(b, k.x, k.z, k.s, r);
 
+  tl = add(id + ':hus och gator', tl);
   // ---------- skog: gran och tall, björk i brynet ----------
   let trees = 0;
   map.ground.forest.forEach(poly => {
@@ -320,8 +324,10 @@ export function buildE4(scene, map) {
     grassTuft(b, x, z, r.range(0.5, 1.1), r); tufts++;
   }
 
+  tl = add(id + ':träd', tl);
   const meshes = b.flush(scene);
   scene.userData.fortify = createFortify(scene, { tagged: b.tagged });
+  tl = add(id + ':instanser', tl);
 
   // ---------- skyltarna ----------
   const signs = new THREE.Group(); signs.name = 'signs';

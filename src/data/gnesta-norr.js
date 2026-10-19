@@ -13,6 +13,9 @@
 // Husen är generiska villor och radhus på fotavtryckens platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
 import { rect } from '../sim/placement.js';
+import { timed } from '../meta/load-timing.js';
+import { lazy } from './lazy.js';
+import { nearLine } from './road-field.js';
 import {
   w, PX, smooth, distPolyline, inPoly, ROADS as G_ROADS, ROUNDABOUT, ICE_RINK, PARKING, SPORTHALL, GROUND as G_GROUND,
   LOTS as G_LOTS, CARS as G_CARS, PLAYGROUND, LABELS as G_LABELS, SPAWNS as G_SPAWNS, BASE, SURROUNDINGS as G_SUR,
@@ -88,7 +91,7 @@ export const ROADS = [
 ];
 export const road = id => ROADS.find(r => r.id === id);
 const walkRoads = ROADS.filter(r => r.walk);
-const nearRoad = (x, z, pad = 0) => ROADS.some(r => distPolyline(x, z, r.pts) < r.width / 2 + pad);
+const nearRoad = (x, z, pad = 0) => ROADS.some(r => nearLine(x, z, r.pts, r.width / 2 + pad));
 
 // ---------- radhusen ----------
 // Längorna: första och sista lägenhetens mitt i K, antal lägenheter, djup i K, våningar och gatan
@@ -612,7 +615,6 @@ export const gnestaNorr = {
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
   rows: ROWS, parkingLots: PARKING_LOTS, yards: YARDS, forskolaYard: FORSKOLA_YARD, clearings: CLEARINGS,
-  grid: townGrid(NORR_TOWN),
   // 0.12.1: fem pjäser från början (var fyra), Hemvärnet räknas inte med (src/sim/stats.js maxGuns).
   guns: 5,
   // 0.14.0: frontbredden, så många kärntrupper får stå ute samtidigt (src/sim/sim.js frontage)
@@ -630,5 +632,7 @@ export const gnestaNorr = {
   // öppnar när Ishallen (dag 5) är vunnen; samma trupp följer med (src/data/depot.js SECTORS).
   unlock: { map: 'gnesta', day: 5 }, legacyUnlock: 4,
 };
-gnestaNorr.place = townPlacement(NORR_TOWN, gnestaNorr.grid);
+// 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
+lazy(gnestaNorr, 'grid', () => timed('gnesta-norr:rutnät', () => townGrid(NORR_TOWN)));
+lazy(gnestaNorr, 'place', () => timed('gnesta-norr:placering', () => townPlacement(NORR_TOWN, gnestaNorr.grid)));
 void inPoly;

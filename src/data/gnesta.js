@@ -5,6 +5,9 @@
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
 import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
+import { timed } from '../meta/load-timing.js';
+import { lazy } from './lazy.js';
+import { eachRoadCell, nearLine, nearEdge } from './road-field.js';
 
 export const GNESTA_VERSION = '0.3.0';
 
@@ -440,9 +443,11 @@ export function townGrid(T, cellSize = 2) {
   const walk = new Uint8Array(gw * gh);
   const walkRoads = T.roads.filter(r => r.walk);
   const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
+  // 0.20.0 (H502): vägarnas avstånd ur fältet (src/data/road-field.js), bara nära vägarna; samma svar som förut
+  const { onRoad, nearest } = roadNear(walkRoads, { x0, z0, gw, gh, cellSize });
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const x = cx(i), z = cz(j);
-    let ok = walkRoads.some(r => distPolyline(x, z, r.pts) <= r.width / 2 + 0.25);
+    let ok = !!onRoad[j * gw + i];
     if (!ok && distPoly(x, z, ROUNDABOUT.island) <= ROUNDABOUT.ring) ok = true;
     if (inPoly(x, z, ROUNDABOUT.island) || insideRink(x, z, 0.4)) ok = false;
     walk[j * gw + i] = ok ? 1 : 0;
@@ -471,8 +476,7 @@ export function townGrid(T, cellSize = 2) {
     const k = j * gw + i;
     if (!walk[k]) continue;
     const x = cx(i), z = cz(j);
-    let near = null, nd = Infinity;
-    for (const r of walkRoads) { const d = distPolyline(x, z, r.pts) - r.width / 2; if (d < nd) { nd = d; near = r; } }
+    const { near } = nearest(k, x, z);
     const ring = distPoly(x, z, ROUNDABOUT.island) <= ROUNDABOUT.ring;
     terrain[k] = !ring && near?.surface === 'gravel' ? 2 : 1;
   }
@@ -488,6 +492,25 @@ export function townGrid(T, cellSize = 2) {
     base: best,
     cellOf, center: (i, j) => [cx(i), cz(j)],
   };
+}
+// Vägarna nära rutorna (0.20.0, H502): onRoad[k] = 1 där en väg når rutans mitt (avstånd högst halva bredden + 0,25),
+// och nearest(k, x, z) = närmaste väg och avståndet till dess kant, första vägen i listan vid lika. Fältet räknar
+// bara rutor inom REACH från en vägkant; längre bort går nearest igenom alla vägar som förut.
+const REACH = 6;
+export function roadNear(roads, geo) {
+  const n = geo.gw * geo.gh, onRoad = new Uint8Array(n), best = new Float64Array(n).fill(Infinity), idx = new Int32Array(n).fill(-1);
+  eachRoadCell(roads, geo, REACH, (ri, k, d) => {
+    const r = roads[ri];
+    if (d <= r.width / 2 + 0.25) onRoad[k] = 1;
+    if (d <= r.width / 2 + REACH) { const v = d - r.width / 2; if (v < best[k]) { best[k] = v; idx[k] = ri; } }
+  });
+  const nearest = (k, x, z) => {
+    if (best[k] < REACH - 1e-6) return { near: roads[idx[k]], nd: best[k] };
+    let near = null, nd = Infinity;
+    for (const r of roads) { const d = distPolyline(x, z, r.pts) - r.width / 2; if (d < nd) { nd = d; near = r; } }
+    return { near, nd };
+  };
+  return { onRoad, nearest };
 }
 // Gnestas rutnät (x -82 till 122, z -84 till 88; 0.11.0 ut i dimkanten för ingångarna).
 export const buildGrid = (cellSize = 2) => townGrid(gnestaTown(), cellSize);
@@ -637,13 +660,14 @@ function thingRects(T) {
 export const FOREST_EDGE = 6.5;
 export function denseForestIn(T, x, z) {
   if (!T.ground.forest.some(poly => inPoly(x, z, poly))) return false;
-  if (T.roads.some(o => distPolyline(x, z, o.pts) < o.width / 2 + 3.2)) return false;
+  if (T.roads.some(o => nearLine(x, z, o.pts, o.width / 2 + 3.2))) return false;
   if (T.lots.blocks.some(B => inPoly(x, z, B.outer)) || inPoly(x, z, PARKING.poly)) return false;
   if (T.clearings && T.clearings.some(poly => inPoly(x, z, poly))) return false;
   if (distPoly(x, z, ROUNDABOUT.island) < 9) return false;
   if (Math.hypot(x - ICE_RINK.x, z - ICE_RINK.z) < ICE_RINK.len / 2 + 9) return false;
   if (Math.hypot(x - SPORTHALL.x, z - SPORTHALL.z) < SPORTHALL.len / 2 + 12) return false;
-  return Math.min(...T.roads.filter(o => o.walk).map(o => distPolyline(x, z, o.pts) - o.width / 2)) >= FOREST_EDGE;
+  // 0.20.0 (H502): samma som min(avstånd till vägkanten) >= FOREST_EDGE, utan att räkna de långt borta vägarna
+  return !T.roads.some(o => o.walk && nearEdge(x, z, o.pts, o.width / 2, FOREST_EDGE));
 }
 const islandThings = () => { const [cx, cz] = ROUNDABOUT.center; return [ROUNDABOUT.flag, [cx + 1.3, cz - 0.4], [cx - 0.9, cz + 1.2]]; };
 // Taken (0.8.0): villorna, förskolan, affären och garagen går att ligga på (Psg 90). Ishallen är
@@ -932,7 +956,6 @@ export const gnesta = {
   shadowBounds: { x0: -118, x1: 84, z0: -50, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,
-  grid: buildGrid(),
   // 0.12.1: fem pjäser från början (var fyra), Hemvärnet räknas inte med (src/sim/stats.js maxGuns).
   guns: 5,
   // 0.14.0: frontbredden, så många kärntrupper får stå ute samtidigt (src/sim/sim.js frontage)
@@ -952,4 +975,6 @@ export const gnesta = {
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },
 };
-gnesta.place = buildPlacement(gnesta.grid);
+// 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
+lazy(gnesta, 'grid', () => timed('gnesta:rutnät', () => buildGrid()));
+lazy(gnesta, 'place', () => timed('gnesta:placering', () => buildPlacement(gnesta.grid)));
