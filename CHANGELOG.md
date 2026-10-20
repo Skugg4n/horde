@@ -1,5 +1,26 @@
 # Ändringslogg
 
+## 0.21.5 (Mölnbo efter Olas bilder) (2026-10-20)
+
+Mölnbo rättat efter Olas kartbilder och foton 2026-10-20 (H532, kampanjplanen avsnitt 10, beslut).
+
+Vägnätet på södra sidan. Fagernäsvägen går från bron österut längs spåret, viker söderut och fortsätter som en lång båge mot sydost (Myrvägen österut från den, i diset). Vägen längs spåret österut från böjen, förbi stationshuset, är den som horden kommer på från Järna. Trollvägen är en egen slinga från Stenbyvägen (Postillan, Missionskyrkan) ner till Kvarnvägen. Dvärgvägen binder ihop Trollvägen och Fagernäsvägen; Fagernäsvägen möter inte Trollvägen. Kvarnvägen går från Trollvägen förbi Folkets hus, över Stenbyvägen och vidare sydväst förbi Mjölnarstigen och kvarnen; en gren går sydost till Fagernäsvägen med Skullbrovägen söderut. Gruppen söderifrån kommer nu på Kvarnvägen. Horden österifrån går Fagernäsvägens båge och Dvärgvägen mot Folkets hus, en ny flank.
+
+Stationshuset står där Redmond Muay Thai ligger på kartan: öster om bron, mellan spåret och Fagernäsvägen.
+
+Inga trapptorn. Öppna betongtrappor med stålräcken på brons västra sida, söder om spåret, ner till perrongen: ett vilplan i däckets höjd och två lopp bredvid varandra. Prickskytten ligger på vilplanet. Texterna säger "the stairs by the bridge". Trappan från norra perrongen upp på däcket (dit pendeltågets folk går) står kvar.
+
+Caféet Harmoni är grått, två våningar, i hörnet Fagernäsvägen/Stenbyvägen med parkeringen framför. Ett rött villahus med glasveranda står väster om Stenbyvägen vid väg 57. Bron har räcken i glas och stål och trafikljus vid södra brofästet.
+
+Dag 2 kommer bara från Järnasidan (H538): väg 57 och Norrängsvägen på norra sidan, längs spåret österifrån på södra. Ingången söderifrån är borta; i stället bryter smittade ut ur ett hus vid Trollvägen i tredje vågen. Introt: "From Järna, both sides of the tracks."
+
+Kampanjens dag (H539). HUD:en, introts rubrik och bordet visar kampanjens dag (E4 3, Ishallen 5, Vikingavägen 5, Mölnbo 3: Mölnbo dag 2 är "Day 15"), med banan och dess dag smått under ("Mölnbo · 2"). src/meta/campaign-day.js.
+
+Fler vägar att leda horden genom (H540). Gång- och cykelvägar och upptrampade stigar i grus, smalare än gatorna, som horden går på och flödet känner: längs spåret på södra sidan förbi stationshuset, två passager mellan trädgårdarna från Stenbyvägen till Trollvägen, en stig från Kvarnvägen mot Mjölnarstigen och en från Trollvägens slinga till Fagernäsvägen. Spärrad Stenbyvägen vid caféet ger nu en omväg på drygt 40 rutor via Fagernäsvägen och stigen; vid kyrkan tar horden Trollvägen (lika lång som Stenbyvägen i verkligheten).
+
+Bergskärningen (H541). Stenblocken söder om Fagernäsvägen, i trädgårdarna, är borta. Bergskärningen är en låg granitvägg på vägens norra sida, mot spåret bakom räcket. Den skymmer ingen sikt; man kan inte ställa något på den.
+
+Balansen: dag 2:s bjässar kommer i tredje vågen från väg 57 (sist från Norrängsvägen drog de ut dagen), overlap 20 s. Med bergväggen som inte skymmer och stigarna blev dag 2 och 3 för lätta: dag 2 hp 12 till 20, dag 3 hp 10 till 27. docs/balance-log.md, Mölnbo 0.21.3.
 ## 0.21.4 (kartbordet) (2026-10-20)
 
 Olas återkoppling på 0.21.3: korten hoppade, bytte storlek och ordning när ett kort flyttades, och Requisition var en rörig panel som bröt det fysiska bordet (H536, H537).

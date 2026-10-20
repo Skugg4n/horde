@@ -22,7 +22,8 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
-import { recordDay, recordLoss, swapCards, campaignDay, nextBattle as tableNext, moveCardTo, clickCard, buyCard } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, placeShort, nextBattle as tableNext, moveCardTo, clickCard, buyCard } from './meta/table.js';
+import { campaignDayOf } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -1721,7 +1722,9 @@ function unitPoints() {
 // 0.19.2: lapparna i världen som vågskyltarna ska undvika (enheternas märken och lägen, perrongens etikett)
 function labelRects() {
   const out = [];
-  for (const el of [...squadTags.values(), ...unitTags.values(), platLabel]) {
+  // 0.21.3 (layoutprovet, Mölnbo dag 1: Norrängsvägens etikett låg över PAUSED): också PAUSED och basens namn
+  const paused = [...uiRoot.querySelectorAll('#coach:not([hidden]) .paused:not([hidden])')];
+  for (const el of [...squadTags.values(), ...unitTags.values(), platLabel, baseLabel, ...paused]) {
     if (el.hidden || el.style.visibility === 'hidden') continue;
     const r = el.getBoundingClientRect();
     if (r.width) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 });
@@ -2638,7 +2641,9 @@ function startDay(n) {
   const frame = dayFrame();
   if (frame) rig.focus(frame.x, frame.z, frame.view);
   // 0.16.0: uppdragsrutan (#hint) är ersatt av lektionsplåten (src/ui/coach.js)
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }));
+  // 0.21.3 (H539): kampanjens dag i titeln, banans dag smått under
+  const cd = campaignDayOf(map.id, n);
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: cd, where: `${placeShort(map.id)} · ${n}` } : {}));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).

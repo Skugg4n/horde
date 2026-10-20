@@ -128,8 +128,8 @@ export const LESSONS = {
     { id: 'mb-1.evac', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'They leave these houses. Cover the yellow lines, north of the bridge.', manual: 'evac' },
     // 0.18.0 (skiva 1, kampanjplanens dag 8): routed och Fall back
     { id: 'mb-1.rout', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Broken units flee. Pull one back yourself: select it, press', keys: ['G'], manual: 'rout' },
-    { id: 'mb-1.tower', kind: 'step', when: 'start', done: 'placing:psg90|placed:psg90', target: { ui: '#buildbar .card[data-id="psg90"]' }, text: 'High ground. Put a Psg 90 on a stair tower.', manual: 'roofs' },
-    { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Towers, station roof, train roof.' },
+    { id: 'mb-1.tower', kind: 'step', when: 'start', done: 'placing:psg90|placed:psg90', target: { ui: '#buildbar .card[data-id="psg90"]' }, text: 'High ground. Put a Psg 90 on the stairs by the bridge.', manual: 'roofs' },
+    { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Stairs by the bridge, station roof, train roof.' },
   ],
   // 0.20.0 (kampanjbågen, H495): dag 2 tappar vi norra sidan. Pendeltåget rullar in (förut dag 4), bron och Håll eld.
   'mb-2': [

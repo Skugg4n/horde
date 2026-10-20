@@ -609,10 +609,13 @@ export function arrivedLine(map, day) {
 }
 // 0.16.0 (inlärningen, designen avsnitt 2.2 och 6): introt är en rubrik och en rad, högst 12 ord. Ledningens
 // meddelande står bara på kartan, förnödenheterna och reserven i HUD:en, och lektionerna lär ut resten.
-export function dayIntro(root, dayCfg, cash, onGo) {
+// 0.21.3 (H539): opts.n kampanjens dag (titelns "Day N" blir den), opts.where banan och dess dag smått ("Mölnbo · 2")
+export function dayIntro(root, dayCfg, cash, onGo, { n = null, where = null } = {}) {
   void cash;
+  const title = n != null ? dayCfg.intro.title.replace(/^Day \d+/, `Day ${n}`) : dayCfg.intro.title;
   const p = plate(root, 'intro', `
-    <div class="h">${dayCfg.intro.title}</div>
+    <div class="h">${title}</div>${where ? `
+    <div class="where">${where}</div>` : ''}
     <p class="lead">${dayCfg.intro.text}</p>
     <div class="acts"><button type="button" class="act main" data-a="go"><span class="a">To the line</span><kbd>Enter</kbd></button></div>`);
   on(p.el, '[data-a="go"]', onGo);

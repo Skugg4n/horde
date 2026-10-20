@@ -13,6 +13,7 @@
 //
 // Sparfilen: progress.table = { layout: { [objekt-id]: { x, y } }, log: { 'bana:dag': { kills, waves, lost, saved } } }.
 // Fältet är valfritt (äldre v4-filer saknar det) och tvättas av normalizeTable; inget annat i sparfilen rörs.
+import { campaignDayOf } from './campaign-day.js';
 import { MAPS } from '../data/maps.js';
 import { SECTORS, RELEASES, poolOf } from '../data/depot.js';
 import { ENEMIES } from '../data/lessons.js';
@@ -81,9 +82,10 @@ export function recordLoss(p, { mapId, day, kills = 0, cleared = 0, waves = 0, l
 // 0.21.1 (speltestet av 0.21.0, fynd 4: bordet sa dag 6 när introt, HUD:en och menyn sa dag 3): bordet visar banans egen
 // dag, samma nummer som överallt. Kroken för kampanjbågens numrering: day.campaignDay går före när en bana har det.
 export const CAMPAIGN = STAGES.filter(s => s.map).map(s => ({ map: s.map, day: s.day }));
+// 0.21.3 (H539): kampanjens dag (src/meta/campaign-day.js), som HUD:en och introt; utanför kampanjen banans egen dag.
 export function campaignDay(mapId, day) {
   const own = MAPS[mapId]?.days?.[day - 1]?.campaignDay;
-  return Number.isInteger(own) && own > 0 ? own : day;
+  return Number.isInteger(own) && own > 0 ? own : campaignDayOf(mapId, day) ?? day;
 }
 // Index i kampanjens ordning (för att sortera), -1 utanför schemat
 export const campaignIndex = (mapId, day) => CAMPAIGN.findIndex(c => c.map === mapId && c.day === day);

@@ -41,6 +41,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #day { position: fixed; top: 18px; left: 18px; padding: 10px 16px 12px; min-width: 210px; }
 #day .lbl { font-size: 11px; letter-spacing: 0.22em; color: var(--paper-dim); }
 #day .big { font-family: 'Saira Stencil One', sans-serif; font-size: 44px; line-height: 1; margin: 2px 0 8px; }
+/* 0.21.3 (H539): banan och dess dag smått under kampanjens dag ("Mölnbo · 2") */
+#day .where { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-dim); margin: -6px 0 6px; }
+#day .where:empty { display: none; }
 /* 0.18.1 (speltestet av 0.18.0: "1 cleared216 of 255 left"): luft mellan vågen och räknaren, och en ny rad hellre än ihop */
 #day .row { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 14px; font-size: 13px; letter-spacing: 0.08em; }
 #day .bar { height: 5px; background: rgba(233,223,201,0.15); margin-top: 6px; }
@@ -305,6 +308,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet .link:hover { color: var(--paper); }
 
 .intro { top: 40%; max-width: min(460px, calc(100vw - 32px)); }
+.intro .where { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-dim); margin: -4px 0 8px; }
 
 .result.lost .h { color: #e0603c; }
 .facts { display: flex; justify-content: center; gap: 22px; margin: 4px 0 18px; }
@@ -1377,6 +1381,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-spread .tb-lined { height: auto !important; min-height: 150px; }
 .hub .tb-spreadhint { bottom: 30px; }
 .hub .tb-edge .hd { justify-content: flex-start; }
+/* 0.21.3 (H539): kampanjens dag har två siffror ("SITUATION · NIGHT 13"); kanten under nästa blad ryms på en rad */
+.hub .tb-edge .hd { white-space: nowrap; letter-spacing: .04em; }
 /* 0.21.2: kortet säger när spelet flyttat enheten */
 .hub .tb-card .mv { color: #f2c46b; font-style: italic; }
 /* 0.21.2: spelmenyn mellan dagarna på heltäckande bakgrund (bordet syns inte igenom) */

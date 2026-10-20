@@ -11,9 +11,9 @@ import { nearLine } from '../data/road-field.js';
 import { createFortify } from './fortify.js';
 import { pattern } from './gnesta-world.js';
 import { distPolyline, inPoly } from '../data/gnesta.js';
-import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, TOWERS, INBOUND, LINK, uOnBridge } from '../data/molnbo.js';
+import { R, toRail, RAIL, RAIL_RY, DECK_H, ROCK, FOLKETS, X60 as X60D, STAIRS, INBOUND, LINK, uOnBridge } from '../data/molnbo.js';
 import {
-  MP, seg, bridge, stairTower, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
+  MP, seg, bridge, bridgeStairs, track, platform, shelter, departureSign, catenaryPortal, wires, meshFence, x60, folketsHus, stationHouse,
   cafeHarmoni, missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn,
 } from './molnbo-kit.js';
 
@@ -220,9 +220,9 @@ export function buildMolnbo(scene, map) {
   }
   // bron och trapptornen (0.20.0: en bro, väg 57; trapptornen står vid vägbrons västra kant)
   bridge(b, RM, map.bridge, DECK_H, {});
-  // 0.17.1: trappan på sidan bort från spåren, gångbryggan i däckets höjd mot vägbrons kant
+  // 0.21.3 (H532, Olas foton): inga trapptorn; öppna betongtrappor med stålräcken på brons västra sida ner till perrongen
   const westEdge = v => uOnBridge(v) - map.bridge.width / 2;
-  for (const t of TOWERS) stairTower(b, frame(RM, t.at[0], 0, t.at[1]), t.size, t.h, { side: t.at[1] < 0 ? -1 : 1, deck: DECK_H, link: westEdge(t.at[1]) - t.at[0] });
+  bridgeStairs(b, RM, STAIRS, westEdge);
   // trappan från norra perrongen upp på vägbrons däck (LINK), med bröstning och ledstång som trapptornens lopp
   {
     const n = 14, u0 = LINK.u0 + 1, u1 = LINK.u1 - 1.2, du = (u1 - u0) / n, y0 = RAIL.platformN.h + 0.2;
@@ -234,7 +234,8 @@ export function buildMolnbo(scene, map) {
   }
   // räcket och bergskärningen längs Fagernäsvägen (räcket mellan vägen och spårets slänt)
   roadRail(b, RM, -4, 40, 30.2); roadRail(b, RM, 44, 92, 31.6);
-  for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v + 0.6), u1 - u0, ROCK.depth, ROCK.h, r);
+  // 0.21.3 (H541): låg bergvägg norr om vägen, mot spåret
+  for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v), u1 - u0, ROCK.depth, ROCK.h, r);
   // slänten ner mot spåret söder om perrongen: buskar
   for (let u = -110; u < 60; u += 4.2) { const v = 13.5 + r.range(0, 2), [x, z] = R(u + r.range(-1, 1), v); if (inC(x, z, 10) && Math.abs(u - uOnBridge(v)) > 7) b.put(UNIT.blob, null, x, 0.6, z, r.range(1.6, 2.6), r.range(1.0, 1.7), r.range(1.6, 2.6), r.pick(GP.hedge), 'matte', r() * 6); }
 

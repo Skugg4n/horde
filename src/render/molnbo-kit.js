@@ -16,7 +16,7 @@ export const MP = {
   fenceRed: '#7a3328', mast: '#7d817f', shelterRoof: '#3a3c3c', shelterFrame: '#2e3133', bench: '#2d2f30', ledFrame: '#2f5a9a', ledFace: '#141516',
   x60: '#e7e8e4', x60Band: '#2f63a8', x60Dark: '#2a2e33', x60Skirt: '#5c6064', x60Glass: '#1f2a33', x60Roof: '#b9bcbb', x60Door: '#c9ccca',
   falu: '#7c3326', faluDark: '#5e2219', white: '#e3ded0', roofSheet: '#3f4142', roofTile: '#7a4430', stone: '#7b766b',
-  cafe: '#c3c6c4', cafeTrim: '#eeeee8', deck: '#7a5d43', yellow: '#cfae55', mission: '#ddd8c8', aptWall: '#c9b98f', aptBalcony: '#8a8577',
+  cafe: '#a7aba9',  // 0.21.3 (H532): grå, som på Olas bilder cafeTrim: '#eeeee8', deck: '#7a5d43', yellow: '#cfae55', mission: '#ddd8c8', aptWall: '#c9b98f', aptBalcony: '#8a8577',
   logs: '#6e5a42', light: '#262829', granite: ['#8b8079', '#9a8f86', '#7a716b', '#a39890'], moss: '#5d6a3d',
 };
 const HERE = ['#ff5a3c', '#ffc23a', '#5ade6a'];
@@ -163,6 +163,41 @@ export function stairTower(b, M, size, hgt, { side = 1, deck = 4.4, link = 0 } =
     b.box(M, dx, hgt + 0.95, dz, w, 0.06, d, MP.steel, 'metal');
   for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 1], [0, -1], [1, 0], [-1, 0]]) b.box(M, dx * (hs + 0.1), hgt + 0.55, dz * (hs + 0.1), 0.07, 0.9, 0.07, MP.steel, 'metal');
   b.box(M, -s * 0.2, hgt + 0.45, -s * 0.2, 0.9, 0.5, 0.9, MP.concreteDark);
+}
+
+// Trapporna vid bron (0.21.3, H532, Olas foto från väg 57 västerut): öppna betongtrappor med stålräcken på brons västra
+// sida, inga torn. S i järnvägens ram (src/data/molnbo.js STAIRS): vilplanet [u0, u1] × [v0, v1] i däckets höjd h, en
+// platta mot brons kant, två lopp bredvid varandra (v längs flights, bredd w) från u0 ner till perrongens höjd platH vid
+// foot. Betongvangar, steg, stålräcken med stolpar, pelare under vilplanet. edge(v): brons västra kant (u) vid v.
+export function bridgeStairs(b, M, S, edge) {
+  const H = S.h, P = S.platH, mid = (S.v0 + S.v1) / 2, lw = S.v1 - S.v0, n = 16;
+  // vilplanet och plattan mot däcket
+  b.box(M, (S.u0 + S.u1) / 2, H - 0.18, mid, S.u1 - S.u0, 0.36, lw, MP.concreteLight);
+  const gap = Math.max(0.2, edge(S.v0) - S.u1);
+  b.box(M, S.u1 + gap / 2, H - 0.16, (S.v0 + S.v1) / 2, gap + 0.1, 0.32, lw, MP.concreteLight);
+  for (const v of [S.v0 + 0.3, S.v1 - 0.3]) b.box(M, (S.u0 + S.u1) / 2, (H - 0.36) / 2 + P / 2, v, 0.45, H - 0.36 - P, 0.45, MP.concrete);
+  // räcket runt vilplanet (inte mot bron och loppen)
+  for (const [x0, x1, v] of [[S.u0, S.u1, S.v0 + 0.05], [S.u0, S.u1, S.v1 - 0.05]]) {
+    seg(b, M, [x0, H + 1.0, v], [x1, H + 1.0, v], 0.06, 0.06, MP.steel, 'metal');
+    seg(b, M, [x0, H + 0.5, v], [x1, H + 0.5, v], 0.04, 0.04, MP.steel, 'metal');
+    for (let x = x0; x <= x1 + 1e-6; x += 1.1) b.box(M, x, H + 0.5, v, 0.06, 1.0, 0.06, MP.steelDark, 'metal');
+  }
+  // loppen
+  for (const fv of S.flights) {
+    const du = (S.u0 - S.foot) / n, dh = (H - P) / n;
+    // vangen (betong) under stegen
+    seg(b, M, [S.foot, P - 0.25, fv], [S.u0, H - 0.4, fv], S.w, 0.35, MP.concreteDark);
+    for (let k = 0; k < n; k++) b.box(M, S.foot + du * (k + 0.5), P + dh * (k + 0.5) - 0.1, fv, du + 0.02, dh + 0.08, S.w, MP.concreteLight);
+    for (const sd of [-1, 1]) {
+      const z = fv + sd * (S.w / 2 + 0.04);
+      seg(b, M, [S.foot, P + 1.0, z], [S.u0, H + 1.0, z], 0.06, 0.06, MP.steel, 'metal');
+      seg(b, M, [S.foot, P + 0.5, z], [S.u0, H + 0.5, z], 0.04, 0.04, MP.steel, 'metal');
+      for (let k = 0; k <= n; k += 3) b.box(M, S.foot + du * k, P + dh * k + 0.5, z, 0.06, 1.0, 0.06, MP.steelDark, 'metal');
+    }
+    // pelare under loppets mitt
+    const um = (S.foot + S.u0) / 2;
+    b.box(M, um, (P + (H + P) / 2) / 2, fv, 0.4, (H + P) / 2 - P, 0.4, MP.concrete);
+  }
 }
 
 // ---------- spåret och perrongerna ----------
@@ -544,9 +579,11 @@ export function trafficLight(b, M, lit = 0) {
   b.box(M, 0.0, 3.5, 0, 0.3, 0.06, 0.3, MP.light, 'paint');
 }
 // Bergskärningen: grå-rosa granit i block längs lokal x (L meter), djup D, höjd H, med lite mossa.
+// 0.21.3 (H541): blocken skalas efter väggens djup (en låg vägg får låga, smala block, inga stora stenar)
 export function rockCut(b, M, L, D, H, r) {
-  for (let x = -L / 2; x < L / 2; x += r.range(1.4, 2.4)) {
-    const s = r.range(1.6, 2.8), h = H * r.range(0.6, 1.05);
+  const sc = Math.min(1, D / 2.6);
+  for (let x = -L / 2; x < L / 2; x += r.range(1.4, 2.4) * Math.max(0.7, sc)) {
+    const s = r.range(1.6, 2.8) * sc, h = H * r.range(0.6, 1.05);
     b.put(UNIT.blob, M, x, h * 0.45, r.range(-D * 0.2, D * 0.2), s * 1.3, h, D * r.range(0.9, 1.3), r.pick(MP.granite), 'matte', r() * 6);
     if (r() < 0.35) b.put(UNIT.blob, M, x + r.range(-0.5, 0.5), h * 0.92, r.range(-0.4, 0.4), s * 0.8, 0.35, D * 0.6, MP.moss, 'matte', r() * 6);
   }
