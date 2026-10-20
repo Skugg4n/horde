@@ -872,7 +872,7 @@ export const MOLNBO_SURROUNDINGS = {
 export const molnbo = {
   id: 'molnbo', name: 'Mölnbo · Stationen', version: MOLNBO_VERSION, world: 'molnbo',
   // 0.20.0: Mölnbo släpps (kampanjbågen dag 10); truppen drar sig tillbaka till Gnesta
-  outro: { text: 'Mölnbo is lost, but the north side got across. Fall back to Gnesta.' },
+  outro: { text: 'The north side got across. We leave Mölnbo behind us. On to Gnesta.' },
   // dag 1:s civila är i säkerhet när de är över bron (resultatet och raderna i main.js)
   evacPlace: 'got over the bridge',
   // 0.20.1: basens namn över Folkets hus (main.js updateBaseLabel)

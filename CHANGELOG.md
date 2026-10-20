@@ -1,5 +1,9 @@
 # Ändringslogg
 
+## 0.21.6: texter (2026-10-20)
+
+Perrongens märkning säger "The train stops here. Hold the platform." och Mölnbos slut läses som en vinst: "The north side got across. We leave Mölnbo behind us. On to Gnesta." (Olas skärmbilder.)
+
 ## 0.21.5 (Mölnbo efter Olas bilder) (2026-10-20)
 
 Mölnbo rättat efter Olas kartbilder och foton 2026-10-20 (H532, kampanjplanen avsnitt 10, beslut).
