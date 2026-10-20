@@ -321,3 +321,11 @@ Förhandsvisningen finns (`laxne.html`, H460). Olas beslut: horden kommer från 
 1. Dag 18 pushback: victory locations eller något annat?
 2. Laxne som valfri skådeplats: när i bågen erbjuds valet (mellan dag 10 och 11?) och vad kostar det att släppa byn (trupper sparade mot civila förlorade)?
 3. Dag 19 "spår av något konstigt": vad ser man?
+
+### Beslut (Ola 2026-10-20, docs/ola/svar-2026-10-20.md)
+- **Dag 18, pushback:** Ola överlåter valet. Beslut: alternativ A, linjen flyttas fram våg för våg. Efter varje vunnen våg låses nästa del av kartan upp för placering (samma mekanik som Mölnbo dag 3:s röda norrsida, fast omvänt), och horden kommer från den del som ännu inte är tagen. Det bygger på det som redan finns, utan ny stridsmekanik.
+- **Laxne-valet:** kör på förslaget. Valet erbjuds mellan Mölnbo dag 10 och Björnlunda dag 11. Släppa byn = ingen strid och sparad trupp, men förlorade civila (färre RP) och ett sämre läge i Björnlunda (horden närmare, fler i första vågen).
+- **Dag 19:** köttiga trådar på marken som leder västerut, och en zombie som inte beter sig som de andra.
+- **Dag 20 till 21, vagnen:** läget väljs så att banan blir dynamisk med flera alternativ, men rimligt mot kartan. Beslut: ute på linjen strax väster om Björnlunda station, så att både Stationsvägen, Ekvägen och spåret blir vägar fram.
+- **Mölnbo:** vägnätet efter Olas nya kartbilder (horde-refs/molnbo/karta-*.jpg): Fagernäsvägen går från bron österut längs spåret, viker söderut och fortsätter som en båge till Epoken i sydost; Trollvägen är en egen slinga; Dvärgvägen binder ihop dem; Kvarnvägen från Mjölnarstigen förbi Folkets hus till Trollvägen. Stationshuset står där Redmond Muay Thai ligger (norr om Fagernäsvägen, öster om bron, söder om spåret). Inga trapptorn: det är öppna betongtrappor med stålräcken på brons västra sida ner till perrongen (Olas foton).
+- **Laxne:** ingen Fjäderfabriken (etiketten bort). Bollplanen är grusplanen vid badet. Kartan når inte längre norrut.
