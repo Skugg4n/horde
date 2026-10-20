@@ -579,9 +579,11 @@ export function trafficLight(b, M, lit = 0) {
   b.box(M, 0.0, 3.5, 0, 0.3, 0.06, 0.3, MP.light, 'paint');
 }
 // Bergskärningen: grå-rosa granit i block längs lokal x (L meter), djup D, höjd H, med lite mossa.
+// 0.21.3 (H541): blocken skalas efter väggens djup (en låg vägg får låga, smala block, inga stora stenar)
 export function rockCut(b, M, L, D, H, r) {
-  for (let x = -L / 2; x < L / 2; x += r.range(1.4, 2.4)) {
-    const s = r.range(1.6, 2.8), h = H * r.range(0.6, 1.05);
+  const sc = Math.min(1, D / 2.6);
+  for (let x = -L / 2; x < L / 2; x += r.range(1.4, 2.4) * Math.max(0.7, sc)) {
+    const s = r.range(1.6, 2.8) * sc, h = H * r.range(0.6, 1.05);
     b.put(UNIT.blob, M, x, h * 0.45, r.range(-D * 0.2, D * 0.2), s * 1.3, h, D * r.range(0.9, 1.3), r.pick(MP.granite), 'matte', r() * 6);
     if (r() < 0.35) b.put(UNIT.blob, M, x + r.range(-0.5, 0.5), h * 0.92, r.range(-0.4, 0.4), s * 0.8, 0.35, D * 0.6, MP.moss, 'matte', r() * 6);
   }

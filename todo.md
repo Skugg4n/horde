@@ -461,3 +461,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H534 | kampanj | Pushback dag 18 = linjen flyttas fram våg för våg (beslut A). Laxne-valet mellan dag 10 och 11. Dag 19 köttiga trådar + avvikande zombie. Vagnen väster om Björnlunda station.
 - [x] H538 | molnbo | Dag 2 bara från Järnasidan (väg 57, Norrängsvägen, längs spåret österifrån); ingången söderifrån borta, i stället ett utbrott i ett hus vid Trollvägen (0.21.3).
 - [x] H539 | ui | Kampanjens dag i HUD:en, introt och bordet (src/meta/campaign-day.js: E4 3, Ishallen 5, Vikingavägen 5, Mölnbo 3; Mölnbo dag 2 = dag 15), banans dag smått under ("Mölnbo · 2") (0.21.3).
+- [x] H540 | molnbo | Fler vägar att leda horden genom: gång- och cykelvägar och stigar (längs spåret, mellan trädgårdarna, mot Mjölnarstigen, Trollvägen till Fagernäsvägen) i flödet (0.21.3).
+- [x] H541 | molnbo | Stenblocken i trädgårdarna vid Fagernäsvägen bort; bergskärningen en låg vägg norr om vägen som inte skymmer (0.21.3).

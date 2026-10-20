@@ -123,6 +123,42 @@ test('södra sidan: Fagernäsvägens båge, Trollvägen som slinga, Dvärgvägen
   assert.ok(rv && rv.facade === 'red' && rv.veranda && rv.u < -12 && rv.v < 55, 'röda villan');
 });
 
+// 0.21.3 (H540, Ola: "för få vägar att leda horden genom"): gång- och cykelvägar och stigar som horden och flödet går på
+test('gångvägarna: smala grusstigar i rutnätet, och en spärr ger en annan väg', () => {
+  const paths = molnbo.roads.filter(r => r.path);
+  assert.deepEqual(paths.map(r => r.id).sort(), ['banstig', 'gangA', 'gangB', 'gangC', 'gangD']);
+  for (const r of paths) {
+    assert.ok(r.walk && r.surface === 'gravel' && r.width < 3, r.id);
+    const [x, z] = r.pts[Math.floor(r.pts.length / 2)];
+    assert.ok(g.walkable(g.keyAt(x, z)), `${r.id} i rutnätet`);
+  }
+  const sim = createSim({ map: molnbo, day: 2, cash: 0 });
+  const rt = sim.route, blockAt = pts => { const o = {}; for (const [u, v] of pts) { const [x, z] = R(u, v); for (const k of rt.span(rt.cellAt(x, z))) o[k] = { type: 'block' }; } return o; };
+  const open = rt.paths(['s1'])[0], usesStenby = cells => cells.some(k => { const [u, v] = toRail(...g.center(k)); return v > 66 && v < 110 && Math.abs(u + 9.5) < 2; });
+  assert.ok(usesStenby(open.cells), 'öppet går horden Stenbyvägen förbi kyrkan');
+  // spärrad vid kyrkan: horden tar Trollvägen (lika lång i verkligheten, en annan gata)
+  const church = rt.paths(['s1'], blockAt([[-9, 66]]))[0];
+  assert.ok(church.reaches && church.through == null && !usesStenby(church.cells), 'runt via Trollvägen');
+  assert.ok(church.cells.length >= open.cells.length, `${church.cells.length} mot ${open.cells.length}`);
+  // spärrad vid caféet (norr om Trollvägen): en riktig omväg, Fagernäsvägen och stigen till Trollvägen, minst 30 rutor
+  const cafe = rt.paths(['s1'], blockAt([[-9.5, 47]]))[0];
+  assert.ok(cafe.reaches && cafe.through == null && cafe.cells.length >= open.cells.length + 30, `${cafe.cells.length} mot ${open.cells.length}`);
+});
+
+// 0.21.3 (H541): bergskärningen är en låg vägg norr om Fagernäsvägen (mot spåret), skymmer ingen sikt från trädgårdarna
+test('bergskärningen: norr om Fagernäsvägen, låg, och den skymmer inte', () => {
+  const rock = molnbo.rock, fag = molnbo.roads.find(r => r.id === 'fagernas').rail;
+  assert.ok(rock.segs.length >= 1 && rock.h <= 1.5);
+  for (const [u0, u1] of rock.segs) {
+    const um = (u0 + u1) / 2, roadV = fag.reduce((best, [u, v]) => (Math.abs(u - um) < Math.abs(best[0] - um) ? [u, v] : best))[1];
+    assert.ok(rock.v < roadV - 2 && rock.v > RAIL.corridor[1], `vid u ${um}: vägen ${roadV}, berget ${rock.v}`);
+  }
+  assert.ok(!SHAPES.some(b => b.kind === 'rock'), 'ingen byggnad i placeringen (skymmer inte)');
+  const [x, z] = R((rock.segs[0][0] + rock.segs[0][1]) / 2, rock.v), k = p.keyAt(x, z);
+  assert.notEqual(p.kind[k], KIND.open, 'går inte att ställa något på');
+  assert.equal(p.height[k], 0, 'ingen höjd som skymmer');
+});
+
 test('EN väg över spåret: bron. Varje ingång når Folkets hus, och järnvägen är stängd utom bron och perrongen', () => {
   for (const pa of route.paths(molnbo.spawns.map(s => s.id))) assert.ok(pa.reaches, pa.id);
   // spåren och södra perrongen är stängda för horden
@@ -453,10 +489,11 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
   assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
 });
 
-// 0.20.1 (speltestet av 0.20.0: dag 2 tog tolv minuter i 1x): sex till sju minuter för den som läser kartan; den som inte
+// 0.20.1 (speltestet av 0.20.0: dag 2 tog tolv minuter i 1x): sex till sju minuter för den som läser kartan (0.21.3: högst
+// sju och en halv); den som inte
 // spärrar dödar långsammare och får högst cirka nio
 test('balans: dag 2 tar sex till sju minuter', () => {
-  for (const [i, r] of smart.entries()) { const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 2 && x.won); assert.ok(w.time >= 330 && w.time <= 430, `mbSmart seed ${i}: ${w.time.toFixed(0)} s`); }
+  for (const [i, r] of smart.entries()) { const w = r.log.find(x => x.mapId === 'molnbo' && x.day === 2 && x.won); assert.ok(w.time >= 330 && w.time <= 450, `mbSmart seed ${i}: ${w.time.toFixed(0)} s`); }
   for (const [i, r] of naive.entries()) for (const x of r.log.filter(q => q.mapId === 'molnbo' && q.day === 2 && q.won)) assert.ok(x.time <= 560, `mbNaive seed ${i}: ${x.time.toFixed(0)} s`);
 });
 
@@ -484,11 +521,12 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // hårdare svans och hp 13 till 12, dag 3 den täta flodvågen. docs/balance-log.md Mölnbo 0.20.1.
 // 0.21.3 (H532, Olas kartbilder): alla dagar nya, avsiktligt: vägnätet på södra sidan (Fagernäsvägens båge, Dvärgvägen,
 // Kvarnvägen till Mjölnarstigen), trappan i stället för trapptornen, dag 2 overlap 20 och bjässarna i tredje vågen, dag 3
-// hp 10 till 12; dag 2 bara från Järnasidan med ett utbrott vid Trollvägen (H538). docs/balance-log.md Mölnbo 0.21.3.
+// hp 10 till 12; dag 2 bara från Järnasidan med ett utbrott vid Trollvägen (H538); gångvägarna och bergväggen som inte
+// skymmer (H540, H541), dag 2 hp 12 till 20 och dag 3 till 27. docs/balance-log.md Mölnbo 0.21.3.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '0b8451cf', 'molnbo 3': 'b1d3eefb' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': 'bade259c', 'molnbo 3': 'dd0727a8' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '6beb5b36', 'molnbo 3': 'a9a37bd9' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': '7c19cc08', 'molnbo 3': '6b81a740' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

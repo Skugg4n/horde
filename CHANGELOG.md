@@ -16,7 +16,11 @@ Dag 2 kommer bara från Järnasidan (H538): väg 57 och Norrängsvägen på norr
 
 Kampanjens dag (H539). HUD:en, introts rubrik och bordet visar kampanjens dag (E4 3, Ishallen 5, Vikingavägen 5, Mölnbo 3: Mölnbo dag 2 är "Day 15"), med banan och dess dag smått under ("Mölnbo · 2"). src/meta/campaign-day.js.
 
-Balansen: dag 2:s bjässar kommer i tredje vågen från väg 57 (sist från Norrängsvägen drog de ut dagen), overlap 20 s; dag 3 hp 10 till 12. docs/balance-log.md, Mölnbo 0.21.3.
+Fler vägar att leda horden genom (H540). Gång- och cykelvägar och upptrampade stigar i grus, smalare än gatorna, som horden går på och flödet känner: längs spåret på södra sidan förbi stationshuset, två passager mellan trädgårdarna från Stenbyvägen till Trollvägen, en stig från Kvarnvägen mot Mjölnarstigen och en från Trollvägens slinga till Fagernäsvägen. Spärrad Stenbyvägen vid caféet ger nu en omväg på drygt 40 rutor via Fagernäsvägen och stigen; vid kyrkan tar horden Trollvägen (lika lång som Stenbyvägen i verkligheten).
+
+Bergskärningen (H541). Stenblocken söder om Fagernäsvägen, i trädgårdarna, är borta. Bergskärningen är en låg granitvägg på vägens norra sida, mot spåret bakom räcket. Den skymmer ingen sikt; man kan inte ställa något på den.
+
+Balansen: dag 2:s bjässar kommer i tredje vågen från väg 57 (sist från Norrängsvägen drog de ut dagen), overlap 20 s. Med bergväggen som inte skymmer och stigarna blev dag 2 och 3 för lätta: dag 2 hp 12 till 20, dag 3 hp 10 till 27. docs/balance-log.md, Mölnbo 0.21.3.
 
 ## 0.20.1: speltestet av 0.20.0 (2026-10-19)
 

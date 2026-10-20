@@ -164,6 +164,19 @@ const ROADS_RAIL = [
     pts: [[-23.5, -62], [-28, -54.5], [-33, -45], [-35.5, -35], [-36, -28]] },
   { id: 'mjolnar', name: 'Mjölnarstigen', surface: 'asphalt', width: 4.5, curbs: false,
     pts: [[-37, 149], [-44, 146.5], [-52.5, 139], [-60.5, 131], [-72, 120], [-83, 110], [-94, 101], [-110, 88]] },
+  // 0.21.3 (H540, Ola: "för få vägar att leda horden genom, spärrarna ger inga riktiga omvägar"): gång- och cykelvägar och
+  // upptrampade stigar, smalare än gatorna och i grus, som horden och flödet går på. path: true (ingen kantsten, inga lyktor,
+  // inga villor utmed dem).
+  // längs spåret på södra sidan, från Fagernäsvägen vid caféet förbi stationshuset till vägen österut
+  { id: 'banstig', name: 'Path by the tracks', surface: 'gravel', width: 2.4, path: true,
+    pts: [[20, 33], [24, 16], [40, 15], [60, 15], [90, 15.5], [100, 34.8]] },
+  // mellan trädgårdarna, från Stenbyvägen till Trollvägen (två passager)
+  { id: 'gangA', name: 'Path between the gardens', surface: 'gravel', width: 2.2, path: true, pts: [[-9.5, 86], [10, 86.5], [36.5, 87.5]] },
+  { id: 'gangB', name: 'Path between the gardens', surface: 'gravel', width: 2.2, path: true, pts: [[-10, 103], [12, 102], [35.5, 101.5]] },
+  // från Kvarnvägen mot Mjölnarstigen
+  { id: 'gangC', name: 'Path to Mjölnarstigen', surface: 'gravel', width: 2.2, path: true, pts: [[-4, 126.5], [-22, 119], [-44, 114], [-60, 113], [-72, 120]] },
+  // från Trollvägens slinga till Fagernäsvägen, utöver Dvärgvägen
+  { id: 'gangD', name: 'Path to Fagernäsvägen', surface: 'gravel', width: 2.2, path: true, pts: [[37.5, 67], [55, 60], [72, 52], [87.6, 50.3]] },
 ];
 export const ROADS = ROADS_RAIL.map(r => {
   const raw = RS(r.pts);
@@ -270,8 +283,8 @@ const HOUSES = [
 const FACADES = ['white', 'white', 'yellow', 'red', 'red', 'grey', 'beige', 'brown', 'blueGrey'];
 const ROOFS = ['black', 'charcoal', 'tile', 'tile', 'slate'];
 const VILLA_ROADS = ['norrang', 'backv', 'skogstorp', 'v57n', 'station', 'gnestavagen', 'stenby', 'troll', 'trollspur', 'kvarn', 'dvarg', 'kvse', 'skull', 'fagernas'];
-// bergskärningen längs Fagernäsvägens södra sida (ROCK nedan): inga villor där
-const inRockBand = (u, v) => u > 12 && u < 66 && v > 35 && v < 45;
+// 0.21.3 (H541): bergskärningen ligger norr om Fagernäsvägen, så villorna söder om vägen får stå där
+const inRockBand = () => false;
 function placeVillas() {
   const rng = makeRng(20261018), r = () => rng();
   const out = [];
@@ -343,8 +356,10 @@ function homeNear(u, v, taken) {
 }
 
 // ---------- bergskärningen, staket, saker ----------
-// Bergskärningen i granit längs Fagernäsvägens södra sida (Street View 6).
-export const ROCK = { u0: 16, u1: 62, v: 39.5, depth: 2.6, h: 3.2 };
+// Bergskärningen i granit längs Fagernäsvägen (Street View 6). 0.21.3 (H541, Ola: "stenblocken skymmer elden från
+// trädgårdarna och ser slumpade ut"): en låg bergvägg på vägens NORRA sida, mot spåret bakom räcket, inte i trädgårdarna.
+// Den skymmer ingen sikt (inte en byggnad i placeringen), men går inte att ställa något på.
+export const ROCK = { u0: 4, u1: 40, v: 28.6, depth: 1.4, h: 1.2 };
 // 0.17.2 (H307, "en stenmur korsar vägen"): skärningen bryts där en gata går igenom, i bitar [u0, u1]
 ROCK.segs = (() => {
   const out = [], step = 0.5;
@@ -570,10 +585,7 @@ function buildingShapes() {
     const height = (px, pz) => { const [u, v] = toRail(px, pz); if (!inStairs(u, v)) return 0; return u >= S.u0 ? S.h : S.platH + (S.h - S.platH) * (u - S.foot) / (S.u0 - S.foot); };
     out.push({ id: S.id, kind: 'stairs', rects: [land, fl], eave: S.h, pad: 0.2, height, perch: (px, pz) => (inRect(land, px, pz, 0.4) ? 1 : 0) });
   }
-  {
-    const rs = ROCK.segs.map(([u0, u1]) => { const [x, z] = R((u0 + u1) / 2, ROCK.v); return rect(x, z, RAIL_RY, u1 - u0, ROCK.depth); });
-    out.push({ id: 'rock', kind: 'rock', rects: rs, eave: ROCK.h, pad: 0, height: (px, pz) => (rs.some(r0 => inRect(r0, px, pz)) ? ROCK.h : 0), perch: null });
-  }
+  // 0.21.3 (H541): bergskärningen är ingen byggnad (den skymmer inte), bara en sak att inte ställa något på (thingRects)
   return out;
 }
 export const SHAPES = buildingShapes();
@@ -652,6 +664,7 @@ function thingRects() {
   const out = CARS.map(c => rect(c.x, c.z, c.ry, 4.3, 1.82));
   for (const [x, z] of LIGHTS) out.push(rect(x, z, 0, 0.6, 0.6));
   for (const s of SHELTERS) out.push(rect(s.x, s.z, RAIL_RY, 4, 1.8));
+  for (const [u0, u1] of ROCK.segs) { const [x, z] = R((u0 + u1) / 2, ROCK.v); out.push(rect(x, z, RAIL_RY, u1 - u0, ROCK.depth)); }
   // 0.17.2 (H308): bodarna och studsmattorna i trädgårdarna (ingen pjäs i en bod)
   for (const g of GARDEN) if (g.kind === 'shed' || g.kind === 'tramp') out.push(g.r);
   return out;
@@ -791,7 +804,7 @@ export const DAYS = [
              say('North of the tracks, along Norrängsvägen!', { groups: [g('walker', 18, 0.55, 0, 's1'), g('walker', 12, 0.6, 6, 's3'), g('runner', 6, 0.6, 14, 's1')] }),
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 20, overlapMin: 0.3,
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 20, overlap: 20, overlapMin: 0.3,
     // 0.21.3 (H538, Ola: tre riktningar är konstigt när berättelsen är "norra sidan faller"): bara från Järnasidan, väg 57
     // och Norrängsvägen på norra sidan och längs spåret österifrån på södra. Andra fronten söder om spåret är ett hus vid
     // Trollvägen där smittade bryter ut (dormant).
@@ -811,7 +824,7 @@ export const DAYS = [
              // 0.21.3: bjässarna i tredje vågen från väg 57 (sist från Norrängsvägen gick de sex minuter och drog ut dagen)
              say('Infected breaking out by Trollvägen!', { groups: [g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
              { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 22, 0.36, 6, 's2'), g('armored', 3, 2, 10, 's1'), g('runner', 18, 0.35, 16, 's1')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 50, overlapMin: 0.4,
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 27, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 3: Pull out', text: 'From Järna, all of them. Hold, then we pull out.' },
     objective: 'Hold Mölnbo, then pull out to Gnesta.',
     // på bron, söderut mot basen

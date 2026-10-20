@@ -1287,3 +1287,12 @@ Snubblet (tests/stumble.test.js): provet går nu högst 600 s (med god mode stod
 
 Tillägg (H538, samma version): dag 2 bara från Järnasidan. Gruppen söderifrån (14 vandrare på Kvarnvägen) ersatt av ett utbrott i en villa vid Trollvägen i tredje vågen (6 vandrare, 6 s in; med 10 fick den som aldrig spärrar 3 till 5 kvar och förlorade två gånger). Bas dag 2: mbSmart 20 i alla seeds, 401 till 410 s; mbNaive 3 till 8 (seed 0 på andra försöket), 391 till 445 s. Dag 3 orörd i data, ny i fingeravtrycket genom truppen efter dag 2: mbNaive 15, 2, 11, 14, 13.
 Fingeravtrycken: mbSmart 8825ffd1, 0b8451cf, b1d3eefb; mbNaive c9feaad2, bade259c, dd0727a8.
+
+Tillägg (H540, H541, samma version): stigarna och bergväggen. Bergväggen skymmer inte längre (förut stenblock som en byggnad 3,2 m söder om Fagernäsvägen), och den som aldrig spärrar fick hela basen dag 2 och 3 (20 i alla seeds med hp 12). Prövat: hp 16/16 (bas 13 till 20), 20/22 (dag 3 snitt 14,4). Valt dag 2 hp 20, dag 3 hp 27.
+
+    mbSmart  alla dagar första försöket; bas dag 2: 17, 18, 18, 18, 19 (421 till 441 s); dag 3: 20
+    mbNaive  alla dagar första försöket; bas dag 2: 13, 19, 13, 13, 8 (396 till 426 s); dag 3: 9, 11, 6, 10, 6
+    toppen   137 levande, högst två vågor ute
+
+Kartläsaren tar nu dag 2 på cirka sju minuter (provet tillåter 450 s). Spärren vid kyrkan ger ingen omväg (Trollvägen är lika lång); spärren vid caféet ger 46 rutor (tests/molnbo.test.js).
+Fingeravtrycken: mbSmart 8825ffd1, 6beb5b36, a9a37bd9; mbNaive c9feaad2, 7c19cc08, 6b81a740.

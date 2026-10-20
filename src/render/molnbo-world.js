@@ -234,7 +234,8 @@ export function buildMolnbo(scene, map) {
   }
   // räcket och bergskärningen längs Fagernäsvägen (räcket mellan vägen och spårets slänt)
   roadRail(b, RM, -4, 40, 30.2); roadRail(b, RM, 44, 92, 31.6);
-  for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v + 0.6), u1 - u0, ROCK.depth, ROCK.h, r);
+  // 0.21.3 (H541): låg bergvägg norr om vägen, mot spåret
+  for (const [u0, u1] of ROCK.segs) rockCut(b, frame(RM, (u0 + u1) / 2, 0, ROCK.v), u1 - u0, ROCK.depth, ROCK.h, r);
   // slänten ner mot spåret söder om perrongen: buskar
   for (let u = -110; u < 60; u += 4.2) { const v = 13.5 + r.range(0, 2), [x, z] = R(u + r.range(-1, 1), v); if (inC(x, z, 10) && Math.abs(u - uOnBridge(v)) > 7) b.put(UNIT.blob, null, x, 0.6, z, r.range(1.6, 2.6), r.range(1.0, 1.7), r.range(1.6, 2.6), r.pick(GP.hedge), 'matte', r() * 6); }
 
