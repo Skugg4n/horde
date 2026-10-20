@@ -14,6 +14,20 @@ Hagstumosse har kampanjbågens fyra dagar (kampanjplanen avsnitt 10, H539). För
 - **Bordet och HUD:en** räknar dagarna efter bågen (Vikingavägen = Day 7, Mölnbo dag 2 = Day 9). Radion om Järna kommer natten efter Vikingavägen. Debugmenyns Quick jump har Ishallen 1 till 3 och Vikingavägen 1.
 - **Balansen:** Ishallen dag 3 har de första bjässarna (tre nerför Norra vägen). Vikingavägen hp 3,75. Mölnbo dag 2 hp 20 till 15 och dag 3 27 till 25: truppen från Hagstumosse är 10 enheter med få veteraner (förut 19). Ankomsttabellen (src/data/arrival.js) omräknad, och Quick jump till Mölnbo dag 2 och 3 får truppen en spelare har där. Förrådets påfyllnadsknapp får plats med tvåsiffriga priser. docs/balance-log.md 0.22.0.
 
+## 0.21.7 (kartbordet) (2026-10-20)
+
+Ola valde personalrullan (docs/mockups/kontrollrum-4b) framför korten (H544), och inga rullister på bordet (H542).
+
+- Truppkorten och platserna är borta från bordet. Klämbrädan vid kanten är personalrullan: "Mölnbo · Day 14 / Personnel roster", en maskinskriven rad per enhet med rutorna Btl och Res, namn, typ, män, tillstånd som färgat ord och nivå som stjärnor. Ett klick på en ruta kryssar den i blyerts och flyttar enheten; den andra rutan töms. Taket och tröttheten gäller som förut, och raderna står still. "Battle 10 of 10 · Reserve 10" nederst och Deploy på klämbrädan.
+- 20 rader per blad; fler enheter ger ett andra blad under, med en flik att vända till. Blyertsmärket i radens slut öppnar den lilla menyn med nivå, påfyllnad och Return.
+- "Released by command" är ett eget blad på klämbrädan (fliken på kanten eller R): namn, typ, män, pris och en BUY-ruta; köpet lägger raden i rullan, i reserven.
+- Förrådet ("Stores") är blad med hundöra, så många rader som ryms per blad; hundörat vänder.
+- Inga rullister någonstans på bordet; det som inte ryms läggs på ett blad till. Layoutprovet säger till om något på bordet rullar.
+
+## 0.21.6: texter (2026-10-20)
+
+Perrongens märkning säger "The train stops here. Hold the platform." och Mölnbos slut läses som en vinst: "The north side got across. We leave Mölnbo behind us. On to Gnesta." (Olas skärmbilder.)
+
 ## 0.21.5 (Mölnbo efter Olas bilder) (2026-10-20)
 
 Mölnbo rättat efter Olas kartbilder och foton 2026-10-20 (H532, kampanjplanen avsnitt 10, beslut).

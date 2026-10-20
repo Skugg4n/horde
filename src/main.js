@@ -1528,7 +1528,7 @@ function updateBaseLabel() {
   baseLabel.style.left = sx + 'px'; baseLabel.style.top = sy + 'px';
 }
 const platLabel = document.createElement('div');
-platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'Platform: they come out here';
+platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'The train stops here. Hold the platform.';
 uiRoot.appendChild(platLabel);
 function trainWarned(ev) {
   const tm = sim.map.trainMark;

@@ -145,8 +145,10 @@ test('bordets yta: skalan minst MIN_SCALE, klämbrädan och korten inne i ytan (
     const f = frameFor(w, h);
     assert.ok(f.scale >= MIN_SCALE, `${w}x${h}`);
     assert.ok(f.W * f.scale <= w + 0.5 && f.H * f.scale <= h + 0.5, `${w}x${h}: ytan ryms`);
-    assert.ok(f.clipY + 376 <= f.H - 12 && f.clipX + 212 <= f.W, `${w}x${h}: klämbrädan`);
-    assert.ok(f.zoneY + 286 <= f.H - 12, `${w}x${h}: korten`);
+    // 0.21.7: personalrullan ryms på höjden, står till vänster om fiendehögen och går inte in i nästa strids hög
+    assert.ok(f.clipY + f.rosterH <= f.H - 12 && f.clipX + f.rosterW <= f.enemyX, `${w}x${h}: klämbrädan`);
+    assert.ok(f.clipX >= 580, `${w}x${h}: rullan går in i högen`);
+    assert.ok(f.storesY + f.storesH <= f.H - 12, `${w}x${h}: förrådet`);
   }
 });
 
@@ -322,4 +324,21 @@ test('klämbrädan: släppta kort med pris, köp till en plats, ingen annan rör
   }
   const ups = storeList(r.progress);
   assert.ok(ups.length > 0 && ups.every(u => u.name && u.effect));
+});
+
+// ---------- 0.21.7 (H544): personalrullan ----------
+test('personalrullan: fast radordning när en enhet flyttas, 20 rader per blad, köp lägger till en rad (0.21.7)', async () => {
+  const { rosterOrder, ROSTER_ROWS } = await import('../src/ui/table.js');
+  assert.equal(ROSTER_ROWS, 20);
+  let p = debugReach(newCampaign(), 'molnbo', 1);
+  const order = q => { const z = cardZones(q, 'molnbo'); return rosterOrder([...z.battle, ...z.rest]).map(c => c.uid); };
+  const o0 = order(p);
+  const L = lanes(p, 'molnbo');
+  p = setLane(p, L.battle[0].uid, 'rest').progress;
+  assert.deepEqual(order(p), o0, 'raderna står still');
+  p = { ...p, rp: 5000 };
+  const type = releasedCards(p, 'molnbo')[0].type, r = buyCard(p, type, 'molnbo');
+  assert.ok(order(r.progress).includes(r.uid));
+  assert.equal(lanes(r.progress, 'molnbo').rest.some(u => u.uid === r.uid), true, 'den köpta ligger i reserven');
+  assert.deepEqual(lanes(r.progress, 'molnbo').battle.map(u => u.uid).sort(), lanes(p, 'molnbo').battle.map(u => u.uid).sort(), 'ingen annan byter fält');
 });

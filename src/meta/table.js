@@ -447,8 +447,13 @@ export const MIN_SCALE = 0.8;
 export function frameFor(vw = TABLE_W, vh = TABLE_H) {
   const scale = Math.max(MIN_SCALE, Math.min(vw / TABLE_W, vh / TABLE_H));
   const W = Math.max(960, vw / scale), H = Math.max(600, vh / scale);
-  const zoneY = H - 300, mapS = Math.max(0.55, Math.min(1, (zoneY - 46) / 600, (W - 560) / 880));
-  return { scale, W, H, zoneY, mapS, mapX: 300, mapY: 30, clipX: W - 232, clipY: H - 400, enemyX: W - 300 };
+  // 0.21.7 (H544): inga kortfält längre. Personalrullan står på klämbrädan till vänster om fiendehögen och förrådets
+  // blad; den är smalare i smala fönster (typkolumnen faller bort) så att den inte går in i nästa strids hög.
+  const zoneY = H, mapS = Math.max(0.55, Math.min(1, (zoneY - 46) / 600, (W - 560) / 880));
+  const enemyX = W - 300, rosterW = Math.round(Math.max(380, Math.min(540, enemyX - 14 - 590))), rosterH = 640;
+  const clipX = enemyX - 14 - rosterW, clipY = Math.max(24, H - rosterH - 16);
+  const storesY = 440, storesH = Math.max(220, H - storesY - 24);
+  return { scale, W, H, zoneY, mapS, mapX: 300, mapY: 30, clipX, clipY, enemyX, rosterW, rosterH, storesX: enemyX + 12, storesY, storesW: 270, storesH };
 }
 const F0 = frameFor();
 // Startläget för ett föremål: { x, y, r }.
@@ -458,7 +463,7 @@ export function defaultPlace(state, id, fr = F0) {
   if (id === 'radio') return { x: 22, y: 40, r: -2 };
   if (id === 'archive') return { x: 20, y: Math.round(Math.min(330, fr.zoneY - 190)), r: 0 };
   if (id === 'enemies') return { x: Math.round(fr.enemyX), y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
-  if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 1.2 };
+  if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 0.6 };
   if (id.startsWith('pile:')) {
     const pl = state.piles.find(x => x.id === id), s = pl?.sector;
     const row = SECTOR_TABLE[s];
@@ -468,7 +473,7 @@ export function defaultPlace(state, id, fr = F0) {
     // nästa strids hög: så högt att den inte når ned i korten (högen är ca 390 hög med två blad), och inte in i klämbrädan
     let [x, y] = xy;
     if (pl.current) {
-      const right = state.clipboard ? fr.clipX - 350 : fr.W - 350, bottom = state.zones ? fr.zoneY - 425 : fr.H - 420;
+      const right = state.clipboard ? fr.clipX - 340 : fr.W - 350, bottom = fr.H - 420;
       if (x > fr.W / 2) x = Math.min(x, Math.round(right));
       y = Math.max(36, Math.min(y, Math.round(bottom)));
       // under fiendehögen: kanterna (72 över högen) får inte gå in i den; ryms den inte under flyttas högen åt vänster

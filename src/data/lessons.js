@@ -64,7 +64,7 @@ export const LESSONS = {
   'after-gn-2': [
     { id: 'after-gn-2.rp', kind: 'show', when: 'result', target: { ui: '.result .rptab' }, text: 'RP: earned in battle, spent between days.', manual: 'rp' },
     { id: 'after-gn-2.depot', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Requisition opens before the day. Spend your RP there.', manual: 'depot' },
-    { id: 'after-gn-2.level', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="lvl"], .hub.lifted [data-a="lvl"]' }, text: 'Spend RP to train a unit one level.' },
+    { id: 'after-gn-2.level', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="lvl"], .hub.roster [data-a="lvl"]' }, text: 'Spend RP to train a unit one level.' },
   ],
   // 0.16.4 (speltestet av 0.16.2: Ishallen dag 3 hade sex-sju nyheter på en gång): dag 3 är Hemvärnet och Norra
   // vägen (en andra väg in, känd från E4), de vilande husen dag 4, Next wave med bonus dag 5
@@ -86,10 +86,10 @@ export const LESSONS = {
   // dag 3 och 4), och kartan säger att Vikingavägen är samma stadsdel (förut efter dag 5)
   'after-gn-3': [
     { id: 'after-gn-5.north', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Same district, wider map. Your units carry over.', manual: 'sectors' },
-    { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
+    { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req], .hub.roster [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
     // 0.18.0 (Olas beslut: streck och skadeklasser på korten, siffrorna bara i Field manual)
-    { id: 'after-gn-3.bars', kind: 'caption', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Bars compare units. Exact numbers: Field manual.', keys: ['J'], manual: 'numbers' },
-    { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up], .hub.lifted [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
+    { id: 'after-gn-3.bars', kind: 'caption', when: 'depot', target: { ui: '.depot [data-req], .hub.roster [data-req]' }, text: 'Bars compare units. Exact numbers: Field manual.', keys: ['J'], manual: 'numbers' },
+    { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up], .hub.roster [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
   ],
   // 0.22.0 (H539, kampanjbågens dag 7): Vikingavägen är en dag. Begreppet är betongen och skrotbilarna som styr om
   // grupperna (kampanjplanen: "betongfundament och bilar för att styra om grupperna"); de vilande husen (förut Ishallen
@@ -103,7 +103,7 @@ export const LESSONS = {
   // 0.18.0 (skiva 1): tröttheten i förrådet, när styrkan är större än frontbredden (0.22.0: före Mölnbo, förut efter
   // Vikingavägen dag 3)
   'after-gnn-1': [
-    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.lifted [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
+    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.roster [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
   ],
   // 0.17.0-molnbo: Mölnbo, en ny idé per dag (platsen: tornen, tåget, tågklockan, bron, spåret)
   'mb-1': [
