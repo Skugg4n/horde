@@ -320,8 +320,11 @@ export function tableState(p, { sector = null } = {}) {
     zones: depot && nb ? cardZones(p, nb.sector) : null,
     clipboard: depot ? { rp: meta.has('rp') ? p.rp : null, next: nb } : null,
     briefing: piles.length === 1 && piles[0].sheets.length === 1,
+    // 0.21.3 (Ola: "rörigt vad som är aktuellt och gammalt", H530): klara sektorers högar flyttar till en arkivhög i
+    // hörnet, med slutbladet (HELD) överst; den breds ut bara vid klick
+    archive: piles.some(x => x.closed) ? { id: 'archive', sheets: piles.filter(x => x.closed).flatMap(x => x.sheets), tops: piles.filter(x => x.closed).map(x => x.sheets.at(-1)) } : null,
   };
-  state.objects = ['map', ...piles.map(x => x.id), ...(radio.length ? ['radio'] : []), ...(enemies ? ['enemies'] : []), ...(state.clipboard ? ['clipboard'] : []), ...(state.zones ? ['zones'] : [])];
+  state.objects = ['map', ...piles.filter(x => !x.closed).map(x => x.id), ...(state.archive ? ['archive'] : []), ...(radio.length ? ['radio'] : []), ...(enemies ? ['enemies'] : []), ...(state.clipboard ? ['clipboard'] : []), ...(state.zones ? ['zones'] : [])];
   return state;
 }
 // 0.21.1 (speltestet, fynd 2 och 8: Deploy klipptes i 1024x614 och 1920x1080, text på 6 till 7 px): bordets yta följer
@@ -341,6 +344,7 @@ export function defaultPlace(state, id, fr = F0) {
   const onMap = ([x, y]) => [Math.round(fr.mapX + (x - 300) * fr.mapS), Math.round(fr.mapY + (y - 30) * fr.mapS)];
   if (id === 'map') return { x: fr.mapX, y: fr.mapY, r: -0.5 };
   if (id === 'radio') return { x: 22, y: 40, r: -2 };
+  if (id === 'archive') return { x: 20, y: Math.round(Math.min(330, fr.zoneY - 190)), r: 0 };
   if (id === 'enemies') return { x: Math.round(fr.enemyX), y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
   if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 1.2 };
   if (id.startsWith('pile:')) {
@@ -352,9 +356,9 @@ export function defaultPlace(state, id, fr = F0) {
     // nästa strids hög: så högt att den inte når ned i korten (högen är ca 390 hög med två blad), och inte in i klämbrädan
     let [x, y] = xy;
     if (pl.current) {
-      const right = state.clipboard ? fr.clipX - 350 : fr.W - 350, bottom = state.zones ? fr.zoneY - 400 : fr.H - 420;
+      const right = state.clipboard ? fr.clipX - 350 : fr.W - 350, bottom = state.zones ? fr.zoneY - 425 : fr.H - 420;
       if (x > fr.W / 2) x = Math.min(x, Math.round(right));
-      y = Math.max(100, Math.min(y, Math.round(bottom)));
+      y = Math.max(80, Math.min(y, Math.round(bottom)));
       // under fiendehögen: kanterna (72 över högen) får inte gå in i den; ryms den inte under flyttas högen åt vänster
       const eb = state.enemies ? 28 + (state.enemies.sheets.length - 1) * 30 + 2 + 196 + 8 : 0;
       if (state.enemies && x + 330 > fr.enemyX && y - 72 < eb) x = Math.round(fr.enemyX - 340);

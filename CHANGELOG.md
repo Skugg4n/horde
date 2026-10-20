@@ -1,5 +1,16 @@
 # Ändringslogg
 
+## 0.21.3 (kartbordet) (2026-10-20)
+
+Olas återkoppling på bordet i 0.21.2: pappret känns bra men det blir rörigt, man ser inte vad som är aktuellt och vad som är gammalt, och RECEIVED hängde utanför pappret (H530, H531).
+
+- En aktuell lapp: nästa order ligger överst, rak och ljus, med en röd NEW-flik, och inget ligger över den. Gårdagens rapport (eller den förlorade dagen) ligger gulnad och sned under; bara rubriken och första raden syns. Äldre blad är bara gråa kanter.
+- Klara sektorer flyttar till en arkivhög i hörnet, med slutbladet (HELD) överst; hela historien breds ut vid klick. Som mest en läsbar lägesrapport på bordet åt gången.
+- Stämplarna (RECEIVED, HELD, LOST) är mindre, nästan raka och ligger inne i pappret.
+- En remsa överst på kartbladet säger ögonblicket en gång: "Night 4 → Day 5".
+- Layoutprovet: stämplarna inne i arket, inget över den aktuella ordern, högst en läsbar rapport, i alla fönsterstorlekar. Provet väntar på bordets första ritning i stället för en fast tid (H529).
+- index.html på master hade kvar konfliktmarkörer från sammanslagningen (två import-kartor); rättat här.
+
 ## 0.20.1: speltestet av 0.20.0 (2026-10-19)
 
 Speltestet sa JA med reservationer (docs/playtests/2026-10-19-0.20.0.md).
