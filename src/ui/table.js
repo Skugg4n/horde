@@ -18,7 +18,7 @@ import { MAPS } from '../data/maps.js';
 import { SECTORS } from '../data/depot.js';
 import { TABLE_W, TABLE_H, MAP_W, MAP_H, gx, gy, PLACES, SEA, MALAREN, LAKES, ISLANDS, ROADS, RAILS, TOWNS, SECTOR_TABLE } from '../data/table.js';
 import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor, cardSlots, releasedCards, storeList } from '../meta/table.js';
-import { unitOf, levelCost, refillCost, returnValue, canReturn } from '../meta/operation.js';
+import { unitOf, levelCost, refillCost, returnValue, canReturn, unitName } from '../meta/operation.js';
 import { metaFeatures } from '../meta/unlocks.js';
 import { ROMAN } from '../data/research.js';
 import { intelFor, compass } from '../meta/intel.js';
@@ -226,98 +226,75 @@ function enemyHtml(pile, order, intel, place, fr) {
   return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:14">${html}${note}</div>`;
 }
 
-// ---------- korten ----------
-// 0.21.4 (Ola: "korten hoppar, byter storlek och ordning", H536): korten är fysiska kort med fast storlek och fasta
-// platser. Into battle har exakt cap platser (svaga konturer på bordet), Reserve en bricka med platser som rullar i sidled
-// när de inte ryms. En flytt är en rörelse (kortet lyfts, glider, läggs ned), inga andra kort rör sig.
-export const CARD_W = 100, CARD_H = 126, SLOT_GAP = 8, ZONE_H = 286;
-const ZONE_X0 = 92;
-const slotXY = (i, x0, y0) => [x0 + 8 + Math.floor(i / 2) * (CARD_W + SLOT_GAP), y0 + 16 + (i % 2) * (CARD_H + 6)];
-export function zoneFrame(cap, fr, clip) {
-  const x1 = clip ? fr.clipX - 14 : fr.W - 24, bc = Math.max(1, Math.ceil(cap / 2));
-  const bw = 16 + bc * CARD_W + (bc - 1) * SLOT_GAP, rx = ZONE_X0 + bw + 18;
-  // brickan har hela kolumner (inget kort syns till hälften innan man rullar)
-  const cols = Math.max(1, Math.floor((x1 - rx - 16 + SLOT_GAP) / (CARD_W + SLOT_GAP))), rw = 16 + cols * CARD_W + (cols - 1) * SLOT_GAP;
-  return { by: fr.zoneY, battle: { x: ZONE_X0, w: bw }, rest: { x: rx, w: rw, cols } };
+// ---------- personalrullan (0.21.7, Ola: korten blev rörigt, H544, mockup docs/mockups/kontrollrum-4b) ----------
+// Klämbrädan vid kanten är trupplistan: en maskinskriven rad per enhet med två blyertsrutor, Battle och Res. Ett klick
+// på en ruta kryssar den och flyttar enheten (den andra rutan töms); förrådets tak och trötthet gäller som förut. 20 rader
+// per blad, fler enheter på nästa blad som sticker ut under. Ledningens släppta enheter är ett eget blad (BUY-ruta per
+// rad). Inget på bordet rullar (H542): det som inte ryms läggs på ett blad till.
+export const ROSTER_ROWS = 20;
+const STATE_CLS = f => (f == null ? 'ok' : f === 0 ? 'ok' : f === 1 ? 'tired' : 'bad');
+function rosterRows(z, wide, menuOn) {
+  const all = [...z.battle.map(c => ({ ...c, lane: 'battle' })), ...z.rest.map(c => ({ ...c, lane: 'rest' }))];
+  return all;
 }
-function cardHtml(c, x, y, zone, idx, sel, dots = false) {
-  const bad = c.fatigue != null ? c.fatigue > 0 : c.men === 0;
-  const men = c.max ? `${c.men}/${c.max} men` : 'crew';
-  const state = c.moved ? `<span class="mv">${esc(c.moved.short)}</span>` : `<span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span>`;
-  return `<div class="tb-obj tb-card${c.fresh ? ' fresh' : ''}${sel ? ' sel' : ''}" data-uid="${c.uid}" data-zone="${zone}" data-idx="${idx}" title="${c.moved ? esc(c.moved.long) : esc(c.name)}" style="--x:${x};--y:${y};--w:${CARD_W};--h:${CARD_H};--r:0;--z:3">
-    <div class="n" data-read data-name>${esc(c.name)}</div>
-    <div class="rl">${esc(c.role)}</div>
-    <div class="m" data-read>${men}</div>
-    <div class="st" data-read data-fat>${state}</div>
-    <div class="lv"><span>${c.vet ? '<b class="star">★</b> ' : ''}L${c.level}</span>${dots ? '<button type="button" class="tb-dots" data-dots data-a="lvl" aria-label="Train, refill or return" title="Train, refill or return">⋯</button>' : ''}</div></div>`;
+// Raderna i fast ordning (typ, nummer): de hoppar inte när en ruta kryssas
+const TYPE_ORDER = ['hv', 'civ', 'inf', 'm249', 'm2', 'ksp58', 'ak5', 'psg90', 'epa'];
+export function rosterOrder(rows) {
+  return [...rows].sort((a, b) => ((TYPE_ORDER.indexOf(a.type) + 1 || 99) - (TYPE_ORDER.indexOf(b.type) + 1 || 99)) || a.uid - b.uid);
 }
-function zonesHtml(z, slots, note, fr, clip, sel, dots) {
-  const Z = zoneFrame(slots.cap, fr, clip), byUid = new Map([...z.battle, ...z.rest].map(c => [c.uid, c]));
-  const restN = Math.max(Z.rest.cols * 2, slots.rest.length + (slots.rest.includes(null) ? 0 : 1));
-  const restCols = Math.ceil(restN / 2);
-  let battle = '', tray = '';
-  for (let i = 0; i < slots.cap; i++) {
-    const [x, y] = slotXY(i, Z.battle.x, Z.by);
-    battle += `<div class="tb-slot" data-zone="battle" data-idx="${i}" style="--x:${x};--y:${y}"></div>`;
-    const uid = slots.battle[i];
-    if (uid != null && byUid.has(uid)) battle += cardHtml(byUid.get(uid), x, y, 'battle', i, sel === uid, dots);
-  }
-  for (let i = 0; i < restN; i++) {
-    const [x, y] = slotXY(i, 0, 0);
-    tray += `<div class="tb-slot" data-zone="rest" data-idx="${i}" style="--x:${x};--y:${y - 16 + 10}"></div>`;
-    const uid = slots.rest[i];
-    if (uid != null && byUid.has(uid)) tray += cardHtml(byUid.get(uid), x, y - 16 + 10, 'rest', i, sel === uid, dots);
-  }
-  const nb = note ? `<span class="tb-znote">${esc(note.text)}</span>` : '';
-  const more = restCols > Z.rest.cols ? `<span class="tb-traymore">${restN - Z.rest.cols * 2 > 0 ? `${slots.rest.filter(x => x != null).length} in reserve · scroll` : ''}</span>` : '';
-  return `<div class="tb-zone battle" data-zone="battle" style="--x:${Z.battle.x};--y:${Z.by};--w:${Z.battle.w};--h:${ZONE_H}"><div class="lbl" data-read><b>INTO BATTLE</b> · ${z.battle.length} of ${slots.cap}</div>${note?.lane === 'battle' ? nb : ''}</div>
-    <div class="tb-zone rest" data-zone="rest" style="--x:${Z.rest.x};--y:${Z.by};--w:${Z.rest.w};--h:${ZONE_H}"><div class="lbl" data-read><b>RESERVE</b> · ${z.rest.length}</div>${note?.lane === 'rest' ? nb : ''}${more}
-      <div class="tb-tray"><div class="tb-trayin" style="width:${16 + restCols * CARD_W + (restCols - 1) * SLOT_GAP}px">${tray}</div></div></div>
-    <div class="tb-cards">${battle}</div>`;
+function rowHtml(c, wide, pencil) {
+  const box = (lane, on) => `<button type="button" class="tb-box${on ? ' on' : ''}" data-box="${lane}" data-uid="${c.uid}" aria-label="${lane === 'battle' ? 'Into battle' : 'Reserve'}"><i>${on ? '✕' : ''}</i></button>`;
+  const st = c.moved ? `<span class="mv" title="${esc(c.moved.long)}">Moved</span>` : `<span class="${STATE_CLS(c.fatigue)}">${esc(c.state)}</span>`;
+  const stars = '★'.repeat(Math.max(1, Math.min(3, c.level)));
+  return `<div class="tb-row" data-uid="${c.uid}">${box('battle', c.lane === 'battle')}${box('rest', c.lane === 'rest')}
+    <span class="un" data-read data-name>${esc(c.name)}</span>${wide ? `<span class="ty">${esc(c.role)}</span>` : ''}
+    <span class="mn">${c.max ? `${c.men}/${c.max}` : '1/1'}</span><span class="sv" data-read data-fat>${st}</span>
+    <span class="lvl" title="Level ${c.level}${c.vet ? ', veteran' : ''}">${stars}</span>${pencil ? `<button type="button" class="tb-pm" data-pm data-a="lvl" data-uid="${c.uid}" aria-label="Train, refill or return" title="Train, refill or return">✎</button>` : ''}</div>`;
 }
-
-// ---------- klämbrädan ----------
-function clipboardHtml(cb, place) {
-  const nb = cb.next;
-  return `<div class="tb-obj tb-clipboard" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:212;--h:376;--r:${place.r};--z:13"><div class="jaw"></div><div class="pg">
-    <div class="h">Next battle</div>
-    <div class="nb" data-read>${nb ? `${esc(nb.place)} · Day ${nb.n}<small>${esc(nb.title)}</small>` : 'Nothing planned<small>Every sector is held</small>'}</div>
-    ${cb.rp != null ? `<div class="rp" data-read><span>REQUISITION</span><b>${cb.rp}</b></div>` : ''}
-    <div class="grow"></div>
-    <button type="button" class="tb-btn" data-a="req" data-read><span class="one">Requisition <kbd>R</kbd></span><span class="p">Units, upgrades</span></button>
-    ${nb ? `<button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy day ${nb.n}</span><kbd>Enter</kbd></button>` : ''}
-  </div></div>`;
+// pages: rullans blad (20 rader var) och bladet med släppta enheter; page: det som ligger överst
+function rosterHtml(state, place, fr, { page, note, cm }) {
+  const z = state.zones, nb = state.next, p = state._p;
+  const wide = fr.rosterW >= 470, pencil = true;
+  const rows = rosterOrder(rosterRows(z));
+  const sheets = [];
+  for (let i = 0; i < Math.max(1, Math.ceil(rows.length / ROSTER_ROWS)); i++) sheets.push({ kind: 'roster', i, rows: rows.slice(i * ROSTER_ROWS, (i + 1) * ROSTER_ROWS) });
+  const rel = metaFeatures(p).has('requisition') ? releasedCards(p, z.sector) : null;
+  if (rel) sheets.push({ kind: 'released', rows: rel });
+  const top = Math.min(page, sheets.length - 1), cur = sheets[top];
+  const title = nb ? `${esc(nb.place)} · Day ${nb.n}` : 'Personnel';
+  const head = cur.kind === 'roster'
+    ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
+       <div class="tb-row hd"><span class="bx" title="Into battle">BTL</span><span class="bx" title="Reserve">RES</span><span class="un">UNIT</span>${wide ? '<span class="ty">TYPE</span>' : ''}<span class="mn">MEN</span><span class="sv">STATE</span><span class="lvl">LVL</span>${pencil ? '<span class="tb-pm sp"></span>' : ''}</div>
+       ${cur.rows.map(c => rowHtml(c, wide, pencil)).join('')}`
+    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')} · buying adds them to the roster</div>
+       <div class="tb-row hd rel"><span class="un">UNIT</span><span class="ty">TYPE</span><span class="mn">MEN</span><span class="pr">PRICE</span><span class="bx">BUY</span></div>
+       ${cur.rows.length ? cur.rows.map(c => `<div class="tb-row rel${c.ok ? '' : ' off'}"><span class="un" data-read>${esc(c.name)}</span><span class="ty">${esc(c.role)}</span><span class="mn">${c.max ? `${c.max}/${c.max}` : '1/1'}</span><span class="pr" data-read>${c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost}` : 'Not now'}</span><button type="button" class="tb-box buy" data-req="${c.type}" ${c.ok ? '' : 'disabled'} aria-label="Buy"><i></i></button></div>`).join('')
+         : '<p class="none" data-read>Nothing released here yet.</p>'}`;
+  const tabs = sheets.map((sh, k) => (k === top ? '' : `<button type="button" class="tb-tab" data-page="${k}">${sh.kind === 'roster' ? (sheets.filter(x => x.kind === 'roster').length > 1 ? `Roster · sheet ${sh.i + 1}` : 'Roster') : `Released by command${sh.rows.some(r => r.ok) ? ` · ${sh.rows.length} new` : ''}`}</button>`)).join('');
+  const foot = `<div class="ft" data-read><span>BATTLE <b>${z.battle.length} of ${z.cap}</b></span><span>RESERVE <b>${z.rest.length}</b></span></div>
+    <div class="note" data-read>${esc(note ?? '')}</div>`;
+  const under = sheets.length > 1 ? sheets.map((_, k) => (k === top ? '' : `<div class="tb-under" style="--k:${Math.min(2, k + 1)}"></div>`)).join('') : '';
+  return `<div class="tb-obj tb-roster" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:${fr.rosterW};--h:${fr.rosterH};--r:0.6;--z:45"><div class="jaw"></div>
+    ${under}<div class="pg ${cur.kind}">${head}${cur.kind === 'roster' ? foot : `<div class="note" data-read>${esc(note ?? '')}</div>`}
+      ${nb ? `<button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy day ${nb.n}</span><kbd>Enter</kbd></button>` : ''}</div>
+    <div class="tabs">${tabs}</div></div>`;
 }
-
-// ---------- Requisition som klämbräda (0.21.4, H537) ----------
-// Lyft klämbrädan (R eller klick): två ark. "Released by command": ledningens släppta enheter som samma kort, med en
-// prislapp; dra ett kort till en plats i striden eller reserven (klick: första lediga i reserven). "Stores": förrådets
-// uppgraderingar som en kort lista, köp med klick, köpta med bock. Esc eller klick på bordet lägger tillbaka den.
-function reqHtml(state, fr) {
-  const sector = state.zones?.sector ?? state.next?.sector, p = state._p;
-  const cards = releasedCards(p, sector), ups = storeList(p);
-  const x = 300, y = 18, w = Math.round(Math.min(940, fr.clipX - 20 - x)), h = Math.round(fr.zoneY - 30 - y);
-  const sw = ups.length ? Math.min(330, Math.round(w * 0.42)) : 0, cw = w - sw - (sw ? 14 : 0) - 28;
-  const cols = Math.max(1, Math.floor((cw - 20 + SLOT_GAP) / (CARD_W + SLOT_GAP)));
-  const tag = c => (c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost} RP` : 'Not now');
-  const rcards = cards.map((c, i) => {
-    const cx = 14 + (i % cols) * (CARD_W + SLOT_GAP), cy = 8 + Math.floor(i / cols) * (CARD_H + 34);
-    return `<div class="tb-obj tb-card tb-rcard${c.ok ? '' : ' off'}" data-req="${c.type}" data-type="${c.type}" style="--x:${cx};--y:${cy};--w:${CARD_W};--h:${CARD_H};--r:0;--z:3" title="${c.ok ? 'Drag to a slot, or click' : esc(tag(c))}">
-      <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl">${esc(c.role)}</div><div class="m">${c.max ? `${c.max}/${c.max} men` : 'crew'}</div><div class="st"><span class="ok">New</span></div><div class="lv"><span>L1</span></div></div>
-      <div class="tb-tag${c.ok ? '' : ' off'}" data-read style="left:${cx}px;top:${cy + CARD_H + 4}px">${esc(tag(c))}</div>`;
-  }).join('');
-  const rows = Math.max(1, Math.ceil(cards.length / cols)), ch = 8 + rows * (CARD_H + 34);
-  const store = sw ? `<div class="tb-store" style="left:${cw + 42}px;width:${sw}px">
-      <div class="h">Stores</div>
-      ${ups.map(u => `<button type="button" class="tb-up${u.bought ? ' done' : u.ok ? '' : ' off'}" data-up="${u.id}" ${u.bought ? 'disabled' : ''}><b data-read>${u.bought ? '✓ ' : ''}${esc(u.name)} ${ROMAN[u.tier] ?? ''}</b><span data-read>${esc(u.effect)}</span><i data-read>${u.bought ? 'Bought' : u.ok ? `${u.cost} RP` : `Need ${u.cost} RP`}</i></button>`).join('')}
-    </div>` : '';
-  return `<div class="tb-req" data-req-sheet style="--x:${x};--y:${y};--w:${w};--h:${h}"><div class="jaw"></div>
-    <div class="pg"><div class="h">Released by command <span>${p.rp} RP</span></div>
-      <div class="tb-reqcards" style="width:${cw}px"><div style="position:relative;height:${ch}px">${rcards || '<p class="none" data-read>Nothing released here yet. Use ⋯ on a card to train, refill or return it.</p>'}</div></div>
-      ${store}
-      <p class="hint" data-read>Drag a card to a slot, or click it. Esc puts the clipboard back.</p>
-    </div></div>`;
+// Förrådet: två (eller fler) blad med hundöra, så många rader som ryms, inget rullar
+function storesHtml(ups, rp, fr, sheet) {
+  const per = Math.max(1, Math.floor((fr.storesH - 82) / 64)), n = Math.max(1, Math.ceil(ups.length / per)), s0 = sheet % n;
+  const list = ups.slice(s0 * per, (s0 + 1) * per);
+  const under = Array.from({ length: Math.min(2, n - 1) }, (_, k) => `<div class="tb-under" style="--k:${k + 1}"></div>`).join('');
+  return `<div class="tb-obj tb-stores" data-obj="stores" style="--x:${Math.round(fr.storesX)};--y:${Math.round(fr.storesY)};--w:${fr.storesW};--h:${fr.storesH};--r:-0.8;--z:12">${under}
+    <div class="pg"><div class="h" data-read>Stores <i>${rp} RP</i><span>${n > 1 ? `sheet ${s0 + 1} of ${n}` : ''}</span></div>
+    ${list.map(u => `<button type="button" class="tb-up${u.bought ? ' done' : u.ok ? '' : ' off'}" data-up="${u.id}" ${u.bought ? 'disabled' : ''}><b data-read>${u.bought ? '✓ ' : ''}${esc(u.name)} ${ROMAN[u.tier] ?? ''}</b><span data-read>${esc(u.effect)}</span><i data-read>${u.bought ? 'Bought' : u.ok ? `${u.cost} RP` : `Need ${u.cost}`}</i></button>`).join('')}
+    ${n > 1 ? `<button type="button" class="tb-dog" data-dog aria-label="Next sheet"><span>sheet ${(s0 + 1) % n + 1} →</span></button>` : ''}</div></div>`;
 }
+// Tröttheten flyttade någon efter dagen: en rad på rullan
+function movedNote(z) {
+  const m = [...z.battle, ...z.rest].filter(c => c.moved);
+  return m.length ? m.map(c => `${c.name}: ${c.moved.long.toLowerCase()}`).join('. ') + '.' : '';
+}
+const WEAPONS_NAME = type => unitName({ type });
 // Liten meny på ett kort (⋯): nästa nivå, påfyllnad och tillbaka, med pris
 function cardMenuHtml(p, uid) {
   const u = unitOf(p, uid);
@@ -340,7 +317,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   el.innerHTML = '<div class="tb-view"></div><div class="tb-rail"></div>';
   root.appendChild(el);
   const view = el.querySelector('.tb-view');
-  let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20, selCard = null, trayScroll = 0, lifted = false, cmenu = null, confirmReturn = null;
+  let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20, page = 0, storeSheet = 0, cmenu = null, confirmReturn = null;
   const zOf = {};
   // ---------- skalan: designrummet till fönstret ----------
   // 0.21.1: bordets yta följer fönstret (src/meta/table.js frameFor): skalan minst MIN_SCALE, ytan W x H
@@ -356,27 +333,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   };
   const toTable = (cx, cy) => { const r = el.getBoundingClientRect(); return [(cx - r.left - ox) / scale, (cy - r.top - oy) / scale]; };
 
-  // FLIP: korten som flyttat glider från sin gamla plats (from: uid -> skärmrektangel före ritningen)
-  function render(from = null) {
-    const tr = view.querySelector('.tb-tray');
-    if (tr) trayScroll = tr.scrollLeft;
-    renderNow();
-    const nt = view.querySelector('.tb-tray');
-    if (nt) nt.scrollLeft = trayScroll;
-    if (!from) return;
-    for (const [uid, r0] of from) {
-      const c = view.querySelector(`.tb-card[data-uid="${uid}"]`);
-      if (!c) continue;
-      const r1 = c.getBoundingClientRect(), dx = (r0.left - r1.left) / scale, dy = (r0.top - r1.top) / scale;
-      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-      c.classList.add('lifted');
-      c.style.transition = 'none'; c.style.translate = `${dx}px ${dy}px`;
-      void c.offsetWidth;
-      c.style.transition = 'translate 250ms cubic-bezier(.3,.7,.3,1), box-shadow 250ms';
-      c.style.translate = '0px 0px';
-      setTimeout(() => { c.classList.remove('lifted'); c.style.transition = ''; c.style.translate = ''; }, 280);
-    }
-  }
+  function render() { renderNow(); }
   function renderNow() {
     const state = tableState(p, { sector: sel });
     state._p = p;
@@ -398,13 +355,15 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     }
     if (state.archive) html += archiveHtml(state.archive, place('archive'), spread === 'archive');
     if (state.radio.length) html += radioHtml(state.radio, radioOrder, place('radio'));
-    if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), state.clipboard ? fr : null);
-    if (state.clipboard) html += clipboardHtml(state.clipboard, place('clipboard'));
-    if (state.zones) html += zonesHtml(state.zones, cardSlots(p, state.zones.sector), laneNote, fr, !!state.clipboard, selCard, !!state.clipboard);
-    if (lifted && state.clipboard) html += reqHtml(state, fr);
+    if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), null);
+    // 0.21.7: personalrullan på klämbrädan och förrådets blad (H544, H542)
+    const rosterOn = !!(state.clipboard && state.zones);
+    if (rosterOn) html += rosterHtml(state, place('clipboard'), fr, { page, note: laneNote?.text ?? movedNote(state.zones) });
+    const ups = rosterOn ? storeList(p) : [];
+    if (ups.length) html += storesHtml(ups, p.rp, fr, storeSheet);
     const moved = Object.keys(tableOf(p).layout).length > 0;
     html += `<div class="tb-ring" style="left:1060px;top:60px;width:92px;height:92px;opacity:.7"></div>`;
-    html += state.zones ? `<div class="tb-pencil" style="left:40px;top:${Math.round(fr.zoneY - 30)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
+    html += rosterOn ? `<div class="tb-pencil" style="left:${Math.round(fr.clipX - 60)}px;top:${Math.round(fr.H - 120)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
       : `<div class="tb-pencil" style="left:1030px;top:780px;width:170px;transform:rotate(-14deg)"><i></i></div>`;
     if (moved) html += `<button type="button" class="tb-tidy" data-a="tidy">Tidy the table <kbd>T</kbd></button>`;
     if (spread) { const pl = spread === 'archive' ? state.archive : state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl, fr); else spread = null; }
@@ -412,13 +371,12 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     view.innerHTML = html;
     view.dataset.objects = state.objects.join(' ');
     view.classList.toggle('briefing', state.briefing);
-    // Requisition lyft: roten får .lifted (förrådets lektioner pekar också på .hub.lifted [data-a="lvl"], [data-req], [data-up], [data-fat])
-    el.classList.toggle('lifted', lifted && !!state.clipboard);
-    if (!state.clipboard) lifted = false;
+    // rullan ligger på bordet: roten får .roster (förrådets lektioner pekar också på .hub.roster [data-a="lvl"], [data-req], [data-up], [data-fat])
+    el.classList.toggle('roster', rosterOn);
     // z-ordningen: senast flyttade överst
     for (const [id, z] of Object.entries(zOf)) { const o = view.querySelector(`[data-obj="${id}"]`); if (o) o.style.setProperty('--z', z); }
     // kortets meny (⋯) intill kortet
-    const mc = cmenu != null && view.querySelector(`.tb-card[data-uid="${cmenu}"]`);
+    const mc = cmenu != null && view.querySelector(`.tb-row[data-uid="${cmenu}"] .tb-pm`);
     if (mc) {
       const r = mc.getBoundingClientRect(), [cx, cy] = toTable(r.right, r.top), [lx] = toTable(r.left, r.top);
       const m = document.createElement('div');
@@ -461,37 +419,43 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   // ---------- handlingar ----------
   const save = q => { p = q; handlers.save?.(p); };
   function go() { const nb = tableState(p, { sector: sel }).next; if (nb) handlers.onGo?.(nb.sector); }
-  // Requisition: lyft klämbrädan eller lägg tillbaka den
-  function requisition(on = !lifted) { const st = tableState(p, { sector: sel }); if (!st.clipboard) return; lifted = !!on; cmenu = null; render(); }
-  // köp ett släppt kort: drag till en plats (zon, plats) eller klick (första lediga i reserven); kortet glider dit
-  function buy(type, from, zone = null, idx = null) {
-    const st = tableState(p, { sector: sel }), sector = st.zones?.sector ?? st.next?.sector;
-    const before = cardRects([...view.querySelectorAll('.tb-card[data-uid]')].map(c => Number(c.dataset.uid)));
-    const r = handlers.act?.('buy', type, sector, zone, idx);
-    if (!r) return;
-    if (!r.ok) { laneNote = { lane: 'rest', text: r.reason === 'rp' ? `Need ${r.cost} RP` : 'Not released here.' }; render(); return; }
-    p = r.progress; selCard = r.uid; laneNote = null;
-    const fromMap = new Map([...before].filter(([u]) => (r.moved ?? []).includes(u)));
-    if (from) fromMap.set(r.uid, from);
-    render(fromMap);
+  // R: bladet med släppta enheter överst (eller tillbaka till rullan)
+  function requisition(on = null) {
+    const st = tableState(p, { sector: sel });
+    if (!st.clipboard || !st.zones) return;
+    const rosterSheets = Math.max(1, Math.ceil((st.zones.battle.length + st.zones.rest.length) / ROSTER_ROWS));
+    const relPage = metaFeatures(p).has('requisition') ? rosterSheets : -1;
+    if (relPage < 0) return;
+    page = (on ?? page !== relPage) ? relPage : 0; cmenu = null; render();
   }
   function toggleSpread(id) { spread = spread === id ? null : id; render(); }
-  const cardRects = uids => new Map(uids.map(u => [u, view.querySelector(`.tb-card[data-uid="${u}"]`)?.getBoundingClientRect()]).filter(([, r]) => r));
-  // kind 'slot' (uid, zon, plats) eller 'click' (uid); laneNote: förrådets skäl vid fältet
-  function cardAct(kind, uid, ...args) {
-    const before = cardRects([uid, ...[...view.querySelectorAll('.tb-card')].map(c => Number(c.dataset.uid))]);
-    const r = handlers.act?.(kind, uid, ...args);
+  // en ruta: enheten flyttas (förrådets regler: taket, tomma grupper)
+  function lane(uid, to) {
+    const r = handlers.act?.('lane', uid, to);
     if (!r) return;
-    selCard = uid;
-    if (r.ok) { if (r.progress) p = r.progress; laneNote = null; render(new Map([...before].filter(([u]) => (r.moved ?? []).includes(u)))); }
-    else { laneNote = { lane: 'battle', text: STATE_TEXT[r.reason] ?? 'Not possible.' }; render(); }
+    if (r.ok) { if (r.progress) p = r.progress; laneNote = null; } else laneNote = { lane: to, text: STATE_TEXT[r.reason] ?? 'Not possible.' };
+    render();
+  }
+  function buy(type) {
+    const st = tableState(p, { sector: sel }), sector = st.zones?.sector ?? st.next?.sector;
+    const r = handlers.act?.('buy', type, sector, null, null);
+    if (!r) return;
+    if (!r.ok) { laneNote = { lane: 'rest', text: r.reason === 'rp' ? `Need ${r.cost} RP.` : 'Not released here.' }; render(); return; }
+    p = r.progress;
+    const u = p.op.units.find(x => x.uid === r.uid);
+    laneNote = { lane: 'rest', text: `${u ? (WEAPONS_NAME(u.type)) : 'Unit'} added to the roster, in reserve.` };
+    render();
   }
   function doTidy() { save(tidy(p)); for (const k of Object.keys(zOf)) delete zOf[k]; render(); }
 
   // ---------- pekaren: dra föremål och kort, klick ----------
   function wire() {
     for (const b of view.querySelectorAll('[data-up]')) b.addEventListener('click', e => { e.stopPropagation(); const r = handlers.act?.('upgrade', b.dataset.up); if (r?.ok) p = r.progress; render(); });
-    for (const b of view.querySelectorAll('[data-dots]')) b.addEventListener('click', e => { e.stopPropagation(); const uid = Number(b.closest('.tb-card').dataset.uid); cmenu = cmenu === uid ? null : uid; confirmReturn = null; render(); });
+    for (const b of view.querySelectorAll('[data-pm]')) b.addEventListener('click', e => { e.stopPropagation(); const uid = Number(b.dataset.uid); cmenu = cmenu === uid ? null : uid; confirmReturn = null; render(); });
+    for (const b of view.querySelectorAll('[data-box]')) b.addEventListener('click', e => { e.stopPropagation(); if (!b.classList.contains('on')) lane(Number(b.dataset.uid), b.dataset.box); });
+    for (const b of view.querySelectorAll('[data-req]')) b.addEventListener('click', e => { e.stopPropagation(); buy(b.dataset.req); });
+    for (const b of view.querySelectorAll('[data-page]')) b.addEventListener('click', e => { e.stopPropagation(); page = Number(b.dataset.page); cmenu = null; laneNote = null; render(); });
+    view.querySelector('[data-dog]')?.addEventListener('click', e => { e.stopPropagation(); storeSheet++; render(); });
     for (const b of view.querySelectorAll('[data-cm]')) b.addEventListener('click', e => {
       e.stopPropagation();
       const kind = b.dataset.cm, uid = cmenu;
@@ -501,7 +465,6 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
       confirmReturn = null; render();
     });
     for (const b of view.querySelectorAll('[data-a="go"]')) b.addEventListener('click', e => { e.stopPropagation(); go(); });
-    view.querySelector('[data-a="req"]')?.addEventListener('click', e => { e.stopPropagation(); requisition(); });
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
     view.querySelector('.tb-spread')?.addEventListener('click', () => { spread = null; render(); });
   }
@@ -510,13 +473,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (backdrop || e.button !== 0 || e.target.closest('button, .tb-spread')) return;
     // en öppen kortmeny eller lyft klämbräda stängs av ett klick bredvid
     if (cmenu != null && !e.target.closest('.tb-cmenu')) { cmenu = null; confirmReturn = null; render(); return; }
-    if (lifted && !e.target.closest('.tb-req, .tb-card, .tb-slot, .tb-zone')) { lifted = false; render(); return; }
-    const card = e.target.closest('.tb-card'), obj = e.target.closest('[data-obj]');
-    const t = card ?? obj;
+    const t = e.target.closest('[data-obj]');
     if (!t) return;
     const [x, y] = toTable(e.clientX, e.clientY);
-    if (card) { drag = { t: card, card: true, buy: card.dataset.type ?? null, id: Number(card.dataset.uid), x0: x, y0: y, moved: false }; card.setPointerCapture?.(e.pointerId); e.preventDefault(); return; }
-    drag = { t, card: !!card, id: card ? Number(card.dataset.uid) : obj.dataset.obj, x0: x, y0: y, moved: false, target: e.target,
+    drag = { t, id: t.dataset.obj, x0: x, y0: y, moved: false, target: e.target,
       ox: Number(getComputedStyle(t).getPropertyValue('--x')) || 0, oy: Number(getComputedStyle(t).getPropertyValue('--y')) || 0 };
     t.setPointerCapture?.(e.pointerId);
     e.preventDefault();
@@ -525,53 +485,14 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (!drag) return;
     const [x, y] = toTable(e.clientX, e.clientY), dx = x - drag.x0, dy = y - drag.y0;
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    if (drag.card) {
-      // kortet lyfts: en kopia följer pekaren över hela bordet (brickan klipper inte), originalet står kvar svagt
-      if (!drag.moved) {
-        drag.moved = true;
-        const r = drag.t.getBoundingClientRect(), [gx, gy] = toTable(r.left, r.top);
-        drag.g = drag.t.cloneNode(true); drag.g.classList.add('ghost', 'lifted'); drag.g.style.setProperty('--x', gx); drag.g.style.setProperty('--y', gy); drag.g.style.setProperty('--z', 95);
-        drag.gx = gx; drag.gy = gy; view.appendChild(drag.g); drag.t.classList.add('lifting');
-      }
-      drag.g.style.setProperty('--x', Math.round(drag.gx + dx)); drag.g.style.setProperty('--y', Math.round(drag.gy + dy));
-      const tg = slotUnder(e, drag);
-      for (const n of view.querySelectorAll('.tb-slot.over, .tb-card.over')) n.classList.remove('over');
-      tg?.classList.add('over');
-      return;
-    }
     if (!drag.moved) { drag.moved = true; drag.t.classList.add('dragging'); zOf[drag.id] = ++zTop; drag.t.style.setProperty('--z', zTop); }
     drag.t.style.setProperty('--x', Math.round(drag.ox + dx));
     drag.t.style.setProperty('--y', Math.round(drag.oy + dy));
     drawStrings();
   });
-  // platsen under pekaren (en tom plats eller ett annat kort), utom kortet som dras och dess kopia
-  const slotUnder = (e, d) => document.elementsFromPoint(e.clientX, e.clientY)
-    .filter(n => !(d && (d.t.contains(n) || d.g?.contains(n)))).map(n => n.closest?.('.tb-slot, .tb-card')).find(Boolean) ?? null;
   view.addEventListener('pointerup', e => {
     const d = drag; drag = null;
     if (!d) return;
-    if (d.card && d.buy) {
-      if (d.t.classList.contains('off')) { d.g?.remove(); d.t.classList.remove('lifting'); render(); return; }
-      if (!d.moved) { buy(d.buy, d.t.getBoundingClientRect()); return; }
-      const tg = slotUnder(e, d), gr = d.g.getBoundingClientRect();
-      d.g.remove(); d.t.classList.remove('lifting');
-      if (!tg || tg.classList.contains('tb-rcard')) { render(); return; }
-      buy(d.buy, gr, tg.dataset.zone, Number(tg.dataset.idx));
-      return;
-    }
-    if (d.card) {
-      if (!d.moved) { cardAct('click', d.id); return; }
-      const tg = slotUnder(e, d), gr = d.g.getBoundingClientRect();
-      d.g.remove(); d.t.classList.remove('lifting');
-      if (!tg) { render(new Map([[d.id, gr]])); return; }
-      const before = cardRects([...view.querySelectorAll('.tb-card')].map(c => Number(c.dataset.uid)));
-      before.set(d.id, gr);
-      const r = handlers.act?.('slot', d.id, tg.dataset.zone, Number(tg.dataset.idx));
-      selCard = d.id;
-      if (r?.ok) { if (r.progress) p = r.progress; laneNote = null; render(new Map([...before].filter(([u]) => (r.moved ?? []).includes(u) || u === d.id))); }
-      else { laneNote = { lane: 'battle', text: STATE_TEXT[r?.reason] ?? 'Not possible.' }; render(new Map([[d.id, gr]])); }
-      return;
-    }
     if (d.moved) {
       const x = Number(d.t.style.getPropertyValue('--x')), y = Number(d.t.style.getPropertyValue('--y'));
       save(moveObject(p, d.id, x, y));
@@ -586,10 +507,9 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     }
     if (d.id === 'enemies') { const s = d.target.closest('[data-enemy]'); if (s && !s.classList.contains('top')) { enemyOrder = bringToTop(enemyOrder.map(id => ({ id })), s.dataset.enemy).map(x => x.id); render(); } return; }
     if (d.id === 'radio') { const s = d.target.closest('[data-strip]'); if (s) { radioOrder = bringToTop(radioOrder.map(id => ({ id })), s.dataset.strip).map(x => x.id); render(); } return; }
-    if (d.id === 'clipboard') { requisition(); return; }
     if (d.id.startsWith('pile:') || d.id === 'archive') toggleSpread(d.id);
   });
-  view.addEventListener('pointercancel', () => { drag?.g?.remove(); drag = null; render(); });
+  view.addEventListener('pointercancel', () => { drag = null; render(); });
   // 0.21.2 (speltestet av 0.21.1, fynd 1: Deploy utanför bild efter att fönstret krympts): ny layout när fönstret
   // ändras, en gång när storleken stått still en stund
   let resizeT = 0;
@@ -605,8 +525,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     selected: () => sel,
     progress: () => p,
     // Esc: en utbredd hög läggs ihop; annars false (spelmenyn öppnas)
-    escape: () => { if (cmenu != null) { cmenu = null; render(); return true; } if (lifted) { lifted = false; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
-    lifted: () => lifted,
+    escape: () => { if (cmenu != null) { cmenu = null; render(); return true; } if (page) { page = 0; laneNote = null; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
+    // förrådets lektioner (main.js lessonCond 'depot'): rullan ligger på bordet
+    lifted: () => el.classList.contains('roster'),
+    page: () => page,
     requisition, tidy: doTidy, go,
     spread: id => { spread = id; render(); },
   };

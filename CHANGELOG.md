@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.21.7 (kartbordet) (2026-10-20)
+
+Ola valde personalrullan (docs/mockups/kontrollrum-4b) framför korten (H544), och inga rullister på bordet (H542).
+
+- Truppkorten och platserna är borta från bordet. Klämbrädan vid kanten är personalrullan: "Mölnbo · Day 14 / Personnel roster", en maskinskriven rad per enhet med rutorna Btl och Res, namn, typ, män, tillstånd som färgat ord och nivå som stjärnor. Ett klick på en ruta kryssar den i blyerts och flyttar enheten; den andra rutan töms. Taket och tröttheten gäller som förut, och raderna står still. "Battle 10 of 10 · Reserve 10" nederst och Deploy på klämbrädan.
+- 20 rader per blad; fler enheter ger ett andra blad under, med en flik att vända till. Blyertsmärket i radens slut öppnar den lilla menyn med nivå, påfyllnad och Return.
+- "Released by command" är ett eget blad på klämbrädan (fliken på kanten eller R): namn, typ, män, pris och en BUY-ruta; köpet lägger raden i rullan, i reserven.
+- Förrådet ("Stores") är blad med hundöra, så många rader som ryms per blad; hundörat vänder.
+- Inga rullister någonstans på bordet; det som inte ryms läggs på ett blad till. Layoutprovet säger till om något på bordet rullar.
+
 ## 0.21.6: texter (2026-10-20)
 
 Perrongens märkning säger "The train stops here. Hold the platform." och Mölnbos slut läses som en vinst: "The north side got across. We leave Mölnbo behind us. On to Gnesta." (Olas skärmbilder.)

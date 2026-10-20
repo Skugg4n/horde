@@ -188,7 +188,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 19;
+const TABLE_SCOPES = 21;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -225,7 +225,14 @@ function auditTableExtra(scope) {
     if (bad) out.push(`${scope}: något ligger över den aktuella ordern (${bad} av 48 punkter)`);
   }
   if (!hub.querySelector('.tb-spread') && hub.querySelectorAll('.tb-lined .txt[data-read]').length > 1) out.push(`${scope}: mer än en läsbar lägesrapport`);
-  const cb = hub.querySelector('.tb-clipboard');
+  // 0.21.7 (H542): inga rullister någonstans på bordet
+  for (const n of hub.querySelectorAll('*')) {
+    const cs = getComputedStyle(n);
+    const sx = /auto|scroll/.test(cs.overflowX), sy = /auto|scroll/.test(cs.overflowY);
+    if ((cs.overflowX === 'scroll' || cs.overflowY === 'scroll') || (sx && n.scrollWidth > n.clientWidth + 1) || (sy && n.scrollHeight > n.clientHeight + 1))
+      out.push(`${scope}: rullist i ${n.tagName.toLowerCase()}.${String(n.className).split(' ').join('.')}`);
+  }
+  const cb = hub.querySelector('.tb-clipboard, .tb-roster');
   if (cb) {
     const r = cb.getBoundingClientRect();
     if (r.bottom > innerHeight + 1 || r.right > innerWidth + 1 || r.top < -1) out.push(`${scope}: klämbrädan ryms inte i fönstret (${Math.round(r.bottom)} av ${innerHeight})`);
@@ -250,28 +257,34 @@ async function tableChecks(page, label) {
   };
   const seen = `(async () => { const H = window.__horde, L = await import('/src/data/lessons.js'); H.setProgress({ ...H.progress, lessons: { ...H.progress.lessons, seen: [...Object.values(L.LESSONS).flat().map(l => l.id), ...Object.keys(L.ENEMIES).map(t => 'enemy:' + t)] } }); })()`;
   const reach = (m, d, extra = '') => `(async () => { const H = window.__horde, O = await import('/src/meta/operation.js'), T = await import('/src/meta/table.js'); let p = ${m ? `O.debugReach(O.newCampaign(), '${m}', ${d})` : 'O.newCampaign()'}; ${extra} H.setProgress(p); })()`;
-  const show = async (setup, scope, { lessons = false } = {}) => {
+  const show = async (setup, scope, { lessons = false, audit: doAudit = true } = {}) => {
     await ev(setup); if (!lessons) await ev(seen);
     await ev(`window.__horde.showTable()`); await page.mouse.move(2, 200);
     // H529: vänta på bordets första ritning i stället för en fast tid
     await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {});
-    // ritade något annat över (första laddningen i ett nytt fönster): en gång till
-    if (!(await ev(`!!document.querySelector('#hub .tb-map')`))) { await page.waitForTimeout(1500); await ev(`window.__horde.showTable()`); await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {}); }
-    await run(scope);
+    // ritade något annat över (första laddningen i ett nytt fönster: menyn kan komma efter bordet): visa bordet igen,
+    // högst tre gånger, och kontrollera att det står kvar en stund
+    for (let k = 0; k < 3; k++) {
+      await page.waitForTimeout(700);
+      if (await ev(`!!document.querySelector('#hub .tb-map')`)) break;
+      await ev(`window.__horde.showTable()`);
+      await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {});
+    }
+    if (doAudit) await run(scope);
   };
   await show(reach(null), 'table-day1');
   await show(reach('riksvagen', 2), 'table-day2');
   await show(reach('gnesta', 5), 'table-day8');
   // samma dagnummer som HUD:en och introt: 0.21.3 (H539) kampanjens dag, Vikingavägen dag 3 = dag 11
   await show(reach('gnesta-norr', 3), 'table-daynumber');
-  const nb = await ev(`document.querySelector('#hub .tb-clipboard .nb')?.textContent ?? ''`);
+  const nb = await ev(`document.querySelector('#hub .tb-roster .th b')?.textContent ?? ''`);
   if (!/Vikingavägen · Day 11/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
   if (!/ORDER 11/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:3"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 11`);
   await show(reach('molnbo', 1), 'table-molnbo-1');
   // 16 enheter (Mölnbo dag 1 utan fyra)
   await show(reach('molnbo', 1, `const drop = O.unitsIn(p, 'molnbo').slice(-4).map(u => u.uid); p = { ...p, op: { ...p.op, units: p.op.units.filter(u => !drop.includes(u.uid)) } };`), 'table-units-16');
-  const cards = await ev(`document.querySelectorAll('#hub .tb-card').length`);
-  if (cards !== 16) errors.push(`table-units-16 @${label}: ${cards} kort`);
+  const cards = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
+  if (cards !== 16) errors.push(`table-units-16 @${label}: ${cards} rader`);
   // en förlorad dag: bladet ligger överst i högen
   await show(reach('gnesta', 3, `p = { ...p, maps: { ...p.maps, gnesta: { ...p.maps.gnesta, losses: { 3: 1 } } } }; p = T.recordLoss(p, { mapId: 'gnesta', day: 3, kills: 120, cleared: 2, waves: 5 });`), 'table-lost');
   if (!/Day 6 lost\. Try again at dawn\./.test(await ev(`document.querySelector('#hub [data-sheet="lost:gnesta:3"]')?.textContent ?? ''`))) errors.push(`table-lost @${label}: inget blad för den förlorade dagen`);
@@ -284,18 +297,25 @@ async function tableChecks(page, label) {
   await show(reach('gnesta', 2), 'table-noradio');
   if (await ev(`!!document.querySelector('#hub .tb-radio')`)) errors.push(`table-noradio @${label}: radion står kvar en dag utan sändning`);
   // operationskartans steg visas inte över bordet
-  await show(reach('gnesta', 3, `p = { ...p, lessons: { seen: [], mode: 'on', read: [] } };`), 'table-lessons', { lessons: true });
-  await page.waitForTimeout(1500);
-  const les = await ev(`window.__horde.lesson`);
-  if (les && /^after-(e4|gn-2|gn-5)\.(map|depot|north)$/.test(les)) errors.push(`table-lessons @${label}: operationskartans steg ${les} över bordet`);
-  for (let i = 0; i < 6 && await ev('!!window.__horde.lesson'); i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(300); }
+  // (förrådets steg pekar på rullan och får visas; bordet provas när de är förbi)
+  await show(reach('gnesta', 3, `p = { ...p, lessons: { seen: [], mode: 'on', read: [] } };`), 'table-lessons', { lessons: true, audit: false });
+  for (let i = 0; i < 8; i++) {
+    await page.waitForTimeout(i ? 400 : 1500);
+    const les = await ev(`window.__horde.lesson`);
+    if (!les) break;
+    if (/^after-(e4|gn-2|gn-5)\.(map|depot|north)$/.test(les)) errors.push(`table-lessons @${label}: operationskartans steg ${les} över bordet`);
+    await ev(`window.__horde.release()`);
+  }
   await ev(seen);
+  await run('table-lessons');
   // 0.21.2: fönstret ändras med bordet öppet: ny layout, klämbrädan ryms (speltestet av 0.21.1, fynd 1)
   await show(reach('gnesta', 5), 'table-resize-base');
   const vp = page.viewportSize();
   for (const [w, h] of [[1024, 614], [1920, 1080], [vp.width, vp.height]]) {
     await page.setViewportSize({ width: w, height: h });
-    await page.waitForTimeout(1200);
+    // vänta tills bordet ritats om i den nya storleken (huvudlös rendering kan vara seg), högst 6 s
+    await page.waitForTimeout(400);
+    await page.waitForFunction(() => { const c = document.querySelector('#hub .tb-roster, #hub .tb-clipboard'); return !c || c.getBoundingClientRect().bottom <= innerHeight + 1; }, null, { timeout: 6000 }).catch(() => {});
     const extra = await page.evaluate(auditTableExtra, `table-resize ${w}x${h} @${label}`);
     errors.push(...extra);
   }
@@ -310,31 +330,41 @@ async function tableChecks(page, label) {
   await ev(`window.__horde.sheet.spread('archive')`);
   await run('table-spread');
   await ev(`window.__horde.sheet.escape()`);
-  // 0.21.4 (H536): en flytt är en rörelse; inget annat kort flyttar. Klick på ett stridskort skickar det till reserven.
-  const rects = () => ev(`Object.fromEntries([...document.querySelectorAll('#hub .tb-card[data-uid]')].map(c => { const r = c.getBoundingClientRect(); return [c.dataset.uid, [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height), c.dataset.zone]]; }))`);
-  const before = await rects();
-  const pick = await ev(`(() => { const c = document.querySelector('#hub .tb-card[data-zone="battle"]'); const r = c.querySelector('.n').getBoundingClientRect(); return { uid: c.dataset.uid, x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  // 0.21.7 (H544): personalrullan. En ruta kryssas och enheten flyttas; raderna står still, rutorna i andra rader rörs inte.
+  const rows = () => ev(`Object.fromEntries([...document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]')].map(r => { const b = r.getBoundingClientRect(); return [r.dataset.uid, [Math.round(b.left), Math.round(b.top), r.querySelector('[data-box="battle"]').classList.contains('on') ? 'B' : 'R']]; }))`);
+  const before = await rows();
+  const pick = await ev(`(() => { const b = document.querySelector('#hub .tb-roster .tb-row [data-box="rest"]:not(.on)'); const r = b.getBoundingClientRect(); return { uid: b.dataset.uid, x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await page.mouse.click(pick.x, pick.y);
-  await page.waitForTimeout(600);
-  const after = await rects();
-  if (after[pick.uid]?.[4] !== 'rest') errors.push(`table-move @${label}: klicket flyttade inte kortet till reserven`);
-  const size = Object.values(after).map(r => `${r[2]}x${r[3]}`);
-  if (new Set(size).size !== 1) errors.push(`table-move @${label}: korten har olika storlek (${[...new Set(size)].join(', ')})`);
-  for (const [uid, r] of Object.entries(before)) if (uid !== pick.uid && JSON.stringify(after[uid]) !== JSON.stringify(r)) errors.push(`table-move @${label}: kort ${uid} flyttade (${r} -> ${after[uid]})`);
-  await run('table-moved');
-  // kortets meny (⋯)
-  await ev(`document.querySelector('#hub .tb-card[data-zone="battle"] .tb-dots').click()`);
+  await page.waitForTimeout(500);
+  const after = await rows();
+  if (after[pick.uid]?.[2] !== 'R') errors.push(`table-roster @${label}: rutan Res. flyttade inte enheten`);
+  for (const [uid, r] of Object.entries(before)) if (uid !== pick.uid && JSON.stringify(after[uid]) !== JSON.stringify(r)) errors.push(`table-roster @${label}: rad ${uid} ändrades (${r} -> ${after[uid]})`);
+  if (Object.keys(after).length > 20) errors.push(`table-roster @${label}: fler än 20 rader på bladet`);
+  await run('table-roster');
+  // blyertsmärket i radens slut öppnar menyn (nivå, påfyllnad, Return)
+  await ev(`document.querySelector('#hub .tb-roster .tb-pm[data-pm]').click()`);
   await page.waitForTimeout(300);
-  if (!(await ev(`!!document.querySelector('#hub .tb-cmenu .tb-cm')`))) errors.push(`table-cardmenu @${label}: menyn öppnades inte`);
-  await run('table-cardmenu');
+  if (!(await ev(`!!document.querySelector('#hub .tb-cmenu .tb-cm')`))) errors.push(`table-rowmenu @${label}: menyn öppnades inte`);
+  await run('table-rowmenu');
   await ev(`window.__horde.sheet.escape()`);
-  // 0.21.4 (H537): Requisition som klämbräda på bordet, med RP så att korten går att köpa
+  // bladet med släppta enheter (R) med RP så att de går att köpa; ett köp lägger raden i rullan
   await ev(`window.__horde.setProgress({ ...window.__horde.progress, rp: 2000 })`);
   await ev(`window.__horde.showTable()`); await page.waitForTimeout(400);
   await ev(`window.__horde.sheet.requisition(true)`);
-  await page.waitForTimeout(500);
-  if (!(await ev(`!!document.querySelector('#hub .tb-req .tb-rcard')`))) errors.push(`table-requisition @${label}: inga släppta kort på klämbrädan`);
-  await run('table-requisition');
+  await page.waitForTimeout(400);
+  if (!(await ev(`!!document.querySelector('#hub .tb-roster [data-req]')`))) errors.push(`table-released @${label}: inga BUY-rutor på bladet`);
+  await run('table-released');
+  const n0 = await ev(`window.__horde.progress.op.units.length`);
+  await ev(`document.querySelector('#hub .tb-roster [data-req]:not([disabled])')?.click()`);
+  await page.waitForTimeout(300);
+  if (await ev(`window.__horde.progress.op.units.length`) !== n0 + 1) errors.push(`table-released @${label}: köpet lade inte till en enhet`);
+  // fler än 20 enheter: ett andra blad under, som man vänder till
+  await show(reach('molnbo', 1, `p = { ...p, rp: 5000 }; for (const t of ['psg90', 'ksp58']) { const r = T.buyCard(p, t, 'molnbo'); if (r.ok) p = r.progress; } const extra = p.op.units.filter(u => u.sector === 'molnbo').slice(0, 3).map((u, i) => ({ ...u, uid: 900 + i })); p = { ...p, op: { ...p.op, units: [...p.op.units, ...extra] } };`), 'table-roster-2');
+  if (!(await ev(`!!document.querySelector('#hub .tb-roster .tb-tab[data-page="1"]')`))) errors.push(`table-roster-2 @${label}: inget andra blad`);
+  await ev(`document.querySelector('#hub .tb-roster .tb-tab[data-page="1"]')?.click()`);
+  await page.waitForTimeout(300);
+  await run('table-roster-sheet2');
+  await ev(`window.__horde.sheet.escape()`);
   void W;
   return errors;
 }
