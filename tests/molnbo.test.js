@@ -5,7 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
-import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, TOWERS, X60, BRIDGE, SHAPES, LINK, NORTH_SIDE } from '../src/data/molnbo.js';
+import { molnbo, R, toRail, groundY, deckY, underDeck, DECK_H, RAIL, STAIRS, X60, BRIDGE, SHAPES, LINK, NORTH_SIDE } from '../src/data/molnbo.js';
+import { distPolyline } from '../src/data/gnesta.js';
 import { inPoly } from '../src/data/gnesta.js';
 import { liftedHit } from '../src/render/lift.js';
 import { reasonText } from '../src/ui/panels.js';
@@ -90,6 +91,28 @@ test('kartan: väg 57 från Järna i nordost över bron mot Gnesta i sydväst, o
   assert.ok(at('kvarn')[1] > F.v + 15, 'kvarnen söder om Folkets hus');
 });
 function RS(poly) { return poly.map(([x, z]) => toRail(x, z)); }
+
+// 0.21.3 (H532, Olas karta 2026-10-20): vägnätet på södra sidan
+test('södra sidan: Fagernäsvägens båge, Trollvägen som slinga, Dvärgvägen emellan, Kvarnvägen hela vägen', () => {
+  const road = id => molnbo.roads.find(r => r.id === id);
+  const touch = (a, b, d = 4) => road(a).pts.some(([x, z]) => distPolyline(x, z, road(b).pts) < d);
+  // Fagernäsvägen går österut längs spåret och viker sedan söderut i en båge
+  const fr = road('fagernas').rail;
+  assert.ok(Math.max(...fr.map(([u]) => u)) > 100 && fr.at(-1)[1] > 150, 'bågen söderut');
+  // den möter inte Trollvägen; Dvärgvägen binder ihop dem
+  assert.ok(!touch('fagernas', 'troll', 6), 'Fagernäsvägen rör inte Trollvägen');
+  assert.ok(touch('dvarg', 'troll') && touch('dvarg', 'fagernas'), 'Dvärgvägen');
+  // Kvarnvägen från Trollvägen förbi Folkets hus, över Stenbyvägen, till Mjölnarstigen
+  assert.ok(touch('kvarn', 'troll') && touch('kvarn', 'stenby') && touch('kvarn', 'mjolnar'), 'Kvarnvägen');
+  for (const id of ['myr', 'skull', 'kvse', 'fagost', 'trollspur']) assert.ok(road(id), id);
+  // stationshuset: öster om bron, mellan spåret och Fagernäsvägen (Redmond Muay Thai)
+  const st = molnbo.buildings.find(b => b.id === 'station');
+  assert.ok(st.u > uOn(st.v) + 20 && st.v > RAIL.corridor[1] && st.v < 28, `stationshuset ${st.u} ${st.v}`);
+  // caféet i hörnet Fagernäsvägen/Stenbyvägen, rött villahus med veranda väster om Stenbyvägen vid väg 57
+  const cafe = molnbo.buildings.find(b => b.id === 'cafe'), rv = molnbo.buildings.find(b => b.id === 'redvilla');
+  assert.ok(cafe.u > -8 && cafe.v < 50, 'caféet');
+  assert.ok(rv && rv.facade === 'red' && rv.veranda && rv.u < -12 && rv.v < 55, 'röda villan');
+});
 
 test('EN väg över spåret: bron. Varje ingång når Folkets hus, och järnvägen är stängd utom bron och perrongen', () => {
   for (const pa of route.paths(molnbo.spawns.map(s => s.id))) assert.ok(pa.reaches, pa.id);
@@ -188,14 +211,17 @@ test('bron: en lucka i spärren märks, och raden säger gatan horden tar', () =
   assert.match(rerouteStreet(molnbo, k => g.center(k), before, after) ?? '', /Trollvägen|Kvarnvägen/);
 });
 
-test('prickskyttelägen: trapptornen vid vägbron, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
+// 0.21.3 (H532, Olas foton): inga trapptorn; trappans vilplan vid brons västra kant söder om spåret är prickskyttens läge
+test('prickskyttelägen: trappans vilplan vid vägbron, stationstaket och tågtaket. Gruppen har skydd bakom tåget', () => {
   const sim = createSim({ map: { ...molnbo, days: [bareDay()] }, day: 1, cash: 99999, research: ['psg90.1'] });
-  for (const t of TOWERS) {
-    const k = keyAtRail(...t.at);
-    assert.ok(p.perch[k] && p.roof[k] >= t.h - 0.05, `${t.id}`);
-    assert.equal(build(sim, k, 'psg90').ok, true, `Psg 90 på ${t.id}`);
-    // tornet står vid vägbrons västra kant
-    assert.ok(Math.abs(t.at[0] + t.size / 2 - (uOn(t.at[1]) - BRIDGE.width / 2)) < 1.5, `${t.id} vid bron`);
+  {
+    const k = keyAtRail((STAIRS.u0 + STAIRS.u1) / 2, (STAIRS.v0 + STAIRS.v1) / 2);
+    assert.ok(p.perch[k] && p.roof[k] >= DECK_H - 0.05, `vilplanet ${p.perch[k]} ${p.roof[k]}`);
+    assert.equal(build(sim, k, 'psg90').ok, true, 'Psg 90 på vilplanet');
+    // vid vägbrons västra kant, söder om spåren, över perrongen
+    assert.ok(Math.abs(STAIRS.u1 - (uOn(STAIRS.v1) - BRIDGE.width / 2)) < 1, 'vid bron');
+    assert.ok(STAIRS.v0 > RAIL.tracks[2] && STAIRS.v1 <= RAIL.corridor[1], 'söder om spåren');
+    assert.equal(molnbo.towers, undefined, 'inga trapptorn');
   }
   assert.ok(p.perch[keyAtRail(-51, X60.v)] && p.roof[keyAtRail(-51, X60.v)] > 3.5, 'X60-taket');
   const st = molnbo.buildings.find(b => b.id === 'station');
@@ -212,7 +238,7 @@ test('prickskyttelägen: klocktornet och de höga husen, och tornets höjd ser l
   const ids = SHAPES.map(s => s.id), cells = id => { const out = []; for (let k = 0; k < p.w * p.h; k++) if (p.perch[k] && p.bldg[k] === ids.indexOf(id) + 1) out.push(k); return out; };
   const tower = cells('mission');
   assert.ok(tower.length >= 1 && tower.every(k => p.perch[k] === 3 && p.roof[k] >= 10), `klocktornet: ${tower.map(k => [p.perch[k], p.roof[k]])}`);
-  for (const t of TOWERS) assert.ok(cells(t.id).every(k => p.perch[k] === 3), t.id);
+  assert.ok(cells('stairs').length >= 1 && cells('stairs').every(k => p.perch[k] === 1), 'trappans vilplan');
   for (const id of ['apt1', 'folkets', 'station']) assert.ok(cells(id).length >= 4 && cells(id).every(k => p.perch[k] === 1), id);
   const k = tower[0];
   assert.equal(build(sim, k, 'psg90').ok, true, 'Psg 90 i klocktornet');
@@ -447,10 +473,13 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // omräknad). Den andra spelaren är mbNaive (naive som följer evakueringens tips). docs/balance-log.md 0.20.0 (Mölnbo).
 // 0.20.1 (speltestet av 0.20.0): alla dagar nya, avsiktligt: dag 1 husen närmast bron först, dag 2 nästa våg tidigare,
 // hårdare svans och hp 13 till 12, dag 3 den täta flodvågen. docs/balance-log.md Mölnbo 0.20.1.
+// 0.21.3 (H532, Olas kartbilder): alla dagar nya, avsiktligt: vägnätet på södra sidan (Fagernäsvägens båge, Dvärgvägen,
+// Kvarnvägen till Mjölnarstigen), trappan i stället för trapptornen, dag 2 overlap 20 och bjässarna i tredje vågen, dag 3
+// hp 10 till 12. docs/balance-log.md Mölnbo 0.21.3.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'a1c2727c', 'molnbo 2': '5ded47d4', 'molnbo 3': 'a68be77c' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c7e13ad7', 'molnbo 2': 'd3390930', 'molnbo 3': 'edc96eaf' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '6cf643e4', 'molnbo 3': '68cbbdd9' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': '49010fe3', 'molnbo 3': '2ae5842b' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

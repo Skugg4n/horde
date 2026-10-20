@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.21.3 (Mölnbo efter Olas bilder) (2026-10-20)
+
+Mölnbo rättat efter Olas kartbilder och foton 2026-10-20 (H532, kampanjplanen avsnitt 10, beslut).
+
+Vägnätet på södra sidan. Fagernäsvägen går från bron österut längs spåret, viker söderut och fortsätter som en lång båge mot sydost (Myrvägen österut från den, i diset). Vägen längs spåret österut från böjen, förbi stationshuset, är den som horden kommer på från Järna. Trollvägen är en egen slinga från Stenbyvägen (Postillan, Missionskyrkan) ner till Kvarnvägen. Dvärgvägen binder ihop Trollvägen och Fagernäsvägen; Fagernäsvägen möter inte Trollvägen. Kvarnvägen går från Trollvägen förbi Folkets hus, över Stenbyvägen och vidare sydväst förbi Mjölnarstigen och kvarnen; en gren går sydost till Fagernäsvägen med Skullbrovägen söderut. Gruppen söderifrån kommer nu på Kvarnvägen. Horden österifrån går Fagernäsvägens båge och Dvärgvägen mot Folkets hus, en ny flank.
+
+Stationshuset står där Redmond Muay Thai ligger på kartan: öster om bron, mellan spåret och Fagernäsvägen.
+
+Inga trapptorn. Öppna betongtrappor med stålräcken på brons västra sida, söder om spåret, ner till perrongen: ett vilplan i däckets höjd och två lopp bredvid varandra. Prickskytten ligger på vilplanet. Texterna säger "the stairs by the bridge". Trappan från norra perrongen upp på däcket (dit pendeltågets folk går) står kvar.
+
+Caféet Harmoni är grått, två våningar, i hörnet Fagernäsvägen/Stenbyvägen med parkeringen framför. Ett rött villahus med glasveranda står väster om Stenbyvägen vid väg 57. Bron har räcken i glas och stål och trafikljus vid södra brofästet.
+
+Balansen: dag 2:s bjässar kommer i tredje vågen från väg 57 (sist från Norrängsvägen drog de ut dagen), overlap 20 s; dag 3 hp 10 till 12. docs/balance-log.md, Mölnbo 0.21.3.
+
 ## 0.20.1: speltestet av 0.20.0 (2026-10-19)
 
 Speltestet sa JA med reservationer (docs/playtests/2026-10-19-0.20.0.md).

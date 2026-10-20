@@ -8,7 +8,8 @@
 // spel per bildpunkt (cirka halv verklig skala, som Gnesta). Järnvägens tvärsnitt (spår, perronger, tåget) och husen
 // är nära verklig storlek, så sidorna om spåret är isärskjutna: allt söder om spåret ligger 23 m längre söderut och
 // allt norr om det 10 m längre norrut än bilden ger. Det som är rättat jämfört med 0.17 till 0.19:
-//   - EN väg över spåret: väg 57:s bro vid stationen. Gångbron (den andra passagen) är borta; trapptornen står
+//   - EN väg över spåret: väg 57:s bro vid stationen. Gångbron (den andra passagen) är borta; trapptornen (0.21.3: öppna
+//     trappor) står
 //     vid vägbron, och trappan från norra perrongen går upp på vägbrons däck.
 //   - Väg 57 (Gnestavägen) kommer från Järna i nordost, går över bron och fortsätter mot Gnesta i sydväst.
 //     Stenbyvägen söderut från korsningen vid caféet, Trollvägen och Kvarnvägen öster om den, Fagernäsvägen längs
@@ -69,10 +70,17 @@ export const DECK_H = 4.4;
 export const BRIDGE = { a: [-14, 34], b: [26, -34], width: 9, deck: 15, ramp: 30 };
 export const uOnBridge = v => BRIDGE.a[0] + (BRIDGE.a[1] - v) * (BRIDGE.b[0] - BRIDGE.a[0]) / (BRIDGE.a[1] - BRIDGE.b[1]);
 const westEdge = v => uOnBridge(v) - BRIDGE.width / 2;
-// Trapptornen: ett högt betongschakt vid vägbrons västra kant med trappan utanpå, platt tak (prickskytt), ett vid
-// varje perrong. LINK: trappan på norra perrongen upp till vägbrons däck (dit pendeltågets folk går).
-const TOWER_GAP = 0.9, TOWER_SIZE = 3.6;
-export const TOWERS = [-12.4, 8.4].map((v, i) => ({ id: i ? 'towerS' : 'towerN', at: [westEdge(v) - TOWER_GAP - TOWER_SIZE / 2, v], size: TOWER_SIZE, h: 7.2 }));
+// 0.21.3 (H532, Olas foton 2026-10-20): inga trapptorn. Öppna betongtrappor med stålräcken på brons västra sida, söder om
+// spåret, ner till perrongen: ett vilplan i däckets höjd vid brons kant (prickskytten ligger där) och två trapplopp
+// bredvid varandra västerut ner till perrongen. STAIRS i järnvägens ram: vilplanet [u0, u1] × [v0, v1], loppen från u0
+// till foot, i v längs flights (mitten) med bredden w. LINK: trappan på norra perrongen upp till vägbrons däck (dit
+// pendeltågets folk går).
+export const STAIRS = (() => {
+  const v0 = 6.4, v1 = 10.6, u1 = westEdge(v1) - 0.1, u0 = u1 - 3.4;
+  return { id: 'stairs', u0, u1, v0, v1, foot: u0 - 9, flights: [7.4, 9.6], w: 1.8, h: DECK_H, platH: RAIL.platformS.h };
+})();
+const inStairs = (u, v, pad = 0) => u >= STAIRS.foot - pad && u <= STAIRS.u1 + pad && v >= STAIRS.v0 - pad && v <= STAIRS.v1 + pad;
+const onLanding = (u, v, pad = 0) => u >= STAIRS.u0 - pad && u <= STAIRS.u1 + pad && v >= STAIRS.v0 - pad && v <= STAIRS.v1 + pad;
 export const LINK = { v: -9.4, u0: westEdge(-9.4) - 14, u1: westEdge(-9.4) + 0.4, w: 2.4 };
 // perrongerna slutar vid vägbron
 RAIL.platformN.u1 = westEdge(RAIL.platformN.v1) - 0.5;
@@ -116,18 +124,34 @@ const ROADS_RAIL = [
   { id: 'gnestavagen', name: 'Gnestavägen', surface: 'asphalt', width: 7, curbs: true, center: true, lamps: { side: 1, step: 22 },
     pts: [J, [-20, 37], [-26, 38], [-31.5, 38.5], [-47.5, 38.5], [-63, 37], [-78.5, 35.5], [-98.5, 33.5], [-130, 32], [-170, 32], [-220, 34]] },
   { id: 'stenby', name: 'Stenbyvägen', surface: 'asphalt', width: 6, curbs: true, center: true, lamps: { side: 1, step: 22 },
-    pts: [J, [-10, 42], [-8.5, 52.5], [-9, 63.5], [-9, 74.5], [-9.5, 87.5], [-9.5, 100.5], [-10, 113], [-10.5, 124], KV, [-18, 137.5], [-26.5, 143.5], [-37, 149], [-46.5, 157], [-55, 166.5], [-62, 180], [-68, 200], [-72, 230]] },
+    // 0.21.3 (H532, Olas karta 2026-10-20): Stenbyvägen slutar vid Kvarnvägen; vägen söderut förbi Mjölnarstigen och kvarnen är Kvarnvägen
+    pts: [J, [-10, 42], [-8.5, 52.5], [-9, 63.5], [-9, 74.5], [-9.5, 87.5], [-9.5, 100.5], [-10, 113], [-10.5, 124], KV] },
+  // Trollvägen: en egen slinga från Stenbyvägen (Postillan, Missionskyrkan) österut och ner till Kvarnvägen, med en
+  // återvändsgata österut på mitten
   { id: 'troll', name: 'Trollvägen', surface: 'asphalt', width: 5, curbs: true,
     pts: [[-8.5, 57], [0.5, 57.5], [13.5, 58], [26, 59.5], [33.5, 61.5], [37.5, 67], [37.5, 75.5], [36.5, 88], [35.5, 99], TK] },
+  { id: 'trollspur', name: 'Trollvägen', surface: 'asphalt', width: 4.5, curbs: false, pts: [[37, 82], [45, 83.5], [53, 85.5]] },
+  // Kvarnvägen: från Trollvägen förbi Folkets hus till Stenbyvägen och vidare sydväst förbi Mjölnarstigen och kvarnen
   { id: 'kvarn', name: 'Kvarnvägen', surface: 'asphalt', width: 5, curbs: true,
-    pts: [TK, [28.5, 110.5], [20, 115], [12, 119.5], [4, 123.5], [-3, 127.5], [-8.5, 130.5], KV] },
+    pts: [TK, [28.5, 110.5], [20, 115], [12, 119.5], [4, 123.5], [-3, 127.5], [-8.5, 130.5], KV, [-18, 137.5], [-26.5, 143.5], [-37, 149], [-46.5, 157], [-55, 166.5], [-62, 180], [-68, 200], [-72, 230]] },
+  // Dvärgvägen binder ihop Trollvägen och Fagernäsvägen (Olas beslut 2026-10-20)
   { id: 'dvarg', name: 'Dvärgvägen', surface: 'asphalt', width: 4.5, curbs: false,
-    pts: [TK, [44.5, 105.5], [55.5, 107.5], [67.5, 109.5], [79.5, 112], [100, 116], [130, 120]] },
+    pts: [TK, [50, 108], [70, 109], [85, 111], [110.8, 113.5]] },
+  // Kvarnvägens andra gren från Dvärgvägen sydost till Fagernäsvägen, och Skullbrovägen söderut från den
+  { id: 'kvse', name: 'Kvarnvägen', surface: 'asphalt', width: 4.5, curbs: false,
+    pts: [[50, 108], [56, 121], [64, 135], [79, 150], [94, 165.6]] },
+  { id: 'skull', name: 'Skullbrovägen', surface: 'asphalt', width: 4, curbs: false,
+    pts: [[56, 121], [50.5, 138.5], [48.5, 159], [53, 171], [43.5, 183], [36, 200]] },
   // Folkets hus: grusgången från Kvarnvägen till gårdsplanen framför gaveln (basen)
   { id: 'folkets', name: 'Folkets hus', surface: 'gravel', width: 5, paint: false, pts: [[16, 117.5], [21, 122.5], [26.5, 127.5]] },
-  // Fagernäsvägen längs spåret på södra sidan, förbi stationshuset, österut mot Järna
+  // 0.21.3 (H532, Olas karta 2026-10-20): Fagernäsvägen går från bron österut längs spåret, viker söderut och fortsätter
+  // som en båge till Epoken i sydost (Myrvägen österut från den). Den möter inte Trollvägen; Dvärgvägen binder ihop dem.
   { id: 'fagernas', name: 'Fagernäsvägen', surface: 'asphalt', width: 5, curbs: false,
-    pts: [J, [-6, 33], [2, 33], [11, 33], [26.5, 33], [42.5, 34], [58, 35], [73.5, 36.5], [95.5, 38.5], [110.5, 40.5], [140, 44], [180, 48], [230, 52]] },
+    pts: [J, [-6, 33], [2, 33], [11, 33], [26.5, 33], [42.5, 34], [56, 35.2], [64, 38], [74, 42.5], [87.6, 50.3], [97, 60.5], [103.6, 74.3], [108, 94.7], [110.8, 113.5], [109.3, 132.5], [104.4, 145.2], [94, 165.6], [87.3, 177.6], [79.5, 189.3], [72, 200], [64, 225]] },
+  // Vägen längs spåret österut från böjen, förbi stationshuset, mot Järna (horden österifrån, S2)
+  { id: 'fagost', name: 'Fagernäsvägen', surface: 'asphalt', width: 5, curbs: false,
+    pts: [[60, 36.4], [69.4, 34], [78, 33.5], [95.5, 34.5], [110.5, 36], [140, 40], [180, 45], [230, 50]] },
+  { id: 'myr', name: 'Myrvägen', surface: 'asphalt', width: 4, curbs: false, pts: [[90, 173.8], [100, 177], [109, 171.6], [125, 168]] },
   // norra sidan
   { id: 'backv', name: 'Backvägen', surface: 'asphalt', width: 4.5, curbs: false,
     pts: [NB, [25, -48], [21, -55], [20, -62], [20, -69.5], [21, -82], [22, -91], [24, -100], [27, -120], [30, -150]] },
@@ -139,7 +163,7 @@ const ROADS_RAIL = [
   { id: 'station', name: 'Mölnbo station', surface: 'asphalt', width: 4.5, curbs: false,
     pts: [[-23.5, -62], [-28, -54.5], [-33, -45], [-35.5, -35], [-36, -28]] },
   { id: 'mjolnar', name: 'Mjölnarstigen', surface: 'asphalt', width: 4.5, curbs: false,
-    pts: [[-36.5, 149], [-44, 146.5], [-52.5, 139], [-60.5, 131], [-72, 120], [-83, 110], [-94, 101], [-110, 88]] },
+    pts: [[-37, 149], [-44, 146.5], [-52.5, 139], [-60.5, 131], [-72, 120], [-83, 110], [-94, 101], [-110, 88]] },
 ];
 export const ROADS = ROADS_RAIL.map(r => {
   const raw = RS(r.pts);
@@ -153,7 +177,7 @@ const AREAS_RAIL = {
   parking: [[-36.5, -24], [-13, -17.5], [-9, -31], [-33, -40]],      // stationsparkeringen (24Food)
   plaza: [[17, 121], [36, 121], [36, 129.5], [17, 129.5]],            // Folkets hus grusplan
   cafePark: [[-3, 50], [8.5, 50], [8.5, 54], [-3, 54]],               // caféets gård mot Trollvägen
-  stationYard: [[70, 26], [96, 26], [96, 32], [70, 32]],               // grusplanen framför stationshuset
+  stationYard: [[64, 26.5], [88, 26.5], [88, 30.5], [64, 30.5]],       // grusplanen framför stationshuset
 };
 export const AREAS = Object.fromEntries(Object.entries(AREAS_RAIL).map(([k, p]) => [k, RS(p)]));
 const PLAT_N = RS([[RAIL.platformN.u0, RAIL.platformN.v0], [RAIL.platformN.u1, RAIL.platformN.v0], [RAIL.platformN.u1, RAIL.platformN.v1], [RAIL.platformN.u0, RAIL.platformN.v1]]);
@@ -189,7 +213,8 @@ export const FOLKETS = (() => {
   const face = len / 2;
   return { id: 'folkets', x, z, ry, len, wid, wallH: 6.2, face, main: 0, doors: [-3.6, -0.8, 0.8, 3.6], at, entrance: at(face + 1.4, 0), u, v };
 })();
-const STATION = B0('station', 'station', [84, 21], 15, 8, [0, 1], { eave: 3.6, ridge: 6.4, perch: true });
+// 0.21.3 (H532): stationshuset står där Redmond Muay Thai ligger på kartan: öster om bron, mellan spåret och Fagernäsvägen
+const STATION = B0('station', 'station', [76, 22], 15, 8, [0, 1], { eave: 3.6, ridge: 6.4, perch: true });
 export const X60 = (() => {
   // Det övergivna X60 vid södra perrongen. Fyra vagnar.
   const u0 = -80, u1 = -22, v = RAIL.tracks[2];
@@ -228,6 +253,9 @@ const HOUSES = [
   // 0.20.0: Mölnbo missionskyrka öster om Stenbyvägen, söder om Trollvägen (satellitbilden)
   B0('mission', 'mission', [2, 74], 13, 9, [-1, 0], { eave: 4.2, ridge: 8.2, ridgeX: false, tower: { lx: 0, lz: 1.8, size: 2.6, h: 10.6 } }),
   B0('white', 'white', [-38, 46], 11, 9, [0, -1], { eave: 5.6, ridge: 8.4 }),
+  // 0.21.3 (H532, Olas satellitbild av bron): ett rött villahus med glasveranda väster om Stenbyvägen vid väg 57
+  B0('redvilla', 'villa', [-22, 48], 11, 9, [1, 0], { storeys: 1.5, roof: 'gable', facade: 'red', roofColor: 'tile', chimney: true, veranda: true,
+    solar: false, seed: 20261020, garage: 0, road: 'stenby', eave: 3.62, ridge: 7.74 }),
   // gamla speceributiken på norra sidan, vid väg 57 mot Järna
   B0('yellow', 'yellow', [52, -45], 11, 9, [-1, 0], { eave: 4.9, ridge: 7.6 }),
   // 0.17.2 (H301): det höga huset är högt nog för prickskytten (0.20.0: väster om Stenbyvägen, söder om caféet)
@@ -241,7 +269,7 @@ const HOUSES = [
 // Villorna: generiska hus längs gatorna (fritt utplacerade med marginal, deterministiskt).
 const FACADES = ['white', 'white', 'yellow', 'red', 'red', 'grey', 'beige', 'brown', 'blueGrey'];
 const ROOFS = ['black', 'charcoal', 'tile', 'tile', 'slate'];
-const VILLA_ROADS = ['norrang', 'backv', 'skogstorp', 'v57n', 'station', 'gnestavagen', 'stenby', 'troll', 'kvarn', 'dvarg', 'fagernas'];
+const VILLA_ROADS = ['norrang', 'backv', 'skogstorp', 'v57n', 'station', 'gnestavagen', 'stenby', 'troll', 'trollspur', 'kvarn', 'dvarg', 'kvse', 'skull', 'fagernas'];
 // bergskärningen längs Fagernäsvägens södra sida (ROCK nedan): inga villor där
 const inRockBand = (u, v) => u > 12 && u < 66 && v > 35 && v < 45;
 function placeVillas() {
@@ -393,14 +421,15 @@ function fogPoint(id, out = SPAWN_OUT) {
 }
 // 0.20.0 (H494, kampanjbågen dag 8 till 10): horden har tagit Järna och kommer från nordost, längs väg 57 och längs
 // banan på båda sidor om spåret, på väg mot Gnesta i sydväst. S1 väg 57 norrifrån (över bron), S2 Fagernäsvägen
-// österifrån längs spåret (södra sidan), S3 Norrängsvägen i nordost (norra sidan, över bron). S4 Stenbyvägen
-// söderifrån är en mindre grupp en dag (H451). S5 Backvägen och S6 Skogstorpsvägen är flodvågen dag 3 (norra sidan).
-// Gnestavägen, Kvarnvägen, Dvärgvägen och Mjölnarstigen har ingen ingång.
+// österifrån längs spåret (södra sidan), S3 Norrängsvägen i nordost (norra sidan, över bron). S4 Kvarnvägen
+// söderifrån förbi kvarnen (0.21.3, förut Stenbyvägen) är en mindre grupp en dag (H451). S5 Backvägen och S6
+// Skogstorpsvägen är flodvågen dag 3 (norra sidan). Gnestavägen, Dvärgvägen, Fagernäsvägens båge, Myrvägen,
+// Skullbrovägen och Mjölnarstigen har ingen ingång.
 export const SPAWNS = [
   { id: 's1', name: 'Väg 57 north', day: 1, at: fogPoint('v57n') },
-  { id: 's2', name: 'Fagernäsvägen east', day: 2, at: fogPoint('fagernas') },
+  { id: 's2', name: 'Fagernäsvägen east', day: 2, at: fogPoint('fagost') },
   { id: 's3', name: 'Norrängsvägen', day: 1, at: fogPoint('norrang') },
-  { id: 's4', name: 'Stenbyvägen south', day: 2, at: fogPoint('stenby') },
+  { id: 's4', name: 'Kvarnvägen south', day: 2, at: fogPoint('kvarn') },
   { id: 's5', name: 'Backvägen', day: 3, at: fogPoint('backv') },
   { id: 's6', name: 'Skogstorpsvägen', day: 3, at: fogPoint('skogstorp') },
 ];
@@ -416,20 +445,20 @@ export const INBOUND = (() => {
 })();
 
 // 0.19.2 (speltestet av 0.19.1, fynd 1: "jag såg inte var perrongen är eller vart folket från tåget går"): det som lyser
-// när pendeltåget signalerar. Norra perrongen och de två trapptornens tak (konturerna, med sina höjder), etiketten mitt
+// när pendeltåget signalerar. Norra perrongen (konturen; 0.21.3 utan trapptornen), etiketten mitt
 // på perrongen där tåget stannar, och målet för pilarna från de närmaste enheterna.
 // 0.20.0 (H490): målet är trappans topp på vägbron, där de som kliver ur kommer upp och där det lönar sig att möta dem.
 export const TRAIN_MARK = (() => {
-  const P = RAIL.platformN, sq = t => RS([[t.at[0] - t.size / 2, t.at[1] - t.size / 2], [t.at[0] + t.size / 2, t.at[1] - t.size / 2], [t.at[0] + t.size / 2, t.at[1] + t.size / 2], [t.at[0] - t.size / 2, t.at[1] + t.size / 2]]);
+  const P = RAIL.platformN;
   return {
-    polys: [PLAT_N, ...TOWERS.map(sq)],
-    ys: [P.h + 0.06, ...TOWERS.map(t => t.h + 0.06)],
+    polys: [PLAT_N],
+    ys: [P.h + 0.06],
     label: R(INBOUND.uStop, (P.v0 + P.v1) / 2), labelY: P.h + 1.2,
     target: R(uOnBridge(LINK.v), LINK.v),
-    pts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1]))],
+    pts: [...PLAT_N, R(LINK.u1, LINK.v)],
     // 0.20.1: kameran när tåget signalerar (main.js trainWarned, goToPlatform): perrongen, tornen och en bit norrut, så att
     // perrongen och etiketten hamnar under banderollen och inte bakom den
-    viewPts: [...PLAT_N, ...TOWERS.map(t => R(t.at[0], t.at[1])), R(INBOUND.uStop, RAIL.platformN.v0 - 34)],
+    viewPts: [...PLAT_N, R(LINK.u1, LINK.v), R(INBOUND.uStop, RAIL.platformN.v0 - 34)],
   };
 })();
 
@@ -437,7 +466,8 @@ export const TRAIN_MARK = (() => {
 // 2 m-rutor, samma regler som Gnesta (src/data/gnesta.js townGrid): gångbart där en gångbar väg eller yta
 // ligger, en sammanhängande kedja längs varje väglinje. Järnvägen är stängd; bron är vanliga rutor (horden ser inte
 // höjden, bara bilden lyfter dem). Norra perrongen är gångbar men når resten bara genom trappan till vägbron.
-export const GRID_BOUNDS = { x0: -128, z0: -124, x1: 144, z1: 178 };
+// 0.21.3: x1 160 (Fagernäsvägens båge och Dvärgvägen mot den ligger i diset i öster)
+export const GRID_BOUNDS = { x0: -128, z0: -124, x1: 160, z1: 178 };
 export function molnboGrid(cellSize = 2) {
   const { x0, z0, x1, z1 } = GRID_BOUNDS;
   const gw = Math.round((x1 - x0) / cellSize), gh = Math.round((z1 - z0) / cellSize);
@@ -445,8 +475,8 @@ export function molnboGrid(cellSize = 2) {
   const walkRoads = ROADS.filter(r => r.walk);
   const cx = i => x0 + (i + 0.5) * cellSize, cz = j => z0 + (j + 0.5) * cellSize;
   const linkPoly = RS([[LINK.u0, LINK.v - LINK.w / 2], [LINK.u1, LINK.v - LINK.w / 2], [LINK.u1, LINK.v + LINK.w / 2], [LINK.u0, LINK.v + LINK.w / 2]]);
-  // Rutor som aldrig är gångbara: tornen (även om en väglinje passerar nära).
-  const solid = (x, z) => TOWERS.some(t => { const [u, v] = toRail(x, z); return Math.abs(u - t.at[0]) <= t.size / 2 && Math.abs(v - t.at[1]) <= t.size / 2; });
+  // Rutor som aldrig är gångbara: trapporna vid bron (även om en väglinje passerar nära).
+  const solid = (x, z) => { const [u, v] = toRail(x, z); return inStairs(u, v); };
   // 0.20.0 (H502): vägarnas avstånd ur fältet (gnesta.js roadNear), samma svar som förut
   const { onRoad, nearest } = roadNear(walkRoads, { x0, z0, gw, gh, cellSize });
   const open = (x, z, k) => onRoad[k] || inPoly(x, z, PLAT_N) || inPoly(x, z, linkPoly);
@@ -493,7 +523,7 @@ export function molnboGrid(cellSize = 2) {
 // ---------- placeringen ----------
 // Gator, bron och perrongen är gata. Husen (med en meters marginal), tornen, tåget och bergskärningen är hus
 // och skymmer efter sin höjd. Järnvägen i övrigt är hinder (spåren), utom södra perrongen: där går det att stå
-// bakom tåget (tåget är skydd för grupperna, 'brick'). Prickskyttelägen (perch): trapptornens tak,
+// bakom tåget (tåget är skydd för grupperna, 'brick'). Prickskyttelägen (perch): trappans vilplan vid bron (0.21.3),
 // stationshusets tak och tågets tak.
 const HOUSE_PAD = 1;
 function buildingShapes() {
@@ -533,9 +563,12 @@ function buildingShapes() {
     out.push({ id: 'x60', kind: 'x60', rects: [rect(o.x, o.z, o.ry, o.w, o.d)], eave: o.eave, pad: 0.3, height: (x, z) => (inRect(rect(o.x, o.z, o.ry, o.w, o.d), x, z) ? o.eave : 0),
       perch: (x, z) => (inRect(rect(o.x, o.z, o.ry, o.w, o.d), x, z, 0.4) ? 1 : 0) });
   }
-  for (const t of TOWERS) {
-    const [x, z] = R(...t.at), r0 = rect(x, z, RAIL_RY, t.size, t.size);
-    out.push({ id: t.id, kind: 'tower', rects: [r0], eave: t.h, pad: 0.2, height: (px, pz) => (inRect(r0, px, pz) ? t.h : 0), perch: (px, pz) => (inRect(r0, px, pz, 0.6) ? 3 : 0) });
+  {
+    // trapporna: vilplanet i däckets höjd (prickskytten, perch 1) och loppen ner till perrongen (sluttar)
+    const S = STAIRS, [lx, lz] = R((S.u0 + S.u1) / 2, (S.v0 + S.v1) / 2), land = rect(lx, lz, RAIL_RY, S.u1 - S.u0, S.v1 - S.v0);
+    const [fx, fz] = R((S.foot + S.u0) / 2, (S.v0 + S.v1) / 2), fl = rect(fx, fz, RAIL_RY, S.u0 - S.foot, S.v1 - S.v0);
+    const height = (px, pz) => { const [u, v] = toRail(px, pz); if (!inStairs(u, v)) return 0; return u >= S.u0 ? S.h : S.platH + (S.h - S.platH) * (u - S.foot) / (S.u0 - S.foot); };
+    out.push({ id: S.id, kind: 'stairs', rects: [land, fl], eave: S.h, pad: 0.2, height, perch: (px, pz) => (inRect(land, px, pz, 0.4) ? 1 : 0) });
   }
   {
     const rs = ROCK.segs.map(([u0, u1]) => { const [x, z] = R((u0 + u1) / 2, ROCK.v); return rect(x, z, RAIL_RY, u1 - u0, ROCK.depth); });
@@ -641,8 +674,9 @@ export function molnboPlacement(grid) {
       const k = Math.floor((z - grid.origin[1]) / grid.cellSize) * grid.w + Math.floor((x - grid.origin[0]) / grid.cellSize);
       if (grid.walk[k]) return KIND.road;
       if (outside(x, z) > 0) return KIND.thing;
-      // 0.20.0: trapptornen står intill trappan upp på vägbron; tornets rutor är tornet (prickskytten), inte under däcket
-      if (TOWERS.some(t => { const [u, v] = toRail(x, z); return Math.abs(u - t.at[0]) <= t.size / 2 && Math.abs(v - t.at[1]) <= t.size / 2; })) return KIND.house;
+      // 0.20.0: trapptornen stod intill vägbron; 0.21.3: trappans vilplan vid brons kant är vilplanet (prickskytten), inte
+      // under däcket
+      { const [u, v] = toRail(x, z); if (onLanding(u, v)) return KIND.house; }
       // 0.17.1: under bron (eller rampens kant) syns ingen enhet: 'Under the bridge'
       if (underDeck(x, z)) return KIND.bridge;
       if (inPoly(x, z, GROUND.lake)) return KIND.water;
@@ -751,7 +785,7 @@ export const DAYS = [
              say('North of the tracks, along Norrängsvägen!', { groups: [g('walker', 18, 0.55, 0, 's1'), g('walker', 12, 0.6, 6, 's3'), g('runner', 6, 0.6, 14, 's1')] }),
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 30, overlapMin: 0.3,
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 20, overlapMin: 0.3,
     intro: { title: 'Day 2: The north side falls', text: 'From Järna, both sides of the tracks. And the south.' },
     objective: 'Hold Folkets hus.',
     // bron, basen och vägen dit
@@ -764,9 +798,10 @@ export const DAYS = [
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
     waves: [ say('Väg 57 again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              say('From the east along the tracks, Fagernäsvägen!', { groups: [g('walker', 30, 0.45, 0, 's2'), g('walker', 24, 0.45, 4, 's1'), tell('Armoured ones on väg 57! Small arms barely bite.', g('armored', 3, 2.4, 10, 's1'))] }),
-             say('A smaller group from the south, up Stenbyvägen!', { groups: [g('walker', 14, 0.6, 0, 's4'), g('walker', 30, 0.35, 4, 's3'), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
-             { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 22, 0.36, 6, 's2'), tell('Brutes at the bridge!', g('brute', 3, 3, 16, 's3')), g('armored', 3, 2, 10, 's1'), g('runner', 18, 0.35, 22, 's3')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 10, overlap: 50, overlapMin: 0.4,
+             // 0.21.3: bjässarna i tredje vågen från väg 57 (sist från Norrängsvägen gick de sex minuter och drog ut dagen)
+             say('A smaller group from the south, up Kvarnvägen!', { groups: [g('walker', 14, 0.6, 0, 's4'), g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
+             { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 22, 0.36, 6, 's2'), g('armored', 3, 2, 10, 's1'), g('runner', 18, 0.35, 16, 's1')] } ] },
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 3: Pull out', text: 'From Järna, all of them. Hold, then we pull out.' },
     objective: 'Hold Mölnbo, then pull out to Gnesta.',
     // på bron, söderut mot basen
@@ -822,7 +857,7 @@ export const molnbo = {
   // 0.20.1: utzoomning till 110 (kartan efter satellitbilden är större; dag 2 och 3 börjar med bron och basen i bild)
   camera: { target: R(-2, 30), view: 56, zoom: [24, 110], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
-  roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, trainMark: TRAIN_MARK, bridge: BRIDGE, link: LINK, towers: TOWERS, x60: X60, folkets: FOLKETS,
+  roads: ROADS, ground: GROUND, rail: RAIL, inbound: INBOUND, trainMark: TRAIN_MARK, bridge: BRIDGE, link: LINK, stairs: STAIRS, x60: X60, folkets: FOLKETS,
   buildings: BUILDINGS, lots: LOTS, cars: CARS, lights: LIGHTS, shelters: SHELTERS, sign: DEPARTURE_SIGN, rock: ROCK, far: FAR, areas: AREAS, platforms: PLATFORMS,
   spawns: SPAWNS, base: BASE, surroundings: MOLNBO_SURROUNDINGS,
   // 0.17.2 (H307): järnvägens ram för fotavtrycken (src/data/footprints.js), gärdsgården och trädgårdarna

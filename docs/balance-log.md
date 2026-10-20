@@ -1269,3 +1269,18 @@ Dag 1 och 2 nya, dag 3 ny; alla tre fingeravtrycken nya avsiktligt.
 
 Fingeravtrycken: mbSmart a1c2727c, 5ded47d4, a68be77c; mbNaive c7e13ad7, d3390930, edc96eaf.
 Snubblet (tests/stumble.test.js): dag 2 med tidigare vågor 6 av 52 två gånger, gränsen 12 % (todo H528).
+
+## Mölnbo 0.21.3: vägnätet och trapporna efter Olas bilder (H532)
+
+Alla tre fingeravtrycken nya avsiktligt (sammanslagen med master 0.21.2; ankomsten oförändrad).
+
+- Vägnätet: horden österifrån (S2) går nu Fagernäsvägens båge i diset och Dvärgvägen mot Folkets hus (förut längs spåret till korsningen vid caféet). Gruppen söderifrån (S4) kommer på Kvarnvägen. Trapptornen är ett vilplan i däckets höjd (prickskytt) med lopp ner till södra perrongen.
+- Dag 2 blev åtta minuter för kartläsaren (456 till 486 s): bjässarna i sista vågen gick från Norrängsvägen, den längsta vägen, i bjässens fart. Nu i tredje vågen från väg 57, och overlap 30 till 20 s. Längd 1x: mbSmart 406 till 413 s, mbNaive 432 till 443 s.
+- Dag 3 hp 10 till 12: med nya vägarna blev dag 3 lättare för den som aldrig spärrar (snittbas 14,8). Nu 10,6.
+
+    mbSmart  alla dagar första försöket; civila dag 1: 20 till 22; bas dag 2 och 3: 20
+    mbNaive  alla dagar första försöket; civila dag 1: 20; bas dag 2: 8, 13, 17, 17, 12; dag 3: 15, 2, 11, 14, 11
+    toppen   123 levande, högst två vågor ute
+
+Fingeravtrycken: mbSmart 8825ffd1, 6cf643e4, 68cbbdd9; mbNaive c9feaad2, 49010fe3, 2ae5842b.
+Snubblet (tests/stumble.test.js): provet går nu högst 600 s (med god mode stod de kvar och snubblade vid dörren efter att dagen i spel varit slut); andelen 22 av 52, gränsen 0,45 (H528).

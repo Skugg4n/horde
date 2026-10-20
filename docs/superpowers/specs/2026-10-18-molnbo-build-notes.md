@@ -55,3 +55,9 @@ Det här är antaget för att kunna bygga. Varje punkt går att ändra i src/dat
 - Antaget, behöver Olas bekräftelse: Fagernäsvägen har ingen förbindelse med Trollvägen (bara via korsningen), gamla stationshuset ligger öster om bron mellan spåret och Fagernäsvägen, kvarnen söder om Mjölnarstigen, Postillan är ett vanligt hus vid caféets gård.
 - Dag 1 till 3 efter bågen; dag 3:s uttåg är en egen fas i simuleringen (sim.phase 'exodus', src/sim/sim.js startExodus och runExodus). Trupperna springer längs sina vägar till utgången på Gnestavägen; de som inte kan flyttas (fast monterade) står kvar.
 - Prova: ?debug&jump=molnbo:3, eller Quick jump Mölnbo 3 i debugmenyn.
+
+## 0.21.3 (H532, Olas kartbilder och foton 2026-10-20)
+
+- Vägnätet söder om spåret efter Olas Google-karta (horde-refs/molnbo/karta-sodra-2026-10-20.jpg), inpassad mot den förra spårningen med fyra punkter (korsningen vid caféet, Trollvägen vid Stenbyvägen, Trollvägen vid Kvarnvägen, Kvarnvägen vid Stenbyvägen; avvikelse upp till 6 m). Fagernäsvägens båge och Dvärgvägens östra ände ligger i diset.
+- Fagernäsvägen delas i två vägar i datat: bågen (fagernas) och vägen längs spåret österut (fagost, ingången S2).
+- Trapporna: STAIRS i src/data/molnbo.js (vilplan och två lopp), ritas av molnbo-kit.js bridgeStairs. Trappan från norra perrongen (LINK) är kvar; Ola beskrev trapporna söder om spåret, och pendeltågets folk behöver vägen upp från norra perrongen.

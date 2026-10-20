@@ -53,7 +53,7 @@ import { createFortify } from './src/render/fortify.js';
 import { rinkEntranceModel, setBaseDamage } from './src/render/models.js';
 import { hvSoldierModel, hvPose, hvRun, hvDown, squadGhost, setSquadGhost, crewCarryModel } from './src/render/models.js';
 import { SQUAD } from './src/sim/squad.js';
-import { bridge as mbBridge, stairTower, track, platform as mbPlatform, shelter, departureSign, catenaryPortal, meshFence, x60, folketsHus, stationHouse, cafeHarmoni,
+import { bridge as mbBridge, bridgeStairs, track, platform as mbPlatform, shelter, departureSign, catenaryPortal, meshFence, x60, folketsHus, stationHouse, cafeHarmoni,
   missionHouse, yellowHouse, whiteHouse, chainHouses, hembygdsgard, logFence, kvarnen, apartment, trafficLight, rockCut, roadRail, signMesh, placeIn } from './src/render/molnbo-kit.js';
 
 document.getElementById('ver').textContent = 'v' + VERSION;
@@ -537,7 +537,8 @@ const campMen = [];
   mbBridge(b, RM, { a: [8, 16], b: [14, -16], width: 9, deck: 7, ramp: 15 }, 4.4, { corridor: [-8, 8] });
   mbBridge(b, RM, { a: [-6, 16], b: [0, -16], width: 3.2, deck: 7, ramp: 15 }, 4.4, { foot: true, corridor: [-8, 8] });
   // 0.17.1: det höga trapptornet (Commons-fotot Mölnbo_2): två lopp med vilplan, bröstning, ledstång, brygga mot gångbron
-  stairTower(b, frame(RM, -9, 0, -11.2), 3.6, 7.2, { side: -1, deck: 4.4, link: 6.5 });
+  // 0.21.3 (H532): öppna trappor vid bron i stället för trapptorn
+  bridgeStairs(b, RM, { u0: -12, u1: -8.6, v0: 6.4, v1: 10.6, foot: -21, flights: [7.4, 9.6], w: 1.8, h: 4.4, platH: 0.9 }, () => -8.4);
   catenaryPortal(b, RM, -22, [-8.2, 7.6]); catenaryPortal(b, RM, 24, [-8.2, 7.6]);
   label(-6, MV + 6, 'Road bridge, footbridge, stair tower', 'grey concrete, glass and steel railings, 4.4 m; tower 7.2 m', 9);
   // perrongen med väntkur, lampor, avgångsskylt och namnskylt
