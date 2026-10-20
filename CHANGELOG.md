@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.22.0 (Hagstumosse efter kampanjbågen) (2026-10-20)
+
+Hagstumosse har kampanjbågens fyra dagar (kampanjplanen avsnitt 10, H539). Förut tio: Ishallen 5 och Vikingavägen 5. Mölnbo dag 1 är nu kampanjens dag 8.
+
+- **Ishallen dag 1 (dag 4):** evakueringen av villaområdet med bara de frivilliga. Hemvärnet kommer dag 2.
+- **Ishallen dag 2 (dag 5):** Hemvärnets två Ksp 90 och barrikaderna, som förut.
+- **Ishallen dag 3 (dag 6):** Hemvärnets grupp och radion: Move och Rotate ("Radios for every unit. Press M to move them mid-fight."). Norra vägen, och de första bjässarna nerför den i sista vågen. Next wave med bonus kommer här, tyst (förut dag 5).
+- **Vikingavägen (dag 7):** en dag. Större grupper från väst, syd och nord; större än någon av de gamla dagarna. Introt: "West, south and north at once. Turn them with concrete and cars." Steget före första vågen är betongen och skrotbilarna. De vilande husen syns här (förut Ishallen dag 4) och pingen när den första kommer.
+- **Leveranserna:** Ksp 58, Ksp 88 och pillboxen kommer till Vikingavägen, Ak 5 och två Ksp 90 att rekvirera där. Mölnbo dag 1: två Psg 90, två Ksp 58 på nivå III och infanteriet (förut en Psg 90), och Psg 90 II, Ksp 90 rate I, granater II och Hemvärnets gevär II; dag 2 en Ksp 90 med Hemvärnet; resten av uppgraderingarna fördelade på Mölnbos tre dagar.
+- **Förrådet:** rekvisitionen, uppgraderingarna och Return öppnar efter Ishallen dag 3. Frontbredden och tröttheten före Mölnbo. Förnödenheterna på enheten och trupper i hus Mölnbo dag 1, mål-läget (`T`) Mölnbo dag 2 med de pansrade, båda som bildtexter. Kryparna syns först Mölnbo dag 2.
+- **Sparfilen:** en fil som stod på Ishallen dag 4 eller 5 räknas som klar med Ishallen (Vikingavägen öppen); en på Vikingavägen dag 2 till 5 som klar med Vikingavägen (Mölnbo öppen). Kopian sparas som horde.save.arc, en gång; inget raderas, enheter och försök står kvar.
+- **Bordet och HUD:en** räknar dagarna efter bågen (Vikingavägen = Day 7, Mölnbo dag 2 = Day 9). Radion om Järna kommer natten efter Vikingavägen. Debugmenyns Quick jump har Ishallen 1 till 3 och Vikingavägen 1.
+- **Balansen:** Ishallen dag 3 har de första bjässarna (tre nerför Norra vägen). Vikingavägen hp 3,75. Mölnbo dag 2 hp 20 till 15 och dag 3 27 till 25: truppen från Hagstumosse är 10 enheter med få veteraner (förut 19). Ankomsttabellen (src/data/arrival.js) omräknad, och Quick jump till Mölnbo dag 2 och 3 får truppen en spelare har där. Förrådets påfyllnadsknapp får plats med tvåsiffriga priser. docs/balance-log.md 0.22.0.
+
 ## 0.21.5 (Mölnbo efter Olas bilder) (2026-10-20)
 
 Mölnbo rättat efter Olas kartbilder och foton 2026-10-20 (H532, kampanjplanen avsnitt 10, beslut).
