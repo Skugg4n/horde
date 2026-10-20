@@ -1381,6 +1381,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-spread .tb-lined { height: auto !important; min-height: 150px; }
 .hub .tb-spreadhint { bottom: 30px; }
 .hub .tb-edge .hd { justify-content: flex-start; }
+/* 0.21.3 (H539): kampanjens dag har två siffror ("SITUATION · NIGHT 13"); kanten under nästa blad ryms på en rad */
+.hub .tb-edge .hd { white-space: nowrap; letter-spacing: .04em; }
 /* 0.21.2: kortet säger när spelet flyttat enheten */
 .hub .tb-card .mv { color: #f2c46b; font-style: italic; }
 /* 0.21.2: spelmenyn mellan dagarna på heltäckande bakgrund (bordet syns inte igenom) */

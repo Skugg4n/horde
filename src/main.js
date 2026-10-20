@@ -1722,7 +1722,9 @@ function unitPoints() {
 // 0.19.2: lapparna i världen som vågskyltarna ska undvika (enheternas märken och lägen, perrongens etikett)
 function labelRects() {
   const out = [];
-  for (const el of [...squadTags.values(), ...unitTags.values(), platLabel]) {
+  // 0.21.3 (layoutprovet, Mölnbo dag 1: Norrängsvägens etikett låg över PAUSED): också PAUSED och basens namn
+  const paused = [...uiRoot.querySelectorAll('#coach:not([hidden]) .paused:not([hidden])')];
+  for (const el of [...squadTags.values(), ...unitTags.values(), platLabel, baseLabel, ...paused]) {
     if (el.hidden || el.style.visibility === 'hidden') continue;
     const r = el.getBoundingClientRect();
     if (r.width) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 });

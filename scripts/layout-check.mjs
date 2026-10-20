@@ -232,11 +232,11 @@ async function tableChecks(page, label) {
   await show(reach(null), 'table-day1');
   await show(reach('riksvagen', 2), 'table-day2');
   await show(reach('gnesta', 5), 'table-day8');
-  // samma dagnummer som banan: Vikingavägen dag 3 står som "Vikingavägen · Day 3" på klämbrädan
+  // samma dagnummer som HUD:en och introt: 0.21.3 (H539) kampanjens dag, Vikingavägen dag 3 = dag 11
   await show(reach('gnesta-norr', 3), 'table-daynumber');
   const nb = await ev(`document.querySelector('#hub .tb-clipboard .nb')?.textContent ?? ''`);
-  if (!/Vikingavägen · Day 3/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
-  if (!/ORDER 03/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:3"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 03`);
+  if (!/Vikingavägen · Day 11/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
+  if (!/ORDER 11/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:3"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 11`);
   await show(reach('molnbo', 1), 'table-molnbo-1');
   // 16 enheter (Mölnbo dag 1 utan fyra)
   await show(reach('molnbo', 1, `const drop = O.unitsIn(p, 'molnbo').slice(-4).map(u => u.uid); p = { ...p, op: { ...p.op, units: p.op.units.filter(u => !drop.includes(u.uid)) } };`), 'table-units-16');
@@ -244,7 +244,7 @@ async function tableChecks(page, label) {
   if (cards !== 16) errors.push(`table-units-16 @${label}: ${cards} kort`);
   // en förlorad dag: bladet ligger överst i högen
   await show(reach('gnesta', 3, `p = { ...p, maps: { ...p.maps, gnesta: { ...p.maps.gnesta, losses: { 3: 1 } } } }; p = T.recordLoss(p, { mapId: 'gnesta', day: 3, kills: 120, cleared: 2, waves: 5 });`), 'table-lost');
-  if (!/Day 3 lost\. Try again at dawn\./.test(await ev(`document.querySelector('#hub [data-sheet="lost:gnesta:3"]')?.textContent ?? ''`))) errors.push(`table-lost @${label}: inget blad för den förlorade dagen`);
+  if (!/Day 6 lost\. Try again at dawn\./.test(await ev(`document.querySelector('#hub [data-sheet="lost:gnesta:3"]')?.textContent ?? ''`))) errors.push(`table-lost @${label}: inget blad för den förlorade dagen`);
   // radion: bara natten efter en dag med sändning (efter E4 dag 3), inte dagen efter
   await show(reach('gnesta', 1), 'table-radio');
   if (!(await ev(`!!document.querySelector('#hub .tb-radio')`))) errors.push(`table-radio @${label}: ingen radio efter E4`);
