@@ -1,6 +1,8 @@
 // HUD: dag, våg, kvar, pengar, basen, knappen som startar vågen och raden under vågen
 // (kvar och Snabbare). Plus det som visas när något händer: basen tar skada, horden kommer,
 // vad vågen består av.
+import { campaignDayOf } from '../meta/campaign-day.js';
+import { placeShort } from '../meta/table.js';
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { earlyBonus, hasNextWave, waveLeft, overlapGate } from '../sim/sim.js';
@@ -91,6 +93,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   <div id="day" class="plate">
     <div class="lbl">DAY</div>
     <div class="big" data-k="day">01</div>
+    <div class="where" data-k="where"></div>
     <div class="row"><span data-k="wave">Wave 1 of 3</span><span data-k="left">0 left</span></div>
     <div class="bar"><i data-k="bar"></i></div>
   </div>
@@ -109,7 +112,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   hurt.className = 'hurt';
   root.prepend(hurt);
   const $ = k => root.querySelector(`[data-k="${k}"]`);
-  const el = { day: $('day'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd'), nextLbl: $('nextlbl'), nextKey: $('nextkey') };
+  const el = { day: $('day'), where: $('where'), wave: $('wave'), left: $('left'), bar: $('bar'), cash: $('cash'), delta: $('delta'), hp: $('hp'), go: $('go'), key: $('key'), cd: $('cd'), next: $('next'), nextCd: $('nextcd'), nextLbl: $('nextlbl'), nextKey: $('nextkey') };
   const goBtn = root.querySelector('#go');
   goBtn.addEventListener('click', () => onStart && onStart());
   // 0.10.2 (speltestet av 0.10.1: SPEED dolde sig bakom "Next wave: still 36 left" medan F fungerade):
@@ -209,7 +212,10 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     if (sim !== lastSim) { lastSim = sim; clearDelta(); }
     if (deltaUntil && performance.now() > deltaUntil) clearDelta();
     const c = waveCounts(sim);
-    set(el.day, String(sim.day).padStart(2, '0'));
+    // 0.21.3 (H539): kampanjens dag stort, banan och dess dag smått under ("Mölnbo · 2")
+    const cd = campaignDayOf(sim.map.id, sim.day);
+    set(el.day, String(cd ?? sim.day).padStart(2, '0'));
+    set(el.where, cd != null ? `${placeShort(sim.map.id)} · ${sim.day}` : '');
     set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
     // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut

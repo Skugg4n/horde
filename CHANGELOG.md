@@ -12,6 +12,10 @@ Inga trapptorn. Öppna betongtrappor med stålräcken på brons västra sida, s�
 
 Caféet Harmoni är grått, två våningar, i hörnet Fagernäsvägen/Stenbyvägen med parkeringen framför. Ett rött villahus med glasveranda står väster om Stenbyvägen vid väg 57. Bron har räcken i glas och stål och trafikljus vid södra brofästet.
 
+Dag 2 kommer bara från Järnasidan (H538): väg 57 och Norrängsvägen på norra sidan, längs spåret österifrån på södra. Ingången söderifrån är borta; i stället bryter smittade ut ur ett hus vid Trollvägen i tredje vågen. Introt: "From Järna, both sides of the tracks."
+
+Kampanjens dag (H539). HUD:en, introts rubrik och bordet visar kampanjens dag (E4 3, Ishallen 5, Vikingavägen 5, Mölnbo 3: Mölnbo dag 2 är "Day 15"), med banan och dess dag smått under ("Mölnbo · 2"). src/meta/campaign-day.js.
+
 Balansen: dag 2:s bjässar kommer i tredje vågen från väg 57 (sist från Norrängsvägen drog de ut dagen), overlap 20 s; dag 3 hp 10 till 12. docs/balance-log.md, Mölnbo 0.21.3.
 
 ## 0.20.1: speltestet av 0.20.0 (2026-10-19)

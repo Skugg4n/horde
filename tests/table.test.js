@@ -32,8 +32,8 @@ test('dag 1: bara kartan och en lapp (ordern för dag 1)', () => {
 
 test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan', () => {
   const p = day8(), s = tableState(p);
-  // 0.21.1: bordet visar banans egen dag (samma som introt, HUD:en och menyn)
-  assert.equal(s.next.n, 5);
+  // 0.21.1: bordet visar samma dag som introt, HUD:en och menyn. 0.21.3 (H539): kampanjens dag (Ishallen dag 5 = dag 8)
+  assert.equal(s.next.n, 8);
   assert.equal(s.next.place, 'Ishallen');
   for (const id of ['map', 'pile:riksvagen', 'pile:gnesta', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
   const e4 = s.piles.find(x => x.sector === 'riksvagen'), gn = s.piles.find(x => x.sector === 'gnesta');
@@ -127,7 +127,7 @@ test('en förlorad dag får ett blad i högen med utfallet (0.21.1)', () => {
   const pile = missionPiles(p).find(x => x.sector === 'gnesta');
   const top = pile.sheets.at(-1);
   assert.equal(top.kind, 'lost');
-  assert.equal(top.lead, 'Day 3 lost.');
+  assert.equal(top.lead, 'Day 6 lost.');   // 0.21.3 (H539): kampanjens dag (Ishallen dag 3 = dag 6)
   assert.equal(top.text, 'Try again at dawn.');
   assert.match(top.outcome, /2 of 5 waves held\. 120 infected down\. The base fell\./);
   assert.equal(pile.sheets.at(-2).id, 'order:gnesta:3');
@@ -227,10 +227,11 @@ test('en sparfil från före bordet (v4 utan table) läses som förut och får e
   assert.deepEqual(normalizeTable('trasigt'), { layout: {}, log: {} });
 });
 
-test('dagens nummer: banans egen dag, eller dagens eget campaignDay (kroken för kampanjbågen)', () => {
+// 0.21.3 (H539): kampanjens dag (src/meta/campaign-day.js) i stället för banans egen
+test('dagens nummer: kampanjens dag, eller dagens eget campaignDay (kroken för kampanjbågen)', () => {
   assert.equal(campaignDay('riksvagen', 1), 1);
-  assert.equal(campaignDay('gnesta', 1), 1);
-  assert.equal(campaignDay('molnbo', 1), 1);
+  assert.equal(campaignDay('gnesta', 1), 4);
+  assert.equal(campaignDay('molnbo', 1), 14);
   const d = MAPS.molnbo.days[0];
   try { d.campaignDay = 8; assert.equal(campaignDay('molnbo', 1), 8); } finally { delete d.campaignDay; }
 });

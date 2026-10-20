@@ -45,6 +45,15 @@ test('dag 1 säger var man ska stå, kameran börjar vid bron och basen, och Fol
   assert.ok(Math.max(...first) < Math.min(...last), `${first} mot ${last}`);
 });
 
+// 0.21.3 (H538): dag 2 kommer bara från Järnasidan; andra fronten söder om spåret är ett hus vid Trollvägen
+test('dag 2: bara från Järna (väg 57, Norrängsvägen, längs spåret österifrån), och ett hus vid Trollvägen', () => {
+  const d2 = molnbo.days[1];
+  assert.deepEqual([...new Set(d2.waves.flatMap(w => w.groups.map(q => q.spawn)))].sort(), ['s1', 's2', 's3']);
+  assert.equal(d2.intro.text, 'From Järna, both sides of the tracks.');
+  const h = molnbo.buildings.find(b => b.id === d2.dormant[0].house);
+  assert.ok(h.road === 'troll' && h.v > RAIL.corridor[1], 'huset vid Trollvägen');
+});
+
 test('Mölnbo är en bana efter Hagstumosse, med tre dagar efter kampanjbågen och korta intron', () => {
   assert.equal(MAPS.molnbo, molnbo);
   assert.equal(molnbo.days.length, 3);
@@ -475,11 +484,11 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // hårdare svans och hp 13 till 12, dag 3 den täta flodvågen. docs/balance-log.md Mölnbo 0.20.1.
 // 0.21.3 (H532, Olas kartbilder): alla dagar nya, avsiktligt: vägnätet på södra sidan (Fagernäsvägens båge, Dvärgvägen,
 // Kvarnvägen till Mjölnarstigen), trappan i stället för trapptornen, dag 2 overlap 20 och bjässarna i tredje vågen, dag 3
-// hp 10 till 12. docs/balance-log.md Mölnbo 0.21.3.
+// hp 10 till 12; dag 2 bara från Järnasidan med ett utbrott vid Trollvägen (H538). docs/balance-log.md Mölnbo 0.21.3.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '6cf643e4', 'molnbo 3': '68cbbdd9' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': '49010fe3', 'molnbo 3': '2ae5842b' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '0b8451cf', 'molnbo 3': 'b1d3eefb' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': 'bade259c', 'molnbo 3': 'dd0727a8' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

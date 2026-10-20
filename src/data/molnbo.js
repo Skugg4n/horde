@@ -766,6 +766,12 @@ const EVAC_HOMES = (() => {
 // Dag 3: husen på norra sidan där flodvågen väller ut, i den ordning vågen når dem uppifrån (0.20.1: alla husen på
 // norra sidan, så att flodvågen går in i husen och ut på gatorna).
 const FLOOD_HOMES = [...NORTH_HOMES].sort((a, b) => a.v - b.v || a.u - b.u).map(h => h.id);
+// Dag 2 (H538): huset vid Trollvägen där smittade bryter ut, söder om spåret (villan vid Trollvägen närmast punkten)
+const TROLL_HOUSE = (() => {
+  let best = null, bd = Infinity;
+  for (const h of VILLAS) { if (h.road !== 'troll') continue; const d = Math.hypot(h.u - 20, h.v - 66); if (d < bd) { bd = d; best = h; } }
+  return best.id;
+})();
 // Kameran när dagen börjar (main.js dayFrame, 0.20.1 speltestet: "kameran börjar på fel ställe alla tre dagarna"): en mitt
 // och en vy, eller punkter (pts) som ska vara i bild.
 const VIEW = (u, v, view) => { const [x, z] = R(u, v); return { x, z, view }; };
@@ -786,7 +792,11 @@ export const DAYS = [
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
   { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 20, overlapMin: 0.3,
-    intro: { title: 'Day 2: The north side falls', text: 'From Järna, both sides of the tracks. And the south.' },
+    // 0.21.3 (H538, Ola: tre riktningar är konstigt när berättelsen är "norra sidan faller"): bara från Järnasidan, väg 57
+    // och Norrängsvägen på norra sidan och längs spåret österifrån på södra. Andra fronten söder om spåret är ett hus vid
+    // Trollvägen där smittade bryter ut (dormant).
+    intro: { title: 'Day 2: The north side falls', text: 'From Järna, both sides of the tracks.' },
+    dormant: [{ house: TROLL_HOUSE, street: 'Trollvägen', count: 6, type: 'walker', wave: 2, delay: 6 }],
     objective: 'Hold Folkets hus.',
     // bron, basen och vägen dit
     view: { pts: [R(uOnBridge(-24), -24), R(BRIDGE.a[0], BRIDGE.a[1]), FOLKETS.entrance, R(FOLKETS.u, FOLKETS.v + 16)] },
@@ -799,7 +809,7 @@ export const DAYS = [
     waves: [ say('Väg 57 again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              say('From the east along the tracks, Fagernäsvägen!', { groups: [g('walker', 30, 0.45, 0, 's2'), g('walker', 24, 0.45, 4, 's1'), tell('Armoured ones on väg 57! Small arms barely bite.', g('armored', 3, 2.4, 10, 's1'))] }),
              // 0.21.3: bjässarna i tredje vågen från väg 57 (sist från Norrängsvägen gick de sex minuter och drog ut dagen)
-             say('A smaller group from the south, up Kvarnvägen!', { groups: [g('walker', 14, 0.6, 0, 's4'), g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
+             say('Infected breaking out by Trollvägen!', { groups: [g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
              { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 22, 0.36, 6, 's2'), g('armored', 3, 2, 10, 's1'), g('runner', 18, 0.35, 16, 's1')] } ] },
   { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 12, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 3: Pull out', text: 'From Järna, all of them. Hold, then we pull out.' },

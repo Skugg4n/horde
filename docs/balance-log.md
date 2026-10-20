@@ -1284,3 +1284,6 @@ Alla tre fingeravtrycken nya avsiktligt (sammanslagen med master 0.21.2; ankomst
 
 Fingeravtrycken: mbSmart 8825ffd1, 6cf643e4, 68cbbdd9; mbNaive c9feaad2, 49010fe3, 2ae5842b.
 Snubblet (tests/stumble.test.js): provet går nu högst 600 s (med god mode stod de kvar och snubblade vid dörren efter att dagen i spel varit slut); andelen 22 av 52, gränsen 0,45 (H528).
+
+Tillägg (H538, samma version): dag 2 bara från Järnasidan. Gruppen söderifrån (14 vandrare på Kvarnvägen) ersatt av ett utbrott i en villa vid Trollvägen i tredje vågen (6 vandrare, 6 s in; med 10 fick den som aldrig spärrar 3 till 5 kvar och förlorade två gånger). Bas dag 2: mbSmart 20 i alla seeds, 401 till 410 s; mbNaive 3 till 8 (seed 0 på andra försöket), 391 till 445 s. Dag 3 orörd i data, ny i fingeravtrycket genom truppen efter dag 2: mbNaive 15, 2, 11, 14, 13.
+Fingeravtrycken: mbSmart 8825ffd1, 0b8451cf, b1d3eefb; mbNaive c9feaad2, bade259c, dd0727a8.
