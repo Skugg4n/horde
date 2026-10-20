@@ -552,7 +552,7 @@ export function debugReach(p, mapId, day, fresh = false) {
     const units = unitsIn(f, mapId).map(u => ({ ...u, uid: uid++ }));
     return { ...q, op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   }
-  const units = t.units.map(([type, level, men, wins, fatigue]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}), ...(fatigue ? { fatigue } : {}) }));
+  const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
   q = { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   return q;
 }

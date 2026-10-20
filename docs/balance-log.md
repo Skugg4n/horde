@@ -1308,13 +1308,13 @@ Kampanjplanen avsnitt 10: Hagstumosse är kampanjens dag 4 till 7. Ishallen har 
 **Mölnbo:** truppen från Hagstumosse är 10 enheter (förut 19) med fem veteraner (förut 14) och utan Psg 90 II. Med den gamla balansen (dag 2 hp 20, dag 3 hp 27) förlorade båda spelarna dag 2 i varje försök. Tre saker:
 - Ledningens leverans till Mölnbo dag 1 är större: två Psg 90 på nivå II, två Ksp 58 på nivå III och infanteriet på nivå II (förut en Psg 90), och nivåerna Psg 90 II, Ksp 90 rate I, granater II och Hemvärnets gevär II som spelaren köpte förut. Dag 2 en Ksp 90 på nivå II med Hemvärnet. Uppgraderingarna som kom på Vikingavägen dag 2 till 5 är fördelade på Mölnbos tre dagar. Utan Psg 90 II gratis räckte RP inte till lagrets tredje Psg 90 och kartläsarens dag 2 blev 3 till 19 över seeds; med en Ksp 58 på nivå II i stället för två på nivå III höll inte Quick jump-truppen dag 3.
 - Dag 2 hp 20 till 15 och dag 3 27 till 25 (src/data/molnbo.js, två rader). Prövat dag 2: 12, 13, 14, 15, 16, 17, 20; dag 3: 18, 20, 22, 23, 25, 25,5, 26, 27. Dag 3 är ett stup: Quick jump-truppen utan handpåläggning (scripts/slice1-check.mjs molnbo) håller klockan med 6 kvar på 25 men faller 13 s före klockan på 25,5; den som aldrig spärrar får 11,6 i snitt på 26 och 12,6 på 25. Provet för dag 3 säger högst 13 (förut 12).
-- Quick jump till dag 3 har nu kartläsarens trupp den dagen (src/data/arrival.js ARRIVAL_TROOP.molnbo.days[3], scripts/balance.mjs molnboDayTroop), med förrådets köp, vinsterna och tröttheten efter dag 1 och 2. Förut fick hoppet dag 1:s ankomst.
+- Quick jump till dag 2 och 3 har nu kartläsarens trupp den dagen (src/data/arrival.js ARRIVAL_TROOP.molnbo.days, scripts/balance.mjs molnboDayTroop), med förrådets köp och vinsterna dagarna före (utvilad: med tröttheten låg en TIRED-lapp under minikartan i 1024 px). Förut fick hoppet dag 1:s ankomst. Dag 2:s trupp rättade också layoutprovet i 1024 px: med dag 1:s ankomst stod nio kort i köpraden på två rader, och nästa grupps skylt fick ingen fri plats medan perrongens bildtext syntes.
 
     skilled  alla dagar första försöket; Ishallen dag 3 bas 10 till 15, Vikingavägen 5 till 9
     normal   alla dagar första försöket; Ishallen dag 3 bas 10 till 11, Vikingavägen 7 till 11
     mbSmart  alla dagar första försöket; dag 2 bas 18 till 19 (437 till 446 s), dag 3 9 till 20
     mbNaive  alla dagar första försöket; dag 2 bas 13 till 18, dag 3 11 till 14 (snitt 12,6)
-    slice1   Quick jump Mölnbo dag 1 20 kvar, dag 2 6, dag 3 6 (klockan hålls)
+    slice1   Quick jump Mölnbo dag 1 20 kvar, dag 2 14, dag 3 20 (klockan hålls)
     toppen   186 levande (Vikingavägen), högst två vågor ute
 
 Proven: den normala spelaren ska klara varje dag inom 1 till 3 försök (förut 4, Olas mål för bågen). Kravet på minst två förlorade försök per seed är borttaget: med sju dagar fram till Mölnbo förlorar den normala policyn inte längre någon dag. Det är en öppen fråga om dagarna nu är för lätta för en ny spelare; policyn lägger spärren som lektionen säger, vilket en förstagångsspelare inte alltid gör. Den skickligas krav på dagar med skada är fyra per seed (förut fem).

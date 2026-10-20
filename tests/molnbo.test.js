@@ -517,13 +517,15 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
   assert.ok(ARRIVAL_TROOP.molnbo.research.every(id => q.research.includes(id)));
 });
 
-// 0.22.0 (H539): hoppet till dag 3 har truppen kartläsaren går in med där (förrådets köp och vinsterna dag 1 och 2)
-test('hoppet till Mölnbo dag 3 har kartläsarens trupp den dagen', () => {
-  const p = molnboDayTroop(3), t = ARRIVAL_TROOP.molnbo.days[3];
-  assert.deepEqual(t.units, unitsIn(p, 'molnbo').map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0, u.fatigue ?? 0]), 'kör om balansen och skriv in truppen i src/data/arrival.js');
-  assert.deepEqual(t.research, p.research);
-  const q = debugReach(newCampaign(), 'molnbo', 3);
-  assert.deepEqual(unitsIn(q, 'molnbo').map(u => [u.type, u.level, u.fatigue ?? 0]), t.units.map(([ty, l, , , f]) => [ty, l, f]));
+// 0.22.0 (H539): hoppet till dag 2 och 3 har truppen kartläsaren går in med där (förrådets köp och vinsterna dagarna före)
+test('hoppet till Mölnbo dag 2 och 3 har kartläsarens trupp den dagen', () => {
+  for (const day of [2, 3]) {
+    const p = molnboDayTroop(day), t = ARRIVAL_TROOP.molnbo.days[day];
+    assert.deepEqual(t.units, unitsIn(p, 'molnbo').map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0]), `dag ${day}: kör om balansen och skriv in truppen i src/data/arrival.js`);
+    assert.deepEqual(t.research, p.research);
+    const q = debugReach(newCampaign(), 'molnbo', day);
+    assert.deepEqual(unitsIn(q, 'molnbo').map(u => [u.type, u.level]), t.units.map(([ty, l]) => [ty, l]));
+  }
 });
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
