@@ -64,7 +64,7 @@ export const LESSONS = {
   'after-gn-2': [
     { id: 'after-gn-2.rp', kind: 'show', when: 'result', target: { ui: '.result .rptab' }, text: 'RP: earned in battle, spent between days.', manual: 'rp' },
     { id: 'after-gn-2.depot', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Requisition opens before the day. Spend your RP there.', manual: 'depot' },
-    { id: 'after-gn-2.level', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="lvl"]' }, text: 'Spend RP to train a unit one level.' },
+    { id: 'after-gn-2.level', kind: 'show', when: 'depot', target: { ui: '.depot [data-a="lvl"], .hub.lifted [data-a="lvl"]' }, text: 'Spend RP to train a unit one level.' },
   ],
   // 0.16.4 (speltestet av 0.16.2: Ishallen dag 3 hade sex-sju nyheter på en gång): dag 3 är Hemvärnet och Norra
   // vägen (en andra väg in, känd från E4), de vilande husen dag 4, Next wave med bonus dag 5
@@ -81,16 +81,16 @@ export const LESSONS = {
     { id: 'gn-3.sanity', kind: 'show', when: 'sanityLow', target: { world: 'sanityLow' }, text: 'Blue bar: Sanity. This unit is shaken. Keep the dead off it.', manual: 'sanity' },
   ],
   'after-gn-3': [
-    { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
+    { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
     // 0.18.0 (Olas beslut: streck och skadeklasser på korten, siffrorna bara i Field manual)
-    { id: 'after-gn-3.bars', kind: 'caption', when: 'depot', target: { ui: '.depot [data-req]' }, text: 'Bars compare units. Exact numbers: Field manual.', keys: ['J'], manual: 'numbers' },
+    { id: 'after-gn-3.bars', kind: 'caption', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Bars compare units. Exact numbers: Field manual.', keys: ['J'], manual: 'numbers' },
   ],
   'gn-4': [
     { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
     { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },
   ],
   'after-gn-4': [
-    { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
+    { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up], .hub.lifted [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
   ],
   // 0.16.0 (Olas beslut, "Gnesta = en sektor"): samma plats, kartan vidgas, trupperna följer med
   'after-gn-5': [
@@ -112,7 +112,7 @@ export const LESSONS = {
   ],
   // 0.18.0 (skiva 1): tröttheten i förrådet, när styrkan är större än frontbredden
   'after-gnn-3': [
-    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
+    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.lifted [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
   ],
   'gnn-4': [
     { id: 'gnn-4.target', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Target priority: select a unit and press', keys: ['T'], manual: 'target' },

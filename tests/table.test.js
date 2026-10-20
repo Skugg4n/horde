@@ -146,7 +146,7 @@ test('bordets yta: skalan minst MIN_SCALE, klämbrädan och korten inne i ytan (
     assert.ok(f.scale >= MIN_SCALE, `${w}x${h}`);
     assert.ok(f.W * f.scale <= w + 0.5 && f.H * f.scale <= h + 0.5, `${w}x${h}: ytan ryms`);
     assert.ok(f.clipY + 376 <= f.H - 12 && f.clipX + 212 <= f.W, `${w}x${h}: klämbrädan`);
-    assert.ok(f.zoneY + 246 <= f.H - 12, `${w}x${h}: korten`);
+    assert.ok(f.zoneY + 286 <= f.H - 12, `${w}x${h}: korten`);
   }
 });
 
@@ -236,4 +236,89 @@ test('dagens nummer: banans egen dag, eller dagens eget campaignDay (kroken för
   assert.equal(campaignDay('molnbo', 1), 1);
   const d = MAPS.molnbo.days[0];
   try { d.campaignDay = 8; assert.equal(campaignDay('molnbo', 1), 8); } finally { delete d.campaignDay; }
+});
+
+// ---------- 0.21.4 (H536, H537): fasta platser, flytt och byte, köp från klämbrädan ----------
+import { cardSlots, moveCardTo, clickCard, buyCard, releasedCards, storeList, pinSlots } from '../src/meta/table.js';
+const at = (S, uid) => (S.battle.includes(uid) ? ['battle', S.battle.indexOf(uid)] : ['rest', S.rest.indexOf(uid)]);
+
+test('platserna: striden har exakt cap platser, varje enhet en plats, och de står still när ingen flyttar (0.21.4)', () => {
+  const p = debugReach(newCampaign(), 'molnbo', 1), S = cardSlots(p, 'molnbo');
+  assert.equal(S.battle.length, S.cap);
+  const all = [...S.battle, ...S.rest].filter(x => x != null).sort((a, b) => a - b);
+  assert.deepEqual(all, unitsIn(p, 'molnbo').map(u => u.uid).sort((a, b) => a - b));
+  assert.deepEqual(cardSlots(pinSlots(p, 'molnbo'), 'molnbo'), S, 'sparade platser = samma bild');
+});
+
+test('en flytt rör bara kortet som flyttas; en upptagen plats byter de två (0.21.4)', () => {
+  let p = debugReach(newCampaign(), 'molnbo', 1);
+  const S0 = cardSlots(p, 'molnbo');
+  // stridskort till en tom plats i reserven: alla andra står kvar
+  const a = S0.battle[0], free = S0.rest.length;
+  let r = moveCardTo(p, a, 'rest', free);
+  assert.equal(r.ok, true);
+  const S1 = cardSlots(r.progress, 'molnbo');
+  assert.deepEqual(at(S1, a), ['rest', free]);
+  for (const uid of [...S0.battle, ...S0.rest].filter(x => x != null && x !== a)) assert.deepEqual(at(S1, uid), at(S0, uid), `${uid} flyttade`);
+  assert.equal(S1.battle[0], null, 'platsen står tom');
+  // reservkort till den tomma platsen i striden
+  const b = S1.rest[0];
+  r = moveCardTo(r.progress, b, 'battle', 0);
+  assert.equal(r.ok, true);
+  assert.deepEqual(at(cardSlots(r.progress, 'molnbo'), b), ['battle', 0]);
+  // byte i samma fält: bara platserna
+  const S2 = cardSlots(r.progress, 'molnbo'), c = S2.battle[1], d = S2.battle[2];
+  const r2 = moveCardTo(r.progress, c, 'battle', 2);
+  assert.deepEqual(r2.moved.sort(), [c, d].sort());
+  const S3 = cardSlots(r2.progress, 'molnbo');
+  assert.deepEqual(at(S3, c), ['battle', 2]); assert.deepEqual(at(S3, d), ['battle', 1]);
+  // byte mellan fälten: banorna byts, taket står
+  const e = S3.rest.find(x => x != null), f = S3.battle[3];
+  const r3 = moveCardTo(r2.progress, e, 'battle', 3);
+  assert.equal(r3.ok, true);
+  const S4 = cardSlots(r3.progress, 'molnbo');
+  assert.deepEqual(at(S4, e), ['battle', 3]);
+  assert.equal(at(S4, f)[0], 'rest');
+  assert.equal(lanes(r3.progress, 'molnbo').battle.length, S4.cap);
+  // platsen står kvar till nästa dag
+  const won = finishDay(r3.progress, { mapId: 'molnbo', day: 1, won: true, intelEarned: 0, report: { units: [] } }).progress;
+  // (nästa dags leverans kan lägga till ett kort på en ledig plats)
+  const S5 = cardSlots(won, 'molnbo');
+  for (const uid of [...S4.battle, ...S4.rest].filter(x => x != null)) assert.deepEqual(at(S5, uid), at(S4, uid), `${uid} efter dagen`);
+});
+
+test('klick = drag: reserv till första lediga i striden, strid till första lediga i reserven; full strid säger nej (0.21.4)', () => {
+  let p = debugReach(newCampaign(), 'molnbo', 1);
+  const S = cardSlots(p, 'molnbo'), r0 = S.rest.find(x => x != null);
+  assert.equal(clickCard(p, r0).reason, 'laneFull');
+  const b = S.battle[4];
+  const r = clickCard(p, b);
+  assert.deepEqual(at(cardSlots(r.progress, 'molnbo'), b), ['rest', S.rest.indexOf(null) < 0 ? S.rest.length : S.rest.indexOf(null)]);
+  const r2 = clickCard(r.progress, r0);
+  assert.deepEqual(at(cardSlots(r2.progress, 'molnbo'), r0), ['battle', 4]);
+});
+
+test('klämbrädan: släppta kort med pris, köp till en plats, ingen annan rör sig; förrådet med bock (0.21.4)', () => {
+  let p = { ...debugReach(newCampaign(), 'molnbo', 1), rp: 0 };
+  const cards = releasedCards(p, 'molnbo');
+  assert.ok(cards.length > 0 && cards.every(c => !c.ok && c.reason === 'rp'), 'utan RP gråa');
+  p = { ...p, rp: 2000 };
+  const S0 = cardSlots(p, 'molnbo'), type = releasedCards(p, 'molnbo')[0].type, rp0 = p.rp;
+  const r = buyCard(p, type, 'molnbo');
+  assert.equal(r.ok, true);
+  assert.ok(r.progress.rp < rp0);
+  const S1 = cardSlots(r.progress, 'molnbo');
+  assert.equal(at(S1, r.uid)[0], 'rest');
+  for (const uid of [...S0.battle, ...S0.rest].filter(x => x != null)) assert.deepEqual(at(S1, uid), at(S0, uid));
+  // köp rakt till en plats i striden (ett byte med kortet där)
+  const type2 = releasedCards(r.progress, 'molnbo')[0]?.type;
+  if (type2) {
+    const old = S1.battle[0], r2 = buyCard(r.progress, type2, 'molnbo', 'battle', 0);
+    assert.equal(r2.ok, true);
+    const S2 = cardSlots(r2.progress, 'molnbo');
+    assert.deepEqual(at(S2, r2.uid), ['battle', 0]);
+    assert.equal(at(S2, old)[0], 'rest');
+  }
+  const ups = storeList(r.progress);
+  assert.ok(ups.length > 0 && ups.every(u => u.name && u.effect));
 });

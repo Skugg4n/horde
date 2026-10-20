@@ -94,8 +94,9 @@ export const ENEMY_SHEET = {
 
 // ---------- truppkorten ----------
 // Rollraden på kortet (högst fem ord).
+// 0.21.4: korten har fast storlek; rollen är kort (högst ca 12 tecken)
 export const ROLE = {
-  m249: 'Light MG · 5.56', m2: 'Heavy MG · 12.7', ksp58: 'General MG · 7.62', ak5: 'Rifle and grenades',
-  psg90: 'Sniper · long range', hv: 'Rifle squad · Ak 4', inf: 'Rifle squad · Ak 5', civ: 'Hunting rifles',
-  epa: 'Welded pillbox', atractor: 'Carries people out',
+  m249: 'Light MG', m2: 'Heavy MG', ksp58: 'General MG', ak5: 'Grenadier',
+  psg90: 'Sniper', hv: 'Rifle squad', inf: 'Rifle squad', civ: 'Hunters',
+  epa: 'Pillbox', atractor: 'Carrier',
 };

@@ -17,7 +17,10 @@
 import { MAPS } from '../data/maps.js';
 import { SECTORS } from '../data/depot.js';
 import { TABLE_W, TABLE_H, MAP_W, MAP_H, gx, gy, PLACES, SEA, MALAREN, LAKES, ISLANDS, ROADS, RAILS, TOWNS, SECTOR_TABLE } from '../data/table.js';
-import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor } from '../meta/table.js';
+import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor, cardSlots, releasedCards, storeList } from '../meta/table.js';
+import { unitOf, levelCost, refillCost, returnValue, canReturn } from '../meta/operation.js';
+import { metaFeatures } from '../meta/unlocks.js';
+import { ROMAN } from '../data/research.js';
 import { intelFor, compass } from '../meta/intel.js';
 import { FOE_ICONS } from './icons.js';
 
@@ -152,7 +155,9 @@ function pileHtml(pl, place, { deploy, spreadSrc = false }) {
     const ti = pl.sheets.map(x => x.kind).lastIndexOf('order'), top = pl.sheets[ti];
     const rest = pl.sheets.filter((_, i) => i !== ti), last = rest.at(-1);
     const under = last && (last.kind === 'report' || last.kind === 'lost') ? last : null;
-    const older = rest.slice(0, under ? -1 : undefined).slice(-2);
+    // kanterna ligger ovanför högen; så många som ryms under bordets överkant (resten när man breder ut)
+    const fit = Math.max(0, Math.min(2, Math.floor((place.y - 8) / 36)));
+    const older = fit ? rest.slice(0, under ? -1 : undefined).slice(-fit) : [];
     older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false, old: true }); });
     if (under) html += sheetHtml(under, { x: 0, y: 0, r: -2.5, z: 5, full: true, top: false, old: true });
     html += sheetHtml(top, { x: under ? 24 : 0, y: under ? (under.kind === 'report' ? 92 : 80) : 0, r: 0, z: 6, full: true, deploy, stamp: !deploy, current: true });
@@ -222,51 +227,53 @@ function enemyHtml(pile, order, intel, place, fr) {
 }
 
 // ---------- korten ----------
-// 0.21.1 (speltestet, fynd 1: från ca 8 kort klipptes namnen till "PSG 9", "HEMV"): korten överlappar inte. Får de inte
-// plats i en rad läggs de i två, tre eller fyra rader med mindre kort; varje kort har namnraden, styrkan och tröttheten.
-const ZONE_H = 246, ZONE_X0 = 92;
-const CARD_STYLES = [[1, 128, 188], [2, 136, 0], [3, 136, 0], [4, 136, 0]];
-export function zoneLayout(nB, nR, x0, x1) {
-  const avail = x1 - x0 - 18;
-  let pick = null;
-  for (const [rows, cw] of CARD_STYLES) {
-    const cb = Math.ceil(Math.max(1, nB) / rows), cr = Math.ceil(Math.max(1, nR) / rows);
-    const wb = cb * (cw + 8) + 16, wr = Math.max(170, cr * (cw + 8) + 16);
-    pick = { rows, cw, cb, cr, wb, wr };
-    if (wb + wr <= avail) break;
-  }
-  const { rows, cw, cb, cr, wb, wr } = pick;
-  const ch = rows === 1 ? 188 : Math.floor((ZONE_H - 18 - (rows - 1) * 6) / rows);
-  // ryms de inte ens i fyra rader delas bredden efter antalet kolumner (korten överlappar i raden)
-  const bw = wb + wr <= avail ? Math.max(wb, avail - wr) : Math.round(avail * cb / (cb + cr));
-  const rw = avail - bw;
-  return { rows, cw, ch, battle: { x: x0, w: Math.round(bw), cols: cb }, rest: { x: Math.round(x0 + bw + 18), w: Math.round(rw), cols: cr } };
+// 0.21.4 (Ola: "korten hoppar, byter storlek och ordning", H536): korten är fysiska kort med fast storlek och fasta
+// platser. Into battle har exakt cap platser (svaga konturer på bordet), Reserve en bricka med platser som rullar i sidled
+// när de inte ryms. En flytt är en rörelse (kortet lyfts, glider, läggs ned), inga andra kort rör sig.
+export const CARD_W = 100, CARD_H = 126, SLOT_GAP = 8, ZONE_H = 286;
+const ZONE_X0 = 92;
+const slotXY = (i, x0, y0) => [x0 + 8 + Math.floor(i / 2) * (CARD_W + SLOT_GAP), y0 + 16 + (i % 2) * (CARD_H + 6)];
+export function zoneFrame(cap, fr, clip) {
+  const x1 = clip ? fr.clipX - 14 : fr.W - 24, bc = Math.max(1, Math.ceil(cap / 2));
+  const bw = 16 + bc * CARD_W + (bc - 1) * SLOT_GAP, rx = ZONE_X0 + bw + 18;
+  // brickan har hela kolumner (inget kort syns till hälften innan man rullar)
+  const cols = Math.max(1, Math.floor((x1 - rx - 16 + SLOT_GAP) / (CARD_W + SLOT_GAP))), rw = 16 + cols * CARD_W + (cols - 1) * SLOT_GAP;
+  return { by: fr.zoneY, battle: { x: ZONE_X0, w: bw }, rest: { x: rx, w: rw, cols } };
 }
-function cardHtml(c, x, y, z, lane, L) {
+function cardHtml(c, x, y, zone, idx, sel, dots = false) {
   const bad = c.fatigue != null ? c.fatigue > 0 : c.men === 0;
-  const men = c.max ? `${c.men}/${c.max}` : '';
-  const lvl = `${c.vet ? '<b class="star">★</b>' : ''}L${c.level}`;
-  const pos = `--x:${x.toFixed(0)};--y:${y.toFixed(0)};--w:${L.cw};--h:${L.ch};--r:${[0.6, -0.7, 0.3, -0.4, 0.8][c.uid % 5] * (L.rows > 1 ? 0.4 : 1)};--z:${z}`;
+  const men = c.max ? `${c.men}/${c.max} men` : 'crew';
   const state = c.moved ? `<span class="mv">${esc(c.moved.short)}</span>` : `<span class="${bad ? 'bad' : 'ok'}">${esc(c.state)}</span>`;
-  if (L.rows === 1) return `<div class="tb-obj tb-card r1${c.fresh ? ' fresh' : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
-    <div class="k"><span>${c.fresh ? 'NEW' : esc(c.tag)}</span><i>${men}</i></div>
-    <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl${c.moved ? ' mv' : ''}">${esc(c.moved ? c.moved.long : c.role)}</div>${c.max ? `<div class="men">${Array.from({ length: c.max }, (_, i) => `<s class="${i < c.men ? 'on' : 'dead'}"></s>`).join('')}</div>` : ''}
-    <div class="ft" data-read>${state}<span>${lvl}</span></div></div>`;
-  return `<div class="tb-obj tb-card r${L.rows}${c.fresh ? ' fresh' : ''}" title="${c.moved ? esc(c.moved.long) : ''}" data-uid="${c.uid}" data-lane="${lane}" style="${pos}">
+  return `<div class="tb-obj tb-card${c.fresh ? ' fresh' : ''}${sel ? ' sel' : ''}" data-uid="${c.uid}" data-zone="${zone}" data-idx="${idx}" title="${c.moved ? esc(c.moved.long) : esc(c.name)}" style="--x:${x};--y:${y};--w:${CARD_W};--h:${CARD_H};--r:0;--z:3">
     <div class="n" data-read data-name>${esc(c.name)}</div>
-    <div class="ft" data-read>${state}<span>${men ? `<i>${men}</i> ` : ''}${L.rows === 2 ? lvl : ''}</span></div></div>`;
+    <div class="rl">${esc(c.role)}</div>
+    <div class="m" data-read>${men}</div>
+    <div class="st" data-read data-fat>${state}</div>
+    <div class="lv"><span>${c.vet ? '<b class="star">★</b> ' : ''}L${c.level}</span>${dots ? '<button type="button" class="tb-dots" data-dots data-a="lvl" aria-label="Train, refill or return" title="Train, refill or return">⋯</button>' : ''}</div></div>`;
 }
-function zonesHtml(z, note, fr, clip) {
-  const x1 = clip ? fr.clipX - 14 : fr.W - 24;
-  const L = zoneLayout(z.battle.length, z.rest.length, ZONE_X0, x1), zy = fr.zoneY;
-  const place = (list, geo, lane) => {
-    const cols = Math.max(1, Math.ceil(list.length / L.rows)), step = cols <= 1 ? 0 : Math.min(L.cw + 8, (geo.w - 16 - L.cw) / (cols - 1));
-    return list.map((c, i) => cardHtml(c, geo.x + 8 + (i % cols) * step, zy + 12 + Math.floor(i / cols) * (L.ch + 6), i + 1, lane, L)).join('');
-  };
+function zonesHtml(z, slots, note, fr, clip, sel, dots) {
+  const Z = zoneFrame(slots.cap, fr, clip), byUid = new Map([...z.battle, ...z.rest].map(c => [c.uid, c]));
+  const restN = Math.max(Z.rest.cols * 2, slots.rest.length + (slots.rest.includes(null) ? 0 : 1));
+  const restCols = Math.ceil(restN / 2);
+  let battle = '', tray = '';
+  for (let i = 0; i < slots.cap; i++) {
+    const [x, y] = slotXY(i, Z.battle.x, Z.by);
+    battle += `<div class="tb-slot" data-zone="battle" data-idx="${i}" style="--x:${x};--y:${y}"></div>`;
+    const uid = slots.battle[i];
+    if (uid != null && byUid.has(uid)) battle += cardHtml(byUid.get(uid), x, y, 'battle', i, sel === uid, dots);
+  }
+  for (let i = 0; i < restN; i++) {
+    const [x, y] = slotXY(i, 0, 0);
+    tray += `<div class="tb-slot" data-zone="rest" data-idx="${i}" style="--x:${x};--y:${y - 16 + 10}"></div>`;
+    const uid = slots.rest[i];
+    if (uid != null && byUid.has(uid)) tray += cardHtml(byUid.get(uid), x, y - 16 + 10, 'rest', i, sel === uid, dots);
+  }
   const nb = note ? `<span class="tb-znote">${esc(note.text)}</span>` : '';
-  return `<div class="tb-zone battle" data-zone="battle" style="--x:${L.battle.x};--y:${zy};--w:${L.battle.w};--h:${ZONE_H}"><div class="lbl" data-read><b>INTO BATTLE</b> · ${z.battle.length} of ${Number.isFinite(z.cap) ? z.cap : z.battle.length}</div>${note?.lane === 'battle' ? nb : ''}</div>
-    <div class="tb-zone rest" data-zone="rest" style="--x:${L.rest.x};--y:${zy};--w:${L.rest.w};--h:${ZONE_H}"><div class="lbl" data-read><b>RESERVE</b> · ${z.rest.length}</div>${note?.lane === 'rest' ? nb : ''}</div>
-    <div class="tb-cards">${place(z.battle, L.battle, 'battle')}${place(z.rest, L.rest, 'rest')}</div>`;
+  const more = restCols > Z.rest.cols ? `<span class="tb-traymore">${restN - Z.rest.cols * 2 > 0 ? `${slots.rest.filter(x => x != null).length} in reserve · scroll` : ''}</span>` : '';
+  return `<div class="tb-zone battle" data-zone="battle" style="--x:${Z.battle.x};--y:${Z.by};--w:${Z.battle.w};--h:${ZONE_H}"><div class="lbl" data-read><b>INTO BATTLE</b> · ${z.battle.length} of ${slots.cap}</div>${note?.lane === 'battle' ? nb : ''}</div>
+    <div class="tb-zone rest" data-zone="rest" style="--x:${Z.rest.x};--y:${Z.by};--w:${Z.rest.w};--h:${ZONE_H}"><div class="lbl" data-read><b>RESERVE</b> · ${z.rest.length}</div>${note?.lane === 'rest' ? nb : ''}${more}
+      <div class="tb-tray"><div class="tb-trayin" style="width:${16 + restCols * CARD_W + (restCols - 1) * SLOT_GAP}px">${tray}</div></div></div>
+    <div class="tb-cards">${battle}</div>`;
 }
 
 // ---------- klämbrädan ----------
@@ -282,6 +289,48 @@ function clipboardHtml(cb, place) {
   </div></div>`;
 }
 
+// ---------- Requisition som klämbräda (0.21.4, H537) ----------
+// Lyft klämbrädan (R eller klick): två ark. "Released by command": ledningens släppta enheter som samma kort, med en
+// prislapp; dra ett kort till en plats i striden eller reserven (klick: första lediga i reserven). "Stores": förrådets
+// uppgraderingar som en kort lista, köp med klick, köpta med bock. Esc eller klick på bordet lägger tillbaka den.
+function reqHtml(state, fr) {
+  const sector = state.zones?.sector ?? state.next?.sector, p = state._p;
+  const cards = releasedCards(p, sector), ups = storeList(p);
+  const x = 300, y = 18, w = Math.round(Math.min(940, fr.clipX - 20 - x)), h = Math.round(fr.zoneY - 30 - y);
+  const sw = ups.length ? Math.min(330, Math.round(w * 0.42)) : 0, cw = w - sw - (sw ? 14 : 0) - 28;
+  const cols = Math.max(1, Math.floor((cw - 20 + SLOT_GAP) / (CARD_W + SLOT_GAP)));
+  const tag = c => (c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost} RP` : 'Not now');
+  const rcards = cards.map((c, i) => {
+    const cx = 14 + (i % cols) * (CARD_W + SLOT_GAP), cy = 8 + Math.floor(i / cols) * (CARD_H + 34);
+    return `<div class="tb-obj tb-card tb-rcard${c.ok ? '' : ' off'}" data-req="${c.type}" data-type="${c.type}" style="--x:${cx};--y:${cy};--w:${CARD_W};--h:${CARD_H};--r:0;--z:3" title="${c.ok ? 'Drag to a slot, or click' : esc(tag(c))}">
+      <div class="n" data-read data-name>${esc(c.name)}</div><div class="rl">${esc(c.role)}</div><div class="m">${c.max ? `${c.max}/${c.max} men` : 'crew'}</div><div class="st"><span class="ok">New</span></div><div class="lv"><span>L1</span></div></div>
+      <div class="tb-tag${c.ok ? '' : ' off'}" data-read style="left:${cx}px;top:${cy + CARD_H + 4}px">${esc(tag(c))}</div>`;
+  }).join('');
+  const rows = Math.max(1, Math.ceil(cards.length / cols)), ch = 8 + rows * (CARD_H + 34);
+  const store = sw ? `<div class="tb-store" style="left:${cw + 42}px;width:${sw}px">
+      <div class="h">Stores</div>
+      ${ups.map(u => `<button type="button" class="tb-up${u.bought ? ' done' : u.ok ? '' : ' off'}" data-up="${u.id}" ${u.bought ? 'disabled' : ''}><b data-read>${u.bought ? '✓ ' : ''}${esc(u.name)} ${ROMAN[u.tier] ?? ''}</b><span data-read>${esc(u.effect)}</span><i data-read>${u.bought ? 'Bought' : u.ok ? `${u.cost} RP` : `Need ${u.cost} RP`}</i></button>`).join('')}
+    </div>` : '';
+  return `<div class="tb-req" data-req-sheet style="--x:${x};--y:${y};--w:${w};--h:${h}"><div class="jaw"></div>
+    <div class="pg"><div class="h">Released by command <span>${p.rp} RP</span></div>
+      <div class="tb-reqcards" style="width:${cw}px"><div style="position:relative;height:${ch}px">${rcards || '<p class="none" data-read>Nothing released here yet. Use ⋯ on a card to train, refill or return it.</p>'}</div></div>
+      ${store}
+      <p class="hint" data-read>Drag a card to a slot, or click it. Esc puts the clipboard back.</p>
+    </div></div>`;
+}
+// Liten meny på ett kort (⋯): nästa nivå, påfyllnad och tillbaka, med pris
+function cardMenuHtml(p, uid) {
+  const u = unitOf(p, uid);
+  if (!u) return '';
+  const m = metaFeatures(p), lc = levelCost(u), rc = refillCost(p, u), rv = returnValue(u), cr = canReturn(p, uid);
+  const item = (a, label, price, ok, why = '') => `<button type="button" class="tb-cm${ok ? '' : ' off'}" data-cm="${a}" ${ok ? '' : 'disabled'}><span data-read>${label}</span><i>${ok ? price : why}</i></button>`;
+  const rows = [];
+  if (m.has('levels')) rows.push(lc != null ? item('level', `Level ${ROMAN[u.level + 1]}`, `${lc} RP`, p.rp >= lc, `Need ${lc} RP`) : item('level', 'Max level', '', false, ''));
+  if (u.men != null) rows.push(rc ? item('refill', 'Refill', `${rc} RP`, p.rp >= rc, `Need ${rc} RP`) : item('refill', 'Full strength', '', false, ''));
+  if (m.has('return')) rows.push(item('return', 'Return', rv ? `+${rv} RP` : 'No RP back', cr.ok, 'Last unit'));
+  return rows.join('');
+}
+
 // handlers: { onGo(sectorId), onRequisition(sectorId), act(kind, ...args) -> { ok, reason, progress }, save(progress) }
 // opts.selected: sektorn som är vald från början. opts.backdrop: bara bild (bakom Requisition-klämbrädan).
 export function tableSheet(root, progress, handlers = {}, { selected = null, backdrop = false } = {}) {
@@ -291,7 +340,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   el.innerHTML = '<div class="tb-view"></div><div class="tb-rail"></div>';
   root.appendChild(el);
   const view = el.querySelector('.tb-view');
-  let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20;
+  let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20, selCard = null, trayScroll = 0, lifted = false, cmenu = null, confirmReturn = null;
   const zOf = {};
   // ---------- skalan: designrummet till fönstret ----------
   // 0.21.1: bordets yta följer fönstret (src/meta/table.js frameFor): skalan minst MIN_SCALE, ytan W x H
@@ -307,8 +356,30 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   };
   const toTable = (cx, cy) => { const r = el.getBoundingClientRect(); return [(cx - r.left - ox) / scale, (cy - r.top - oy) / scale]; };
 
-  function render() {
+  // FLIP: korten som flyttat glider från sin gamla plats (from: uid -> skärmrektangel före ritningen)
+  function render(from = null) {
+    const tr = view.querySelector('.tb-tray');
+    if (tr) trayScroll = tr.scrollLeft;
+    renderNow();
+    const nt = view.querySelector('.tb-tray');
+    if (nt) nt.scrollLeft = trayScroll;
+    if (!from) return;
+    for (const [uid, r0] of from) {
+      const c = view.querySelector(`.tb-card[data-uid="${uid}"]`);
+      if (!c) continue;
+      const r1 = c.getBoundingClientRect(), dx = (r0.left - r1.left) / scale, dy = (r0.top - r1.top) / scale;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      c.classList.add('lifted');
+      c.style.transition = 'none'; c.style.translate = `${dx}px ${dy}px`;
+      void c.offsetWidth;
+      c.style.transition = 'translate 250ms cubic-bezier(.3,.7,.3,1), box-shadow 250ms';
+      c.style.translate = '0px 0px';
+      setTimeout(() => { c.classList.remove('lifted'); c.style.transition = ''; c.style.translate = ''; }, 280);
+    }
+  }
+  function renderNow() {
     const state = tableState(p, { sector: sel });
+    state._p = p;
     if (sel == null || !state.piles.some(x => x.sector === sel)) sel = state.next?.sector ?? sel;
     const place = id => placeOf(p, state, id, fr);
     enemyOrder = state.enemies ? keepOrder(enemyOrder, state.enemies.sheets.map(s => s.id), state.enemies.top) : null;
@@ -329,7 +400,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (state.radio.length) html += radioHtml(state.radio, radioOrder, place('radio'));
     if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), state.clipboard ? fr : null);
     if (state.clipboard) html += clipboardHtml(state.clipboard, place('clipboard'));
-    if (state.zones) html += zonesHtml(state.zones, laneNote, fr, !!state.clipboard);
+    if (state.zones) html += zonesHtml(state.zones, cardSlots(p, state.zones.sector), laneNote, fr, !!state.clipboard, selCard, !!state.clipboard);
+    if (lifted && state.clipboard) html += reqHtml(state, fr);
     const moved = Object.keys(tableOf(p).layout).length > 0;
     html += `<div class="tb-ring" style="left:1060px;top:60px;width:92px;height:92px;opacity:.7"></div>`;
     html += state.zones ? `<div class="tb-pencil" style="left:40px;top:${Math.round(fr.zoneY - 30)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
@@ -340,8 +412,21 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     view.innerHTML = html;
     view.dataset.objects = state.objects.join(' ');
     view.classList.toggle('briefing', state.briefing);
+    // Requisition lyft: roten får .lifted (förrådets lektioner pekar också på .hub.lifted [data-a="lvl"], [data-req], [data-up], [data-fat])
+    el.classList.toggle('lifted', lifted && !!state.clipboard);
+    if (!state.clipboard) lifted = false;
     // z-ordningen: senast flyttade överst
     for (const [id, z] of Object.entries(zOf)) { const o = view.querySelector(`[data-obj="${id}"]`); if (o) o.style.setProperty('--z', z); }
+    // kortets meny (⋯) intill kortet
+    const mc = cmenu != null && view.querySelector(`.tb-card[data-uid="${cmenu}"]`);
+    if (mc) {
+      const r = mc.getBoundingClientRect(), [cx, cy] = toTable(r.right, r.top), [lx] = toTable(r.left, r.top);
+      const m = document.createElement('div');
+      m.className = 'tb-cmenu'; m.innerHTML = cardMenuHtml(p, cmenu) + (confirmReturn === cmenu ? '<p class="ask" data-read>Return it? Click Return again.</p>' : '');
+      const right = cx + 8 + 230 < fr.W;
+      m.style.left = `${Math.round(right ? cx + 8 : lx - 238)}px`; m.style.top = `${Math.round(Math.max(8, Math.min(cy, fr.H - 170)))}px`;
+      view.appendChild(m);
+    } else cmenu = null;
     wire();
     drawStrings();
   }
@@ -376,24 +461,45 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   // ---------- handlingar ----------
   const save = q => { p = q; handlers.save?.(p); };
   function go() { const nb = tableState(p, { sector: sel }).next; if (nb) handlers.onGo?.(nb.sector); }
-  function requisition() { const st = tableState(p, { sector: sel }); if (st.clipboard) handlers.onRequisition?.(st.next?.sector ?? sel); }
-  function toggleSpread(id) { spread = spread === id ? null : id; render(); }
-  function toLane(uid, lane) {
-    const r = handlers.act?.('lane', uid, lane);
+  // Requisition: lyft klämbrädan eller lägg tillbaka den
+  function requisition(on = !lifted) { const st = tableState(p, { sector: sel }); if (!st.clipboard) return; lifted = !!on; cmenu = null; render(); }
+  // köp ett släppt kort: drag till en plats (zon, plats) eller klick (första lediga i reserven); kortet glider dit
+  function buy(type, from, zone = null, idx = null) {
+    const st = tableState(p, { sector: sel }), sector = st.zones?.sector ?? st.next?.sector;
+    const before = cardRects([...view.querySelectorAll('.tb-card[data-uid]')].map(c => Number(c.dataset.uid)));
+    const r = handlers.act?.('buy', type, sector, zone, idx);
     if (!r) return;
-    if (r.ok) { if (r.progress) p = r.progress; laneNote = null; } else laneNote = { lane, text: STATE_TEXT[r.reason] ?? 'Not possible.' };
-    render();
+    if (!r.ok) { laneNote = { lane: 'rest', text: r.reason === 'rp' ? `Need ${r.cost} RP` : 'Not released here.' }; render(); return; }
+    p = r.progress; selCard = r.uid; laneNote = null;
+    const fromMap = new Map([...before].filter(([u]) => (r.moved ?? []).includes(u)));
+    if (from) fromMap.set(r.uid, from);
+    render(fromMap);
   }
-  function swap(a, b) {
-    const r = handlers.act?.('swap', a, b);
+  function toggleSpread(id) { spread = spread === id ? null : id; render(); }
+  const cardRects = uids => new Map(uids.map(u => [u, view.querySelector(`.tb-card[data-uid="${u}"]`)?.getBoundingClientRect()]).filter(([, r]) => r));
+  // kind 'slot' (uid, zon, plats) eller 'click' (uid); laneNote: förrådets skäl vid fältet
+  function cardAct(kind, uid, ...args) {
+    const before = cardRects([uid, ...[...view.querySelectorAll('.tb-card')].map(c => Number(c.dataset.uid))]);
+    const r = handlers.act?.(kind, uid, ...args);
     if (!r) return;
-    if (r.ok) { if (r.progress) p = r.progress; laneNote = null; } else laneNote = { lane: 'battle', text: STATE_TEXT[r.reason] ?? 'Not possible.' };
-    render();
+    selCard = uid;
+    if (r.ok) { if (r.progress) p = r.progress; laneNote = null; render(new Map([...before].filter(([u]) => (r.moved ?? []).includes(u)))); }
+    else { laneNote = { lane: 'battle', text: STATE_TEXT[r.reason] ?? 'Not possible.' }; render(); }
   }
   function doTidy() { save(tidy(p)); for (const k of Object.keys(zOf)) delete zOf[k]; render(); }
 
   // ---------- pekaren: dra föremål och kort, klick ----------
   function wire() {
+    for (const b of view.querySelectorAll('[data-up]')) b.addEventListener('click', e => { e.stopPropagation(); const r = handlers.act?.('upgrade', b.dataset.up); if (r?.ok) p = r.progress; render(); });
+    for (const b of view.querySelectorAll('[data-dots]')) b.addEventListener('click', e => { e.stopPropagation(); const uid = Number(b.closest('.tb-card').dataset.uid); cmenu = cmenu === uid ? null : uid; confirmReturn = null; render(); });
+    for (const b of view.querySelectorAll('[data-cm]')) b.addEventListener('click', e => {
+      e.stopPropagation();
+      const kind = b.dataset.cm, uid = cmenu;
+      if (kind === 'return' && confirmReturn !== uid) { confirmReturn = uid; render(); return; }
+      const r = handlers.act?.(kind, uid);
+      if (r?.ok) { p = r.progress; if (kind === 'return') cmenu = null; }
+      confirmReturn = null; render();
+    });
     for (const b of view.querySelectorAll('[data-a="go"]')) b.addEventListener('click', e => { e.stopPropagation(); go(); });
     view.querySelector('[data-a="req"]')?.addEventListener('click', e => { e.stopPropagation(); requisition(); });
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
@@ -402,10 +508,14 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   let drag = null;
   view.addEventListener('pointerdown', e => {
     if (backdrop || e.button !== 0 || e.target.closest('button, .tb-spread')) return;
+    // en öppen kortmeny eller lyft klämbräda stängs av ett klick bredvid
+    if (cmenu != null && !e.target.closest('.tb-cmenu')) { cmenu = null; confirmReturn = null; render(); return; }
+    if (lifted && !e.target.closest('.tb-req, .tb-card, .tb-slot, .tb-zone')) { lifted = false; render(); return; }
     const card = e.target.closest('.tb-card'), obj = e.target.closest('[data-obj]');
     const t = card ?? obj;
     if (!t) return;
     const [x, y] = toTable(e.clientX, e.clientY);
+    if (card) { drag = { t: card, card: true, buy: card.dataset.type ?? null, id: Number(card.dataset.uid), x0: x, y0: y, moved: false }; card.setPointerCapture?.(e.pointerId); e.preventDefault(); return; }
     drag = { t, card: !!card, id: card ? Number(card.dataset.uid) : obj.dataset.obj, x0: x, y0: y, moved: false, target: e.target,
       ox: Number(getComputedStyle(t).getPropertyValue('--x')) || 0, oy: Number(getComputedStyle(t).getPropertyValue('--y')) || 0 };
     t.setPointerCapture?.(e.pointerId);
@@ -415,26 +525,51 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (!drag) return;
     const [x, y] = toTable(e.clientX, e.clientY), dx = x - drag.x0, dy = y - drag.y0;
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    if (!drag.moved) { drag.moved = true; drag.t.classList.add('dragging'); if (!drag.card) zOf[drag.id] = ++zTop; drag.t.style.setProperty('--z', drag.card ? 90 : zTop); }
+    if (drag.card) {
+      // kortet lyfts: en kopia följer pekaren över hela bordet (brickan klipper inte), originalet står kvar svagt
+      if (!drag.moved) {
+        drag.moved = true;
+        const r = drag.t.getBoundingClientRect(), [gx, gy] = toTable(r.left, r.top);
+        drag.g = drag.t.cloneNode(true); drag.g.classList.add('ghost', 'lifted'); drag.g.style.setProperty('--x', gx); drag.g.style.setProperty('--y', gy); drag.g.style.setProperty('--z', 95);
+        drag.gx = gx; drag.gy = gy; view.appendChild(drag.g); drag.t.classList.add('lifting');
+      }
+      drag.g.style.setProperty('--x', Math.round(drag.gx + dx)); drag.g.style.setProperty('--y', Math.round(drag.gy + dy));
+      const tg = slotUnder(e, drag);
+      for (const n of view.querySelectorAll('.tb-slot.over, .tb-card.over')) n.classList.remove('over');
+      tg?.classList.add('over');
+      return;
+    }
+    if (!drag.moved) { drag.moved = true; drag.t.classList.add('dragging'); zOf[drag.id] = ++zTop; drag.t.style.setProperty('--z', zTop); }
     drag.t.style.setProperty('--x', Math.round(drag.ox + dx));
     drag.t.style.setProperty('--y', Math.round(drag.oy + dy));
-    if (!drag.card) drawStrings();
-    else for (const z of view.querySelectorAll('.tb-zone')) z.classList.toggle('over', hitZone(e, drag) === z);
+    drawStrings();
   });
-  // under pekaren, utom kortet som dras (d)
-  const under = (e, d) => document.elementsFromPoint(e.clientX, e.clientY).filter(n => !(d && (n === d.t || d.t.contains(n))));
-  const hitZone = (e, d) => under(e, d).map(n => n.closest?.('.tb-zone')).find(Boolean) ?? null;
-  const hitCard = (e, d) => under(e, d).map(n => n.closest?.('.tb-card')).find(Boolean) ?? null;
+  // platsen under pekaren (en tom plats eller ett annat kort), utom kortet som dras och dess kopia
+  const slotUnder = (e, d) => document.elementsFromPoint(e.clientX, e.clientY)
+    .filter(n => !(d && (d.t.contains(n) || d.g?.contains(n)))).map(n => n.closest?.('.tb-slot, .tb-card')).find(Boolean) ?? null;
   view.addEventListener('pointerup', e => {
     const d = drag; drag = null;
     if (!d) return;
+    if (d.card && d.buy) {
+      if (d.t.classList.contains('off')) { d.g?.remove(); d.t.classList.remove('lifting'); render(); return; }
+      if (!d.moved) { buy(d.buy, d.t.getBoundingClientRect()); return; }
+      const tg = slotUnder(e, d), gr = d.g.getBoundingClientRect();
+      d.g.remove(); d.t.classList.remove('lifting');
+      if (!tg || tg.classList.contains('tb-rcard')) { render(); return; }
+      buy(d.buy, gr, tg.dataset.zone, Number(tg.dataset.idx));
+      return;
+    }
     if (d.card) {
-      const lane = d.t.dataset.lane;
-      if (!d.moved) { toLane(d.id, lane === 'battle' ? 'rest' : 'battle'); return; }
-      const other = hitCard(e, d), zone = hitZone(e, d);
-      if (other && other.dataset.lane !== lane) { swap(d.id, Number(other.dataset.uid)); return; }
-      if (zone && zone.dataset.zone !== lane) { toLane(d.id, zone.dataset.zone); return; }
-      render();
+      if (!d.moved) { cardAct('click', d.id); return; }
+      const tg = slotUnder(e, d), gr = d.g.getBoundingClientRect();
+      d.g.remove(); d.t.classList.remove('lifting');
+      if (!tg) { render(new Map([[d.id, gr]])); return; }
+      const before = cardRects([...view.querySelectorAll('.tb-card')].map(c => Number(c.dataset.uid)));
+      before.set(d.id, gr);
+      const r = handlers.act?.('slot', d.id, tg.dataset.zone, Number(tg.dataset.idx));
+      selCard = d.id;
+      if (r?.ok) { if (r.progress) p = r.progress; laneNote = null; render(new Map([...before].filter(([u]) => (r.moved ?? []).includes(u) || u === d.id))); }
+      else { laneNote = { lane: 'battle', text: STATE_TEXT[r?.reason] ?? 'Not possible.' }; render(new Map([[d.id, gr]])); }
       return;
     }
     if (d.moved) {
@@ -451,9 +586,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     }
     if (d.id === 'enemies') { const s = d.target.closest('[data-enemy]'); if (s && !s.classList.contains('top')) { enemyOrder = bringToTop(enemyOrder.map(id => ({ id })), s.dataset.enemy).map(x => x.id); render(); } return; }
     if (d.id === 'radio') { const s = d.target.closest('[data-strip]'); if (s) { radioOrder = bringToTop(radioOrder.map(id => ({ id })), s.dataset.strip).map(x => x.id); render(); } return; }
+    if (d.id === 'clipboard') { requisition(); return; }
     if (d.id.startsWith('pile:') || d.id === 'archive') toggleSpread(d.id);
   });
-  view.addEventListener('pointercancel', () => { drag = null; render(); });
+  view.addEventListener('pointercancel', () => { drag?.g?.remove(); drag = null; render(); });
   // 0.21.2 (speltestet av 0.21.1, fynd 1: Deploy utanför bild efter att fönstret krympts): ny layout när fönstret
   // ändras, en gång när storleken stått still en stund
   let resizeT = 0;
@@ -469,7 +605,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     selected: () => sel,
     progress: () => p,
     // Esc: en utbredd hög läggs ihop; annars false (spelmenyn öppnas)
-    escape: () => { if (spread) { spread = null; render(); return true; } return false; },
+    escape: () => { if (cmenu != null) { cmenu = null; render(); return true; } if (lifted) { lifted = false; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
+    lifted: () => lifted,
     requisition, tidy: doTidy, go,
     spread: id => { spread = id; render(); },
   };

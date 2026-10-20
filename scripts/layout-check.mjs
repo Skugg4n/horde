@@ -145,7 +145,10 @@ function auditTable(scope) {
   const W = innerWidth, H = innerHeight;
   const owner = el => el.closest('.tb-card, .tb-cell, [data-sheet], .tb-enemy, .tb-strip, .tb-postit, .tb-clipboard, .tb-zone, .tb-obj, .tb-spread') ?? el;
   // en utbredd hög täcker bordet med flit: då provas bara bladen i den
-  const scopeSel = document.querySelector('#hub .tb-spread') ? '#hub .tb-spread [data-read]' : '#hub [data-read]';
+  // 0.21.4: kortets meny och den lyfta klämbrädan ligger med flit över bordet: då provas de (och korten, klämbrädan)
+  const scopeSel = document.querySelector('#hub .tb-spread') ? '#hub .tb-spread [data-read]'
+    : document.querySelector('#hub .tb-cmenu') ? '#hub .tb-cmenu [data-read]'
+    : document.querySelector('#hub .tb-req') ? '#hub .tb-req [data-read], #hub .tb-zone [data-read], #hub .tb-card [data-read], #hub .tb-clipboard [data-read]' : '#hub [data-read]';
   const reads = [...document.querySelectorAll(scopeSel)].filter(n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden');
   // föremålen är vridna och skalade: punkterna läggs i elementets eget plan (de linjära delarna av alla transform uppåt)
   const linear = el => {
@@ -155,6 +158,9 @@ function auditTable(scope) {
   };
   const name = el => (el.tagName.toLowerCase() + '.' + String(el.className).trim().split(/\s+/).join('.')).slice(0, 50);
   for (const el of reads) {
+    // ett kort som brickan rullat ur bild läses när man rullar dit
+    const tray = el.closest('.tb-tray, .tb-reqcards, .tb-store');
+    if (tray) { const a = (el.closest('.tb-card, .tb-up') ?? el).getBoundingClientRect(), b = tray.getBoundingClientRect(); if (a.left < b.left - 1 || a.right > b.right + 1 || a.top < b.top - 1 || a.bottom > b.bottom + 1) continue; }
     const r = el.getBoundingClientRect(), o = owner(el), txt = el.textContent.trim().replace(/\s+/g, ' ').slice(0, 36);
     if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1) out.push(`${scope}: "${txt}" utanför fönstret`);
     const ob = o.getBoundingClientRect(), straddle = el.matches('.tb-zone .lbl');   // fältets etikett ligger på kanten med flit
@@ -182,7 +188,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 16;
+const TABLE_SCOPES = 19;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -208,7 +214,7 @@ function auditTableExtra(scope) {
   }
   // 0.21.3 (H530): den aktuella lappen ligger fri (inget föremål över den), och högst en lägesrapport går att läsa
   const cur = hub.querySelector('.tb-order.cur');
-  if (cur && !hub.querySelector('.tb-spread')) {
+  if (cur && !hub.querySelector('.tb-spread, .tb-req, .tb-cmenu')) {
     const r = cur.getBoundingClientRect();
     let bad = 0;
     for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) {
@@ -289,7 +295,7 @@ async function tableChecks(page, label) {
   const vp = page.viewportSize();
   for (const [w, h] of [[1024, 614], [1920, 1080], [vp.width, vp.height]]) {
     await page.setViewportSize({ width: w, height: h });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1200);
     const extra = await page.evaluate(auditTableExtra, `table-resize ${w}x${h} @${label}`);
     errors.push(...extra);
   }
@@ -301,15 +307,34 @@ async function tableChecks(page, label) {
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   // en utbredd hög och Requisition som klämbräda
   await show(reach('molnbo', 1), 'table-spread-base');
-  await ev(`window.__horde.sheet.spread('pile:gnesta')`);
+  await ev(`window.__horde.sheet.spread('archive')`);
   await run('table-spread');
   await ev(`window.__horde.sheet.escape()`);
-  await ev(`window.__horde.sheet.requisition()`);
+  // 0.21.4 (H536): en flytt är en rörelse; inget annat kort flyttar. Klick på ett stridskort skickar det till reserven.
+  const rects = () => ev(`Object.fromEntries([...document.querySelectorAll('#hub .tb-card[data-uid]')].map(c => { const r = c.getBoundingClientRect(); return [c.dataset.uid, [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height), c.dataset.zone]]; }))`);
+  const before = await rects();
+  const pick = await ev(`(() => { const c = document.querySelector('#hub .tb-card[data-zone="battle"]'); const r = c.querySelector('.n').getBoundingClientRect(); return { uid: c.dataset.uid, x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  await page.mouse.click(pick.x, pick.y);
   await page.waitForTimeout(600);
-  if (await ev('window.__horde.mode') !== 'depot') errors.push(`table-requisition @${label}: R öppnade inte Requisition`);
-  const r = await page.evaluate(audit, `table-requisition @${label}`);
-  errors.push(...r.errors);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/table-requisition-${label}.png` });
+  const after = await rects();
+  if (after[pick.uid]?.[4] !== 'rest') errors.push(`table-move @${label}: klicket flyttade inte kortet till reserven`);
+  const size = Object.values(after).map(r => `${r[2]}x${r[3]}`);
+  if (new Set(size).size !== 1) errors.push(`table-move @${label}: korten har olika storlek (${[...new Set(size)].join(', ')})`);
+  for (const [uid, r] of Object.entries(before)) if (uid !== pick.uid && JSON.stringify(after[uid]) !== JSON.stringify(r)) errors.push(`table-move @${label}: kort ${uid} flyttade (${r} -> ${after[uid]})`);
+  await run('table-moved');
+  // kortets meny (⋯)
+  await ev(`document.querySelector('#hub .tb-card[data-zone="battle"] .tb-dots').click()`);
+  await page.waitForTimeout(300);
+  if (!(await ev(`!!document.querySelector('#hub .tb-cmenu .tb-cm')`))) errors.push(`table-cardmenu @${label}: menyn öppnades inte`);
+  await run('table-cardmenu');
+  await ev(`window.__horde.sheet.escape()`);
+  // 0.21.4 (H537): Requisition som klämbräda på bordet, med RP så att korten går att köpa
+  await ev(`window.__horde.setProgress({ ...window.__horde.progress, rp: 2000 })`);
+  await ev(`window.__horde.showTable()`); await page.waitForTimeout(400);
+  await ev(`window.__horde.sheet.requisition(true)`);
+  await page.waitForTimeout(500);
+  if (!(await ev(`!!document.querySelector('#hub .tb-req .tb-rcard')`))) errors.push(`table-requisition @${label}: inga släppta kort på klämbrädan`);
+  await run('table-requisition');
   void W;
   return errors;
 }
