@@ -12,8 +12,8 @@ import { markSeen } from '../src/meta/lessons.js';
 
 const words = s => s.trim().split(/\s+/).filter(Boolean).length;
 const fake = () => { const m = new Map(); return { m, getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); } }; };
-// Kampanjens dag 8 i dagens banor: E4 dag 1 till 3, Ishallen dag 1 till 5 (dag 8 = Ishallen dag 5)
-const day8 = () => debugReach(newCampaign(), 'gnesta', 5);
+// Kampanjens dag 6 (0.22.0, kampanjbågen): E4 dag 1 till 3, Ishallen dag 1 till 3 (dag 6 = Ishallen dag 3). Förut dag 8 = Ishallen dag 5.
+const day6 = () => debugReach(newCampaign(), 'gnesta', 3);
 
 test('dag 1: bara kartan och en lapp (ordern för dag 1)', () => {
   const s = tableState(newCampaign());
@@ -30,10 +30,10 @@ test('dag 1: bara kartan och en lapp (ordern för dag 1)', () => {
   assert.deepEqual(s.radio, []);
 });
 
-test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan', () => {
-  const p = day8(), s = tableState(p);
-  // 0.21.1: bordet visar samma dag som introt, HUD:en och menyn. 0.21.3 (H539): kampanjens dag (Ishallen dag 5 = dag 8)
-  assert.equal(s.next.n, 8);
+test('dag 6: högar per uppdrag, fiendehögen, radion, korten och klämbrädan', () => {
+  const p = day6(), s = tableState(p);
+  // 0.21.1: bordet visar samma dag som introt, HUD:en och menyn. 0.21.3 (H539): kampanjens dag (Ishallen dag 3 = dag 6)
+  assert.equal(s.next.n, 6);
   assert.equal(s.next.place, 'Ishallen');
   for (const id of ['map', 'archive', 'pile:gnesta', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
   const e4 = s.piles.find(x => x.sector === 'riksvagen'), gn = s.piles.find(x => x.sector === 'gnesta');
@@ -44,11 +44,11 @@ test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan',
   assert.equal(e4.sheets.at(-1).kind, 'closed');
   assert.equal(e4.sheets.at(-1).stamp, 'HELD');
   assert.equal(gn.current, true);
-  assert.equal(gn.sheets.at(-1).id, 'order:gnesta:5');
-  assert.equal(gn.sheets.at(-2).id, 'report:gnesta:4', 'gårdagens rapport ligger under ordern');
+  assert.equal(gn.sheets.at(-1).id, 'order:gnesta:3');
+  assert.equal(gn.sheets.at(-2).id, 'report:gnesta:2', 'gårdagens rapport ligger under ordern');
   assert.deepEqual(s.enemies.sheets.filter(x => x.status !== 'REPORTED').map(x => x.type), ['walker', 'runner', 'brute']);
   assert.ok(s.intel?.text, 'What we face');
-  assert.ok(!s.objects.includes('radio'), 'ingen sändning natten före Ishallen dag 5');
+  assert.ok(!s.objects.includes('radio'), 'ingen sändning natten före Ishallen dag 3');
   assert.equal(s.zones.cap, deployCap(p, 'gnesta'));
   assert.equal(s.zones.battle.length + s.zones.rest.length, unitsIn(p, 'gnesta').length, 'ett kort per enhet');
 });
@@ -69,7 +69,7 @@ test('saker kommer i kampanjens takt: fiendehögen efter första mötet, korten 
 });
 
 test('högarnas ordning: order och rapport per dag i tidsordning, nyast överst', () => {
-  const p = day8();
+  const p = day6();
   for (const pl of missionPiles(p)) {
     let last = -1;
     for (const sh of pl.sheets) {
@@ -86,25 +86,25 @@ test('högarnas ordning: order och rapport per dag i tidsordning, nyast överst'
 });
 
 test('lägesrapporten: dagens egen text när den finns, annars ur dagens siffror', () => {
-  let p = day8();
-  const auto = reportSheet(p, 'gnesta', 4);
+  let p = day6();
+  const auto = reportSheet(p, 'gnesta', 2);
   assert.equal(auto.written, false);
   assert.ok(auto.lead && auto.text);
-  p = recordDay(p, { mapId: 'gnesta', day: 4, kills: 212, waves: 5, lost: 3, saved: 9, total: 10 });
-  const r = reportSheet(p, 'gnesta', 4);
+  p = recordDay(p, { mapId: 'gnesta', day: 2, kills: 212, waves: 5, lost: 3, saved: 9, total: 10 });
+  const r = reportSheet(p, 'gnesta', 2);
   assert.match(r.text, /212 infected down in 5 waves/);
   assert.match(r.text, /We lost 3 men/);
   assert.match(r.text, /9 of 10 civilians/);
   assert.ok(words(`${r.lead} ${r.text}`) <= 60);
-  const d = MAPS.gnesta.days[3];
+  const d = MAPS.gnesta.days[1];
   try {
     d.report = { from: 'MCF', text: 'The ice rink is safe and Vikingavägen is quiet.' };
-    assert.equal(reportSheet(p, 'gnesta', 4).text, d.report.text);
-    assert.equal(reportSheet(p, 'gnesta', 4).from, 'MCF');
+    assert.equal(reportSheet(p, 'gnesta', 2).text, d.report.text);
+    assert.equal(reportSheet(p, 'gnesta', 2).from, 'MCF');
     // radio blir en remsa, och rapportbladet skrivs ur siffrorna
     d.report = { from: 'P4 Sörmland', text: 'Roads east of Gnesta are closed.' };
-    assert.equal(reportSheet(p, 'gnesta', 4).written, false);
-    assert.ok(radioStrips(p).some(x => x.id === 'radio:gnesta:4'));
+    assert.equal(reportSheet(p, 'gnesta', 2).written, false);
+    assert.ok(radioStrips(p).some(x => x.id === 'radio:gnesta:2'));
   } finally { delete d.report; }
 });
 
@@ -160,7 +160,7 @@ test('ordern: högst 12 ord, rapport och radio inom sina gränser, inga tankstre
 });
 
 test('dra och släpp: läget sparas per föremål, hålls på bordet, och Tidy lägger tillbaka allt', () => {
-  let p = day8();
+  let p = day6();
   const s = tableState(p);
   assert.deepEqual(placeOf(p, s, 'pile:gnesta'), defaultPlace(s, 'pile:gnesta'));
   p = moveObject(p, 'pile:gnesta', 412.4, 90.6);

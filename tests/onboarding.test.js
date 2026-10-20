@@ -29,20 +29,20 @@ test('ett nytt begrepp per dag: E4 dag 1 har bara pjäsen, starten och basen', (
   // 0.16.4 (speltestet av 0.16.2): dag 3 utan nya funktioner, de vilande husen dag 4, Next wave med bonus dag 5,
   // förnödenheterna på enheten Vikingavägen dag 1
   // 0.18.0: sanity-mätaren kommer med Hemvärnet (kampanjplanens dag 6)
-  assert.deepEqual([...featuresFor('gnesta', 3)].filter(f => !featuresFor('gnesta', 2).has(f)).sort(), ['depot', 'levels', 'move', 'rotate', 'rp', 'sanity']);
+  // 0.22.0 (H539, kampanjbågen): Next wave med bonus tyst dag 3 (förut dag 5)
+  assert.deepEqual([...featuresFor('gnesta', 3)].filter(f => !featuresFor('gnesta', 2).has(f)).sort(), ['depot', 'early', 'levels', 'move', 'rotate', 'rp', 'sanity']);
   // 0.18.0 (strategiskt djup, skiva 1): ett begrepp ur djupet per dag, i kampanjplanens ordning på dagarna som finns
   const fresh = (m, d, pm, pd) => [...featuresFor(m, d)].filter(f => !featuresFor(pm, pd).has(f)).sort();
   assert.ok(featuresFor('gnesta', 2).has('crossfire') && !featuresFor('gnesta', 1).has('crossfire'));
-  assert.deepEqual(fresh('gnesta-norr', 4, 'gnesta-norr', 3), ['fatigue', 'target']);
-  assert.deepEqual(fresh('gnesta-norr', 5, 'gnesta-norr', 4), ['garrison']);
-  assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 5), ['rout']);
+  // 0.22.0 (H539): Hagstumosse har bågens fyra dagar. Efter Ishallen dag 3 förrådets tre delar; Vikingavägen betongen och
+  // skrotbilarna, de vilande husen och pingarna; före Mölnbo frontbredden och tröttheten; Mölnbo dag 1 förnödenheterna
+  // på enheten och trupper i hus med Fall back, dag 2 mål-läget med Håll eld
+  assert.deepEqual(fresh('gnesta-norr', 1, 'gnesta', 3), ['car', 'dormant', 'pings', 'requisition', 'return', 'upgrades']);
+  assert.deepEqual(fresh('molnbo', 1, 'gnesta-norr', 1), ['fatigue', 'frontage', 'garrison', 'rout', 'unitSupplies']);
   // 0.20.0: Mölnbo har tre dagar (kampanjbågen): Håll eld dag 2, klockan och de överrända pjäserna dag 3
-  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), ['holdFire']);
+  assert.deepEqual(fresh('molnbo', 2, 'molnbo', 1), ['holdFire', 'target']);
   assert.deepEqual(fresh('molnbo', 3, 'molnbo', 2), ['overrun', 'train']);
-  assert.ok(featuresFor('gnesta', 4).has('dormant') && featuresFor('gnesta', 4).has('requisition') && !featuresFor('gnesta', 4).has('upgrades'));
-  assert.ok(featuresFor('gnesta', 5).has('early') && featuresFor('gnesta', 5).has('upgrades') && !featuresFor('gnesta', 5).has('unitSupplies'));
-  assert.ok(featuresFor('gnesta-norr', 1).has('unitSupplies') && featuresFor('gnesta-norr', 2).has('car') && !featuresFor('gnesta-norr', 1).has('car'));
-  assert.ok(featuresFor('gnesta-norr', 3).has('frontage') && !featuresFor('gnesta-norr', 2).has('frontage'));
+  assert.ok(!featuresFor('gnesta', 3).has('requisition') && !featuresFor('gnesta', 3).has('car'));
   // en okänd bana (provbanorna) har allt
   assert.ok(featuresFor('straight', 1).has('move'));
   // dagarna i schemat står i kampanjens ordning, en per dag på varje bana
@@ -56,10 +56,11 @@ test('mellan dagarna: kartan efter E4, förrådet efter South dag 2, och sedan e
   assert.ok(metaFeatures(p).has('opmap') && !metaFeatures(p).has('depot'));
   p = debugReach(p, 'gnesta', 3);
   assert.ok(metaFeatures(p).has('depot') && metaFeatures(p).has('levels') && !metaFeatures(p).has('requisition'));
-  p = debugReach(p, 'gnesta', 4);
-  assert.ok(metaFeatures(p).has('requisition') && !metaFeatures(p).has('upgrades'));
-  p = debugReach(p, 'gnesta', 5);
-  assert.ok(metaFeatures(p).has('upgrades') && metaFeatures(p).has('return'));
+  // 0.22.0 (H539): efter Ishallen dag 3 (kampanjens dag 6) rekvisitionen, uppgraderingarna och Return
+  p = debugReach(p, 'gnesta-norr', 1);
+  assert.ok(metaFeatures(p).has('requisition') && metaFeatures(p).has('upgrades') && metaFeatures(p).has('return') && !metaFeatures(p).has('frontage'));
+  p = debugReach(p, 'molnbo', 1);
+  assert.ok(metaFeatures(p).has('frontage') && metaFeatures(p).has('fatigue'));
   // 0.16.0 (Olas beslut, "Gnesta = en sektor"): omplaceringen mellan sektorer är vilande
   assert.ok(!metaFeatures(p).has('sectors'));
 });
@@ -89,7 +90,9 @@ test('sparfilens migrering: allt fram till den längst spelade dagen räknas som
   assert.equal(furthestPlayed(old), stageIndex('gn-3'));
   const l = lessonsFor(old);
   for (const id of ['e4-1.pick', 'e4-2.wire', 'e4-3.aim', 'gn-3.move', 'after-e4.map', 'gn-1.vol', 'gn-2.block', 'after-gn-2.level', 'gn-2.cover', 'enemy:walker', 'enemy:runner', 'enemy:brute', 'hud:supplies', 'hud:minimap', 'tip.base']) assert.ok(l.seen.includes(id), id);
-  for (const id of ['after-gn-3.req', 'gn-3.door', 'gn-3.early', 'gn-5.sup', 'gnn-3.front']) assert.ok(!l.seen.includes(id), id);
+  // 0.22.0: Next wave med bonus (gn-3.early) hör till dag 3 nu
+  assert.ok(l.seen.includes('gn-3.early'));
+  for (const id of ['after-gn-3.req', 'gn-3.door', 'gn-5.sup', 'gnn-3.front']) assert.ok(!l.seen.includes(id), id);
   // det upplåsta följer kampanjen, inte tipsen
   assert.ok(metaFeatures(old).has('levels') && !metaFeatures(old).has('requisition'));
   // uppslagen som det låser upp räknas som lästa (ingen prick på allt en gammal spelare kan)
@@ -154,17 +157,18 @@ test('E4 dag 1: infanteriet vid bommen, en Ksp 90 på en markerad plats, den and
   assert.ok(arrived, 'händelsen arrived när den andra är framme');
   assert.equal(buyState(sim, 'm249').count, 1);
   assert.equal(build(sim, marked[1], 'm249').ok, true, 'den andra ställs ut efter första vågen');
-  assert.equal(callNextWave(sim).reason, 'låst', 'Next wave med bonus kommer South dag 5');
+  assert.equal(callNextWave(sim).reason, 'låst', 'Next wave med bonus kommer Ishallen dag 3');
 });
 
-test('E4 dag 3: pillboxen står svetsad från början; Vikingavägen dag 1: förnödenheter på enheten', () => {
+test('E4 dag 3: pillboxen står svetsad från början; Mölnbo dag 1: förnödenheter på enheten', () => {
   const sim = createSim(opStartConfig(debugReach(newCampaign(), 'riksvagen', 3), 3, 'riksvagen'));
   const epa = sim.guns.find(g => g.weapon.type === 'epa');
   assert.ok(epa && !epa.building, 'svetsad');
   assert.ok(sim.guns.some(g => g.weapon.type === 'inf'));
   assert.equal(buySupply(sim, epa.id, 'ammo').reason, 'ej upplåst');
-  const p5 = debugReach(newCampaign(), 'gnesta-norr', 1);
-  const s5 = createSim({ ...opStartConfig(p5, 1, 'gnesta-norr'), cash: 1000 });
+  // 0.22.0 (H539): förnödenheterna på enheten Mölnbo dag 1 (förut Vikingavägen dag 1)
+  const p5 = debugReach(newCampaign(), 'molnbo', 1);
+  const s5 = createSim({ ...opStartConfig(p5, 1, 'molnbo'), cash: 1000 });
   const k = [...Array(s5.place.n).keys()].find(q => build(s5, q, 'm249').ok);
   assert.ok(k != null);
   assert.equal(buySupply(s5, s5.guns[0].id, 'ammo').ok, true);
@@ -172,10 +176,11 @@ test('E4 dag 3: pillboxen står svetsad från början; Vikingavägen dag 1: för
 
 // 0.16.0 (Olas beslut, "Gnesta = en sektor"): Gnesta South och North blir Hagstumosse med en gemensam trupp.
 test('sparfilen: South och North slås ihop till Hagstumosse, ingen enhet förloras, kopian sparas', () => {
-  let p = debugReach(newCampaign(), 'gnesta', 5);
+  // 0.22.0: Ishallen klar (tre dagar), Vikingavägen dag 1 spelad men inte vunnen
+  let p = debugReach(newCampaign(), 'gnesta-norr', 1);
   const units = p.op.units.map(u => ({ ...u }));
   // en sparfil från 0.15: hälften av trupperna omplacerade till North, lager och tryck per bana
-  const old = { ...p, maps: { ...p.maps, 'gnesta-norr': { unlockedDay: 2, attempts: { 1: 1 } } },
+  const old = { ...p, maps: { ...p.maps, 'gnesta-norr': { unlockedDay: 1, attempts: { 1: 1 } } },
     op: { ...p.op, units: units.map((u, i) => (u.sector === 'gnesta' && i % 2 ? { ...u, sector: 'gnesta-norr' } : u)), stock: { gnesta: { m249: 1 }, 'gnesta-norr': { ksp58: 2, m249: 1 } }, pressure: { 'gnesta-norr': 2, gnesta: 1 } } };
   delete old.lessons;
   const s = memory(), raw = JSON.stringify(old);
@@ -189,8 +194,8 @@ test('sparfilen: South och North slås ihop till Hagstumosse, ingen enhet förlo
   assert.ok(q.op.stock.gnesta.ksp58 >= 2);
   assert.equal(q.op.stock['gnesta-norr'], undefined);
   assert.equal(q.op.pressure['gnesta-norr'], undefined, 'inget tryck mellan faserna');
-  // Vikingavägen spelades redan (öppnade efter dag 4 före 0.16.0): står kvar öppen
-  assert.deepEqual(q.maps['gnesta-norr'], { unlockedDay: 2, attempts: { 1: 1 } });
+  // Vikingavägen spelades redan: står kvar öppen med sina försök
+  assert.deepEqual(q.maps['gnesta-norr'], { unlockedDay: 1, attempts: { 1: 1 } });
   assert.equal(loadProgress(s).op.units.length, q.op.units.length, 'en andra läsning ändrar inget');
 });
 

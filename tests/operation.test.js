@@ -58,22 +58,25 @@ test('rekvisition ur lagret, nivå, påfyllnad, tillbaka till förrådet (cirka 
   assert.equal(canRequisition(p, 'm249', 'gnesta').reason, 'locked', 'efter South dag 2 bara nivåer');
   const hv = unitsIn(p, 'gnesta').find(x => x.type === 'hv');
   assert.equal(levelUp(p, hv.uid).ok, true);
-  p = { ...debugReach(newCampaign(), 'gnesta', 4), rp: 2000 };
-  assert.equal(stockOf(p, 'gnesta', 'm249'), 1, 'en Ksp 90 släppt dag 3');
-  const r = requisition(p, 'm249', 'gnesta');
-  assert.equal(r.ok, true);
-  p = r.progress;
+  // 0.22.0 (H539): efter Ishallen dag 3 rekvisitionen, uppgraderingarna och Return; leveransen till Vikingavägen släpper
+  // två Ksp 90
+  p = { ...debugReach(newCampaign(), 'gnesta-norr', 1), rp: 2000 };
+  assert.equal(stockOf(p, 'gnesta', 'm249'), 2, 'två Ksp 90 släppta till Vikingavägen');
+  const r0 = requisition(p, 'm249', 'gnesta');
+  assert.equal(r0.ok, true);
+  p = r0.progress;
   assert.equal(p.rp, 2000 - UNIT_RP.m249);
+  const r = requisition(p, 'm249', 'gnesta');
+  p = r.progress;
   assert.equal(stockOf(p, 'gnesta', 'm249'), 0);
   assert.equal(canRequisition(p, 'm249', 'gnesta').reason, 'none', 'inget mer släppt, hur mycket RP som helst');
-  assert.equal(canRequisition(p, 'ksp58', 'gnesta').ok, true, 'Ksp 58 släppt dag 4');
+  assert.equal(canRequisition(p, 'ksp58', 'gnesta').ok, true, 'Ksp 58 släppt till Vikingavägen');
   const u = p.op.units.find(x => x.uid === r.uid);
+  const rp1 = p.rp;
   p = levelUp(p, u.uid).progress;
   assert.equal(p.op.units.find(x => x.uid === r.uid).level, 2);
-  assert.equal(p.rp, 2000 - UNIT_RP.m249 - LEVEL_RP.m249[0]);
-  assert.equal(returnUnit(p, r.uid).reason, 'locked', 'Return kommer med sektorerna');
-  // efter South dag 4: Return (tillbaka i lagret) och omplacering
-  p = debugReach(p, 'gnesta', 5);
+  assert.equal(p.rp, rp1 - LEVEL_RP.m249[0]);
+  // Return (tillbaka i lagret)
   const back = returnUnit(p, r.uid);
   assert.equal(back.refund, Math.round((UNIT_RP.m249 + LEVEL_RP.m249[0]) * 0.5));
   assert.equal(stockOf(back.progress, 'gnesta', 'm249'), stockOf(p, 'gnesta', 'm249') + 1, 'en rekvirerad enhet går tillbaka till lagret');
@@ -191,12 +194,12 @@ test('dagens rapport: stupade, förlorade enheter och bonusunderlaget', () => {
 
 test('trycket: faserna i Hagstumosse delar trupp och har inget tryck mellan sig; en annan plats blir svårare men faller aldrig', async () => {
   const { openSectors, currentMap, reassignActive } = await import('../src/meta/operation.js');
-  let p = debugReach(newCampaign(), 'gnesta', 5);
-  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'Vikingavägen öppnar efter Ishallen dag 5');
+  let p = debugReach(newCampaign(), 'gnesta', 3);
+  assert.equal(mapUnlocked(p, 'gnesta-norr'), false, 'Vikingavägen öppnar efter Ishallen dag 3');
   assert.deepEqual(openSectors(p), ['gnesta']);
   assert.equal(reassignActive(p), false, 'en plats: ingen omplacering');
   const before = unitsIn(p, 'gnesta').map(u => u.uid);
-  p = win(p, 'gnesta', 5);
+  p = win(p, 'gnesta', 3);
   assert.equal(mapUnlocked(p, 'gnesta-norr'), true);
   assert.equal(currentMap(p, 'gnesta'), 'gnesta-norr');
   assert.deepEqual(p.op.pressure, {}, 'inget tryck mellan faserna');
@@ -215,17 +218,21 @@ test('trycket: faserna i Hagstumosse delar trupp och har inget tryck mellan sig;
 test('förrådets uppgraderingar: bara för det man har, i ledningens takt', () => {
   let p = { ...newCampaign(), rp: 5000 };
   assert.equal(upgradeState(p, 'm249Rate').reason, 'locked', 'inget förråd på E4');
-  p = { ...debugReach(p, 'gnesta', 5), rp: 5000 };
-  assert.equal(upgradeState(p, 'm249Rate').ok, true, 'Ksp 90 rate I släppt dag 4');
+  // 0.22.0 (H539): uppgraderingarna efter Ishallen dag 3
+  p = { ...debugReach(p, 'gnesta', 3), rp: 5000 };
+  assert.equal(upgradeState(p, 'm249Rate').reason, 'locked', 'förrådet visar dem först efter dag 3');
+  p = { ...debugReach(p, 'gnesta-norr', 1), rp: 5000 };
+  assert.equal(upgradeState(p, 'm249Rate').ok, true, 'Ksp 90 rate I släppt Ishallen dag 3');
   assert.equal(upgradeState(p, 'wireTough').ok, true);
   assert.equal(upgradeState(p, 'psg90').reason, 'locked', 'Psg 90 II inte släppt än');
   assert.equal(upgradeState(p, 'hvVeterans').reason, 'locked', 'inte släppt');
   p = buyUpgrade(p, 'm249Rate').progress;
   assert.ok(p.research.includes('m249Rate.1'));
-  assert.equal(upgradeState(p, 'm249Rate').reason, 'cap', 'nivå II väntar på ledningen');
-  // North dag 2 släpper nivå II
-  p = debugReach(p, 'gnesta-norr', 2);
-  assert.equal(upgradeState(p, 'm249Rate').tier, 2);
+  assert.equal(upgradeState(p, 'm249Rate').tier, 2, 'nivå II släppt till Vikingavägen');
+  p = buyUpgrade(p, 'm249Rate').progress;
+  assert.equal(upgradeState(p, 'm249Rate').reason, 'cap', 'nivå III väntar på ledningen');
+  // Mölnbo dag 1 släpper Psg 90 II (Psg 90 kommer dit)
+  p = debugReach(p, 'molnbo', 1);
   assert.equal(upgradeState(p, 'psg90').ok, true);
   // inga uppgraderingar för typer man inte har: Ak 5 utan Ak 5
   const q = { ...p, op: { ...p.op, units: p.op.units.filter(u => u.type !== 'ak5') } };
@@ -261,7 +268,7 @@ test('RP-avtagandet räknar förluster, inte Restart day eller Main menu', () =>
 });
 
 test('Return: en skänkt enhet som är sektorns sista nekas, annars säger svaret vad som händer', () => {
-  let p = debugReach(newCampaign(), 'gnesta', 5);
+  let p = debugReach(newCampaign(), 'gnesta-norr', 1);
   const [a, b] = unitsIn(p, 'gnesta').filter(u => u.type === 'civ');
   const n = unitsIn(p, 'gnesta').length;
   assert.deepEqual(canReturn(p, a.uid), { ok: true, refund: 0, left: n - 1, given: true });
@@ -292,14 +299,14 @@ test('avsändaren står en gång: inget meddelande börjar med sitt eget namn, o
 // 0.16.0 (Olas fråga om Reassign): förrådets rad om garnisonen säger exakt det trycket gör i finishDay.
 test('garnisonen: under den rekommenderade stiger trycket dubbelt så fort, och förrådet säger just det', async () => {
   const { pressureGain, garrisonOf, garrisonLine, PRESSURE_UNDERMANNED } = await import('../src/meta/operation.js');
-  let p = twoPlaces(debugReach(newCampaign(), 'gnesta', 5), 3);
+  let p = twoPlaces(debugReach(newCampaign(), 'gnesta', 3), 3);
   assert.equal(unitsIn(p, 'riksvagen').length, garrisonOf('riksvagen'));
   assert.equal(pressureGain(p, 'riksvagen'), 1);
-  assert.equal(win(p, 'gnesta', 5).op.pressure.riksvagen, 1, 'full garnison: en punkt');
+  assert.equal(win(p, 'gnesta', 3).op.pressure.riksvagen, 1, 'full garnison: en punkt');
   // under garnisonen: lika många punkter som pressureGain säger, och som förrådets rad säger
   p = { ...p, op: { ...p.op, units: p.op.units.filter(u => u.uid !== 800) } };
   assert.equal(pressureGain(p, 'riksvagen'), PRESSURE_UNDERMANNED);
-  assert.equal(win(p, 'gnesta', 5).op.pressure.riksvagen, PRESSURE_UNDERMANNED);
+  assert.equal(win(p, 'gnesta', 3).op.pressure.riksvagen, PRESSURE_UNDERMANNED);
   assert.equal(garrisonLine('riksvagen'), `Below ${garrisonOf('riksvagen')}: pressure rises ${PRESSURE_UNDERMANNED} a day instead of 1.`);
 });
 
@@ -307,7 +314,7 @@ test('garnisonen: under den rekommenderade stiger trycket dubbelt så fort, och 
 // en varning när sektorn som strider har färre än garnisonen.
 test('skicka och ta tillbaka gratis före Deploy; varningen när nästa strid har för få', async () => {
   const { sendUnit, bringBack, deployWarning, garrisonOf } = await import('../src/meta/operation.js');
-  let p = { ...twoPlaces(debugReach(newCampaign(), 'gnesta', 5)), rp: 300 };
+  let p = { ...twoPlaces(debugReach(newCampaign(), 'gnesta-norr', 1)), rp: 300 };
   const rp0 = p.rp, south = unitsIn(p, 'gnesta');
   assert.ok(south.length >= garrisonOf('gnesta'));
   assert.equal(deployWarning(p, 'gnesta'), null);
@@ -366,12 +373,13 @@ test('leveranserna: varje löfte om rekvisition motsvaras av lager som går att 
 import { deployCap, lanes } from '../src/meta/operation.js';
 import { frontage } from '../src/sim/sim.js';
 test('taket per strid: förrådet och uppställningen säger samma sak, resten vilar i förrådet', () => {
-  for (const [m, d] of [['riksvagen', 2], ['gnesta', 4], ['gnesta-norr', 3]]) {
+  for (const [m, d] of [['riksvagen', 2], ['gnesta', 3], ['gnesta-norr', 1]]) {
     const p = debugReach(newCampaign(), m, d);
     const sim = createSim(opStartConfig(p, d, m));
     assert.equal(deployCap(p, m), frontage(sim), `${m} dag ${d}`);
   }
-  let p = { ...debugReach(newCampaign(), 'gnesta', 5), rp: 100000 };
+  // 0.22.0: Vikingavägen (rekvisitionen öppnar efter Ishallen dag 3)
+  let p = { ...debugReach(newCampaign(), 'gnesta-norr', 1), rp: 100000 };
   const cap = deployCap(p, 'gnesta');
   // fyll över taket med det som är släppt
   for (let i = 0; i < 20 && unitsIn(p, 'gnesta').length <= cap; i++) {
@@ -386,7 +394,7 @@ test('taket per strid: förrådet och uppställningen säger samma sak, resten v
   const L = lanes(p, 'gnesta');
   assert.equal(L.battle.length, cap);
   assert.equal(L.rest.length, have - cap, 'resten vilar i förrådet');
-  const sim = createSim({ ...opStartConfig(p, 5, 'gnesta'), cash: 0 });
+  const sim = createSim({ ...opStartConfig(p, 1, 'gnesta-norr'), cash: 0 });
   assert.equal(sim.reserve.length, cap, 'striden får stridsbanan');
   const pl = sim.place;
   let placed = 0;

@@ -25,8 +25,8 @@ function setup(mapId, day, type = 'inf') {
   return sim;
 }
 
-// Vikingavägen dag 2 har Hemvärnet (Ksp 90-grupperna kommer dag 3)
-for (const [mapId, day, type] of [['molnbo', 2, 'inf'], ['gnesta-norr', 2, 'hv']]) {
+// Vikingavägen har Hemvärnet (0.22.0: en dag)
+for (const [mapId, day, type] of [['molnbo', 2, 'inf'], ['gnesta-norr', 1, 'hv']]) {
   test(`${mapId}: varje hus som går att besätta i uppställningen går att springa in i mitt i vågen`, () => {
     const sim = setup(mapId, day, type), g = sim.guns[0];
     // i uppställningen: husen som gruppen får läggas i (samma prov som när den lyfts dit)

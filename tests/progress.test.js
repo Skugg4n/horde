@@ -212,8 +212,9 @@ test('framsteg per bana: E4 och Gnesta räknas var för sig', () => {
   const cfg = startConfig(p, 1);
   assert.equal(cfg.map.id, 'gnesta');
   assert.equal(cfg.seed, 1001);
-  assert.equal(startConfig(p, 6), null, 'Gnesta har fem dagar');
-  assert.ok(startConfig(p, 5));
+  // 0.22.0 (H539): Ishallen har tre dagar
+  assert.equal(startConfig(p, 4), null, 'Gnesta har tre dagar');
+  assert.ok(startConfig(p, 3));
 });
 test('Gnesta låses upp när E4 dag 3 är klar, eller med debug', () => {
   let p = newProgress();

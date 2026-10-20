@@ -22,7 +22,7 @@ import {
   townGrid, townPlacement, PLINTH, CHIMNEY_PERCH,
 } from './gnesta.js';
 
-export const NORR_VERSION = '0.1.0';
+export const NORR_VERSION = '0.2.0';
 
 // ---------- skala ----------
 // Kartbildens pixel (K) till Gnestas bildpixel. Minsta kvadrat över elva gemensamma punkter.
@@ -546,51 +546,23 @@ const tell = (toast, grp) => ({ ...grp, toast });
 //  3 Bjässarna     husen på Valsvägen först; bjässarna går först och de andra i deras skugga
 //  4 Flanken       skogsvägen söderifrån först, bakom linjen; ett hus vid ishallen sist (0.20.0, förut Östra Storgatan)
 //  5 Hela stan     skogsvägen söderifrån först, sedan väst, syd och nord, löpare, bjässar och väster i ryggen (0.20.0)
-// 0.13.0 (H104): armén kommer pö om pö. Gnesta North har allt Gnesta South hade dag 5, och från dag 3
-// infanteriet (den riktiga armén).
-const NORR_ARSENAL = ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'psg90', 'epa', 'm2'];
-const NORR_ARSENAL_INF = [...NORR_ARSENAL, 'inf'];
+// 0.22.0 (H539): en dag, Hela stan (ovan) utan kryparna; dagarna 1 till 4 är strukna.
+// 0.13.0 (H104): armén kommer pö om pö. 0.22.0: Ksp 58, Ak 5, Ksp 88 och pillboxen; Psg 90 och infanteriet kommer
+// till Mölnbo (src/data/depot.js RELEASES).
+const NORR_ARSENAL = ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'ak5', 'epa', 'm2'];
 export const DAYS = [
-  { n: 1, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 7, overlap: 60, intro: { title: 'Day 1: From the north', text: 'A few from the west, then a column from the north.' },
-    // 0.12.0 (H101): vilande smittade i en villa på Vikingavägen, ute med öppningen: linjen i norr har
-    // något att skjuta på medan öppningen kommer söderifrån
-    dormant: [{ house: 'N-16', street: 'Vikingavägen', count: 4, type: 'walker', wave: 0 }],
-    waves: [ opener(8, 2), north({ groups: [...first('walker', 40, 0.45, 0, 'vikN')] }),
-             { groups: [g('walker', 60, 0.3, 0, 'vikN'), g('runner', 20, 0.4, 8, 'vikN')] },
-             { groups: [g('walker', 66, 0.25, 0, 'vikN'), tell('Runners coming up behind them!', g('runner', 30, 0.3, 22, 'vikN'))] } ] },
-  { n: 2, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 3.5, overlap: 60, intro: { title: 'Day 2: The pincer', text: 'Two columns from the north at once.' },
-    dormant: [{ house: 'N-18', street: 'Fornminnesvägen', count: 4, type: 'walker', wave: 0 }, { house: 'N-13', street: 'Gångvägen', count: 4, type: 'walker', wave: 1 },
-      { house: 'N-21', street: 'Fornminnesvägen', count: 6, type: 'walker', wave: 3, delay: 25 }],
-    waves: [ say('Straight down Vikingavägen.', { groups: [g('walker', 6, 0.45, 0, 'vikN', 25), g('walker', 8, 0.45, 2.7, 'vikN')] }),
-             say('Two columns at once!', { groups: [g('walker', 40, 0.4, 0, 'dansW'), g('walker', 30, 0.45, 0, 'vikN')] }),
-             say('Runners!', { groups: [g('runner', 60, 0.2, 0, 'vikN'), g('walker', 30, 0.35, 6, 'dansW')] }),
-             { groups: [g('walker', 60, 0.25, 0, 'dansW'), g('walker', 50, 0.3, 0, 'vikN'), tell('Runners on both roads!', g('runner', 25, 0.3, 8, 'dansW')), g('runner', 25, 0.3, 8, 'vikN')] } ] },
-  { n: 3, supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2250, hp: 3.9, overlap: 60, intro: { title: 'Day 3: Brutes in front', text: 'Brutes lead the columns from the north. Infantry has arrived.' },
-    dormant: [{ house: 'N-26', street: 'Valsvägen', count: 4, type: 'walker', wave: 0 }, { house: 'N-28', street: 'Valsvägen', count: 4, type: 'walker', wave: 0 },
-      { house: 'B0-00', street: 'Cykelvägen', count: 5, type: 'walker', wave: 0 }, { house: 'N-17', street: 'Fornminnesvägen', count: 3, type: 'walker', wave: 0 },
-      { house: 'N-19', count: 2, type: 'brute', wave: 3, delay: 40, intel: false }],
-    waves: [ say('Out of the houses on Valsvägen and the preschool.', { groups: [g('walker', 6, 0.45, 0, 'dansW', 25)] }),
-             say('Brutes in front!', { groups: [g('brute', 2, 3, 0, 'vikN'), g('walker', 40, 0.35, 4, 'vikN'), g('walker', 30, 0.4, 4, 'dansW')] }),
-             { groups: [g('walker', 50, 0.3, 0, 'vikN'), g('runner', 40, 0.25, 4, 'dansW'), g('brute', 3, 3, 24, 'vikN')] },
-             say('Brutes lead both columns!', { groups: [g('brute', 4, 3, 0, 'dansW'), g('walker', 55, 0.28, 3, 'dansW'), g('brute', 3, 3, 4, 'vikN'), g('walker', 45, 0.3, 7, 'vikN'), g('runner', 50, 0.2, 20, 'vikN')] }) ] },
-  // 0.20.0: hp 7 till 9. Flanken söderifrån går inte förbi dödszonen vid radhusen som Östra Storgatan gjorde; med 7 vann den
-  // vanliga spelaren alltid på första försöket (balansloggen 0.20.0, riktningarna)
-  { n: 4, intel: 'unknown', supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2450, hp: 9, overlap: 60, intro: { title: 'Day 4: The flank', text: 'North, and up the forest road from the south, behind you.' },
-    dormant: [{ house: 'N-10', street: 'Gångvägen', count: 4, type: 'walker', wave: 0 },
-      { house: 'B2-02', count: 6, type: 'walker', wave: 3, delay: 35, intel: false }, { house: 'B2-02', count: 1, type: 'brute', wave: 3, delay: 38, intel: false }],
-    waves: [ say('From the south, up the forest road!', { groups: [g('walker', 12, 1.0, 0, 'forest', 20)] }),
-             say('North and south at once!', { groups: [g('walker', 36, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('walker', 15, 1.4, 10, 'forest'), g('brute', 2, 4, 26, 'vikN')] }),
-             say('Runners up the forest road!', { groups: [g('runner', 40, 0.9, 0, 'forest'), g('walker', 30, 0.4, 4, 'dansW'), g('brute', 3, 3, 24, 'forest')] }),
-             // 0.18.0 (skiva 1): kryparna, under tråden genom gräset
-             say('Crawlers in the grass! Wire does nothing.', { groups: [g('crawler', 10, 1.1, 0, 'dansW'), g('walker', 50, 0.3, 2, 'dansW'), g('walker', 40, 1.0, 0, 'forest'), g('runner', 40, 0.4, 6, 'vikN'), g('brute', 4, 3, 26, 'dansW'), g('brute', 3, 3, 30, 'forest')] }) ] },
-  { n: 5, supplies: 600, arsenal: NORR_ARSENAL_INF, startCash: 2050, hp: 12, overlap: 60, intro: { title: 'Day 5: The whole town', text: 'West, south and north at once. Hold the doors.' },
+  // 0.22.0 (H539, kampanjbågens dag 7): EN dag. Flera större grupper samlar sig mot ishallen från väst (Dansutvägen,
+  // Sigtunavägen), syd (skogsvägen) och nord (Vikingavägen); större än någon av de fem gamla dagarna. Dagens begrepp är
+  // betongen och skrotbilarna som styr om dem (src/data/lessons.js gnn-1). Vågorna efter gamla dag 5 utan kryparna
+  // (de kommer på Mölnbo dag 2) och med en fjärde grupp västerifrån; hp efter den mindre truppen (docs/balance-log.md 0.22.0).
+  { n: 1, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 5, overlap: 60, intro: { title: 'Day 1: Three roads', text: 'West, south and north at once. Turn them with concrete and cars.' },
     dormant: [{ house: 'B2-01', street: 'Sigtunavägen', count: 5, type: 'walker', wave: 0 }, { house: 'N-12', street: 'Vikingavägen', count: 5, type: 'walker', wave: 1 },
       { house: 'B3-02', count: 4, type: 'walker', wave: 3, delay: 45, intel: false }, { house: 'B3-02', count: 2, type: 'brute', wave: 3, delay: 48, intel: false }],
     waves: [ say('Up the forest road from the south.', { groups: [g('walker', 10, 0.7, 0, 'forest', 30), g('runner', 4, 0.9, 6, 'forest')] }),
-             say('North and south!', { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'forest'), g('brute', 2, 4, 30, 'vikN')] }),
-             say('Runners from every side!', { groups: [g('crawler', 8, 1.2, 4, 'forest'), g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'forest'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'forest'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
+             say('North and west!', { groups: [g('walker', 40, 0.35, 0, 'dansW'), g('walker', 30, 0.4, 2, 'vikN'), g('runner', 30, 0.45, 30, 'forest'), g('brute', 2, 4, 30, 'vikN')] }),
+             say('Runners from every side!', { groups: [g('walker', 8, 1.2, 4, 'forest'), g('runner', 20, 0.3, 0, 'vikN'), g('runner', 10, 0.4, 0, 'forest'), g('runner', 10, 0.4, 0, 'dansW'), g('walker', 25, 0.8, 0, 'forest'), g('brute', 4, 3, 10, 'dansW'), g('walker', 40, 0.35, 13, 'dansW')] }),
              { groups: [g('brute', 4, 3, 0, 'vikN'), g('walker', 40, 0.3, 3, 'vikN'), g('walker', 50, 0.3, 0, 'dansW'), g('walker', 40, 0.3, 20, 'forest'),
-               g('runner', 25, 0.7, 40, 'forest'), g('brute', 3, 3, 40, 'forest'), g('brute', 3, 3, 50, 'dansW'), tell('Behind you, from the west!', g('walker', 15, 0.5, 55, 'sigW'))] } ] },
+               g('runner', 25, 0.7, 40, 'forest'), g('brute', 3, 3, 40, 'forest'), g('brute', 3, 3, 50, 'dansW'), tell('Behind you, from the west!', g('walker', 30, 0.5, 55, 'sigW'))] } ] },
 ];
 
 // ---------- staden ----------
@@ -636,7 +608,9 @@ export const gnestaNorr = {
   unlocks: ['block', 'm2', 'epa', 'inf', 'ksp58', 'ak5', 'psg90'],
   // 0.16.0 (Olas beslut, "Gnesta = en sektor"): Hagstumosse · Vikingavägen är fas två av samma sektor och
   // öppnar när Ishallen (dag 5) är vunnen; samma trupp följer med (src/data/depot.js SECTORS).
-  unlock: { map: 'gnesta', day: 5 }, legacyUnlock: 4,
+  // 0.22.0 (H539): Ishallen har tre dagar; Vikingavägen öppnar efter dag 3. (legacyUnlock 4 behövs inte längre: den
+  // gamla regeln öppnade efter dag 4, och den nya öppnar tidigare.)
+  unlock: { map: 'gnesta', day: 3 },
 };
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(gnestaNorr, 'grid', () => timed('gnesta-norr:rutnät', () => townGrid(NORR_TOWN)));

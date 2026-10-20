@@ -15,14 +15,14 @@ const run = (map, day, secs, seed = 1) => {
 };
 
 test('dörren slås upp när vågen börjar och de väller ut på gatan framför huset', () => {
-  const { sim, evs } = run(gnesta, 4, 3);
+  // 0.22.0 (H539): de vilande husen kommer på Vikingavägen (kampanjens dag 7), förut Ishallen dag 4
+  const { sim, evs } = run(gnestaNorr, 1, 3);
   const bursts = evs.filter(e => e.t === 'dormantBurst');
-  // 0.16.0 (inlärningen): de vilande husen är ett eget begrepp, med det förvarnade huset vid stickgatan i våg 1
-  // (0.16.4: dag 4, förut dag 3)
-  assert.deepEqual(bursts.map(b => b.house), ['B2-02']);
-  assert.deepEqual(sim.burst, ['B2-02']);
-  for (const d of gnesta.days[3].dormant.filter(x => !x.wave)) {
-    const door = houseDoor(gnesta, d.house, sim.route);
+  // 0.16.0 (inlärningen): de vilande husen är ett eget begrepp, med det förvarnade huset vid Sigtunavägen i våg 1
+  assert.deepEqual(bursts.map(b => b.house), ['B2-01']);
+  assert.deepEqual(sim.burst, ['B2-01']);
+  for (const d of gnestaNorr.days[0].dormant.filter(x => !x.wave)) {
+    const door = houseDoor(gnestaNorr, d.house, sim.route);
     const out = sim.zombies.filter(z => z.house === d.house);
     assert.equal(out.length, d.count);
     const [cx, cz] = sim.route.grid.center(door.cell);
@@ -32,23 +32,21 @@ test('dörren slås upp när vågen börjar och de väller ut på gatan framför
 });
 
 test('de vilande är deterministiska', () => {
-  const a = run(gnesta, 4, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
-  const b = run(gnesta, 4, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
+  const a = run(gnestaNorr, 1, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
+  const b = run(gnestaNorr, 1, 12, 7).sim.zombies.filter(z => z.house).map(z => [z.id, z.x.toFixed(4), z.z.toFixed(4)]);
   assert.ok(a.length > 0);
   assert.deepEqual(a, b);
 });
 
 test('överraskningen: ett hus utan förvarning, först i en senare våg', () => {
-  const d4 = gnesta.days[3].dormant;
-  assert.ok(d4.some(d => d.intel === false && d.wave > 0));
-  // 0.16.0: dag 1 och 2 har inga vilande hus längre; 0.16.4: inte dag 3 heller, dag 4 förvarnar om huset vid stickgatan
-  assert.equal(intelLine(gnesta.days[0]), '');
-  assert.equal(intelLine(gnesta.days[1]), '');
-  assert.equal(intelLine(gnesta.days[2]), '');
-  assert.match(intelLine(gnesta.days[3]), /Intel: dormant infected reported on Sigtunavägen\./);
+  const d1 = gnestaNorr.days[0].dormant;
+  assert.ok(d1.some(d => d.intel === false && d.wave > 0));
+  // 0.16.0: Ishallens dagar har inga vilande hus; 0.22.0 (H539): Vikingavägen (en dag) förvarnar om husen vid
+  // Sigtunavägen och Vikingavägen, och har ett oannonserat hus sent i sista vågen (0.12.2)
+  for (const d of gnesta.days) assert.equal(intelLine(d), '');
+  assert.match(intelLine(gnestaNorr.days[0]), /Sigtunavägen/);
   assert.match(intelLine(gnestaNorr.days[0]), /Vikingavägen/);
-  // 0.12.2: Norr dag 4 och 5 har ett oannonserat hus sent i sista vågen
-  for (const n of [3, 4]) assert.ok(gnestaNorr.days[n].dormant.some(d => d.intel === false && d.wave > 0 && d.delay > 0));
+  assert.ok(d1.some(d => d.intel === false && d.wave > 0 && d.delay > 0));
   // varje hus finns, och gatan i texten är den närmaste namngivna
   for (const map of [gnesta, gnestaNorr]) for (const day of map.days) for (const d of day.dormant ?? []) {
     // 0.12.2: upp till sex smittade, eller en till två bjässar (Norrs överraskningar sent i vågen)

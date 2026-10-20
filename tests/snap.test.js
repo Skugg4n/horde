@@ -24,7 +24,8 @@ const onSurface = function* (map) {
 };
 
 for (const map of [gnesta, gnestaNorr]) test(`${map.name}: tråd och barrikad går att lägga var som helst på den synliga vägytan, också grus och cykelväg`, () => {
-  const sim = createSim({ map, day: 2, cash: 9999, research: ['block.1'], seed: 1 });
+  // 0.22.0: Vikingavägen har en dag
+  const sim = createSim({ map, day: map === gnestaNorr ? 1 : 2, cash: 9999, research: ['block.1'], seed: 1 });
   let n = 0, direct = 0;
   const fail = [];
   for (const p of onSurface(map)) {

@@ -2842,8 +2842,9 @@ if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescript
 
 // 0.17.2 (Olas önskan): Quick jump i debugmenyn. Dagen med ankomstens trupp och forskning (som Jump to), truppen
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
-const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 3], ['gnesta', 5],
-  ['gnesta-norr', 1], ['gnesta-norr', 4], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3]];
+// 0.22.0 (H539): Hagstumosse har kampanjbågens fyra dagar (Ishallen 1 till 3, Vikingavägen 1)
+const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 2], ['gnesta', 3],
+  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3]];
 async function quickJump(mapId, d) {
   await debugJump(mapId, d);
   if (lesson) { coach.hide(); lesson = null; }

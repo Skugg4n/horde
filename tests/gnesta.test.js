@@ -92,15 +92,14 @@ test('placeringen: gatan är gata, husen hus, ön går att bygga på, entrén ä
 test('dagarna öppnar ingångarna i tur och ordning', () => {
   const spawnsOf = d => new Set(d.waves.flatMap(w => w.groups.map(x => x.spawn)));
   const types = d => new Set(d.waves.flatMap(w => w.groups.map(x => x.type)));
-  assert.equal(gnesta.days.length, 5);
+  // 0.22.0 (H539, kampanjbågen dag 4 till 6): tre dagar
+  assert.equal(gnesta.days.length, 3);
   assert.deepEqual([...spawnsOf(gnesta.days[0])], ['east1']);
-  // 0.16.2 (speltestet av 0.16.1): dag 2 en ingång (barrikaderna är dagens begrepp), Norra vägen dag 3,
-  // skogsvägen dag 4
+  // 0.16.2 (speltestet av 0.16.1): dag 2 en ingång (barrikaderna är dagens begrepp), Norra vägen dag 3
   assert.deepEqual([...spawnsOf(gnesta.days[1])], ['east1']);
   assert.ok(spawnsOf(gnesta.days[2]).has('east2') && !spawnsOf(gnesta.days[2]).has('forest'));
-  assert.ok(spawnsOf(gnesta.days[3]).has('forest'));
-  assert.ok(!types(gnesta.days[2]).has('brute') && types(gnesta.days[3]).has('brute'));
-  assert.equal(spawnsOf(gnesta.days[4]).size, 3);
+  // dag 1 bara vandrare och löpare: de frivilliga ensamma
+  assert.deepEqual([...types(gnesta.days[0])].sort(), ['runner', 'walker']);
   // 0.16.0: en rad per dag, dagens enda begrepp (designen avsnitt 3)
   assert.match(gnesta.days[0].intro.text, /civilians/);
   assert.match(gnesta.days[1].intro.text, /Block a street/);

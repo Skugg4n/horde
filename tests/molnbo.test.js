@@ -57,7 +57,8 @@ test('dag 2: bara från Järna (väg 57, Norrängsvägen, längs spåret österi
 test('Mölnbo är en bana efter Hagstumosse, med tre dagar efter kampanjbågen och korta intron', () => {
   assert.equal(MAPS.molnbo, molnbo);
   assert.equal(molnbo.days.length, 3);
-  assert.deepEqual(molnbo.unlock, { map: 'gnesta-norr', day: 5 });
+  // 0.22.0 (H539): Vikingavägen är en dag
+  assert.deepEqual(molnbo.unlock, { map: 'gnesta-norr', day: 1 });
   for (const d of molnbo.days) {
     assert.match(d.intro.title, /^Day \d: /);
     // H443: högst tolv ord, på engelska, och de säger varifrån horden kommer (Järna)
@@ -406,12 +407,12 @@ test('dag 3: uttåget. Klockan går ut, trupperna packar, flodvågen når bron, 
   assert.deepEqual(a.log, b.log);
 });
 
-test('kampanjen: Mölnbo öppnar efter Vikingavägen dag 5 och truppen följer med', () => {
-  let p0 = debugReach(newCampaign(), 'gnesta-norr', 5);
+test('kampanjen: Mölnbo öppnar efter Vikingavägen (en dag, 0.22.0) och truppen följer med', () => {
+  let p0 = debugReach(newCampaign(), 'gnesta-norr', 1);
   assert.equal(mapUnlocked(p0, 'molnbo'), false);
   assert.equal(sectorStatus(p0, 'molnbo'), 'locked');
   const before = p0.op.units.length;
-  p0 = finishDay(p0, { mapId: 'gnesta-norr', day: 5, won: true, intelEarned: 10 }).progress;
+  p0 = finishDay(p0, { mapId: 'gnesta-norr', day: 1, won: true, intelEarned: 10 }).progress;
   assert.equal(mapUnlocked(p0, 'molnbo'), true);
   assert.equal(sectorStatus(p0, 'molnbo'), 'holding');
   // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90

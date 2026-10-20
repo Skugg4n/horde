@@ -1,7 +1,7 @@
 // Kampanjens dagnummer (0.21.3, H539, Ola: HUD:en, introt och bordet visar banans egen dag, men han väntar sig
-// kampanjens). Dagarna räknas i kampanjens ordning, banornas dagar efter varandra: E4 3, Ishallen 5, Vikingavägen 5,
-// Mölnbo 3. Mölnbo dag 2 är alltså kampanjens dag 15. När kampanjbågen kortar Hagstumosse följer numret banornas
-// dagar. En bana utanför kampanjen (provbanorna) har inget nummer (null).
+// kampanjens). Dagarna räknas i kampanjens ordning, banornas dagar efter varandra. 0.22.0 (kampanjbågen, avsnitt 10):
+// E4 3, Ishallen 3, Vikingavägen 1, Mölnbo 3, så Mölnbo dag 1 är kampanjens dag 8 och dag 2 dag 9 (förut 15). Numret
+// följer banornas dagar. En bana utanför kampanjen (provbanorna) har inget nummer (null).
 import { MAPS } from '../data/maps.js';
 
 export const CAMPAIGN_MAPS = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];

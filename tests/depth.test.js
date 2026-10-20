@@ -328,12 +328,12 @@ test('tröttheten: en dag ute gör trött, en dag i reserven vilar, ett förlora
   assert.ok(units.length >= 2);
   const out = units[0], rest = { ...units[1] };
   const report = { units: [{ uid: out.uid }], lostMen: 0, lostUnits: 0 };
-  // E4 har ingen trötthet (den kommer efter Vikingavägen dag 3)
+  // E4 har ingen trötthet (den kommer före Mölnbo, 0.22.0; förut efter Vikingavägen dag 3)
   const q = finishDay(p, { mapId: 'riksvagen', day: 1, won: true, intelEarned: 10, report }).progress;
   assert.equal(unitsIn(q, 'riksvagen').find(u => u.uid === out.uid).fatigue ?? 0, 0);
   // med tröttheten: den som var ute blir Tired, två dagar Exhausted; vila tar ett steg; förlust ändrar inget
-  const op = { ...p, op: { ...p.op, units: p.op.units.map(u => ({ ...u, sector: 'gnesta' })) } };
-  const fin = (pp, won) => finishDay(pp, { mapId: 'gnesta-norr', day: 4, won, intelEarned: 10, report: { units: [{ uid: out.uid }], lostMen: 0, lostUnits: 0 } }).progress;
+  const op = { ...p, op: { ...p.op, units: p.op.units.map(u => ({ ...u, sector: 'molnbo' })) } };
+  const fin = (pp, won) => finishDay(pp, { mapId: 'molnbo', day: 1, won, intelEarned: 10, report: { units: [{ uid: out.uid }], lostMen: 0, lostUnits: 0 } }).progress;
   let r = fin(op, true);
   const f = id => r.op.units.find(u => u.uid === id).fatigue ?? 0;
   assert.equal(f(out.uid), 1);
@@ -342,7 +342,7 @@ test('tröttheten: en dag ute gör trött, en dag i reserven vilar, ett förlora
   r = fin(r, true);
   assert.equal(f(out.uid), 2);
   assert.equal(f(rest.uid), 0);
-  r = finishDay(r, { mapId: 'gnesta-norr', day: 4, won: true, intelEarned: 10, report: { units: [{ uid: rest.uid }], lostMen: 0, lostUnits: 0 } }).progress;
+  r = finishDay(r, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [{ uid: rest.uid }], lostMen: 0, lostUnits: 0 } }).progress;
   assert.equal(f(out.uid), 1, 'vilade en dag');
   assert.deepEqual(FATIGUE.names, ['Rested', 'Tired', 'Exhausted']);
   void opStartConfig;

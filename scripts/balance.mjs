@@ -581,12 +581,13 @@ export const TOWN = {
   // (DAY2_BLOCKS), inte vid rondellen där vägen inte har någon omväg
   gnesta: { blocks: day => (day === 2 ? DAY2_BLOCKS : SMART_BLOCKS), planOpts: () => ({}), kits: GN_KITS, roofsDay: GN_ROOFS_DAY, maxTicks: MAX_TICKS },
   'gnesta-norr': {
-    blocks: day => (day >= 5 ? [...NORR_BLOCKS, ...SMART_BLOCKS] : NORR_BLOCKS),
+    // 0.22.0 (H539): en dag, tre håll (förut dag 5): spärrarna på Vikingavägen och vid rondellen
+    blocks: () => [...NORR_BLOCKS, ...SMART_BLOCKS],
     // smart läser kartan (dödszonen, radhustaken, tegelmurarna); naive ställer allt efter sin egen väg
     // 0.12.2: öppningspjäsen möter dagens första grupp, varifrån den än kommer
     planOpts: (day, policy) => (policy === 'smart' ? { roofs: 3, roofFirst: NORR_ROW_ROOFS, squadNear: 1, near: 0, focus: NORR_FOCUS, squadFocus: NORR_FOCUS, lastLine: 0.25, opener: norrOpener(day) }
       : { roofs: 3, near: 0, lastLine: 0.25, opener: norrOpener(day) }),
-    kits: [0, 1, 1, 2, 3, 3], roofsDay: [0, 1, 2, 2, 2, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
+    kits: [0, 3], roofsDay: [0, 3], maxTicks: 30 * 1500, build: (...a) => norrBuild(...a),
   },
 };
 // Gnesta Norr: Hemvärnet köps inte av policyn (den använder det den har i reserven).

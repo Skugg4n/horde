@@ -1,4 +1,5 @@
-// Kampanjens dagnummer (0.21.3, H539): dagarna räknas i kampanjens ordning, E4 3, Ishallen 5, Vikingavägen 5, Mölnbo 3.
+// Kampanjens dagnummer (0.21.3, H539): dagarna räknas i kampanjens ordning. 0.22.0 (kampanjbågen): E4 3, Ishallen 3,
+// Vikingavägen 1, Mölnbo 3.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { campaignDayOf, campaignDay, CAMPAIGN_MAPS } from '../src/meta/campaign-day.js';
@@ -6,13 +7,17 @@ import { campaignDay as tableDay, tableState } from '../src/meta/table.js';
 import { MAPS } from '../src/data/maps.js';
 import { newCampaign, debugReach } from '../src/meta/operation.js';
 
-test('kampanjens dag: banornas dagar efter varandra, Mölnbo dag 2 är dag 15', () => {
+test('kampanjens dag: banornas dagar efter varandra efter kampanjbågen, Mölnbo dag 1 är dag 8', () => {
   assert.equal(campaignDayOf('riksvagen', 1), 1);
   assert.equal(campaignDayOf('riksvagen', 3), 3);
   assert.equal(campaignDayOf('gnesta', 1), 4);
-  assert.equal(campaignDayOf('gnesta-norr', 5), 13);
-  assert.equal(campaignDayOf('molnbo', 2), 15);
-  assert.equal(campaignDayOf('molnbo', 3), 16);
+  assert.equal(campaignDayOf('gnesta', 3), 6);
+  assert.equal(campaignDayOf('gnesta', 4), null);
+  assert.equal(campaignDayOf('gnesta-norr', 1), 7);
+  assert.equal(campaignDayOf('gnesta-norr', 2), null);
+  assert.equal(campaignDayOf('molnbo', 1), 8);
+  assert.equal(campaignDayOf('molnbo', 2), 9);
+  assert.equal(campaignDayOf('molnbo', 3), 10);
   // utanför kampanjen eller utanför banans dagar: inget nummer
   assert.equal(campaignDayOf('molnbo', 4), null);
   assert.equal(campaignDayOf('ingen-bana', 1), null);
@@ -24,9 +29,10 @@ test('kampanjens dag: banornas dagar efter varandra, Mölnbo dag 2 är dag 15', 
 test('kampanjens dag för framsteget: banan som spelas och dess nästa dag; bordet säger samma', () => {
   assert.equal(campaignDay(newCampaign()), 1);
   const p = debugReach(newCampaign(), 'molnbo', 2);
-  assert.equal(campaignDay(p, 'molnbo'), 15);
-  assert.equal(campaignDay(p, 'molnbo', 3), 16);
-  assert.equal(tableDay('molnbo', 2), 15);
-  const s = tableState(debugReach(newCampaign(), 'gnesta', 5));
-  assert.equal(s.next.n, campaignDayOf('gnesta', 5));
+  assert.equal(campaignDay(p, 'molnbo'), 9);
+  assert.equal(campaignDay(p, 'molnbo', 3), 10);
+  assert.equal(tableDay('molnbo', 2), 9);
+  const s = tableState(debugReach(newCampaign(), 'gnesta', 3));
+  assert.equal(s.next.n, campaignDayOf('gnesta', 3));
+  assert.equal(tableState(debugReach(newCampaign(), 'gnesta-norr', 1)).next.n, 7);
 });

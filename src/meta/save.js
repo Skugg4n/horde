@@ -15,6 +15,14 @@ const V2_COPY = 'horde.save.v2';     // kopia av en v2-sparfil (0.4.x), likadant
 const V3_COPY = 'horde.save.v3';     // kopia av en v3-sparfil (0.5.0 till 0.13.x), likadant (0.14.0)
 const V4_COPY = 'horde.save.v4';     // 0.16.0: kopia av en v4-fil där Gnesta North var en egen sektor (Hagstumosse slås ihop)
 const DAYS_COPY = 'horde.save.days';  // 0.20.0: kopia av en fil som stod längre fram på en bana än den nu har dagar (Mölnbo dag 4 och 5)
+const ARC_COPY = 'horde.save.arc';    // 0.22.0: kopia av en fil från före kampanjbågens Hagstumosse (Ishallen 5 dagar, Vikingavägen 5)
+// 0.22.0 (H539): Hagstumosse har kampanjbågens fyra dagar (Ishallen 3, Vikingavägen 1). En fil från före har fått någon
+// av leveranserna som inte finns längre (de kom med Ishallen dag 4 och 5 och Vikingavägen dag 2 till 5). Den stod på
+// Ishallen dag 4 eller 5 (Ishallen är klar, Vikingavägen öppen) eller på Vikingavägen dag 2 till 5 (Vikingavägen är klar,
+// Mölnbo öppnar); clampDays sätter dagen och syncOperation stänger banan. Kopian behålls, en gång (migrations).
+const OLD_RELEASES = ['gn-4', 'gn-5', 'gnn-2', 'gnn-3', 'gnn-4', 'gnn-5'];
+export const ARC_MIGRATION = 'hagstumosse-4';
+const needsArcCopy = p => !(p.migrations ?? []).includes(ARC_MIGRATION) && (p.op?.released ?? []).some(id => OLD_RELEASES.includes(id));
 
 let fallback = null;
 let warnedNoStorage = false;
@@ -83,9 +91,14 @@ export function loadProgress(storage) {
     // 0.16.0: en sparfil utan lektioner räknar allt fram till den längst spelade dagen som sett (lessons.js)
     if (needsPoolMerge(parsed)) keepCopy(s, raw, V4_COPY);
     // 0.20.0 (H495): Mölnbo har tre dagar (förut fem). Stod filen på dag 4 eller 5 är Mölnbo klart; kopian behålls.
+    // 0.22.0 (H539): Hagstumosse kortas till kampanjbågens fyra dagar; samma klämning, med en egen kopia
+    const arc = needsArcCopy(parsed);
+    if (arc) keepCopy(s, raw, ARC_COPY);
     const clamped = clampDays(parsed);
-    if (clamped) keepCopy(s, raw, DAYS_COPY);
-    const p = { ...newProgress(), lessons: undefined, ...(clamped ?? parsed) };
+    const otherClamp = clamped && Object.keys(clamped.maps).some(id => id !== 'gnesta' && id !== 'gnesta-norr' && clamped.maps[id] !== parsed.maps[id]);
+    if (clamped && (!arc || otherClamp)) keepCopy(s, raw, DAYS_COPY);
+    const marked = arc ? { ...(clamped ?? parsed), migrations: [...(parsed.migrations ?? []), ARC_MIGRATION] } : null;
+    const p = { ...newProgress(), lessons: undefined, ...(marked ?? clamped ?? parsed) };
     // 0.21.0: kartbordets del (table.layout, table.log) är valfri; saknas den eller är den trasig blir bordet tomt
     return withTable(withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } })));
   }

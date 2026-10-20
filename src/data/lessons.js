@@ -79,47 +79,31 @@ export const LESSONS = {
     // 0.18.1 (speltestet av 0.18.0: tipset kom mitt i våg 1 och pekade på en annan enhet än den som vacklade): en paus
     // första gången en enhets sanity verkligen sjunker, och den pekar på just den enheten
     { id: 'gn-3.sanity', kind: 'show', when: 'sanityLow', target: { world: 'sanityLow' }, text: 'Blue bar: Sanity. This unit is shaken. Keep the dead off it.', manual: 'sanity' },
+    // 0.22.0 (H539): Next wave med bonus, tyst (förut Ishallen dag 5)
+    { id: 'gn-3.early', kind: 'caption', when: 'afterWave1', target: { ui: '#go' }, text: 'Call early: bonus supplies', manual: 'early' },
   ],
+  // 0.22.0 (H539): efter Ishallen dag 3 öppnar förrådet rekvisitionen, uppgraderingarna och Return på en gång (förut efter
+  // dag 3 och 4), och kartan säger att Vikingavägen är samma stadsdel (förut efter dag 5)
   'after-gn-3': [
+    { id: 'after-gn-5.north', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Same district, wider map. Your units carry over.', manual: 'sectors' },
     { id: 'after-gn-3.req', kind: 'show', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Command released new units. Requisition them with RP.', manual: 'requisition' },
     // 0.18.0 (Olas beslut: streck och skadeklasser på korten, siffrorna bara i Field manual)
     { id: 'after-gn-3.bars', kind: 'caption', when: 'depot', target: { ui: '.depot [data-req], .hub.lifted [data-req]' }, text: 'Bars compare units. Exact numbers: Field manual.', keys: ['J'], manual: 'numbers' },
-  ],
-  'gn-4': [
-    { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
-    { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },
-  ],
-  'after-gn-4': [
     { id: 'after-gn-4.up', kind: 'show', when: 'depot', target: { ui: '.depot [data-up], .hub.lifted [data-up]' }, text: 'Upgrades improve every unit of that type.', manual: 'upgrades' },
   ],
-  // 0.16.0 (Olas beslut, "Gnesta = en sektor"): samma plats, kartan vidgas, trupperna följer med
-  'after-gn-5': [
-    { id: 'after-gn-5.north', kind: 'show', when: 'opmap', target: { ui: '.opmap [data-a="go"]' }, text: 'Same district, wider map. Your units carry over.', manual: 'sectors' },
-  ],
-  'gn-5': [
-    { id: 'gn-3.early', kind: 'caption', when: 'afterWave1', target: { ui: '#go' }, text: 'Call early: bonus supplies', manual: 'early' },
-  ],
+  // 0.22.0 (H539, kampanjbågens dag 7): Vikingavägen är en dag. Begreppet är betongen och skrotbilarna som styr om
+  // grupperna (kampanjplanen: "betongfundament och bilar för att styra om grupperna"); de vilande husen (förut Ishallen
+  // dag 4) och pingen (förut dag 2) kommer när de syns.
   'gnn-1': [
-    { id: 'gn-5.sup', kind: 'show', when: 'start', target: { world: 'gun' }, text: 'Click a unit: ammo, sandbags or a grenade kit.', manual: 'unitSupplies' },
-    { id: 'gnn-1.path', kind: 'caption', when: 'waveStarted', target: { world: 'route' }, text: 'Watch them take the footpath.' },
-  ],
-  'gnn-2': [
+    { id: 'gnn-1.cars', kind: 'step', when: 'start', done: 'obstacle:car|obstacle:block', target: { ui: '#buildbar .card[data-id="car"]' }, text: 'Three roads. Concrete and junk cars turn them toward your guns.', manual: 'cars' },
+    { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
     { id: 'gnn-2.ping', kind: 'show', when: 'ping', target: { ui: '#minimap' }, text: 'A ping means trouble. Click it to look.', manual: 'pings' },
+    { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },
   ],
-  'gnn-3': [
-    { id: 'gnn-3.front', kind: 'show', when: 'start', target: { ui: '#buildbar .guns' }, text: 'Frontage: only {frontage} units fit here. Choose who goes.', manual: 'frontage' },
-    { id: 'gnn-3.reserve', kind: 'caption', when: 'deployed', target: { ui: '#buildbar' }, text: 'The rest wait in reserve until tomorrow.' },
-  ],
-  // 0.18.0 (skiva 1): tröttheten i förrådet, när styrkan är större än frontbredden
-  'after-gnn-3': [
+  // 0.18.0 (skiva 1): tröttheten i förrådet, när styrkan är större än frontbredden (0.22.0: före Mölnbo, förut efter
+  // Vikingavägen dag 3)
+  'after-gnn-1': [
     { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.lifted [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
-  ],
-  'gnn-4': [
-    { id: 'gnn-4.target', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Target priority: select a unit and press', keys: ['T'], manual: 'target' },
-  ],
-  // 0.18.0 (skiva 1): trupper i hus (kampanjplanens Björnlunda dag 10, som inte är byggd; Vikingavägens villagator)
-  'gnn-5': [
-    { id: 'gnn-5.house', kind: 'show', when: 'start', target: { world: 'route' }, text: 'Click a house with a squad card. They hold the windows.', manual: 'garrison' },
   ],
   // 0.17.0-molnbo: Mölnbo, en ny idé per dag (platsen: tornen, tåget, tågklockan, bron, spåret)
   'mb-1': [
@@ -130,6 +114,11 @@ export const LESSONS = {
     { id: 'mb-1.rout', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Broken units flee. Pull one back yourself: select it, press', keys: ['G'], manual: 'rout' },
     { id: 'mb-1.tower', kind: 'step', when: 'start', done: 'placing:psg90|placed:psg90', target: { ui: '#buildbar .card[data-id="psg90"]' }, text: 'High ground. Put a Psg 90 on the stairs by the bridge.', manual: 'roofs' },
     { id: 'mb-1.roofs', kind: 'caption', when: 'placing:psg90', target: { world: 'pointer' }, text: 'Stairs by the bridge, station roof, train roof.' },
+    // 0.22.0 (H539): frontbredden, förnödenheterna på enheten och trupper i hus (förut Vikingavägen dag 3, 1 och 5), som
+    // bildtexter när de behövs
+    { id: 'gnn-3.front', kind: 'caption', when: 'start', target: { ui: '#buildbar .guns' }, text: 'Frontage: only {frontage} units fit here. Choose who goes.', manual: 'frontage' },
+    { id: 'gnn-5.house', kind: 'caption', when: 'placing:hv', target: { world: 'pointer' }, text: 'Click a house with a squad card. They hold the windows.', manual: 'garrison' },
+    { id: 'gn-5.sup', kind: 'caption', when: 'afterWave1', target: { world: 'gun' }, text: 'Click a unit: ammo, sandbags or a grenade kit.', manual: 'unitSupplies' },
   ],
   // 0.20.0 (kampanjbågen, H495): dag 2 tappar vi norra sidan. Pendeltåget rullar in (förut dag 4), bron och Håll eld.
   'mb-2': [
@@ -139,6 +128,8 @@ export const LESSONS = {
     { id: 'mb-2.bridge', kind: 'show', when: 'start', target: { world: 'route' }, text: 'One bridge over the tracks. Close it and they must break through.', manual: 'barricades' },
     // 0.18.0 (skiva 1, kampanjplanens rondell dag 12): Håll eld vid bron
     { id: 'mb-2.hold', kind: 'show', when: 'afterWave1', target: { world: 'gun' }, text: 'Hold fire: they walk into the ambush. Select a unit, press', keys: ['H'], manual: 'holdFire' },
+    // 0.22.0 (H539): mål-läget med de pansrade (förut Vikingavägen dag 4 med kryparna)
+    { id: 'gnn-4.target', kind: 'caption', when: 'afterWave1', target: { world: 'gun' }, text: 'Target priority: select a unit and press', keys: ['T'], manual: 'target' },
   ],
   // 0.20.0: dag 3, håll tills klockan gått ut, sedan uttåget
   'mb-3': [
@@ -182,7 +173,8 @@ export const ENEMIES = {
   runner: { stage: 'e4-2', title: 'Runners', report: 'We have reports of a new type of enemy. It moves faster.' },
   brute: { stage: 'e4-3', title: 'Brutes', report: 'We have reports of a new type of enemy. Big, and very hard to stop.' },
   // 0.18.0 (skiva 1): kampanjplanens ordning, kryparna med mål-läget och de pansrade med Strongest
-  crawler: { stage: 'gnn-4', title: 'Crawlers', report: 'Something moves low in the grass. Wire does not stop it. Squads see them; guns on the roofs hardly do.' },
+  // 0.22.0 (H539): kryparna först på Mölnbo dag 2 (förut Vikingavägen dag 4)
+  crawler: { stage: 'mb-2', title: 'Crawlers', report: 'Something moves low in the grass. Wire does not stop it. Squads see them; guns on the roofs hardly do.' },
   armored: { stage: 'mb-2', title: 'Armoured', report: 'Riot police from Södertälje. Still in their gear. Small arms barely bite. Heavy MG, grenades.' },
 };
 

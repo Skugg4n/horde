@@ -28,8 +28,8 @@ export const RECEIPT_DAYS = {
     core: [unit(1, 'civ', 1, 3), unit(2, 'hv', 1, 4), unit(3, 'm249', 2), unit(4, 'm249', 1), unit(5, 'ksp58', 1), unit(6, 'ak5', 1)],
     guns: [[3581, 'ksp58'], [3484, 'm249'], [3189, 'm249'], [3787, 'ak5'], [3884, 'hv'], [6388, 'civ']], lines: [5526], wire: [2974],
   },
-  'Gnesta North day 2': {
-    map: 'gnesta-norr', day: 2, cash: 450, research: ['block.1', 'grenade.1', 'ksp58.1'],
+  'Gnesta North day 1': {
+    map: 'gnesta-norr', day: 1, cash: 450, research: ['block.1', 'grenade.1', 'ksp58.1'],
     core: [unit(1, 'm249', 2), unit(2, 'ksp58', 1), unit(3, 'hv', 1, 4), unit(4, 'civ', 1, 3), unit(5, 'm249', 1)],
     guns: [[13992, 'm249'], [10372, 'ksp58'], [13995, 'm249'], [7489, 'hv'], [2679, 'civ']], lines: [7471], wire: [15106],
   },
@@ -79,7 +79,7 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 const RECEIPTS = {
   'E4 day 2': '5d0128c1',
   'Gnesta South day 3': '8a57a9a2',
-  'Gnesta North day 2': 'dabfdccd',
+  'Gnesta North day 1': 'dabfdccd',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

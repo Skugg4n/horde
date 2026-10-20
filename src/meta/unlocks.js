@@ -31,6 +31,9 @@
 //   garrison             trupper i hus, Vikingavägen dag 5 (villagatorna; kampanjplanens Björnlunda dag 10, som inte
 //                        är byggd: närmaste karta med villagator. Kräver bara Move och Hemvärnet, som finns sedan länge)
 //   rout                 routed och Fall back (G), Mölnbo dag 1 (kampanjplanens dag 8 är Mölnbo)
+// 0.22.0 (H539): Hagstumosse har bågens fyra dagar. early Ishallen dag 3; requisition, upgrades, return efter Ishallen
+//   dag 3; car, dormant, pings Vikingavägen; frontage, fatigue efter Vikingavägen; unitSupplies, garrison Mölnbo dag 1;
+//   target Mölnbo dag 2. Raderna ovan beskriver var de låg förut.
 //                        (Mölnbo dag 2: de pansrade, ingen flagga; fiendekortet och Strongest, kampanjplanens dag 9)
 //   holdFire             Håll eld (H), Mölnbo dag 4 vid bron (rondellen dag 12)
 //   overrun              överrända pjäser och Recrew (N), Mölnbo dag 5 (centrum dag 16)
@@ -50,26 +53,20 @@ export const STAGES = [
   { id: 'after-gn-2', after: ['gnesta', 2], adds: ['rp', 'depot', 'levels'] },
   // 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): dag 3 Hemvärnet och Norra vägen, de vilande husen
   // dag 4, Next wave med bonus dag 5, förnödenheterna på enheten och Psg 90 Vikingavägen dag 1, skrotbilarna dag 2
-  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['sanity', 'move', 'rotate'] },
-  { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition'] },
-  { id: 'gn-4', map: 'gnesta', day: 4, adds: ['dormant'] },
-  // 0.16.0: Return till förrådet kommer med uppgraderingarna. Omplaceringen och trycket mellan sektorerna
-  // ('sectors') är vilande tills två skilda platser är aktiva samtidigt (Hagstumosse är en sektor).
-  { id: 'after-gn-4', after: ['gnesta', 4], adds: ['upgrades', 'return'] },
-  { id: 'gn-5', map: 'gnesta', day: 5, adds: ['early'] },
+  // 0.22.0 (H539, kampanjbågen: Ishallen dag 4 till 6, Vikingavägen dag 7): dag 3 Hemvärnets grupp med radion (Move,
+  // Rotate) och sanity, tyst Next wave med bonus (förut dag 5). Förrådet visar rekvisitionen, uppgraderingarna och Return
+  // efter dag 3 (förut efter dag 3 och 4). Vikingavägen: betongen och skrotbilarna (förut dag 2), de vilande husen (förut
+  // Ishallen dag 4) och pingarna (de kommer när det händer). Frontbredden och tröttheten före Mölnbo (förut Vikingavägen
+  // dag 3); förnödenheterna på enheten och trupper i hus Mölnbo dag 1, mål-läget Mölnbo dag 2 med de pansrade.
+  { id: 'gn-3', map: 'gnesta', day: 3, adds: ['sanity', 'move', 'rotate', 'early'] },
+  { id: 'after-gn-3', after: ['gnesta', 3], adds: ['requisition', 'upgrades', 'return'] },
   // Hagstumosse · Vikingavägen: samma sektor, kartan vidgas norrut (Olas beslut 2026-10-16, "Gnesta = en sektor")
-  { id: 'after-gn-5', after: ['gnesta', 5], adds: [] },
-  { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: ['unitSupplies'] },
-  { id: 'gnn-2', map: 'gnesta-norr', day: 2, adds: ['pings', 'car'] },
-  { id: 'gnn-3', map: 'gnesta-norr', day: 3, adds: ['frontage'] },
-  { id: 'after-gnn-3', after: ['gnesta-norr', 3], adds: ['fatigue'] },
-  { id: 'gnn-4', map: 'gnesta-norr', day: 4, adds: ['target'] },
-  { id: 'gnn-5', map: 'gnesta-norr', day: 5, adds: ['garrison'] },
-  // 0.17.0-molnbo: Mölnbo. Inget nytt i gränssnittet; det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
-  { id: 'after-gnn-5', after: ['gnesta-norr', 5], adds: [] },
+  { id: 'gnn-1', map: 'gnesta-norr', day: 1, adds: ['car', 'dormant', 'pings'] },
+  // 0.17.0-molnbo: Mölnbo. Det nya är platsen (tornen, tåget, tågklockan, bron, spåret)
+  { id: 'after-gnn-1', after: ['gnesta-norr', 1], adds: ['frontage', 'fatigue'] },
   // 0.20.0 (kampanjbågen, H495): tre dagar. Håll eld vid bron dag 2, klockan och de överrända pjäserna dag 3.
-  { id: 'mb-1', map: 'molnbo', day: 1, adds: ['rout'] },
-  { id: 'mb-2', map: 'molnbo', day: 2, adds: ['holdFire'] },
+  { id: 'mb-1', map: 'molnbo', day: 1, adds: ['rout', 'unitSupplies', 'garrison'] },
+  { id: 'mb-2', map: 'molnbo', day: 2, adds: ['holdFire', 'target'] },
   { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train', 'overrun'] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];

@@ -386,3 +386,33 @@ Kampanjbågen (kampanjplanen avsnitt 10) säger att Move kommer dag 6 eller 7 me
 | Vikingavägen dag 3 | Frontbredd och reserv |
 | Vikingavägen dag 4 | Mål-läget (`T`), krypare |
 | Vikingavägen dag 5 | Trupper i hus |
+
+## Ändrat i 0.22.0 (kampanjbågens Hagstumosse, H539)
+
+Kampanjplanen avsnitt 10 är facit: Hagstumosse är kampanjens dag 4 till 7. Ishallen har tre dagar, Vikingavägen en, och Mölnbo dag 1 är kampanjens dag 8. Elva dagars begrepp ryms på fyra; regeln ett begrepp per dag gäller för det som pausar (steg och plåtar), och det som flyttats hit från de strukna dagarna kommer som bildtexter eller när det händer.
+
+- **Ishallen dag 1 (dag 4):** bara de frivilliga under evakueringen. Hemvärnet kommer dag 2.
+- **Ishallen dag 2 (dag 5):** Hemvärnets två Ksp 90 och barrikaderna, som förut.
+- **Ishallen dag 3 (dag 6):** Hemvärnets grupp, radion (Move och Rotate, Olas text oförändrad) och sanity. Tyst: Next wave med bonus (förut dag 5).
+- **Efter Ishallen:** rekvisitionen, uppgraderingarna och Return på en gång (förut efter dag 3 och dag 4). Leveransen till Vikingavägen ger Ksp 58, Ksp 88 och pillboxen och släpper Ak 5 för rekvisition.
+- **Vikingavägen (dag 7):** en dag, väst, syd och nord. Steget är betongen och skrotbilarna som styr om grupperna (förut skrotbilarna dag 2). De vilande husen (förut Ishallen dag 4) visas före första vågen; pingen kommer när den första kommer. Waypoints som bildtext.
+- **Före Mölnbo:** frontbredden och tröttheten (förut Vikingavägen dag 3).
+- **Mölnbo dag 1 (dag 8):** som förut (evakueringen, Fall back, Psg 90 på trappan), plus bildtexter för frontbredden, trupper i hus (förut Vikingavägen dag 5) och förnödenheterna på enheten (förut Vikingavägen dag 1).
+- **Mölnbo dag 2 (dag 9):** Håll eld, plus mål-läget (`T`) som bildtext med de pansrade (förut Vikingavägen dag 4). Kryparna syns första gången här (förut Vikingavägen dag 4).
+- Fienderna: vandrare, löpare och bjässar från E4; inga nya på Hagstumosse. Krypare och pansrade Mölnbo dag 2.
+
+| Kampanjdag | Bana | Begrepp |
+|---|---|---|
+| 1 | E4 dag 1 | Ställ ut en pjäs, starta vågen |
+| 2 | E4 dag 2 | Förnödenheter och taggtråd; två vägar in |
+| 3 | E4 dag 3 | Sikta (båge, dra); tyst: fart (`F`) |
+| 4 | Ishallen dag 1 | Evakueringen med bara frivilliga; tyst: minikartan |
+| 5 | Ishallen dag 2 | Hemvärnets Ksp 90; barrikader, hordens väg, korselden |
+| mellan | | RP, förrådet, nivåer |
+| 6 | Ishallen dag 3 | Hemvärnets grupp, sanity; **radion: Move (`M`) och Rotate (`R`)**; tyst: Next wave med bonus |
+| mellan | | Rekvisition, uppgraderingar, Return |
+| 7 | Vikingavägen | Tre håll; betong och skrotbilar styr om dem; vilande hus; pingar när de kommer |
+| mellan | | Frontbredd och trötthet |
+| 8 | Mölnbo dag 1 | Evakueringen över bron, Fall back (`G`); bildtexter: frontbredd, trupper i hus, förnödenheter på enheten |
+| 9 | Mölnbo dag 2 | Håll eld (`H`); bildtext: mål-läget (`T`); krypare och pansrade |
+| 10 | Mölnbo dag 3 | Klockan, överrända pjäser (`N`) |

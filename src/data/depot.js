@@ -28,7 +28,7 @@ export const SECTORS = [
   { id: 'gnesta', name: 'Hagstumosse', full: 'Hagstumosse · Gnesta', short: 'Hagstumosse', x: 0.46, y: 0.29, maps: ['gnesta', 'gnesta-norr'] },
   // senare sektorer, gråa platshållare
   { id: 'centrum', name: 'Gnesta Centrum', short: 'Centrum', x: 0.49, y: 0.21, placeholder: true },
-  // 0.17.0-molnbo: Mölnbo är en riktig sektor (src/data/molnbo.js), öppnar efter Hagstumosse · Vikingavägen dag 5
+  // 0.17.0-molnbo: Mölnbo är en riktig sektor (src/data/molnbo.js), öppnar efter Hagstumosse · Vikingavägen (0.22.0: en dag)
   { id: 'molnbo', name: 'Mölnbo', full: 'Mölnbo · Stationen', short: 'Mölnbo', x: 0.62, y: 0.15, maps: ['molnbo'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
@@ -107,35 +107,21 @@ export const RELEASES = [
   // 0.16.4 (speltestet av 0.16.2: Ishallen dag 3 hade sex-sju nyheter): en ny enhet per dag. Hemvärnet dag 3, Ksp 58
   // och pillboxen dag 4, Ksp 88 och Ak 5 dag 5, Psg 90 på Vikingavägen dag 1. Den extra Ksp 90 släpps dag 4, när
   // rekvisitionen har öppnat (förut lovade dag 3:s meddelande en Ksp 90 som inte gick att få).
+  // 0.22.0 (H539, kampanjbågen): Ishallen har tre dagar. Dag 3 (kampanjens dag 6) Hemvärnets grupp och radion; de
+  // förrådsuppgraderingar som förut kom dag 4 släpps här och väntar tills förrådet visar dem (efter dag 3).
   { id: 'gn-3', map: 'gnesta', day: 3, from: 'MCF',
     text: 'Hemvärnet sends a rifle squad, and radios for every unit. They also come along Norra vägen.',
-    grant: [{ type: 'hv' }], unlock: ['hv'] },
-  { id: 'gn-4', map: 'gnesta', day: 4, from: 'FM',
-    text: 'A Ksp 58 team and a welded pillbox for Gnesta. One more Ksp 58 and one Ksp 90 released.',
-    grant: [{ type: 'ksp58' }, { type: 'epa' }], unlock: ['ksp58', 'epa'], tiers: ['ksp58.1'], stock: { ksp58: 1, m249: 1 },
-    ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
-  { id: 'gn-5', map: 'gnesta', day: 5, from: 'FM',
-    text: 'A mounted Ksp 88 and an Ak 5 grenadier for Gnesta. One more Ksp 58 and one Ksp 90 released.',
-    grant: [{ type: 'm2' }, { type: 'ak5' }], unlock: ['m2', 'ak5'], tiers: ['m2.1', 'ak5.1'], stock: { ksp58: 1, m249: 1 },
-    ups: { grenade: 2, ksp58: 2 } },
+    grant: [{ type: 'hv' }], unlock: ['hv'], ups: { m249Rate: 1, hvRifles: 1, wireTough: 1 } },
   // ---------- Gnesta North ----------
+  // 0.22.0 (H539, kampanjbågens dag 7): Vikingavägen är EN dag. Det som förut kom pö om pö på Ishallen dag 4 och 5 och
+  // Vikingavägen dag 1 till 5 kommer här (Ksp 58, Ksp 88, pillboxen; Ak 5 att rekvirera) och på Mölnbo (Psg 90, infanteriet,
+  // resten av uppgraderingarna). Leveranserna gn-4, gn-5 och gnn-2 till gnn-5 finns inte längre; en gammal sparfil
+  // som redan fått dem behåller det den fick (src/meta/save.js).
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'Larger groups gather west, south and north of the ice rink. A Psg 90 sniper joins you.',
-    grant: [{ type: 'm249' }, { type: 'ksp58' }, { type: 'psg90' }], unlock: NORTH_ALL, tiers: ['psg90.1'], stock: { ksp58: 2, psg90: 1, ak5: 1, hv: 1 },
-    ups: { m2: 2, budget: 1 } },
-  { id: 'gnn-2', map: 'gnesta-norr', day: 2, from: 'FM',
-    text: 'New kit is in: faster Ksp 90 feeds, Psg 90 optics and better concrete.',
-    ups: { m249Rate: 2, psg90: 2, block: 2, hvSquad: 1 } },
-  { id: 'gnn-3', map: 'gnesta-norr', day: 3, from: 'FM',
-    text: 'An infantry squad for Hagstumosse: regulars, Ak 5, body armour. One more Psg 90 is released.',
-    grant: [{ type: 'inf' }], unlock: ['inf'], stock: { inf: 1, psg90: 1, ksp58: 1 },
-    ups: { ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
-  { id: 'gnn-4', map: 'gnesta-norr', day: 4, from: 'FM',
-    text: 'The last Ksp 90 and Psg 90 upgrades are in, and heavier Ksp 88 rounds.',
-    ups: { m249Rate: 3, psg90: 3, m2: 3, wireTough: 2, hvVeterans: 1 } },
-  { id: 'gnn-5', map: 'gnesta-norr', day: 5, from: 'FM',
-    text: 'Everything we have left is at Requisition. Hold the town.',
-    ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
+    text: 'Larger groups gather west, south and north of the ice rink. A Ksp 58, a Ksp 88 and a pillbox.',
+    grant: [{ type: 'ksp58' }, { type: 'm2' }, { type: 'epa' }], unlock: NORTH_ALL, tiers: ['ksp58.1', 'm2.1', 'ak5.1'],
+    stock: { ksp58: 1, m249: 2, ak5: 1, hv: 1 },
+    ups: { grenade: 2, ksp58: 2, m2: 2, budget: 1, m249Rate: 2, block: 2, hvSquad: 1 } },
   // ---------- Mölnbo (0.17.0-molnbo) ----------
   // adopt: enheterna som står utan sektor (Hagstumosse är klar) följer med hit. Spelaren är befälhavaren som
   // skickas dit det behövs; truppen följer med.
@@ -143,14 +129,20 @@ export const RELEASES = [
   // A-traktorer och Hemvärnet till att börja med), dag 2 tappar vi norra sidan, dag 3 släpper vi Mölnbo.
   { id: 'mb-1', map: 'molnbo', day: 1, from: 'FM', adopt: true,
     // (A-traktorn och Hemvärnet är redan med från Hagstumosse; en A-traktor till gav en rad för mycket i förrådet)
-    text: 'Järna has fallen. Hold the bridge at Mölnbo while the north side crosses. A Psg 90 team joins you.',
-    grant: [{ type: 'psg90' }], unlock: [...NORTH_ALL, 'inf'], stock: { psg90: 1, ksp58: 1 } },
+    // 0.22.0 (H539): spelaren kommer från fyra dagar på Hagstumosse i stället för tio, med färre och lägre enheter;
+    // ledningen skickar mer hit (två Psg 90, infanteriet och en Ksp 58; förut en Psg 90) så att Mölnbo håller
+    text: 'Järna has fallen. Hold the bridge while the north side crosses. Two Psg 90 teams, infantry and a Ksp 58.',
+    grant: [{ type: 'psg90', count: 2, level: 2 }, { type: 'inf', level: 2 }, { type: 'ksp58', level: 2 }], unlock: [...NORTH_ALL, 'inf'], tiers: ['psg90.1', 'm249Rate.1', 'grenade.2', 'hvRifles.2'], stock: { psg90: 1, ksp58: 1, inf: 1 },
+    // 0.22.0: uppgraderingarna som förut kom på Vikingavägen dag 2 till 5, fördelade över Mölnbos tre dagar
+    ups: { psg90: 2, ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
   { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
     text: 'The north side is out. More are coming from Järna on both sides of the tracks.',
-    grant: [{ type: 'hv' }], stock: { inf: 1, ak5: 1, ksp58: 1, m249: 1 } },
+    grant: [{ type: 'hv' }, { type: 'm249', level: 2 }], stock: { inf: 1, ak5: 1, ksp58: 1, m249: 1 },
+    ups: { m249Rate: 3, psg90: 3, m2: 3, wireTough: 2, hvVeterans: 1 } },
   { id: 'mb-3', map: 'molnbo', day: 3, from: 'FM',
     text: 'We cannot hold Mölnbo. Hold it as long as the clock says, then pull back to Gnesta.',
-    grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1, inf: 1 } },
+    grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1, inf: 1 },
+    ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

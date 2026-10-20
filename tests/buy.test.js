@@ -73,8 +73,15 @@ test('förrådet per sektor och dag, och forskningen ovanpå', () => {
   // 0.16.2: Hemvärnet dag 3 (dag 2 lär bara ut barrikaderna)
   assert.equal(buyState(g2, 'hv').state, 'absent', 'inget Hemvärn dag 2');
   assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'hv').state, 'ok', 'Hemvärnet dag 3');
-  assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först dag 5');
-  const g5 = createSim({ map: MAPS.gnesta, day: 5, cash: 800, research: [], seed: 1 });
+  // 0.22.0 (H539): Ishallen har tre dagar; Ksp 58, Ak 5, Ksp 88 och pillboxen på Vikingavägen, Psg 90 och infanteriet i Mölnbo
+  assert.equal(buyState(g2, 'm2').state, 'absent', 'Ksp 88 först på Vikingavägen');
+  assert.equal(buyState(createSim({ map: MAPS.gnesta, day: 3, cash: 800, research: [], seed: 1 }), 'ksp58').state, 'absent', 'Ksp 58 först på Vikingavägen');
+  const n1 = createSim({ map: MAPS['gnesta-norr'], day: 1, cash: 800, research: [], seed: 1 });
+  assert.equal(buyState(n1, 'm2').state, 'ok');
+  assert.equal(buyState(n1, 'ak5').state, 'ok', 'Ak 5 på Vikingavägen');
+  assert.equal(buyState(n1, 'psg90').state, 'absent', 'Psg 90 kommer till Mölnbo');
+  assert.equal(buyState(n1, 'inf').state, 'absent', 'infanteriet kommer till Mölnbo');
+});
   assert.equal(buyState(g5, 'm2').state, 'ok');
   // 0.16.4 (speltestet av 0.16.2: en ny enhet per dag): Ksp 58 dag 4, Ak 5 dag 5, Psg 90 först på Vikingavägen
   assert.equal(buyState(g5, 'psg90').state, 'absent', 'Psg 90 kommer på Vikingavägen');

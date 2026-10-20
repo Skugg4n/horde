@@ -893,8 +893,8 @@ export const molnbo = {
   door: { gap: 3.2 },
   pace: 1.15,
   unlocks: ['block', 'm2', 'epa', 'inf', 'ksp58', 'ak5', 'psg90'],
-  // Öppnar när Hagstumosse · Vikingavägen dag 5 är vunnen.
-  unlock: { map: 'gnesta-norr', day: 5 },
+  // Öppnar när Hagstumosse · Vikingavägen är vunnen (0.22.0: en dag, förut dag 5).
+  unlock: { map: 'gnesta-norr', day: 1 },
 };
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(molnbo, 'grid', () => timed('molnbo:rutnät', () => molnboGrid()));

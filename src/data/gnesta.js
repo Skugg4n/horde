@@ -9,7 +9,7 @@ import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 import { eachRoadCell, nearLine, nearEdge } from './road-field.js';
 
-export const GNESTA_VERSION = '0.3.0';
+export const GNESTA_VERSION = '0.4.0';
 
 // ---------- skala ----------
 // 1 bildpixel = 0.095 m (ungefär halva verkliga skalan). Origo mitt i spelytan.
@@ -866,7 +866,7 @@ export function gnestaTown() {
 export const buildPlacement = grid => townPlacement(gnestaTown(), grid);
 
 // Dagarna (designen: dag 1 bara öst 1, dag 2 norra vägen, dag 3 skogsvägen, dag 4 bjässar,
-// dag 5 allt). 0.20.0 (kampanjbågen dag 4 till 6: "fiender närmar sig östra Gnesta"): alla tre ingångarna ligger österut från
+// dag 5 allt; 0.22.0: tre dagar, kampanjbågens dag 4 till 6, se ARSENAL). 0.20.0 (kampanjbågen dag 4 till 6: "fiender närmar sig östra Gnesta"): alla tre ingångarna ligger österut från
 // ishallen (Sigtunavägen öst, Norra vägen i nordost, skogsvägen i sydost); introna säger varifrån. Balanserade i 0.4.2 och om i 0.5.0 för fri placering (docs/balance-log.md). hp: dagens hp-faktor för alla zombier;
 // spelaren kommer från E4 med M2 II och mer, och fler zombier i bild ryms inte (högst ca 250).
 // lead (0.10.2, tempot): gruppen har redan gått så många sekunder när vågen startar (src/sim/sim.js),
@@ -882,12 +882,13 @@ const LEAD_RUN = 20, LEAD_WALK = 62;
 // 0.16.2 (speltestet av 0.16.1: dag 2 hade fem nyheter på en gång): Hemvärnet kommer dag 3
 // 0.16.4 (speltestet av 0.16.2: dag 3 hade sex-sju nyheter): en ny enhet per dag. Ksp 58 och pillboxen dag 4, Ksp 88
 // och Ak 5 dag 5, Psg 90 på Vikingavägen (src/data/depot.js RELEASES).
+// 0.22.0 (H539, kampanjbågen dag 4 till 6): tre dagar. Dag 1 bara de frivilliga under evakueringen, dag 2 Hemvärnets
+// Ksp 90 och barrikaderna, dag 3 Hemvärnets grupp och radion (Move och Rotate) med Norra vägen och de första bjässarna.
+// Ksp 58, Ksp 88 och pillboxen kommer till Vikingavägen, Ak 5 går att rekvirera där, Psg 90 kommer till Mölnbo.
 const ARSENAL = [
   ['block', 'wire', 'civ'],
   ['block', 'wire', 'civ', 'm249'],
   ['block', 'wire', 'civ', 'hv', 'm249'],
-  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'epa'],
-  ['block', 'wire', 'civ', 'hv', 'm249', 'ksp58', 'epa', 'ak5', 'm2'],
 ];
 export const DAYS = [
   { n: 1, supplies: 350, startCash: 700, hp: 1.9, arsenal: ARSENAL[0], squads: 4,
@@ -930,18 +931,6 @@ export const DAYS = [
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 18, 0.5, 3, 'east1'), g('walker', 16, 0.6, 4, 'east2')] },
              { groups: [g('walker', 26, 0.4, 0, 'east2'), g('runner', 34, 0.3, 4, 'east1')] },
              { groups: [g('walker', 32, 0.35, 0, 'east2'), g('runner', 32, 0.25, 5, 'east1'), g('walker', 20, 0.4, 10, 'east2')] } ] },
-  // 0.16.4: de vilande husen (förut dag 3) är dagens begrepp; Ksp 58 är dagens nya pjäs mot bjässarna
-  { n: 4, supplies: 600, startCash: 1800, hp: 1.3, bounty: 0.3, overlap: 100, arsenal: ARSENAL[3], intro: { title: 'Day 4: Brutes', text: 'Brutes down Norra vägen. Runners up the forest road from the south-east.' },
-    dormant: [{ house: 'B2-02', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 0 },
-              { house: 'B1-10', street: 'Sigtunavägen', count: 4, type: 'walker', wave: 1, intel: false }],
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 44, 0.3, 1.8, 'east1'), g('brute', 6, 2.5, 2, 'east2')] },
-             { groups: [g('walker', 40, 0.35, 0, 'east2'), g('runner', 40, 0.25, 4, 'forest'), g('brute', 8, 2, 4, 'east2')] },
-             { groups: [g('walker', 50, 0.3, 0, 'east1'), g('walker', 40, 0.3, 0, 'forest'), g('runner', 50, 0.2, 6, 'east2'), g('brute', 10, 1.8, 4, 'east2'), g('brute', 10, 1.8, 6, 'east1')] } ] },
-  { n: 5, supplies: 600, startCash: 1600, hp: 2.1, overlap: 100, arsenal: ARSENAL[4], intro: { title: 'Day 5: Everything', text: 'Everything they have: east, north-east and the forest road.' },
-    waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 34, 0.35, 2.1, 'east1'), g('walker', 30, 0.4, 2, 'east2'), g('runner', 30, 0.35, 4, 'forest')] },
-             { groups: [g('runner', 60, 0.2, 0, 'east1'), g('walker', 44, 0.3, 0, 'forest'), g('brute', 10, 2, 2, 'east2')] },
-             { groups: [g('walker', 40, 0.3, 0, 'east1'), g('walker', 34, 0.3, 0, 'east2'), g('walker', 34, 0.3, 0, 'forest'),
-               g('runner', 48, 0.18, 8, 'east1'), g('brute', 12, 1.6, 2, 'east2'), g('brute', 12, 1.6, 6, 'east1'), g('brute', 10, 1.6, 22, 'east2')] } ] },
 ];
 
 export const gnesta = {
@@ -949,6 +938,7 @@ export const gnesta = {
   // 0.16.0 (Olas beslut): samma sektor, kartan vidgas norrut; trupperna följer med
   // 0.16.4 (Olas rättelse): en vinst läses som en vinst; nästa uppdrag är i samma stadsdel
   // 0.20.0 (kampanjbågen dag 7): flera större grupper samlar sig mot ishallen från väst, syd och nord
+  // (0.22.0: efter dag 3, kampanjens dag 6)
   outro: { text: 'The ice rink holds. The civilians are safe inside. Larger groups are gathering west, south and north of it. Break them.', next: 'gnesta-norr' },
   // Spelkameran: hem, zoom (vyns höjd i meter) och panoreringsgräns för kamerans mittpunkt.
   // Längst ut 84 m igen (0.11.0, Olas önskan; 68 m i 0.5.2 till 0.10.2). Utzoomad ritas horden lite
@@ -973,6 +963,7 @@ export const gnesta = {
   // forskat annat) har en tung pjäs dag 1. E4-spelaren har den redan.
   // 0.13.0: armén lånar ut sina pjäser här, utan forskning, när de finns i dagens förråd (DAYS arsenal):
   // Ksp 58 och Ak 5 dag 3, Psg 90 och pillboxen dag 4, Ksp 88 dag 5. Forskningens senare nivåer gäller.
+  // (0.22.0: tre dagar, ingen av dem har de pjäserna; de kommer till Vikingavägen.)
   unlocks: ['block', 'm2', 'epa', 'ksp58', 'ak5', 'psg90'],
   // Låses upp när E4 dag 3 är klar.
   unlock: { map: 'riksvagen', day: 3 },

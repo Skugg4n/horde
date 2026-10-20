@@ -78,7 +78,8 @@ export const RADIO = [
     text: 'Trains between Södertälje and Nyköping are cancelled. People along the E4 are told to stay indoors and keep off the roads.' },
   { id: 'radio:after-e4', after: ['riksvagen', 3], at: '06:10',
     text: 'The E4 south of Södertälje is closed. Drivers are asked to stay in their cars. Gnesta asks families east of the ice rink to come in.' },
-  { id: 'radio:after-gnn', after: ['gnesta-norr', 5], at: '04:40',
+  // 0.22.0 (H539): Vikingavägen är en dag
+  { id: 'radio:after-gnn', after: ['gnesta-norr', 1], at: '04:40',
     text: 'Trains between Södertälje and Gnesta are cancelled. People in Järna are told to stay indoors. In Mölnbo, Folkets hus is open for anyone heading west. Bring water.' },
 ];
 

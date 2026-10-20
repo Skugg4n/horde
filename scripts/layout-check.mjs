@@ -261,12 +261,12 @@ async function tableChecks(page, label) {
   };
   await show(reach(null), 'table-day1');
   await show(reach('riksvagen', 2), 'table-day2');
-  await show(reach('gnesta', 5), 'table-day8');
-  // samma dagnummer som HUD:en och introt: 0.21.3 (H539) kampanjens dag, Vikingavägen dag 3 = dag 11
-  await show(reach('gnesta-norr', 3), 'table-daynumber');
+  await show(reach('gnesta', 3), 'table-day6');
+  // samma dagnummer som HUD:en och introt: 0.21.3 (H539) kampanjens dag; 0.22.0 (kampanjbågen) Vikingavägen = dag 7
+  await show(reach('gnesta-norr', 1), 'table-daynumber');
   const nb = await ev(`document.querySelector('#hub .tb-clipboard .nb')?.textContent ?? ''`);
-  if (!/Vikingavägen · Day 11/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
-  if (!/ORDER 11/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:3"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 11`);
+  if (!/Vikingavägen · Day 7/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
+  if (!/ORDER 7/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:1"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 7`);
   await show(reach('molnbo', 1), 'table-molnbo-1');
   // 16 enheter (Mölnbo dag 1 utan fyra)
   await show(reach('molnbo', 1, `const drop = O.unitsIn(p, 'molnbo').slice(-4).map(u => u.uid); p = { ...p, op: { ...p.op, units: p.op.units.filter(u => !drop.includes(u.uid)) } };`), 'table-units-16');
@@ -291,7 +291,7 @@ async function tableChecks(page, label) {
   for (let i = 0; i < 6 && await ev('!!window.__horde.lesson'); i++) { await page.keyboard.press('Enter'); await page.waitForTimeout(300); }
   await ev(seen);
   // 0.21.2: fönstret ändras med bordet öppet: ny layout, klämbrädan ryms (speltestet av 0.21.1, fynd 1)
-  await show(reach('gnesta', 5), 'table-resize-base');
+  await show(reach('gnesta', 3), 'table-resize-base');
   const vp = page.viewportSize();
   for (const [w, h] of [[1024, 614], [1920, 1080], [vp.width, vp.height]]) {
     await page.setViewportSize({ width: w, height: h });
@@ -392,7 +392,8 @@ async function run() {
     await check('result');
     await ev(`window.__horde.sheetAction('opmap')`);
     await check('opmap');
-    await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 5); H.showDepot('gnesta', 'opmap', { day: 5 }); })()`);
+    // 0.22.0: Vikingavägen (Ishallen har tre dagar; förrådet har rekvisitionen och uppgraderingarna efter Ishallen dag 3)
+    await ev(`(async () => { const H = window.__horde; await H.jump('gnesta-norr', 1); H.showDepot('gnesta', 'opmap', { day: 1 }); })()`);
     await check('depot');
     // 0.17.0: Mölnbo: introt med målet, resultatet, operationskartan och förrådet med sektorns tak. 0.20.0: dag 2 (pendeltågets
     // dag), så att sektorn inte är klar efteråt (dag 3 är Mölnbos sista)

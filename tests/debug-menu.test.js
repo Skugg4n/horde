@@ -44,7 +44,7 @@ test('fem snabba klick på versionen öppnar menyn, långsamma gör det inte', (
 });
 
 test('spawn, hus och hopp till våg: bara när det går, och vågen väntar på de nya', () => {
-  const sim = createSim({ map: MAPS['gnesta-norr'], day: 2, cash: 0, seed: 1 });
+  const sim = createSim({ map: MAPS['gnesta-norr'], day: 1, cash: 0, seed: 1 });
   assert.equal(debugSpawn(sim, { type: 'runner', count: 5 }).ok, false);
   assert.equal(debugJumpWave(sim, 3).ok, true);
   startWave(sim);
