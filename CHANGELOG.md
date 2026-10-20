@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.21.4 (kartbordet) (2026-10-20)
+
+Olas återkoppling på 0.21.3: korten hoppade, bytte storlek och ordning när ett kort flyttades, och Requisition var en rörig panel som bröt det fysiska bordet (H536, H537).
+
+- Truppkorten är fysiska kort med fast storlek (100 x 126 på bordet) som aldrig ändras med antalet. Into battle har exakt så många platser som får strida, ritade som svaga konturer; Reserve är en bricka med platser som rullar i sidled när de inte ryms.
+- En flytt är en rörelse: kortet lyfts, glider till platsen och läggs ned. Inga andra kort rör sig. Släpp på ett upptaget kort och de två byter plats. Klick gör samma sak som drag: reserv till första lediga plats i striden, strid till första lediga i reserven. Kortet ligger kvar på sin plats mellan dagarna. Valt kort får en tunn bärnstensfärgad kant.
+- Korten visar namn, roll, män eller besättning, trötthet och nivå. Hörnet ⋯ öppnar en liten meny med nästa nivå, påfyllnad och Return, med pris.
+- Requisition (R eller klick på klämbrädan) lyfter klämbrädan över kartan: "Released by command" med de släppta enheterna som samma kort med prislapp (dra till en plats eller klicka; gråa med "Need 220 RP" när RP inte räcker) och "Stores" med uppgraderingarna i en kort lista (köpta med bock). Esc eller klick på bordet lägger tillbaka den. Banorna, underrättelserna, Rest/Battle-knapparna, raden NEXT BATTLE, brödsmulan och den stora Deploy-knappen är borta därifrån.
+- Layoutprovet: efter en flytt står alla andra kort exakt kvar, alla kort har samma storlek, kortets meny och klämbrädan provas i alla storlekar.
+
 ## 0.21.3 (kartbordet) (2026-10-20)
 
 Olas återkoppling på bordet i 0.21.2: pappret känns bra men det blir rörigt, man ser inte vad som är aktuellt och vad som är gammalt, och RECEIVED hängde utanför pappret (H530, H531).

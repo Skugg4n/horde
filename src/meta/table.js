@@ -21,7 +21,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE, TABLE_W, TABLE_H } from '../data/table.js';
 import { mapState, mapUnlocked } from './progress.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf } from './operation.js';
+import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -56,10 +56,10 @@ export function moveObject(p, id, x, y) {
   const t = tableOf(p);
   return { ...p, table: { ...t, layout: { ...t.layout, [id]: clampPlace(x, y) } } };
 }
-// Tidy: allt tillbaka till sin plats.
+// Tidy: allt tillbaka till sin plats. Kortens platser (slot:uid) står kvar: de är spelarens val, inte bordets ordning.
 export function tidy(p) {
   const t = tableOf(p);
-  return { ...p, table: { ...t, layout: {} } };
+  return { ...p, table: { ...t, layout: Object.fromEntries(Object.entries(t.layout).filter(([k]) => k.startsWith('slot:'))) } };
 }
 // En vunnen dag: siffrorna som lägesrapporten skrivs av när dagen saknar egen text.
 export function recordDay(p, { mapId, day, kills = 0, waves = 0, lost = 0, saved = null, total = null }) {
@@ -306,6 +306,116 @@ export function swapCards(p, uidA, uidB) {
   return { ok: true, progress: r2.progress };
 }
 
+// ---------- kortens platser (0.21.4, Ola: korten ska vara fysiska kort med fasta platser, H536) ----------
+// Into battle har exakt cap platser, Reserve en obegränsad rad platser (bordet visar dem på en bricka som rullar).
+// Platsen sparas per enhet i table.layout['slot:uid'] = { x: platsens nummer, y: 0 striden | 1 reserven }. En enhet utan
+// sparad plats (ny, eller flyttad av tröttheten) får första lediga platsen. En flytt rör bara kortet som flyttas och,
+// vid ett byte, kortet på målplatsen; alla andra står kvar (pinSlots sparar allas platser före flytten).
+const slotKey = uid => 'slot:' + uid;
+export function cardSlots(p, sector) {
+  const L = lanes(p, sector), lay = tableOf(p).layout;
+  const cap = Number.isFinite(L.cap) ? L.cap : Math.max(1, L.battle.length);
+  const ord = (a, b) => a.uid - b.uid;
+  const out = { cap, battle: Array(cap).fill(null), rest: [] };
+  const place = (zone, list) => {
+    const arr = out[zone], pending = [];
+    for (const u of [...list].sort(ord)) {
+      const s = lay[slotKey(u.uid)], i = s && s.y === (zone === 'battle' ? 0 : 1) ? s.x : -1;
+      if (i >= 0 && (zone === 'rest' || i < cap) && arr[i] == null) arr[i] = u.uid; else pending.push(u.uid);
+    }
+    for (const uid of pending) { let i = Array.from(arr, x => x ?? null).indexOf(null); if (i < 0) i = arr.length; arr[i] = uid; }
+    out[zone] = Array.from(arr, x => x ?? null);
+  };
+  place('battle', L.battle);
+  place('rest', L.rest);
+  return out;
+}
+const setSlot = (p, uid, zone, i) => { const t = tableOf(p); return { ...p, table: { ...t, layout: { ...t.layout, [slotKey(uid)]: { x: i, y: zone === 'battle' ? 0 : 1 } } } }; };
+// Allas nuvarande platser sparas, så att ingen flyttar när en annan gör det
+export function pinSlots(p, sector) {
+  const S = cardSlots(p, sector);
+  let q = p;
+  S.battle.forEach((uid, i) => { if (uid != null) q = setSlot(q, uid, 'battle', i); });
+  S.rest.forEach((uid, i) => { if (uid != null) q = setSlot(q, uid, 'rest', i); });
+  return q;
+}
+// Flytta ett kort till en plats. En upptagen plats byter de två korten (i samma fält bara platserna, mellan fälten också
+// banorna, med förrådets regler). moved: korten som flyttade.
+export function moveCardTo(p, uid, zone, idx) {
+  const u = unitOf(p, uid);
+  if (!u || u.sector == null || (zone !== 'battle' && zone !== 'rest') || !Number.isInteger(idx) || idx < 0) return { ok: false, reason: 'unknown' };
+  let q = pinSlots(p, u.sector);
+  const S = cardSlots(q, u.sector);
+  if (zone === 'battle' && idx >= S.cap) return { ok: false, reason: 'unknown' };
+  const from = S.battle.includes(uid) ? 'battle' : 'rest', fromIdx = S[from].indexOf(uid);
+  const other = S[zone][idx] ?? null;
+  if (other === uid) return { ok: true, same: true, progress: q, moved: [] };
+  if (from !== zone) {
+    const r = other != null ? swapCards(q, uid, other) : setLane(q, uid, zone);
+    if (!r.ok) return r;
+    q = r.progress;
+  }
+  q = setSlot(q, uid, zone, idx);
+  if (other != null) q = setSlot(q, other, from, fromIdx);
+  return { ok: true, progress: q, moved: other != null ? [uid, other] : [uid] };
+}
+// Ett klick gör samma sak som att dra: ett reservkort till första lediga platsen i striden, ett stridskort till första
+// lediga platsen i reserven. Full strid: förrådets skäl (laneFull).
+export function clickCard(p, uid) {
+  const u = unitOf(p, uid);
+  if (!u || u.sector == null) return { ok: false, reason: 'unknown' };
+  const S = cardSlots(p, u.sector), inBattle = S.battle.includes(uid);
+  if (inBattle) { const i = S.rest.indexOf(null); return moveCardTo(p, uid, 'rest', i < 0 ? S.rest.length : i); }
+  const i = S.battle.indexOf(null);
+  if (i < 0) return { ok: false, reason: 'laneFull' };
+  return moveCardTo(p, uid, 'battle', i);
+}
+
+// ---------- Requisition som klämbräda (0.21.4, H537) ----------
+// Klämbrädan har två saker: korten som ledningen släppt (ett kort per enhet i lagret, med pris) och förrådets
+// uppgraderingar. Ett släppt kort dras till en plats i striden eller reserven (eller klickas: första lediga i reserven).
+// Ingen annan enhet byter fält eller plats när ett kort köps.
+export function releasedCards(p, sector) {
+  if (!metaFeatures(p).has('requisition')) return [];
+  const out = [];
+  for (const type of stockTypes(p, sector)) {
+    const n = stockOf(p, sector, type), c = canRequisition(p, type, sector);
+    for (let i = 0; i < n; i++) out.push({ id: `${type}:${i}`, type, cost: c.cost ?? null, ok: c.ok, reason: c.reason ?? null, need: c.need ?? null,
+      name: unitName({ type }), role: ROLE[type] ?? '', max: maxMen({ type, level: 1 }, p.research) });
+  }
+  return out;
+}
+// Lås allas fält (som förrådets setLane gör), så att ett nytt kort inte knuffar någon ur förslaget
+function lockLanes(p, sector) {
+  const L = lanes(p, sector), inB = new Set(L.battle.map(u => u.uid));
+  return { ...p, op: { ...p.op, units: p.op.units.map(u => (u.sector === poolOf(sector) ? { ...u, lane: inB.has(u.uid) ? 'battle' : 'rest' } : u)) } };
+}
+export function buyCard(p, type, sector, zone = null, idx = null) {
+  const c = canRequisition(p, type, sector);
+  if (!c.ok) return c;
+  let q = pinSlots(lockLanes(p, sector), sector);
+  const r = requisition(q, type, sector);
+  if (!r.ok) return r;
+  q = { ...r.progress, op: { ...r.progress.op, units: r.progress.op.units.map(u => (u.uid === r.uid ? { ...u, lane: 'rest' } : u)) } };
+  const S = cardSlots(q, sector);
+  let z = zone, i = idx;
+  if (z == null || i == null) { z = 'rest'; i = S.rest.indexOf(r.uid); }   // utan mål: första lediga platsen i reserven
+  const m = moveCardTo(q, r.uid, z, i);
+  if (m.ok) return { ok: true, uid: r.uid, cost: r.cost, progress: m.progress, moved: [...new Set([r.uid, ...(m.moved ?? [])])] };
+  // platsen gick inte (full strid, tom grupp): kortet läggs på första lediga platsen i reserven
+  return { ok: true, uid: r.uid, cost: r.cost, progress: q, moved: [r.uid], note: m.reason };
+}
+// Förrådet på andra arket: släppta uppgraderingar (köpbara eller för dyra) och köpta (bock). Effekten i en rad.
+export function storeList(p) {
+  if (!metaFeatures(p).has('upgrades')) return [];
+  return upgradeList(p).filter(Boolean).filter(st => st.reason !== 'locked').map(st => {
+    const bought = st.tier == null, tier = bought ? (st.have ?? st.node.tiers.length) : st.tier;
+    const t = st.node.tiers[tier - 1] ?? {};
+    return { id: st.id, name: st.id === 'budget' ? 'Supply budget' : st.node.name, tier, cost: st.cost, ok: !!st.ok, bought, need: st.need ?? null,
+      effect: st.id === 'budget' ? 'More supplies every day.' : (t.effect ?? '') };
+  });
+}
+
 // ---------- bordet som helhet ----------
 // Det som ligger på bordet (objektens id i ritordning) och var varje sak ligger från början.
 export function tableState(p, { sector = null } = {}) {
@@ -335,7 +445,7 @@ export const MIN_SCALE = 0.8;
 export function frameFor(vw = TABLE_W, vh = TABLE_H) {
   const scale = Math.max(MIN_SCALE, Math.min(vw / TABLE_W, vh / TABLE_H));
   const W = Math.max(960, vw / scale), H = Math.max(600, vh / scale);
-  const zoneY = H - 272, mapS = Math.max(0.55, Math.min(1, (zoneY - 46) / 600, (W - 560) / 880));
+  const zoneY = H - 300, mapS = Math.max(0.55, Math.min(1, (zoneY - 46) / 600, (W - 560) / 880));
   return { scale, W, H, zoneY, mapS, mapX: 300, mapY: 30, clipX: W - 232, clipY: H - 400, enemyX: W - 300 };
 }
 const F0 = frameFor();
@@ -358,7 +468,7 @@ export function defaultPlace(state, id, fr = F0) {
     if (pl.current) {
       const right = state.clipboard ? fr.clipX - 350 : fr.W - 350, bottom = state.zones ? fr.zoneY - 425 : fr.H - 420;
       if (x > fr.W / 2) x = Math.min(x, Math.round(right));
-      y = Math.max(80, Math.min(y, Math.round(bottom)));
+      y = Math.max(36, Math.min(y, Math.round(bottom)));
       // under fiendehögen: kanterna (72 över högen) får inte gå in i den; ryms den inte under flyttas högen åt vänster
       const eb = state.enemies ? 28 + (state.enemies.sheets.length - 1) * 30 + 2 + 196 + 8 : 0;
       if (state.enemies && x + 330 > fr.enemyX && y - 72 < eb) x = Math.round(fr.enemyX - 340);

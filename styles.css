@@ -1398,3 +1398,52 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-edge.old { filter: grayscale(.75) brightness(.78); }
 .hub .tb-archive .tb-paper { filter: grayscale(.55) brightness(.85); }
 .hub .tb-moment { position: absolute; top: 14px; right: 74px; z-index: 3; background: linear-gradient(176deg, #ebe2cc, #d8cdb2); color: #221d16; font: 600 calc(15px / var(--s, 1)) 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; padding: 4px 12px 3px; box-shadow: 0 1px 2px rgba(0,0,0,.4), 3px 6px 10px rgba(0,0,0,.35); white-space: nowrap; pointer-events: none; }
+/* 0.21.4 (H536): korten som fysiska kort med fast storlek (100 x 126) på fasta platser */
+.hub .tb-card { padding: 7px 7px; overflow: hidden; color: var(--paper); }
+.hub .tb-card .n { font: 600 15px/1.15 Oswald, sans-serif; text-transform: none; letter-spacing: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub .tb-card .rl { font: 400 13.75px/1.2 Oswald, sans-serif; color: var(--paper-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; }
+.hub .tb-card .m { font: 500 13.75px/1.25 Oswald, sans-serif; color: #d9a441; margin-top: 4px; }
+.hub .tb-card .st { font: 600 13.75px/1.2 Oswald, sans-serif; margin-top: 2px; }
+.hub .tb-card .st .ok { color: #9fc46a; } .hub .tb-card .st .bad { color: #e0603c; }
+.hub .tb-card .lv { position: absolute; left: 8px; right: 6px; bottom: 5px; display: flex; justify-content: space-between; align-items: center; font: 600 13.75px Oswald, sans-serif; color: var(--paper-dim); }
+.hub .tb-card .lv .star { color: #d9a441; font-weight: 400; }
+#ui .hub .tb-dots { font: 700 16px/1 Oswald, sans-serif; color: var(--paper); background: rgba(233,223,201,.08); border: 1px solid rgba(233,223,201,.25); border-radius: 3px; padding: 0 6px 3px; cursor: pointer; }
+#ui .hub .tb-dots:hover { background: rgba(242,196,107,.2); }
+.hub .tb-card.sel { border-color: rgba(242,196,107,.9); box-shadow: 0 0 0 1px rgba(242,196,107,.6), 0 1px 1px rgba(0,0,0,.4), 0 4px 6px rgba(0,0,0,.35); }
+.hub .tb-card.lifted { box-shadow: 0 2px 3px rgba(0,0,0,.45), 14px 26px 30px rgba(0,0,0,.55); }
+.hub .tb-card.lifting { opacity: .3; }
+.hub .tb-card.ghost { pointer-events: none; cursor: grabbing; }
+.hub .tb-slot { position: absolute; left: calc(var(--x) * 1px); top: calc(var(--y) * 1px); width: 100px; height: 126px; border: 1.5px dashed rgba(233,215,180,.2); border-radius: 7px; z-index: 2; }
+.hub .tb-slot.over, .hub .tb-card.over { border-color: rgba(242,196,107,.85); background: rgba(242,196,107,.07); }
+.hub .tb-zone.rest { overflow: visible; }
+.hub .tb-tray { position: absolute; left: 0; right: 0; top: 10px; bottom: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #9a4a26 rgba(22,18,14,.6); }
+.hub .tb-trayin { position: relative; height: 100%; }
+.hub .tb-traymore { position: absolute; right: 10px; top: -12px; background: #2f2214; padding: 0 8px; font: italic 14px Oswald, sans-serif; color: var(--paper-dim); white-space: nowrap; }
+/* kortets meny (⋯) */
+.hub .tb-cmenu { position: absolute; z-index: 85; width: 230px; padding: 6px; border-radius: 4px; background: linear-gradient(176deg, #e4dac2, #d3c8ac); box-shadow: 0 2px 4px rgba(0,0,0,.4), 6px 14px 24px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 4px; }
+#ui .hub .tb-cm { display: flex; justify-content: space-between; gap: 8px; width: 100%; font: 600 14px 'IBM Plex Mono', monospace; color: #221d16; background: rgba(255,250,235,.4); border: 1px solid rgba(34,29,22,.35); border-radius: 2px; padding: 5px 8px; cursor: pointer; text-align: left; }
+#ui .hub .tb-cm i { font-style: normal; color: #8a3a20; }
+#ui .hub .tb-cm.off { opacity: .55; cursor: default; }
+#ui .hub .tb-cm:not(.off):hover { background: #221d16; color: #e4dac2; }
+.hub .tb-cmenu .ask { font: 600 13.75px Oswald, sans-serif; color: #8a3a20; margin: 2px 4px; }
+/* 0.21.4 (H537): Requisition som klämbräda med två ark */
+.hub .tb-req { position: absolute; left: calc(var(--x) * 1px); top: calc(var(--y) * 1px); width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); z-index: 70; border-radius: 6px; background: linear-gradient(170deg, #4a3f2e, #352d20); padding: 30px 12px 12px; box-shadow: 0 3px 4px rgba(0,0,0,.45), 12px 26px 40px rgba(0,0,0,.6); }
+.hub .tb-req .jaw { position: absolute; left: 50%; top: -9px; width: 140px; height: 32px; margin-left: -70px; border-radius: 5px 5px 10px 10px; background: linear-gradient(180deg, #a5a297, #5e5c55); box-shadow: 0 3px 4px rgba(0,0,0,.5); }
+.hub .tb-req .pg { position: relative; height: 100%; background: #d9cfb6; color: #2b261e; border-radius: 1px; padding: 12px 14px; }
+.hub .tb-req .pg > .h { font: 600 15px Oswald, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #5a5040; display: flex; justify-content: space-between; }
+.hub .tb-req .pg > .h span { font: 600 18px 'IBM Plex Mono', monospace; color: #8a3a20; letter-spacing: 0; }
+.hub .tb-reqcards { position: absolute; left: 0; top: 40px; bottom: 34px; overflow-y: auto; }
+.hub .tb-reqcards .none { font: 400 15px/1.35 Oswald, sans-serif; color: #4a4030; margin: 14px; max-width: 360px; }
+.hub .tb-rcard { cursor: grab; }
+.hub .tb-rcard.off { filter: grayscale(.8) brightness(.75); cursor: not-allowed; }
+.hub .tb-tag { position: absolute; width: 100px; text-align: center; font: 600 14px 'IBM Plex Mono', monospace; color: #221d16; background: #efe6cf; border: 1px solid rgba(34,29,22,.4); border-radius: 2px; padding: 1px 0; }
+.hub .tb-tag.off { color: #8a3a20; }
+.hub .tb-store { position: absolute; top: 34px; bottom: 34px; right: 0; padding: 12px 12px 8px 14px; background: linear-gradient(176deg, #e6dcc3, #d6caad); box-shadow: -4px 0 8px rgba(0,0,0,.18); overflow-y: auto; transform: rotate(.6deg); }
+.hub .tb-store .h { font: 600 15px Oswald, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #5a5040; margin-bottom: 8px; }
+#ui .hub .tb-up { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; width: 100%; text-align: left; padding: 6px 4px 7px; border: 0; border-top: 1px dotted rgba(43,38,30,.4); background: none; color: #221d16; cursor: pointer; font: inherit; }
+#ui .hub .tb-up:hover:not(.off):not(.done) { background: rgba(34,29,22,.08); }
+.hub .tb-up b { font: 600 14.5px 'IBM Plex Mono', monospace; }
+.hub .tb-up span { grid-column: 1; font: 400 14px/1.25 Oswald, sans-serif; color: #4a4030; }
+.hub .tb-up i { grid-column: 2; grid-row: 1 / span 2; align-self: center; font: 600 14px 'IBM Plex Mono', monospace; font-style: normal; color: #8a3a20; white-space: nowrap; }
+.hub .tb-up.off i { color: #8a6a50; } .hub .tb-up.done { opacity: .7; cursor: default; } .hub .tb-up.done i { color: #5d6343; }
+.hub .tb-req .hint { position: absolute; left: 14px; right: 14px; bottom: 8px; font: italic 14px Oswald, sans-serif; color: #5a5040; }

@@ -22,7 +22,7 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
-import { recordDay, recordLoss, swapCards, campaignDay, nextBattle as tableNext } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, nextBattle as tableNext, moveCardTo, clickCard, buyCard } from './meta/table.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -2082,7 +2082,9 @@ function lessonCond(c) {
     case 'ping': return play && alerts.length > 0;
     case 'deployed': return play && sim.guns.length > 0 && (sim.reserve?.length ?? 0) > 0;
     case 'chords': return play && chord.chords && canPlaceNow();
-    case 'opmap': case 'depot': case 'result': return mode === k;
+    case 'opmap': case 'result': return mode === k;
+    // 0.21.4: med kartbordet är Requisition klämbrädan på bordet (sheet.lifted)
+    case 'depot': return mode === 'depot' || (mode === 'opmap' && !!sheet?.lifted?.());
     // 0.18.0 (skiva 1)
     case 'placingAny': return play && !!placing && placing.kind === 'gun' && !placing.move;
     case 'sanityLow': return play && allowed(sim, 'sanity') && sim.guns.some(g => g.sanity != null && hasSanity(g) && g.sanity < SANITY.effectAt);
@@ -2522,14 +2524,21 @@ function depotLessonPending() {
   return STAGES.filter(s => s.after && stageReached(progress, s)).flatMap(s => LESSONS[s.id] ?? [])
     .some(l => l.when === 'depot' && !isSeen(progress, l.id) && shows(progress, l.kind));
 }
+// 0.21.4 (H536, H537): korten på fasta platser, köp från klämbrädan, kortets meny (nivå, påfyllnad, tillbaka) och förrådet
 const TABLE_ACTS = {
   lane: (p, uid, lane) => setLane(p, uid, lane),
   swap: (p, a, b) => swapCards(p, a, b),
+  slot: (p, uid, zone, idx) => moveCardTo(p, uid, zone, idx),
+  click: (p, uid) => clickCard(p, uid),
+  buy: (p, type, sector, zone, idx) => buyCard(p, type, sector, zone, idx),
+  level: (p, uid) => DEPOT_ACTS.level(p, uid),
+  refill: (p, uid) => DEPOT_ACTS.refill(p, uid),
+  return: (p, uid) => DEPOT_ACTS.return(p, uid),
+  upgrade: (p, id) => DEPOT_ACTS.upgrade(p, id),
 };
 function showTable() {
   setMode('opmap', () => tableSheet(uiRoot, progress, {
     onGo: id => tableGo(id),
-    onRequisition: id => { const m = currentMap(progress, id) ?? id, d = MAPS[m] ? nextDay(progress, m) : null; showDepot(m, 'table', d ? { day: d, n: campaignDay(m, d) } : null); },
     act: (kind, ...args) => {
       const r = TABLE_ACTS[kind](progress, ...args);
       if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
@@ -2545,7 +2554,8 @@ function tableGo(sectorId) {
   const id = currentMap(progress, sectorId) ?? sectorId;
   const d = MAPS[id] ? nextDay(progress, id) : null;
   if (!d) return;
-  if (meta('depot') && depotLessonPending()) { showDepot(id, 'table', { day: d, n: campaignDay(id, d) }); return; }
+  // förrådets steg som inte setts: klämbrädan lyfts en gång före dagen (lektionerna pekar på den och på korten)
+  if (meta('depot') && depotLessonPending() && sheet?.lifted && !sheet.lifted()) { sheet.requisition(true); return; }
   deploySector(id);
 }
 // ---------- operationskartan och förrådet (0.14.0) ----------
@@ -2712,7 +2722,7 @@ function showResult() {
   setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
     manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
-    onRetry: () => (meta('depot') ? showDepot(map.id, 'result', hubTable() ? { day, n: campaignDay(map.id, day) } : { day }) : startDay(day)),
+    onRetry: () => (hubTable() ? showTable() : meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
     onOpMap: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(map.id)),
     onMenu: showMenu,
     onManual: id => openManual(id),
