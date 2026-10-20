@@ -542,7 +542,8 @@ export function debugReach(p, mapId, day, fresh = false) {
   // 0.18.0 (speltestet av 0.17.2: Quick jump till Ishallen efter ett hopp till Mölnbo gav ingen trupp): ett hopp byter
   // bara truppen i sektorn man hoppar till (förut tog ett hopp till Mölnbo alla andra sektorers trupper). Har sektorn
   // ingen trupp (leveranserna har redan getts i sparfilen) får den truppen en ny kampanj har där den dagen.
-  const t = ARRIVAL_TROOP[mapId];
+  // 0.22.0 (H539): en dag kan ha en egen trupp (days[dag]), truppen en spelare går in med den dagen
+  const t = ARRIVAL_TROOP[mapId]?.days?.[day] ?? ARRIVAL_TROOP[mapId];
   let uid = q.op.nextUid ?? 1;
   const others = q.op.units.filter(u => u.sector !== pool);
   if (!t) {
@@ -551,7 +552,7 @@ export function debugReach(p, mapId, day, fresh = false) {
     const units = unitsIn(f, mapId).map(u => ({ ...u, uid: uid++ }));
     return { ...q, op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   }
-  const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
+  const units = t.units.map(([type, level, men, wins, fatigue]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}), ...(fatigue ? { fatigue } : {}) }));
   q = { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   return q;
 }

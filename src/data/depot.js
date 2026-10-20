@@ -131,10 +131,10 @@ export const RELEASES = [
     // (A-traktorn och Hemvärnet är redan med från Hagstumosse; en A-traktor till gav en rad för mycket i förrådet)
     // 0.22.0 (H539): spelaren kommer från fyra dagar på Hagstumosse i stället för tio, med färre och lägre enheter;
     // ledningen skickar mer hit (två Psg 90, infanteriet och en Ksp 58; förut en Psg 90) så att Mölnbo håller
-    text: 'Järna has fallen. Hold the bridge while the north side crosses. Two Psg 90 teams, infantry and a Ksp 58.',
-    grant: [{ type: 'psg90', count: 2, level: 2 }, { type: 'inf', level: 2 }, { type: 'ksp58', level: 2 }], unlock: [...NORTH_ALL, 'inf'], tiers: ['psg90.1', 'm249Rate.1', 'grenade.2', 'hvRifles.2'], stock: { psg90: 1, ksp58: 1, inf: 1 },
+    text: 'Järna has fallen. Hold the bridge while the north side crosses. Two Psg 90 and two Ksp 58 teams, and infantry.',
+    grant: [{ type: 'psg90', count: 2, level: 2 }, { type: 'inf', level: 2 }, { type: 'ksp58', count: 2, level: 3 }], unlock: [...NORTH_ALL, 'inf'], tiers: ['psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2'], stock: { psg90: 1, ksp58: 1, inf: 1 },
     // 0.22.0: uppgraderingarna som förut kom på Vikingavägen dag 2 till 5, fördelade över Mölnbos tre dagar
-    ups: { psg90: 2, ksp58: 3, grenade: 3, hvRifles: 2, budget: 2, ak5: 2 } },
+    ups: { ksp58: 3, grenade: 3, budget: 2, ak5: 2 } },
   { id: 'mb-2', map: 'molnbo', day: 2, from: 'MCF',
     text: 'The north side is out. More are coming from Järna on both sides of the tracks.',
     grant: [{ type: 'hv' }, { type: 'm249', level: 2 }], stock: { inf: 1, ak5: 1, ksp58: 1, m249: 1 },

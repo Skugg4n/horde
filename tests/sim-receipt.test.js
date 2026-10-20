@@ -76,10 +76,14 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // 0.19.1: alla tre nya, avsiktligt: snubblets nedkylning (60 m, utlösarna en liten chans, inte två på samma ställe) och
 // vågens svans för alla typer. E4 dag 2 vinns med 18 (var 20), South dag 3 med 20 och North dag 2 förloras som förut, på
 // samma tid inom en sekund (docs/balance-log.md 0.19.1).
+// 0.22.0 (H539, kampanjbågen): South dag 3 och North nya, avsiktligt. South dag 3 har de första bjässarna nerför Norra
+// vägen i sista vågen (den fasta styrkan vinner med full bas som förut). North är Vikingavägens enda dag (förut dag 2):
+// väst, syd och nord, hp 3,75; den fasta styrkan med North dag 2:s rutor förlorar i första vågen som förut.
+// docs/balance-log.md 0.22.0.
 const RECEIPTS = {
   'E4 day 2': '5d0128c1',
-  'Gnesta South day 3': '8a57a9a2',
-  'Gnesta North day 1': 'dabfdccd',
+  'Gnesta South day 3': '63fd5a37',
+  'Gnesta North day 1': '4393a798',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

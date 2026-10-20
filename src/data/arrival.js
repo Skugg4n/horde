@@ -21,15 +21,29 @@ export const ARRIVAL = {
 // om tabellen inte längre stämmer med balansen.
 export const ARRIVAL_TROOP = {
   molnbo: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'm249Rate.1', 'grenade.2', 'ksp58.2', 'psg90.1', 'hvRifles.1', 'hvRifles.2', 'psg90.2', 'budget.1'],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2'],
     // 0.18.0: omräknad efter skiva 1 (tröttheten, sanity och korselden på Hagstumosse; docs/balance-log.md 0.18.0)
     // 0.18.1: omräknad efter vågornas grind, förrådets banor och Vikingavägen dag 2 och 3 (docs/balance-log.md 0.18.1)
     // 0.19.0: omräknad efter snubblet, stormningens tärning, vågens svans och löparnas fart (docs/balance-log.md 0.19.0)
     // 0.19.1: omräknad efter snubblets nedkylning, svansen för alla typer, dörrarna och förrådets förslag (docs/balance-log.md 0.19.1)
     // 0.20.0: omräknad efter riktningarna (Vikingavägen väst, syd och nord; Move och Rotate från Ishallen dag 3;
     // docs/balance-log.md 0.20.0 riktningarna)
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 3], ['civ', 2, 4, 3], ['m249', 2, null, 7], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 3, null, 7], ['epa', 1, null, 6],
-      ['m249', 2, null, 1], ['ksp58', 3, null, 7], ['m2', 1, null, 6], ['ak5', 1, null, 1], ['ksp58', 2, null, 5], ['m249', 1, null, 0], ['ksp58', 2, null, 5], ['psg90', 2, null, 5],
-      ['psg90', 2, null, 4], ['inf', 2, 5, 1], ['psg90', 2, null, 2], ['psg90', 1, null, 0]],
+    // 0.22.0 (H539): omräknad efter kampanjbågens Hagstumosse (Ishallen 3 dagar, Vikingavägen 1). 15 enheter i stället
+    // för 20, färre veteraner; ledningens förstärkning till Mölnbo dag 1 (två Psg 90, två Ksp 58 på nivå III, infanteriet och nivåerna
+    // Psg 90 II, Ksp 90 rate I, granater II och Hemvärnets gevär II) ingår.
+    // docs/balance-log.md 0.22.0.
+    units: [['civ', 2, 2, 4], ['civ', 2, 3, 4], ['civ', 2, 4, 3], ['m249', 2, null, 3], ['m249', 2, null, 3], ['hv', 2, 5, 2], ['ksp58', 2, null, 1],
+      ['m2', 1, null, 1], ['epa', 1, null, 1], ['ksp58', 2, null, 1], ['psg90', 2, null, 0], ['psg90', 2, null, 0], ['inf', 2, 5, 0], ['ksp58', 3, null, 0], ['ksp58', 3, null, 0]],
+    // 0.22.0 (H539): Quick jump till dag 3 får truppen kartläsaren går in med där (scripts/balance.mjs molnboDayTroop,
+    // seed 0: förrådets köp och vinsterna dag 1 och 2, pillboxen förlorad dag 1). Med dag 1:s ankomst förlorades dag 3 i
+    // skiva 1:s prov (scripts/slice1-check.mjs molnbo). units: [typ, nivå, män, vinster, trötthet].
+    days: {
+      3: {
+        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+        units: [['civ', 2, 4, 4, 0], ['civ', 2, 4, 4, 0], ['civ', 2, 4, 3, 0], ['m249', 2, null, 3, 0], ['m249', 2, null, 3, 0], ['hv', 2, 5, 2, 0], ['ksp58', 2, null, 3, 2],
+          ['m2', 1, null, 3, 2], ['ksp58', 2, null, 3, 2], ['psg90', 2, null, 2, 2], ['psg90', 2, null, 2, 2], ['inf', 2, 5, 2, 2], ['ksp58', 3, null, 2, 2], ['ksp58', 3, null, 2, 2],
+          ['psg90', 2, null, 2, 2], ['hv', 1, 4, 0, 0], ['m249', 2, null, 0, 0], ['inf', 1, 4, 0, 0]],
+      },
+    },
   },
 };

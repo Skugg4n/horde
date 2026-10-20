@@ -234,7 +234,7 @@ test('en sparfil från före bordet (v4 utan table) läses som förut och får e
 test('dagens nummer: kampanjens dag, eller dagens eget campaignDay (kroken för kampanjbågen)', () => {
   assert.equal(campaignDay('riksvagen', 1), 1);
   assert.equal(campaignDay('gnesta', 1), 4);
-  assert.equal(campaignDay('molnbo', 1), 14);
+  assert.equal(campaignDay('molnbo', 1), 8);   // 0.22.0: kampanjbågen (förut 14)
   const d = MAPS.molnbo.days[0];
   try { d.campaignDay = 8; assert.equal(campaignDay('molnbo', 1), 8); } finally { delete d.campaignDay; }
 });

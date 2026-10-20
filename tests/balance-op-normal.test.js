@@ -8,17 +8,20 @@ import { LESSON_MIN } from '../src/sim/sim.js';
 
 const rs = runs('normal');
 
-test('normal: hela kampanjen, varje dag inom 1 till 4 försök, i fem seeds', () => {
+// 0.22.0 (H539, Ola): den normala spelaren vinner varje dag inom 1 till 3 försök (förut 4)
+test('normal: hela kampanjen, varje dag inom 1 till 3 försök, i fem seeds', () => {
   rs.forEach((r, i) => {
     assert.equal(r.stuck, null, `seed ${i}: fast på ${JSON.stringify(r.stuck)}`);
     const a = attemptsPerStep(r.log);
-    a.forEach((n, k) => assert.ok(n >= 1 && n <= 4, `seed ${i}: ${STEPS[k]} på försök ${n}`));
+    a.forEach((n, k) => assert.ok(n >= 1 && n <= 3, `seed ${i}: ${STEPS[k]} på försök ${n}`));
   });
 });
 
 test('normal: grind spelar roll, förlusterna ger RP och styrkan växer före nästa försök', () => {
+  // 0.22.0 (H539): sju dagar fram till Mölnbo i stället för tretton. Den normala policyn vinner nu varje dag på första
+  // försöket (Vikingavägen med 7 till 11 kvar); kravet på minst två förlorade försök per seed är borttaget. Förlorade
+  // försök, när de finns, ger RP och styrkan växer (nedan). docs/balance-log.md 0.22.0.
   const retries = rs.flatMap(r => r.log.filter(x => !x.won));
-  assert.ok(retries.length >= rs.length * 2, `${retries.length} förlorade försök`);
   for (const x of retries) assert.ok(x.rp >= Math.round(LESSON_MIN * 0.25), `${x.mapId} dag ${x.day}: ${x.rp} RP`);
   // nästa försök går in med samma eller större styrka (RP:n köper något)
   for (const r of rs) for (const x of r.log.filter(q => !q.won)) {
@@ -95,7 +98,12 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // (policyerna flyttar i uppställningen före det och vrider inte på E4 dag 3 och Ishallen dag 1 och 2), Vikingavägen
 // väst, syd och nord (skogsvägen i stället för Östra Storgatan och Sigtunavägen öst, kartan till skogsvägens dimkant),
 // dag 4 hp 7 till 9. E4 dag 1 och 2 orörda. docs/balance-log.md 0.20.0 (riktningarna).
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"fd3928f0","gnesta 2":"e241945c","gnesta 3":"36ccafe6","gnesta 4":"6d5430d7","gnesta 5":"74f7cd97","gnesta-norr 1":"b09c19db","gnesta-norr 2":"8a2bce69","gnesta-norr 3":"f7edf9aa","gnesta-norr 4":"c16098c9","gnesta-norr 5":"cac14819"};
+// 0.22.0 (H539, kampanjbågen): Hagstumosse har fyra dagar (Ishallen 1 till 3, Vikingavägen 1). Ishallen dag 3 och
+// Vikingavägen nya, avsiktligt: de första bjässarna nerför Norra vägen i dag 3:s sista våg, Next wave med bonus från dag 3,
+// Vikingavägen en dag från väst, syd och nord (gamla dag 5 utan kryparna, en grupp till västerifrån, hp 3,75) med
+// leveransen Ksp 58, Ksp 88 och pillboxen. Ishallen dag 4 och 5 och Vikingavägen dag 2 till 5 finns inte längre. E4 och
+// Ishallen dag 1 och 2 orörda. docs/balance-log.md 0.22.0.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"fd3928f0","gnesta 2":"e241945c","gnesta 3":"7a23499b","gnesta-norr 1":"986341cb"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

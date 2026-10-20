@@ -169,9 +169,10 @@ test('E4 dag 3: pillboxen står svetsad från början; Mölnbo dag 1: förnöden
   // 0.22.0 (H539): förnödenheterna på enheten Mölnbo dag 1 (förut Vikingavägen dag 1)
   const p5 = debugReach(newCampaign(), 'molnbo', 1);
   const s5 = createSim({ ...opStartConfig(p5, 1, 'molnbo'), cash: 1000 });
-  const k = [...Array(s5.place.n).keys()].find(q => build(s5, q, 'm249').ok);
-  assert.ok(k != null);
-  assert.equal(buySupply(s5, s5.guns[0].id, 'ammo').ok, true);
+  const t = ['ksp58', 'm249', 'm2'].find(x => s5.reserve.some(u => u.type === x));
+  const k = [...Array(s5.place.n).keys()].find(q => build(s5, q, t).ok);
+  assert.ok(k != null, t);
+  assert.equal(buySupply(s5, s5.guns.at(-1).id, 'ammo').ok, true);
 });
 
 // 0.16.0 (Olas beslut, "Gnesta = en sektor"): Gnesta South och North blir Hagstumosse med en gemensam trupp.

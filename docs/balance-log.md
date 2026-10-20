@@ -1296,3 +1296,31 @@ Tillägg (H540, H541, samma version): stigarna och bergväggen. Bergväggen skym
 
 Kartläsaren tar nu dag 2 på cirka sju minuter (provet tillåter 450 s). Spärren vid kyrkan ger ingen omväg (Trollvägen är lika lång); spärren vid caféet ger 46 rutor (tests/molnbo.test.js).
 Fingeravtrycken: mbSmart 8825ffd1, 6beb5b36, a9a37bd9; mbNaive c9feaad2, 7c19cc08, 6b81a740.
+
+## 0.22.0: Hagstumosse efter kampanjbågen (H539)
+
+Kampanjplanen avsnitt 10: Hagstumosse är kampanjens dag 4 till 7. Ishallen har tre dagar (förut fem), Vikingavägen en (förut fem). Mölnbo dag 1 är dag 8. Alla fingeravtryck från Ishallen dag 3 och framåt är nya avsiktligt; E4 och Ishallen dag 1 och 2 är orörda för den normala spelaren och den skickliga.
+
+**Ishallen dag 3:** de första bjässarna, tre nerför Norra vägen 14 s in i sista vågen (förut Ishallen dag 4). Next wave med bonus kommer här (förut dag 5), så den skickliga kallar tidigt redan dag 3.
+
+**Vikingavägen:** gamla dag 5 ("Hela stan", väst, syd och nord) utan kryparna (de kommer på Mölnbo dag 2) och med gruppen västerifrån i sista vågen 15 till 30: 428 i vågorna plus de vilande husen, mer än någon av de gamla dagarna. Truppen är tio enheter, nio får stå ute (förut 14 till 16 på dag 5): de frivilliga, Hemvärnets två Ksp 90 och grupp, leveransens Ksp 58, Ksp 88 och pillbox, och en Ksp 58 till som RP räcker till. Prövat hp: 5 (den skickliga förlorade första försöket i alla seeds, normal vann på andra med 1 kvar), 4,5 (båda förlorade första), 4 (skilled förlorade en seed), 3,5 och 3,75 (alla på första). Valt 3,75. Dagen tar 11 minuter i 1x för båda (658 till 687 s; provet tillåter 780), toppen 186 levande.
+
+**Mölnbo:** truppen från Hagstumosse är 10 enheter (förut 19) med fem veteraner (förut 14) och utan Psg 90 II. Med den gamla balansen (dag 2 hp 20, dag 3 hp 27) förlorade båda spelarna dag 2 i varje försök. Tre saker:
+- Ledningens leverans till Mölnbo dag 1 är större: två Psg 90 på nivå II, två Ksp 58 på nivå III och infanteriet på nivå II (förut en Psg 90), och nivåerna Psg 90 II, Ksp 90 rate I, granater II och Hemvärnets gevär II som spelaren köpte förut. Dag 2 en Ksp 90 på nivå II med Hemvärnet. Uppgraderingarna som kom på Vikingavägen dag 2 till 5 är fördelade på Mölnbos tre dagar. Utan Psg 90 II gratis räckte RP inte till lagrets tredje Psg 90 och kartläsarens dag 2 blev 3 till 19 över seeds; med en Ksp 58 på nivå II i stället för två på nivå III höll inte Quick jump-truppen dag 3.
+- Dag 2 hp 20 till 15 och dag 3 27 till 25 (src/data/molnbo.js, två rader). Prövat dag 2: 12, 13, 14, 15, 16, 17, 20; dag 3: 18, 20, 22, 23, 25, 25,5, 26, 27. Dag 3 är ett stup: Quick jump-truppen utan handpåläggning (scripts/slice1-check.mjs molnbo) håller klockan med 6 kvar på 25 men faller 13 s före klockan på 25,5; den som aldrig spärrar får 11,6 i snitt på 26 och 12,6 på 25. Provet för dag 3 säger högst 13 (förut 12).
+- Quick jump till dag 3 har nu kartläsarens trupp den dagen (src/data/arrival.js ARRIVAL_TROOP.molnbo.days[3], scripts/balance.mjs molnboDayTroop), med förrådets köp, vinsterna och tröttheten efter dag 1 och 2. Förut fick hoppet dag 1:s ankomst.
+
+    skilled  alla dagar första försöket; Ishallen dag 3 bas 10 till 15, Vikingavägen 5 till 9
+    normal   alla dagar första försöket; Ishallen dag 3 bas 10 till 11, Vikingavägen 7 till 11
+    mbSmart  alla dagar första försöket; dag 2 bas 18 till 19 (437 till 446 s), dag 3 9 till 20
+    mbNaive  alla dagar första försöket; dag 2 bas 13 till 18, dag 3 11 till 14 (snitt 12,6)
+    slice1   Quick jump Mölnbo dag 1 20 kvar, dag 2 6, dag 3 6 (klockan hålls)
+    toppen   186 levande (Vikingavägen), högst två vågor ute
+
+Proven: den normala spelaren ska klara varje dag inom 1 till 3 försök (förut 4, Olas mål för bågen). Kravet på minst två förlorade försök per seed är borttaget: med sju dagar fram till Mölnbo förlorar den normala policyn inte längre någon dag. Det är en öppen fråga om dagarna nu är för lätta för en ny spelare; policyn lägger spärren som lektionen säger, vilket en förstagångsspelare inte alltid gör. Den skickligas krav på dagar med skada är fyra per seed (förut fem).
+
+Fingeravtrycken:
+- normal: gnesta 3 7a23499b, gnesta-norr 1 986341cb (övriga oförändrade)
+- skilled: gnesta 3 c772668d, gnesta-norr 1 795bf800 (övriga oförändrade)
+- mbSmart bd69454f, e33f91c4, d496490c; mbNaive 8bae3ad7, 6d627559, 429ae660
+- simuleringens kvitto: Gnesta South day 3 63fd5a37 (bjässarna; den fasta styrkan vinner med full bas), Gnesta North day 1 4393a798 (förut day 2 dabfdccd; förlorar i första vågen som förut)

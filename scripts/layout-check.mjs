@@ -266,10 +266,10 @@ async function tableChecks(page, label) {
   await show(reach('gnesta-norr', 1), 'table-daynumber');
   const nb = await ev(`document.querySelector('#hub .tb-clipboard .nb')?.textContent ?? ''`);
   if (!/Vikingavägen · Day 7/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
-  if (!/ORDER 7/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:1"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 7`);
+  if (!/ORDER 0?7\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:1"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 07`);
   await show(reach('molnbo', 1), 'table-molnbo-1');
-  // 16 enheter (Mölnbo dag 1 utan fyra)
-  await show(reach('molnbo', 1, `const drop = O.unitsIn(p, 'molnbo').slice(-4).map(u => u.uid); p = { ...p, op: { ...p.op, units: p.op.units.filter(u => !drop.includes(u.uid)) } };`), 'table-units-16');
+  // 16 enheter (0.22.0: ankomsten till Mölnbo har 14, så två Ksp 90 till; förut 20 utan fyra)
+  await show(reach('molnbo', 1, `const here = O.unitsIn(p, 'molnbo'), n = 16 - here.length, drop = n < 0 ? here.slice(n).map(u => u.uid) : []; p = { ...p, op: { ...p.op, units: [...p.op.units.filter(u => !drop.includes(u.uid)), ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 950 + i, type: 'm249', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };`), 'table-units-16');
   const cards = await ev(`document.querySelectorAll('#hub .tb-card').length`);
   if (cards !== 16) errors.push(`table-units-16 @${label}: ${cards} kort`);
   // en förlorad dag: bladet ligger överst i högen

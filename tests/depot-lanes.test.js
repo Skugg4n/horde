@@ -107,6 +107,10 @@ test('INTEL ljuger aldrig: känd dag visar bara typer som finns, med rätt antal
 // 0.19.1 (speltestet av 0.19.0, fynd 6: förslaget satte 8 utmattade i stridsbanan medan 12 vilade satt i reserven)
 test('förslaget: när halva truppen är utmattad går de vilade in, inte de utmattade', () => {
   let p = mb();
+  // 0.22.0 (H539): ankomsten till Mölnbo har 14 enheter (förut 20); fylls på till 20 med vilade av samma slag, så att
+  // hälften går att byta ut som förut
+  const extra = 20 - unitsIn(p, 'molnbo').length;
+  p = { ...p, op: { ...p.op, units: [...p.op.units, ...Array.from({ length: Math.max(0, extra) }, (_, i) => ({ uid: 960 + i, type: 'ksp58', level: 2, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };
   const L = lanes(p, 'molnbo'), tired = new Set(L.battle.map(u => u.uid));
   p = { ...p, op: { ...p.op, units: p.op.units.map(u => (tired.has(u.uid) ? { ...u, fatigue: 2 } : u)) } };
   const L2 = lanes(p, 'molnbo');

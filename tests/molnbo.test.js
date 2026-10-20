@@ -18,7 +18,7 @@ import { rerouteStreet, streetAt } from '../src/sim/streets.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
 import { mapUnlocked, mapState } from '../src/meta/progress.js';
 import { loadProgress } from '../src/meta/save.js';
-import { molnboCampaign, mbAttempts, mbPrints, molnboArrival } from '../scripts/balance.mjs';
+import { molnboCampaign, mbAttempts, mbPrints, molnboArrival, molnboDayTroop } from '../scripts/balance.mjs';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
 
 const route = routeFor(molnbo), g = route.grid, p = placementFor(molnbo);
@@ -415,8 +415,8 @@ test('kampanjen: Mölnbo öppnar efter Vikingavägen (en dag, 0.22.0) och truppe
   p0 = finishDay(p0, { mapId: 'gnesta-norr', day: 1, won: true, intelEarned: 10 }).progress;
   assert.equal(mapUnlocked(p0, 'molnbo'), true);
   assert.equal(sectorStatus(p0, 'molnbo'), 'holding');
-  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens Psg 90
-  assert.equal(unitsIn(p0, 'molnbo').length, before + 1);
+  // alla enheter står i Mölnbo (Hagstumosse är klar), plus ledningens förstärkning (0.22.0: två Psg 90, två Ksp 58 och infanteriet)
+  assert.equal(unitsIn(p0, 'molnbo').length, before + 5);
   assert.ok(p0.op.inbox.some(m => /Järna/.test(m.text) && /Mölnbo is next/.test(m.text)), 'övergången');
   assert.ok(p0.op.inbox.some(m => m.id === 'mb-1'));
   // efter dag 3 är Mölnbo klart (sektorn stängd)
@@ -486,7 +486,10 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
   }
   // dag 3 (uttågets dag) kostar mest; dag 2 kostar en del av basen
   const won = d => naive.flatMap(r => r.log.filter(x => x.mapId === 'molnbo' && x.day === d && x.won));
-  assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 12, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
+  // 0.22.0 (H539): snittet högst 13 (förut 12). Med den mindre truppen från kampanjbågen är dag 3 ett stup: hp 26 ger 11,6
+  // för den som aldrig spärrar men då förlorar Quick jump-truppen utan handpåläggning klockan (scripts/slice1-check.mjs
+  // molnbo); hp 25 ger 12,6. docs/balance-log.md 0.22.0.
+  assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 13, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
   assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
 });
 
@@ -514,6 +517,15 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
   assert.ok(ARRIVAL_TROOP.molnbo.research.every(id => q.research.includes(id)));
 });
 
+// 0.22.0 (H539): hoppet till dag 3 har truppen kartläsaren går in med där (förrådets köp och vinsterna dag 1 och 2)
+test('hoppet till Mölnbo dag 3 har kartläsarens trupp den dagen', () => {
+  const p = molnboDayTroop(3), t = ARRIVAL_TROOP.molnbo.days[3];
+  assert.deepEqual(t.units, unitsIn(p, 'molnbo').map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0, u.fatigue ?? 0]), 'kör om balansen och skriv in truppen i src/data/arrival.js');
+  assert.deepEqual(t.research, p.research);
+  const q = debugReach(newCampaign(), 'molnbo', 3);
+  assert.deepEqual(unitsIn(q, 'molnbo').map(u => [u.type, u.level, u.fatigue ?? 0]), t.units.map(([ty, l, , , f]) => [ty, l, f]));
+});
+
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Mölnbo).
 // 0.20.0: alla dagar nya, avsiktligt: kartan omritad efter satellitbilden (en bro, vägnätet, Folkets hus vid Kvarnvägen)
 // och tre dagar efter kampanjbågen (evakueringen, norra sidan faller, uttåget), sammanslagen med riktningarna (ankomsten
@@ -524,10 +536,13 @@ test('hoppet till Mölnbo (?debug&jump) har truppen och forskningen balansen rä
 // Kvarnvägen till Mjölnarstigen), trappan i stället för trapptornen, dag 2 overlap 20 och bjässarna i tredje vågen, dag 3
 // hp 10 till 12; dag 2 bara från Järnasidan med ett utbrott vid Trollvägen (H538); gångvägarna och bergväggen som inte
 // skymmer (H540, H541), dag 2 hp 12 till 20 och dag 3 till 27. docs/balance-log.md Mölnbo 0.21.3.
+// 0.22.0 (H539, kampanjbågen): alla dagar nya, avsiktligt: ankomsten kommer från fyra dagar på Hagstumosse (förut tio),
+// 15 enheter med få veteraner; ledningens förstärkning dag 1 (två Psg 90, två Ksp 58 på nivå III, infanteriet, Psg 90 II
+// med flera), dag 2 hp 20 till 15 och dag 3 27 till 25. docs/balance-log.md 0.22.0.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': '8825ffd1', 'molnbo 2': '6beb5b36', 'molnbo 3': 'a9a37bd9' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'c9feaad2', 'molnbo 2': '7c19cc08', 'molnbo 3': '6b81a740' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'bd69454f', 'molnbo 2': 'e33f91c4', 'molnbo 3': 'd496490c' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': '8bae3ad7', 'molnbo 2': '6d627559', 'molnbo 3': '429ae660' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

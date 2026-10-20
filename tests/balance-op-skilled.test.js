@@ -14,13 +14,15 @@ test('skilled: hela kampanjen, varje dag på första försöket, i fem seeds', (
 });
 
 test('skilled: ribban ligger högt, basen tar skada på de svåra dagarna', () => {
+  // 0.22.0 (H539): sju dagar fram till Mölnbo (förut tretton): minst fyra av dem kostar något per seed (förut fem)
   const hurt = rs.flatMap(r => r.log.filter(x => x.won && x.baseHp < 20));
-  assert.ok(hurt.length >= rs.length * 5, `${hurt.length} vunna dagar med skada`);
+  assert.ok(hurt.length >= rs.length * 4, `${hurt.length} vunna dagar med skada`);
   // Gnesta North dag 4 kostar alltid något. 0.14.1: E4 är övningen och kan hållas orörd av den skickliga
   // (stupet i dag 2 våg 3 är borttaget); kurvan där mäts på den normala spelaren (balance-op-normal.test.js).
   // E4:s längre dagar ger den skickliga mer RP in i Gnesta, så South dag 2 kostar något i två seeds av fem
   // (var fem av fem); docs/balance-log.md 0.14.1.
-  for (const r of rs) assert.ok(r.log.find(x => x.mapId === 'gnesta-norr' && x.day === 4 && x.won).baseHp < 20, 'gnesta-norr dag 4');
+  // 0.22.0 (H539): Vikingavägen är en dag (förut dag 4)
+  for (const r of rs) assert.ok(r.log.find(x => x.mapId === 'gnesta-norr' && x.day === 1 && x.won).baseHp < 20, 'gnesta-norr dag 1');
   // 0.14.2: South dag 2 kostar inte längre den skickliga något. E4 dag 2 håller hon nu med full bas (bonusen
   // för oskadad bas), och RP:n räcker till en tredje Ksp 90 före Gnesta; med tre håller spärren vid rondellen
   // (hp 3,6 på South dag 2 ändrar inte det). Kvar till balanspasset för South och North (todo.md).
@@ -86,7 +88,12 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // (policyerna flyttar i uppställningen före det och vrider inte på E4 dag 3 och Ishallen dag 1 och 2), Vikingavägen
 // väst, syd och nord (skogsvägen i stället för Östra Storgatan och Sigtunavägen öst, kartan till skogsvägens dimkant),
 // dag 4 hp 7 till 9. E4 dag 1 och 2 orörda. docs/balance-log.md 0.20.0 (riktningarna).
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"d96cbf0f","gnesta 2":"5f4a1c00","gnesta 3":"80c5a52c","gnesta 4":"e92cbac4","gnesta 5":"7f63db14","gnesta-norr 1":"51c1bd54","gnesta-norr 2":"e11d5c87","gnesta-norr 3":"121f1e3b","gnesta-norr 4":"7de0a2a9","gnesta-norr 5":"1acdea9f"};
+// 0.22.0 (H539, kampanjbågen): Hagstumosse har fyra dagar (Ishallen 1 till 3, Vikingavägen 1). Ishallen dag 3 och
+// Vikingavägen nya, avsiktligt: de första bjässarna nerför Norra vägen i dag 3:s sista våg, Next wave med bonus från dag 3,
+// Vikingavägen en dag från väst, syd och nord (gamla dag 5 utan kryparna, en grupp till västerifrån, hp 3,75) med
+// leveransen Ksp 58, Ksp 88 och pillboxen. Ishallen dag 4 och 5 och Vikingavägen dag 2 till 5 finns inte längre. E4 och
+// Ishallen dag 1 och 2 orörda. docs/balance-log.md 0.22.0.
+const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"d96cbf0f","gnesta 2":"5f4a1c00","gnesta 3":"c772668d","gnesta-norr 1":"795bf800"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

@@ -930,7 +930,9 @@ export const DAYS = [
   { n: 3, supplies: 500, startCash: 1300, hp: 2.7, bounty: 0.5, arsenal: ARSENAL[2], intro: { title: 'Day 3: The Home Guard', text: 'Hemvärnet arrives. From the east, and down Norra vägen from the north-east.' },
     waves: [ { groups: [g('runner', 5, 1.2, 0, 'east1', LEAD_RUN), g('walker', 18, 0.5, 3, 'east1'), g('walker', 16, 0.6, 4, 'east2')] },
              { groups: [g('walker', 26, 0.4, 0, 'east2'), g('runner', 34, 0.3, 4, 'east1')] },
-             { groups: [g('walker', 32, 0.35, 0, 'east2'), g('runner', 32, 0.25, 5, 'east1'), g('walker', 20, 0.4, 10, 'east2')] } ] },
+             // 0.22.0 (H539): de första bjässarna nerför Norra vägen i sista vågen (förut Ishallen dag 4)
+             { groups: [g('walker', 32, 0.35, 0, 'east2'), g('runner', 32, 0.25, 5, 'east1'), g('walker', 20, 0.4, 10, 'east2'),
+               { ...g('brute', 3, 3, 14, 'east2'), toast: 'Brutes down Norra vägen!' }] } ] },
 ];
 
 export const gnesta = {

@@ -231,9 +231,11 @@ test('förrådets uppgraderingar: bara för det man har, i ledningens takt', () 
   assert.equal(upgradeState(p, 'm249Rate').tier, 2, 'nivå II släppt till Vikingavägen');
   p = buyUpgrade(p, 'm249Rate').progress;
   assert.equal(upgradeState(p, 'm249Rate').reason, 'cap', 'nivå III väntar på ledningen');
-  // Mölnbo dag 1 släpper Psg 90 II (Psg 90 kommer dit)
+  // Mölnbo dag 1 släpper Ksp 58 III; Psg 90 II kommer med leveransen (0.22.0), III väntar på dag 2
   p = debugReach(p, 'molnbo', 1);
-  assert.equal(upgradeState(p, 'psg90').ok, true);
+  assert.equal(upgradeState(p, 'ksp58').ok, true);
+  assert.ok(p.research.includes('psg90.2'));
+  assert.equal(upgradeState(p, 'psg90').reason, 'cap');
   // inga uppgraderingar för typer man inte har: Ak 5 utan Ak 5
   const q = { ...p, op: { ...p.op, units: p.op.units.filter(u => u.type !== 'ak5') } };
   assert.equal(upgradeState(q, 'ak5').reason, 'locked');

@@ -783,7 +783,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .depot .cols section { height: 100%; overflow-y: auto; padding-right: 4px; }
 .depot .urow { position: relative; height: 86px; box-sizing: border-box; overflow: hidden; }
 /* 0.17.1 (layoutprovet med Mölnbos ankomst: "Level III 140 RP" klipptes i 1024 px): nivåknappen får mer av raden */
-.depot .ua { display: grid; grid-template-columns: 1.75fr 1fr 1fr; gap: 5px; }
+/* 0.22.0 (layoutprovet, Mölnbos ankomst med stupade frivilliga: "Refill 16 RP" klipptes): påfyllnaden får lite mer */
+.depot .ua { display: grid; grid-template-columns: 1.6fr 1.15fr 1fr; gap: 5px; }
 #ui .depot .mini, #ui .depot select { font: 500 13px Oswald, sans-serif; letter-spacing: 0.04em; }
 .depot .ua > .mini { min-width: 0; height: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; padding-left: 5px; padding-right: 5px; }
 .depot .urow > select { position: absolute; top: 7px; right: 9px; max-width: 42%; }

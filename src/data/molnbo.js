@@ -804,7 +804,9 @@ export const DAYS = [
              say('North of the tracks, along Norrängsvägen!', { groups: [g('walker', 18, 0.55, 0, 's1'), g('walker', 12, 0.6, 6, 's3'), g('runner', 6, 0.6, 14, 's1')] }),
              { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 16, 0.5, 4, 's3'), tell('Runners on väg 57!', g('runner', 10, 0.5, 16, 's1')), g('brute', 1, 4, 24, 's1')] } ] },
   // H451: en mindre grupp söderifrån. H452: pendeltåget rullar in i tredje vågen (förut dag 4).
-  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 20, overlap: 20, overlapMin: 0.3,
+  // 0.22.0 (H539, kampanjbågen): hp 20 till 15. Spelaren kommer från fyra dagar på Hagstumosse (förut tio) med färre
+  // veteraner och uppgraderingar; med 20 förlorade den som aldrig spärrar dag 2 i nästan alla försök (docs/balance-log.md 0.22.0).
+  { n: 2, intel: 'unknown', supplies: 600, arsenal: ALL, startCash: 2200, hp: 15, overlap: 20, overlapMin: 0.3,
     // 0.21.3 (H538, Ola: tre riktningar är konstigt när berättelsen är "norra sidan faller"): bara från Järnasidan, väg 57
     // och Norrängsvägen på norra sidan och längs spåret österifrån på södra. Andra fronten söder om spåret är ett hus vid
     // Trollvägen där smittade bryter ut (dormant).
@@ -824,7 +826,8 @@ export const DAYS = [
              // 0.21.3: bjässarna i tredje vågen från väg 57 (sist från Norrängsvägen gick de sex minuter och drog ut dagen)
              say('Infected breaking out by Trollvägen!', { groups: [g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),
              { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 22, 0.36, 6, 's2'), g('armored', 3, 2, 10, 's1'), g('runner', 18, 0.35, 16, 's1')] } ] },
-  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 27, overlap: 50, overlapMin: 0.4,
+  // 0.22.0 (H539): hp 27 till 25 med den mindre truppen från kampanjbågens Hagstumosse (docs/balance-log.md 0.22.0)
+  { n: 3, supplies: 600, arsenal: ALL, startCash: 2200, hp: 25, overlap: 50, overlapMin: 0.4,
     intro: { title: 'Day 3: Pull out', text: 'From Järna, all of them. Hold, then we pull out.' },
     objective: 'Hold Mölnbo, then pull out to Gnesta.',
     // på bron, söderut mot basen

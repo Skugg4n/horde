@@ -1,6 +1,6 @@
 // Skiva 1 (0.18.0) spelad huvudlöst: sex scener ur uppdraget, med en skärmbild var (docs/slice1-*.png) och inga fel i
 // konsolen. Spelet går med ?mute&debug&test och --mute-audio, i Chromium utan fönster.
-//   1 garrison    en grupp i ett hus på Hagstumosse (Vikingavägen dag 5)
+//   1 garrison    en grupp i ett hus (Mölnbo dag 1; 0.22.0, förut Vikingavägen dag 5)
 //   2 crossfire   korseldens zon med en Ksp 90 i handen (Ishallen dag 2)
 //   3 armored     pansrade mot småkaliber (Mölnbo dag 2)
 //   4 rout        en grupp frivilliga bryts av bjässar (Mölnbo dag 1)
@@ -66,9 +66,10 @@ const clearLessons = () => page.evaluate(() => { const H = window.__horde; for (
 
 const results = {};
 const scenes = {
-  // 1. En grupp i huset som ser mest av hordens väg på Vikingavägen dag 5, resten ut med balansens policy
+  // 1. En grupp i huset som ser mest av hordens väg, resten ut med balansens policy. 0.22.0 (H539): trupper i hus kommer
+  // Mölnbo dag 1 (förut Vikingavägen dag 5, som inte finns längre)
   async garrison() {
-    await day('gnesta-norr', 5);
+    await day('molnbo', 1);
     const r = await page.evaluate(async () => {
       const H = window.__horde, sim = H.sim, B = await import('./scripts/balance.mjs'), S = await import('./src/sim/sim.js');
       const type = ['inf', 'hv', 'civ'].find(t => sim.reserve.some(u => u.type === t));
@@ -234,12 +235,13 @@ const scenes = {
   },
   // 6. Tröttheten i förrådet (och rekvisitionens streck och skadeklasser)
   async fatigue() {
-    await day('gnesta-norr', 5);
+    // 0.22.0 (H539): tröttheten kommer före Mölnbo (förut efter Vikingavägen dag 3)
+    await day('molnbo', 1);
     const r = await page.evaluate(() => {
       const H = window.__horde, p = H.progress;
       const units = p.op.units.map((u, i) => ({ ...u, fatigue: i % 3 }));
-      H.setProgress({ ...p, rp: 900, op: { ...p.op, units, stock: { ...p.op.stock, gnesta: { ...(p.op.stock?.gnesta ?? {}), m2: 1, ksp58: 1 } } } });
-      H.showDepot('gnesta');
+      H.setProgress({ ...p, rp: 900, op: { ...p.op, units, stock: { ...p.op.stock, molnbo: { ...(p.op.stock?.molnbo ?? {}), m2: 1, ksp58: 1 } } } });
+      H.showDepot('molnbo');
       const rows = [...document.querySelectorAll('.depot [data-fat]')].map(n => n.textContent.trim());
       const bars = document.querySelectorAll('.depot .req .bars').length;
       return { ok: rows.length > 0, rows: rows.slice(0, 6), reqCardsWithBars: bars };

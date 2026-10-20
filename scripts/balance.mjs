@@ -933,13 +933,15 @@ const forceOf = (p, mapId) => {
 // Loggen har en rad per försök. stuck: dagen som aldrig vanns (kampanjen stannar där).
 // start: framsteget att börja från (standard: en ny kampanj); sectors: sektorerna som spelas.
 // 0.19.1: onSecond(sim, mapId, day, attempt) en gång per simulerad sekund (spårning i balansarbetet, inte i proven)
-export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8, sectors = SECTOR_ORDER, start = null, onSecond = null } = {}) {
+// 0.22.0: until { mapId, day }: stannar före dagen, med förrådets köp för den gjorda (truppen en spelare går in med)
+export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8, sectors = SECTOR_ORDER, start = null, onSecond = null, until = null } = {}) {
   let p = start ?? newCampaign();
   const log = [];
   for (const mapId of sectors) {
     p = selectMap(p, mapId);
     const days = MAPS[mapId].days.length;
     for (let day = mapState(p, mapId).unlockedDay; day <= days; day++) {
+      if (until && until.mapId === mapId && until.day === day) return { log, progress: requisitionPolicy(gatherUnits(p, mapId), mapId), stuck: null };
       let won = false;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         p = requisitionPolicy(gatherUnits(p, mapId), mapId);
@@ -1008,6 +1010,10 @@ export function molnboArrival(seedOffset = 0) {
 // Mölnbo från ankomsten. maxAttempts: försök per dag innan policyn ger upp.
 export function molnboCampaign(policy = 'mbSmart', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
   return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['molnbo'], start: molnboArrival(seedOffset), onSecond });
+}
+// 0.22.0: truppen kartläsaren går in i Mölnbo dag 3 med (src/data/arrival.js ARRIVAL_TROOP.molnbo.days, Quick jump)
+export function molnboDayTroop(day, policy = 'mbSmart', seedOffset = 0) {
+  return opCampaign(policy, { seedOffset, maxAttempts: 6, sectors: ['molnbo'], start: molnboArrival(seedOffset), until: { mapId: 'molnbo', day } }).progress;
 }
 export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
 export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
