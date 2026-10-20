@@ -1453,3 +1453,52 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-up i { grid-column: 2; grid-row: 1 / span 2; align-self: center; font: 600 14px 'IBM Plex Mono', monospace; font-style: normal; color: #8a3a20; white-space: nowrap; }
 .hub .tb-up.off i { color: #8a6a50; } .hub .tb-up.done { opacity: .7; cursor: default; } .hub .tb-up.done i { color: #5d6343; }
 .hub .tb-req .hint { position: absolute; left: 14px; right: 14px; bottom: 8px; font: italic 14px Oswald, sans-serif; color: #5a5040; }
+/* 0.21.7 (H544, H542): personalrullan på klämbrädan och förrådets blad. Inget rullar. */
+.hub .tb-roster, .hub .tb-stores { position: absolute; left: calc(var(--x) * 1px); top: calc(var(--y) * 1px); width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); transform: rotate(calc(var(--r, 0) * 1deg)); z-index: var(--z, 12); }
+.hub .tb-roster { border-radius: 6px; background: linear-gradient(170deg, #4a3f2e, #352d20); padding: 38px 30px 14px 14px; box-shadow: 0 2px 3px rgba(0,0,0,.45), 8px 18px 32px rgba(0,0,0,.55); }
+.hub .tb-roster .jaw { position: absolute; left: 50%; top: -8px; width: 120px; height: 36px; margin-left: -60px; border-radius: 5px 5px 10px 10px; background: linear-gradient(180deg, #a5a297, #5e5c55); box-shadow: 0 3px 4px rgba(0,0,0,.5); z-index: 3; }
+.hub .tb-roster .pg, .hub .tb-stores .pg { position: relative; height: 100%; overflow: hidden; background: linear-gradient(176deg, #e6dcc3, #d6caad); color: #221d16; padding: 12px 14px 10px; box-shadow: 0 1px 2px rgba(0,0,0,.3); z-index: 2; display: flex; flex-direction: column; }
+.hub .tb-under { position: absolute; left: calc(14px + var(--k) * 5px); right: calc(30px - var(--k) * 6px); top: calc(38px + var(--k) * 7px); bottom: calc(14px - var(--k) * 6px); background: #cdc1a3; box-shadow: 0 1px 2px rgba(0,0,0,.35); z-index: 1; }
+.hub .tb-stores .tb-under { left: calc(var(--k) * 6px); right: calc(var(--k) * -6px); top: calc(var(--k) * 6px); bottom: calc(var(--k) * -6px); }
+.hub .tb-roster .th { display: flex; justify-content: space-between; align-items: baseline; }
+.hub .tb-roster .th b { font: 21px 'Saira Stencil One', sans-serif; font-weight: 400; }
+.hub .tb-roster .rq { font: 600 13.75px Oswald, sans-serif; letter-spacing: .16em; color: #5a5040; white-space: nowrap; }
+.hub .tb-roster .rq i { font: 600 19px 'IBM Plex Mono', monospace; font-style: normal; color: #8a3a20; letter-spacing: 0; margin-left: 4px; }
+.hub .tb-roster .sub { font: 500 13.75px 'IBM Plex Mono', monospace; color: #4a4030; margin: 1px 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub .tb-row { display: flex; align-items: center; gap: 3px; height: 18.5px; border-bottom: 1px solid rgba(43,38,30,.22); font: 500 13.75px 'IBM Plex Mono', monospace; white-space: nowrap; }
+.hub .tb-row.hd { font: 600 13.75px Oswald, sans-serif; letter-spacing: .1em; color: #5a5040; border-bottom: 1.5px solid #221d16; height: 20px; }
+.hub .tb-row .bx { width: 26px; text-align: center; flex: none; letter-spacing: 0; }
+.hub .tb-row.hd .bx { width: 26px; font-size: 13.75px; letter-spacing: 0; }
+.hub .tb-row .un { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 600 14.5px Oswald, sans-serif; letter-spacing: .01em; }
+.hub .tb-row .ty { width: 84px; flex: none; color: #4a4030; overflow: hidden; font: 400 14px Oswald, sans-serif; }
+.hub .tb-row .mn { width: 30px; flex: none; text-align: right; }
+.hub .tb-row .sv { width: 62px; flex: none; font: 600 14px Oswald, sans-serif; }
+.hub .tb-row .sv .ok { color: #4e7a2a; } .hub .tb-row .sv .tired { color: #a5761c; } .hub .tb-row .sv .bad { color: #a8321e; } .hub .tb-row .sv .mv { color: #a5761c; font-style: italic; }
+.hub .tb-row .lvl { width: 28px; flex: none; color: #a5761c; font-size: 13.75px; letter-spacing: -.1em; }
+.hub .tb-row .pr { width: 74px; flex: none; text-align: right; color: #8a3a20; font-weight: 600; }
+.hub .tb-row.rel { height: 24px; } .hub .tb-row.rel.off { color: #7a705c; }
+#ui .hub .tb-box { width: 26px; height: 17px; flex: none; padding: 0; position: relative; background: none; border: 0; cursor: pointer; }
+#ui .hub .tb-box::before { content: ''; position: absolute; left: 6px; top: 2px; width: 12px; height: 12px; border: 1.3px solid #2b261e; }
+#ui .hub .tb-box i { position: absolute; left: 5px; top: -3px; font: 600 16px Oswald, sans-serif; color: #3b352c; font-style: normal; }
+#ui .hub .tb-box:hover::before { background: rgba(165,118,28,.18); }
+#ui .hub .tb-box.buy::before { border-color: #8a3a20; } #ui .hub .tb-box.buy:disabled { cursor: default; opacity: .45; }
+#ui .hub .tb-pm { width: 16px; flex: none; padding: 0; background: none; border: 0; color: #5a5040; font: 600 14px Oswald, sans-serif; cursor: pointer; }
+#ui .hub .tb-pm:hover { color: #8a3a20; }
+.hub .tb-roster .ft { display: flex; justify-content: space-between; margin-top: 6px; font: 600 14px Oswald, sans-serif; letter-spacing: .12em; color: #5a5040; }
+.hub .tb-roster .ft b { color: #8a3a20; }
+.hub .tb-roster .note { min-height: 18px; font: italic 14px Oswald, sans-serif; color: #8a3a20; margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hub .tb-roster .none { font: 400 15px Oswald, sans-serif; color: #4a4030; margin: 10px 0; }
+.hub .tb-roster .pg > .tb-btn.main { margin-top: auto; }
+.hub .tb-roster .tabs { position: absolute; right: 2px; top: 60px; display: flex; flex-direction: column; gap: 6px; z-index: 4; }
+#ui .hub .tb-tab { writing-mode: vertical-rl; font: 600 13.75px Oswald, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #2b261e; background: #d9cfb6; border: 0; border-radius: 0 3px 3px 0; padding: 10px 3px; cursor: pointer; box-shadow: 1px 1px 2px rgba(0,0,0,.35); }
+#ui .hub .tb-tab:hover { background: #efe6cf; }
+.hub .tb-stores .pg { padding: 12px 14px 10px; }
+.hub .tb-stores .h { font: 600 14px Oswald, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #5a5040; display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+.hub .tb-stores .h i { font-style: normal; color: #8a3a20; } .hub .tb-stores .h span { margin-left: auto; letter-spacing: .06em; }
+#ui .hub .tb-stores .tb-up { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; width: 100%; height: 62px; overflow: hidden; text-align: left; padding: 5px 2px; border: 0; border-top: 1px dotted rgba(43,38,30,.4); background: none; color: #221d16; cursor: pointer; font: inherit; }
+.hub .tb-stores .tb-up b { font: 600 14px 'IBM Plex Mono', monospace; white-space: nowrap; overflow: hidden; }
+.hub .tb-stores .tb-up span { grid-column: 1 / span 2; font: 400 14px/1.2 Oswald, sans-serif; color: #4a4030; }
+.hub .tb-stores .tb-up i { grid-column: 2; grid-row: 1; font: 600 14px 'IBM Plex Mono', monospace; font-style: normal; color: #8a3a20; white-space: nowrap; }
+#ui .hub .tb-dog { position: absolute; right: 0; bottom: 0; width: 120px; height: 34px; border: 0; padding: 0; cursor: pointer; background: linear-gradient(135deg, transparent 48%, #b9ad94 50%, #cfc3a6 100%); }
+#ui .hub .tb-dog span { position: absolute; right: 26px; bottom: 6px; font: italic 600 14px Oswald, sans-serif; color: #5a5040; }
+.hub .tb-roster .pg > *, .hub .tb-stores .pg > * { flex: none; }
