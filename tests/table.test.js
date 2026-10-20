@@ -35,9 +35,12 @@ test('dag 8: högar per uppdrag, fiendehögen, radion, korten och klämbrädan',
   // 0.21.1: bordet visar banans egen dag (samma som introt, HUD:en och menyn)
   assert.equal(s.next.n, 5);
   assert.equal(s.next.place, 'Ishallen');
-  for (const id of ['map', 'pile:riksvagen', 'pile:gnesta', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
+  for (const id of ['map', 'archive', 'pile:gnesta', 'enemies', 'clipboard', 'zones']) assert.ok(s.objects.includes(id), id);
   const e4 = s.piles.find(x => x.sector === 'riksvagen'), gn = s.piles.find(x => x.sector === 'gnesta');
   assert.equal(e4.closed, true);
+  // 0.21.3 (H530): en klar sektor ligger i arkivhögen i hörnet, inte som egen hög på kartan
+  assert.ok(!s.objects.includes('pile:riksvagen'));
+  assert.deepEqual(s.archive.tops.map(x => x.id), ['closed:riksvagen']);
   assert.equal(e4.sheets.at(-1).kind, 'closed');
   assert.equal(e4.sheets.at(-1).stamp, 'HELD');
   assert.equal(gn.current, true);

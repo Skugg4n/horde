@@ -1,4 +1,4 @@
-# Kartbordet: vad som byggdes (0.21.0 till 0.21.2, 2026-10-19)
+# Kartbordet: vad som byggdes (0.21.0 till 0.21.3, 2026-10-19 och 20)
 
 Efter mockupen docs/mockups/kontrollrum-3.html och mellansnack avsnitt 10 och 11. Skärmbilder: docs/hub-0.21-start.png (dag 1), docs/hub-0.21-day8.png (kampanjens dag 8 = Ishallen dag 5, efter en riktig dag 7 med Quick jump och Auto-deploy) och docs/hub-0.21-molnbo.png (mockupens läge, Mölnbo dag 1).
 
@@ -14,6 +14,7 @@ Efter mockupen docs/mockups/kontrollrum-3.html och mellansnack avsnitt 10 och 11
 - Fiendehögen: ett blad per mött typ (ENEMIES i src/data/lessons.js, siluetten från FOE_ICONS). Klick på en kant lägger bladet överst.
 - Korten: förrådets två banor (lanes, setLane) som två fält. Klick flyttar ett kort till andra fältet, dra till fältet eller släpp på ett kort i andra fältet för att byta (swapCards = två setLane). Taket, tomma grupper och skälen är förrådets. 0.21.1: korten överlappar inte; ryms de inte i en rad blir de mindre i två till fyra rader, alltid med namn, styrka och trötthet.
 - Requisition (R eller knappen) är förrådets skylt som en klämbräda över bordet; Esc går tillbaka till bordet, Enter ställer upp.
+- 0.21.3 (H530, H531): en aktuell lapp (nästa order rak, ljus, NEW-flik, fri); gårdagens blad gulnat under med rubrik och första rad; äldre bara gråa kanter; klara sektorer i en arkivhög i hörnet (objektet 'archive'); högst en läsbar lägesrapport; stämplarna inne i arket; remsan "Night n → Day n+1" på kartbladet.
 - 0.21.2: valet i Into battle/Reserve står kvar mellan dagarna (u.lane); efter en vunnen dag byts bara en utmattad i striden mot en mindre trött i reserven (u.moved, raden på kortet). Spelmenyn mellan dagarna heter Map table. Layouten görs om när fönstret ändras.
 - Tangenter: Enter Deploy, Esc lägger ihop en utbredd hög eller öppnar menyn, R Requisition, T Tidy.
 - Deploy på bordet startar dagen direkt. Första gången förrådet har ett steg som inte setts (nivåer, rekvisition, uppgraderingar, tröttheten) går Deploy via Requisition, så att lektionerna kommer där de hör hemma.

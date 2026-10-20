@@ -1255,7 +1255,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui .hub .tb-kbd { display: inline-block; margin-top: 14px; font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; background: rgba(255,250,235,.25);
   border: 1.5px solid #221d16; padding: 4px 9px 3px; border-radius: 2px; cursor: pointer; }
 #ui .hub .tb-kbd:hover { background: #221d16; color: #e4dac2; }
-.hub .tb-stamp { position: absolute; border: 3px double rgba(150,40,26,.78); color: rgba(150,40,26,.82); font-family: 'Saira Stencil One', sans-serif; padding: 4px 10px 3px; letter-spacing: .08em;
+.hub .tb-stamp { position: absolute; border: 2.5px double rgba(150,40,26,.78); color: rgba(150,40,26,.82); font-family: 'Saira Stencil One', sans-serif; font-size: 14px; padding: 2px 8px 1px; letter-spacing: .08em;
   text-align: center; line-height: 1.05; mix-blend-mode: multiply; pointer-events: none; }
 .hub .tb-stamp small { display: block; font: 600 13.75px 'IBM Plex Mono', monospace; letter-spacing: .14em; }
 .hub .tb-stamp.olive { border-color: rgba(70,80,40,.8); color: rgba(70,80,40,.85); }
@@ -1372,7 +1372,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.21.1 (speltestet av 0.21.0): förlorad dag, rapportens två översta rader, utbredd hög */
 .hub .tb-lost .txt b { font-weight: 700; }
 .hub .tb-lost .out { font: 500 14px/1.4 'IBM Plex Mono', monospace; margin-top: 6px; color: #4a3020; }
-.hub .tb-l2 { position: absolute; left: 44px; right: 16px; top: 46px; height: 52px; pointer-events: auto; }
+.hub .tb-l2 { position: absolute; left: 44px; right: 16px; top: 46px; height: 24px; pointer-events: auto; }
 .hub .tb-pile.spreadsrc { visibility: hidden; }
 .hub .tb-spread .tb-lined { height: auto !important; min-height: 150px; }
 .hub .tb-spreadhint { bottom: 30px; }
@@ -1390,3 +1390,11 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   #ui .sheet.depot.onclip .dgrid section, #ui .sheet.depot.onclip .dgrid .lcards { height: auto; max-height: none; overflow: visible; }
   #ui .sheet.depot.onclip .dgrid .roster, #ui .sheet.depot.onclip .lanes, #ui .sheet.depot.onclip .lane { overflow: visible; height: auto; max-height: none; }
 }
+/* 0.21.3 (Ola, H530 och H531): en aktuell lapp, det gamla träder tillbaka, stämplarna inne i pappret */
+.hub .tb-order.cur { background: linear-gradient(176deg, #f3ecda, #e6dcc2); box-shadow: 0 1px 1px rgba(0,0,0,.35), 0 4px 8px rgba(0,0,0,.3), 8px 18px 30px rgba(0,0,0,.45); }
+.hub .tb-order.stamped { padding-bottom: 48px; }
+.hub .tb-newtab { position: absolute; left: 18px; top: -15px; z-index: 2; background: #b5321e; color: #fbefe0; font: 600 13.75px 'IBM Plex Mono', monospace; letter-spacing: .12em; padding: 1px 9px 2px; border-radius: 3px 3px 0 0; }
+.hub .tb-paper.old { filter: sepia(.5) saturate(.85) brightness(.9); }
+.hub .tb-edge.old { filter: grayscale(.75) brightness(.78); }
+.hub .tb-archive .tb-paper { filter: grayscale(.55) brightness(.85); }
+.hub .tb-moment { position: absolute; top: 14px; right: 74px; z-index: 3; background: linear-gradient(176deg, #ebe2cc, #d8cdb2); color: #221d16; font: 600 calc(15px / var(--s, 1)) 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; padding: 4px 12px 3px; box-shadow: 0 1px 2px rgba(0,0,0,.4), 3px 6px 10px rgba(0,0,0,.35); white-space: nowrap; pointer-events: none; }

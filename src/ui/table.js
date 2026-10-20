@@ -97,7 +97,8 @@ export function mapSvg(state, sel) {
       if (nb.title) s += pen(lx + 2, ly + 22, nb.title.toLowerCase());
     }
   }
-  const sub = !nb ? 'SHEET 1' : nb.n <= 1 ? 'SHEET 1 · DAY 1' : `SHEET 1 · NIGHT ${nb.n - 1} TO DAY ${nb.n}`;
+  // 0.21.3: ögonblicket står en gång, på remsan överst på kartbladet (.tb-moment)
+  const sub = 'SHEET 1 · SÖDERMANLAND';
   return `<svg viewBox="0 0 ${MAP_W} ${MAP_H}" class="tb-mapsvg"><defs><filter id="tbrf"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="4"/><feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.38  0 0 0 0 0.28  0 0 0 0.35 -0.08"/></filter><pattern id="tbrelief" width="${MAP_W}" height="${MAP_H}" patternUnits="userSpaceOnUse"><rect width="${MAP_W}" height="${MAP_H}" filter="url(#tbrf)"/></pattern></defs>${s}<text x="26" y="44" class="ttl">Operation Södermanland</text><text x="27" y="60" class="sub">${sub}</text></svg>`;
 }
 // Gnesta-inzoomningen (ritfilm, mockupens .sheet.overlay) byggs senare. Kroken: returnera ett ark här när det finns
@@ -111,7 +112,7 @@ const orderHtml = (o, { deploy = false, stamp = false, top = true } = {}) => `
   <div class="txt" data-read>${esc(o.text)}</div>
   ${o.sig ? `<div class="sig">${esc(o.sig)}</div>` : ''}
   ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${o.n} · ENTER</button>` : ''}
-  ${stamp ? `<div class="tb-stamp" style="right:10px;bottom:-12px;transform:rotate(-7deg);font-size:15px">RECEIVED<small>GNESTA</small></div>` : ''}`;
+  ${stamp ? `<div class="tb-stamp" style="right:12px;bottom:10px;transform:rotate(-3deg)">RECEIVED</div>` : ''}`;
 // top: bladet ligger överst (texten ska gå att läsa); under ett annat blad räcker rubriken
 const reportHtml = (r, top = true) => `${top ? '' : '<div class="tb-l2" data-read aria-hidden="true"></div>'}
   <div class="h"${top ? '' : ' data-read'}>Situation · night ${r.n}</div>
@@ -120,45 +121,57 @@ const reportHtml = (r, top = true) => `${top ? '' : '<div class="tb-l2" data-rea
 const closedHtml = c => `
   <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} DAYS</span></div>
   <div class="txt" data-read>${esc(c.text)}</div>
-  <div class="tb-stamp olive" style="right:12px;bottom:6px;transform:rotate(-5deg);font-size:14px">${esc(c.stamp)}</div>`;
+  <div class="tb-stamp olive" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(c.stamp)}</div>`;
 // Bara rubrikraden syns (ett blad under ett annat)
 const edgeHead = sh => sh.kind === 'order' ? `<span>ORDER ${two(sh.n)}</span>`
   : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span>` : sh.kind === 'lost' ? `<span>DAY ${sh.n} · LOST</span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')} · HELD</span>`;
 // 0.21.1 (speltestet, fynd 5): en förlorad dag
-const lostHtml = (l, deploy) => `
+const lostHtml = (l, deploy, top = true) => `
   <div class="hd"><span>DAY ${l.n}</span><span>LOST</span></div>
   <div class="txt" data-read><b>${esc(l.lead)}</b> ${esc(l.text)}</div>
-  <div class="out" data-read>${esc(l.outcome)}</div>
+  <div class="out"${top ? ' data-read' : ''}>${esc(l.outcome)}</div>
   ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${l.n} · ENTER</button>` : ''}
-  <div class="tb-stamp" style="right:12px;bottom:8px;transform:rotate(-6deg);font-size:15px">${esc(l.stamp)}</div>`;
-function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, top = true }) {
-  const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`;
-  if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
-  if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order${top ? '' : ' under'}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${orderHtml(sh, { deploy, stamp, top })}<div class="tb-clip" data-clip></div></div>`;
-  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh, top)}</div>`;
-  if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy)}</div>`;
-  return `<div class="tb-obj tb-paper tb-report" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:34px">${closedHtml(sh)}</div>`;
+  <div class="tb-stamp" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(l.stamp)}</div>`;
+function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, top = true, old = false, current = false }) {
+  const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`, age = `${old ? ' old' : ''}${current ? ' cur' : ''}`;
+  if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
+  if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order${top ? '' : ' under'}${age}${stamp ? ' stamped' : ''}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${current ? '<span class="tb-newtab">NEW</span>' : ''}${orderHtml(sh, { deploy, stamp, top })}<div class="tb-clip" data-clip></div></div>`;
+  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh, top)}</div>`;
+  if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy, top)}</div>`;
+  return `<div class="tb-obj tb-paper tb-report${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:40px">${closedHtml(sh)}</div>`;
 }
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
 function pileHtml(pl, place, { deploy, spreadSrc = false }) {
-  const sh = pl.sheets, n = sh.length, top = sh[n - 1], under = sh[n - 2];
-  const rot = k => [-1.8, 1.6, -3, 2.2, -1.2][k % 5], edge = k => [-0.7, 0.5, -0.4][k % 3];
+  const edge = k => [-0.7, 0.5, -0.4][k % 3];
   let html = '';
-  // 0.21.1 (speltestet, fynd 6: ordern täckte rapportens andra rad): bladet ovanpå ligger så långt ned att de två
-  // översta raderna på bladet under går att läsa
-  if (pl.current && (under?.kind === 'report' || under?.kind === 'order')) {
-    const older = sh.slice(Math.max(0, n - 4), n - 2);
-    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false }); });
-    html += sheetHtml(under, { x: 0, y: 0, r: -1.8, z: 5, full: true, top: false });
-    html += sheetHtml(top, { x: 34, y: under.kind === 'report' ? 128 : 176, r: 1.6, z: 6, full: true, deploy, stamp: !deploy && top.kind === 'order' });
+  if (pl.current) {
+    // 0.21.3 (Ola: "rörigt vad som är aktuellt och gammalt", H530): EN aktuell lapp. Nästa order ligger överst, rak och
+    // ljus med en röd NEW-flik, och inget ligger över den. Gårdagens rapport (eller den förlorade dagen) ligger gulnad och
+    // sned under, bara rubriken och första raden syns. Äldre än två nätter: bara kanter, gråa.
+    const ti = pl.sheets.map(x => x.kind).lastIndexOf('order'), top = pl.sheets[ti];
+    const rest = pl.sheets.filter((_, i) => i !== ti), last = rest.at(-1);
+    const under = last && (last.kind === 'report' || last.kind === 'lost') ? last : null;
+    const older = rest.slice(0, under ? -1 : undefined).slice(-2);
+    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false, old: true }); });
+    if (under) html += sheetHtml(under, { x: 0, y: 0, r: -2.5, z: 5, full: true, top: false, old: true });
+    html += sheetHtml(top, { x: under ? 24 : 0, y: under ? (under.kind === 'report' ? 92 : 80) : 0, r: 0, z: 6, full: true, deploy, stamp: !deploy, current: true });
   } else {
+    const sh = pl.sheets, n = sh.length, top = sh[n - 1];
     const older = sh.slice(Math.max(0, n - 3), n - 1);
-    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: 14 + 6 * (d - 1), y: -36 * d, r: edge(k), z: k + 1, full: false }); });
-    html += sheetHtml(top, { x: 0, y: 0, r: pl.closed ? 1 : 2.2, z: 6, full: true, deploy });
+    older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: 14 + 6 * (d - 1), y: -36 * d, r: edge(k), z: k + 1, full: false, old: true }); });
+    html += sheetHtml(top, { x: 0, y: 0, r: 1.2, z: 6, full: true, deploy, old: true });
   }
-  const more = n > 4 ? `<span class="tb-more">${n} sheets</span>` : '';
-  return `<div class="tb-pile${pl.current ? ' current' : ''}${pl.closed ? ' closed' : ''}${spreadSrc ? ' spreadsrc' : ''}" data-obj="${pl.id}" data-sector="${pl.sector}" style="--x:${place.x};--y:${place.y};--z:${pl.current ? 12 : 9}" title="Click to spread">${html}${more}</div>`;
+  return `<div class="tb-pile${pl.current ? ' current' : ''}${spreadSrc ? ' spreadsrc' : ''}" data-obj="${pl.id}" data-sector="${pl.sector}" style="--x:${place.x};--y:${place.y};--z:${pl.current ? 20 : 9}" title="Click to spread">${html}</div>`;
+}
+// 0.21.3 (H530): klara sektorer i en arkivhög i hörnet. Det senast klara slutbladet (HELD) överst, de andra som kanter.
+// Hela historien breds ut vid klick.
+function archiveHtml(ar, place, spreadSrc) {
+  const tops = ar.tops, n = tops.length;
+  let html = '';
+  tops.slice(0, -1).slice(-3).forEach((o, k, a) => { const d = a.length - k; html += sheetHtml(o, { x: 6 * d, y: -36 * d, r: [-0.6, 0.5, -0.4][k % 3], z: k + 1, full: false, old: true, w: 214 }); });
+  html += sheetHtml(tops[n - 1], { x: 0, y: 0, r: -0.8, z: 6, full: true, old: true, w: 220 });
+  return `<div class="tb-pile tb-archive${spreadSrc ? ' spreadsrc' : ''}" data-obj="archive" style="--x:${place.x};--y:${place.y};--z:8" title="Archive. Click to spread">${html}</div>`;
 }
 // Utbredd hög: bladen i rader över bordet, nyast först (högst åtta)
 function spreadHtml(pl, fr) {
@@ -188,7 +201,7 @@ function radioHtml(strips, order, place) {
 }
 
 // ---------- fiendehögen ----------
-function enemyHtml(pile, order, intel, place) {
+function enemyHtml(pile, order, intel, place, fr) {
   const list = order.map(id => pile.sheets.find(s => s.id === id)).filter(Boolean);
   const n = list.length, H = 196, STEP = 30;
   const html = list.map((e, k) => {
@@ -200,7 +213,11 @@ function enemyHtml(pile, order, intel, place) {
       <div class="stats"${intel ? '' : ' data-read'}>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
   }).join('');
   const topY = (n - 1) * STEP + 2 + H;
-  const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:30;--y:${topY - 58};--w:206;--r:-3;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
+  // lappen ligger på fiendebladets nedre del; räcker inte höjden (litet fönster, många fiender) läggs den på bordet
+  // ovanför korten, till vänster om klämbrädan, så att klämbrädans rubrik syns
+  const low = fr && place.y + topY - 58 + 150 > fr.clipY + 36;
+  const nx = low ? Math.round(fr.clipX - 226 - place.x) : 30, ny = low ? Math.round(fr.zoneY - 158 - place.y) : topY - 58;
+  const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:${nx};--y:${ny};--w:206;--r:-3;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
   return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:14">${html}${note}</div>`;
 }
 
@@ -301,13 +318,16 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     let html = `<div class="tb-obj tb-paper tb-map" data-obj="map" style="--x:${mp.x};--y:${mp.y};--w:880;--h:600;--r:${mp.r};--s:${fr.mapS.toFixed(3)};--z:${zOf.map ?? 2}">
       ${mapSvg(state, sel)}<div class="crease v"></div><div class="crease h"></div>
       <div class="marg l">LANTMÄTERIET · 1:250 000 · SÖDERMANLAND</div><div class="marg r">${state.next && state.next.n > 1 ? `CORRECTED NIGHT ${state.next.n - 1}` : 'FIRST ISSUE'}</div>
+      ${state.next ? `<div class="tb-moment" data-read>${state.next.n > 1 ? `Night ${state.next.n - 1} → Day ${state.next.n}` : `Day ${state.next.n}`}</div>` : ''}
       ${pinMarks(state)}</div>${insetSheet()}`;
     for (const pl of state.piles) {
+      if (pl.closed) continue;
       const pp = place(pl.id);
       html += pileHtml(pl, pp, { deploy: deployOnNote && pl.current, spreadSrc: spread === pl.id });
     }
+    if (state.archive) html += archiveHtml(state.archive, place('archive'), spread === 'archive');
     if (state.radio.length) html += radioHtml(state.radio, radioOrder, place('radio'));
-    if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'));
+    if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), state.clipboard ? fr : null);
     if (state.clipboard) html += clipboardHtml(state.clipboard, place('clipboard'));
     if (state.zones) html += zonesHtml(state.zones, laneNote, fr, !!state.clipboard);
     const moved = Object.keys(tableOf(p).layout).length > 0;
@@ -315,7 +335,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     html += state.zones ? `<div class="tb-pencil" style="left:40px;top:${Math.round(fr.zoneY - 30)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
       : `<div class="tb-pencil" style="left:1030px;top:780px;width:170px;transform:rotate(-14deg)"><i></i></div>`;
     if (moved) html += `<button type="button" class="tb-tidy" data-a="tidy">Tidy the table <kbd>T</kbd></button>`;
-    if (spread) { const pl = state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl, fr); else spread = null; }
+    if (spread) { const pl = spread === 'archive' ? state.archive : state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl, fr); else spread = null; }
     html += '<svg class="tb-strings"></svg>';
     view.innerHTML = html;
     view.dataset.objects = state.objects.join(' ');
@@ -431,7 +451,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     }
     if (d.id === 'enemies') { const s = d.target.closest('[data-enemy]'); if (s && !s.classList.contains('top')) { enemyOrder = bringToTop(enemyOrder.map(id => ({ id })), s.dataset.enemy).map(x => x.id); render(); } return; }
     if (d.id === 'radio') { const s = d.target.closest('[data-strip]'); if (s) { radioOrder = bringToTop(radioOrder.map(id => ({ id })), s.dataset.strip).map(x => x.id); render(); } return; }
-    if (d.id.startsWith('pile:')) toggleSpread(d.id);
+    if (d.id.startsWith('pile:') || d.id === 'archive') toggleSpread(d.id);
   });
   view.addEventListener('pointercancel', () => { drag = null; render(); });
   // 0.21.2 (speltestet av 0.21.1, fynd 1: Deploy utanför bild efter att fönstret krympts): ny layout när fönstret

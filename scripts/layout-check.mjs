@@ -199,6 +199,26 @@ function auditTableExtra(scope) {
   }
   for (const x of [...small].slice(0, 6)) out.push(`${scope}: text under 11 px: ${x}`);
   for (const n of hub.querySelectorAll('[data-name]')) if (n.scrollWidth > n.clientWidth + 1) out.push(`${scope}: kortets namn klipps: "${n.textContent}"`);
+  // 0.21.3 (H531): stämplarna ligger inne i sitt papper (i arkets eget plan, med marginal)
+  for (const st of hub.querySelectorAll('.tb-stamp')) {
+    const sh = st.closest('[data-sheet]');
+    if (!sh || !st.getClientRects().length) continue;
+    if (st.offsetLeft < 2 || st.offsetTop < 2 || st.offsetLeft + st.offsetWidth > sh.clientWidth - 2 || st.offsetTop + st.offsetHeight > sh.clientHeight - 2)
+      out.push(`${scope}: stämpeln "${st.textContent.trim()}" går utanför ${sh.dataset.sheet}`);
+  }
+  // 0.21.3 (H530): den aktuella lappen ligger fri (inget föremål över den), och högst en lägesrapport går att läsa
+  const cur = hub.querySelector('.tb-order.cur');
+  if (cur && !hub.querySelector('.tb-spread')) {
+    const r = cur.getBoundingClientRect();
+    let bad = 0;
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) {
+      const x = r.left + 6 + (r.width - 12) * (i + 0.5) / 8, y = r.top + 6 + (r.height - 12) * (j + 0.5) / 6;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && !cur.contains(hit) && !hit.closest('#debugbtn, #coach')) bad++;
+    }
+    if (bad) out.push(`${scope}: något ligger över den aktuella ordern (${bad} av 48 punkter)`);
+  }
+  if (!hub.querySelector('.tb-spread') && hub.querySelectorAll('.tb-lined .txt[data-read]').length > 1) out.push(`${scope}: mer än en läsbar lägesrapport`);
   const cb = hub.querySelector('.tb-clipboard');
   if (cb) {
     const r = cb.getBoundingClientRect();
@@ -227,6 +247,10 @@ async function tableChecks(page, label) {
   const show = async (setup, scope, { lessons = false } = {}) => {
     await ev(setup); if (!lessons) await ev(seen);
     await ev(`window.__horde.showTable()`); await page.mouse.move(2, 200);
+    // H529: vänta på bordets första ritning i stället för en fast tid
+    await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {});
+    // ritade något annat över (första laddningen i ett nytt fönster): en gång till
+    if (!(await ev(`!!document.querySelector('#hub .tb-map')`))) { await page.waitForTimeout(1500); await ev(`window.__horde.showTable()`); await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {}); }
     await run(scope);
   };
   await show(reach(null), 'table-day1');
