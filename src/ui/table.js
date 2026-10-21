@@ -17,7 +17,7 @@
 import { MAPS } from '../data/maps.js';
 import { SECTORS } from '../data/depot.js';
 import { TABLE_W, TABLE_H, MAP_W, MAP_H, gx, gy, PLACES, SEA, MALAREN, LAKES, ISLANDS, ROADS, RAILS, TOWNS, SECTOR_TABLE } from '../data/table.js';
-import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor, cardSlots, releasedCards, storeList } from '../meta/table.js';
+import { tableState, placeOf, moveObject, tidy, tableOf, bringToTop, closedSheet, frameFor, cardSlots, releasedCards, storeList, spendNudge } from '../meta/table.js';
 import { unitOf, levelCost, refillCost, returnValue, canReturn, unitName } from '../meta/operation.js';
 import { metaFeatures } from '../meta/unlocks.js';
 import { ROMAN } from '../data/research.js';
@@ -252,7 +252,7 @@ function rowHtml(c, wide, pencil) {
     <span class="lvl" title="Level ${c.level}${c.vet ? ', veteran' : ''}">${stars}</span>${pencil ? `<button type="button" class="tb-pm" data-pm data-a="lvl" data-uid="${c.uid}" aria-label="Train, refill or return" title="Train, refill or return">✎</button>` : ''}</div>`;
 }
 // pages: rullans blad (20 rader var) och bladet med släppta enheter; page: det som ligger överst
-function rosterHtml(state, place, fr, { page, note, cm }) {
+function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   const z = state.zones, nb = state.next, p = state._p;
   const wide = fr.rosterW >= 470, pencil = true;
   const rows = rosterOrder(rosterRows(z));
@@ -276,7 +276,8 @@ function rosterHtml(state, place, fr, { page, note, cm }) {
   const under = sheets.length > 1 ? sheets.map((_, k) => (k === top ? '' : `<div class="tb-under" style="--k:${Math.min(2, k + 1)}"></div>`)).join('') : '';
   return `<div class="tb-obj tb-roster" data-obj="clipboard" style="--x:${place.x};--y:${place.y};--w:${fr.rosterW};--h:${fr.rosterH};--r:0.6;--z:45"><div class="jaw"></div>
     ${under}<div class="pg ${cur.kind}">${head}${cur.kind === 'roster' ? foot : `<div class="note" data-read>${esc(note ?? '')}</div>`}
-      ${nb ? `<button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy day ${nb.n}</span><kbd>Enter</kbd></button>` : ''}</div>
+      ${nudge ? `<div class="tb-nudge" data-read><p>You have ${nudge.rp} RP. Spend it?</p><button type="button" class="tb-btn" data-a="spend">Open requisition</button><button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy anyway</span><kbd>Enter</kbd></button></div>`
+        : nb ? `<button type="button" class="tb-btn main" data-a="go" data-read><span class="one">Deploy day ${nb.n}</span><kbd>Enter</kbd></button>` : ''}</div>
     <div class="tabs">${tabs}</div></div>`;
 }
 // Förrådet: två (eller fler) blad med hundöra, så många rader som ryms, inget rullar
@@ -318,6 +319,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   root.appendChild(el);
   const view = el.querySelector('.tb-view');
   let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20, page = 0, storeSheet = 0, cmenu = null, confirmReturn = null;
+  // 0.22.1: påminnelsen om osparade RP (en gång per gång bordet visas)
+  let nudge = null, nudged = false;
   const zOf = {};
   // ---------- skalan: designrummet till fönstret ----------
   // 0.21.1: bordets yta följer fönstret (src/meta/table.js frameFor): skalan minst MIN_SCALE, ytan W x H
@@ -358,7 +361,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), null);
     // 0.21.7: personalrullan på klämbrädan och förrådets blad (H544, H542)
     const rosterOn = !!(state.clipboard && state.zones);
-    if (rosterOn) html += rosterHtml(state, place('clipboard'), fr, { page, note: laneNote?.text ?? movedNote(state.zones) });
+    if (rosterOn) html += rosterHtml(state, place('clipboard'), fr, { page, note: laneNote?.text ?? movedNote(state.zones), nudge });
     const ups = rosterOn ? storeList(p) : [];
     if (ups.length) html += storesHtml(ups, p.rp, fr, storeSheet);
     const moved = Object.keys(tableOf(p).layout).length > 0;
@@ -373,6 +376,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     view.classList.toggle('briefing', state.briefing);
     // rullan ligger på bordet: roten får .roster (förrådets lektioner pekar också på .hub.roster [data-a="lvl"], [data-req], [data-up], [data-fat])
     el.classList.toggle('roster', rosterOn);
+    view.querySelector('.tb-roster')?.classList.toggle('lifted', !!nudge);
     // z-ordningen: senast flyttade överst
     for (const [id, z] of Object.entries(zOf)) { const o = view.querySelector(`[data-obj="${id}"]`); if (o) o.style.setProperty('--z', z); }
     // kortets meny (⋯) intill kortet
@@ -418,7 +422,14 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
 
   // ---------- handlingar ----------
   const save = q => { p = q; handlers.save?.(p); };
-  function go() { const nb = tableState(p, { sector: sel }).next; if (nb) handlers.onGo?.(nb.sector); }
+  // 0.22.1 (speltestet av 0.22.0, fynd 5): räcker RP till något när spelaren trycker Deploy lyfts klämbrädan en gång
+  // med en rad och två val, Deploy anyway och Open requisition
+  function go() {
+    const st = tableState(p, { sector: sel }), nb = st.next;
+    if (!nb) return;
+    if (!nudged && st.clipboard && st.zones) { const n = spendNudge(p, st.zones.sector); if (n) { nudged = true; nudge = n; render(); return; } }
+    nudge = null; handlers.onGo?.(nb.sector);
+  }
   // R: bladet med släppta enheter överst (eller tillbaka till rullan)
   function requisition(on = null) {
     const st = tableState(p, { sector: sel });
@@ -465,6 +476,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
       confirmReturn = null; render();
     });
     for (const b of view.querySelectorAll('[data-a="go"]')) b.addEventListener('click', e => { e.stopPropagation(); go(); });
+    view.querySelector('[data-a="spend"]')?.addEventListener('click', e => { e.stopPropagation(); nudge = null; page = 0; laneNote = { lane: 'rest', text: 'Train units with ✎, or buy in Stores.' }; render(); });
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
     view.querySelector('.tb-spread')?.addEventListener('click', () => { spread = null; render(); });
   }
@@ -525,7 +537,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     selected: () => sel,
     progress: () => p,
     // Esc: en utbredd hög läggs ihop; annars false (spelmenyn öppnas)
-    escape: () => { if (cmenu != null) { cmenu = null; render(); return true; } if (page) { page = 0; laneNote = null; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
+    escape: () => { if (nudge) { nudge = null; render(); return true; } if (cmenu != null) { cmenu = null; render(); return true; } if (page) { page = 0; laneNote = null; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
     // förrådets lektioner (main.js lessonCond 'depot'): rullan ligger på bordet
     lifted: () => el.classList.contains('roster'),
     page: () => page,

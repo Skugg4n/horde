@@ -36,3 +36,30 @@ test('kampanjens dag för framsteget: banan som spelas och dess nästa dag; bord
   assert.equal(s.next.n, campaignDayOf('gnesta', 3));
   assert.equal(tableState(debugReach(newCampaign(), 'gnesta-norr', 1)).next.n, 7);
 });
+
+// 0.22.1 (speltestet av 0.22.0, fynd 1: resultatrutan sa "Day 1 held." under DAY 04): ett dagnummer, en källa
+import { shownDay } from '../src/meta/campaign-day.js';
+import { readFileSync } from 'node:fs';
+test('dagnumret spelaren ser: kampanjens dag överallt, banans dag bara utanför kampanjen', () => {
+  assert.equal(shownDay('gnesta', 1), 4);
+  assert.equal(shownDay('gnesta-norr', 1), 7);
+  assert.equal(shownDay('molnbo', 1), 8);
+  assert.equal(shownDay('ingen-bana', 3), 3);
+  assert.equal(tableDay('gnesta', 3), shownDay('gnesta', 3));
+  // resultatet, introt, HUD:en och menyn får dagen ur shownDay (ingen banans dag i main.js resultat)
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /dayResultPanel\(uiRoot, \{ \.\.\.lastResult, day: shownDay\(/);
+  assert.match(main, /day: \(\) => shownDay\(map\.id, day\)/);
+  assert.match(readFileSync(new URL('../src/ui/hud.js', import.meta.url), 'utf8'), /shownDay\(sim\.map\.id, sim\.day\)/);
+});
+
+// 0.22.1 (fynd 5): påminnelsen om osparade RP när Deploy trycks
+import { spendNudge } from '../src/meta/table.js';
+test('påminnelsen om RP: bara när RP räcker till det billigaste i förrådet', () => {
+  const p = debugReach(newCampaign(), 'gnesta-norr', 1);
+  assert.equal(spendNudge({ ...p, rp: 0 }, 'gnesta'), null);
+  const n = spendNudge({ ...p, rp: 2000 }, 'gnesta');
+  assert.ok(n && n.rp === 2000 && n.cheapest > 0 && n.cheapest <= 2000);
+  assert.equal(spendNudge({ ...p, rp: n.cheapest - 1 }, 'gnesta'), null);
+  assert.equal(spendNudge({ ...newCampaign(), rp: 5000 }, 'riksvagen'), null, 'före förrådet ingen påminnelse');
+});

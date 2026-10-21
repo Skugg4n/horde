@@ -1344,3 +1344,11 @@ Kampanjplanen avsnitt 10: Björnlunda är kampanjens dag 11 (försvar från väs
 Dagarna är långa (åtta till nio minuter); provet tillåter tio. Kortare vägar kräver en mindre spelyta (förhandsvisningens CRISP) och ingick inte.
 
 Fingeravtrycken: blSkilled 0f487cd8, a685d10a; blNormal b01f7c53, dcfb02cd. Quick jump-truppen (src/data/arrival.js ARRIVAL_TROOP.bjornlunda, dag 2 `bjornlundaDayTroop`). Mölnbos fingeravtryck är oförändrade.
+## 0.22.1: förnödenheterna dag 7 och 8 (speltestet av 0.22.0, fynd 5)
+
+Testaren hade 2 412 och 2 537 $ över på Vikingavägen. Förnödenheterna per dödad: Vikingavägen bounty 0,25 (var 1), Mölnbo dag 1 bounty 0,5 (var 1).
+
+    Vikingavägen  skilled 374 till 382 $ över (var 2 102), normal 537 till 622 (var 2 367); utfallen oförändrade (seed 0 till 2)
+    Mölnbo dag 1  mbSmart 99 $ över (var 107), mbNaive 469 (var 717); utfallen oförändrade
+
+Fingeravtrycken: Hagstumosse oförändrade (överskottet räknas inte in). mbSmart nya avsiktligt: 5dfecc8d, d825f47f, 6b02e86f (samma baser och försök, sekunder skiljer). mbNaive oförändrade.

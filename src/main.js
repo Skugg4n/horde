@@ -23,7 +23,7 @@ import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
 import { recordDay, recordLoss, swapCards, campaignDay, placeShort, nextBattle as tableNext, moveCardTo, clickCard, buyCard } from './meta/table.js';
-import { campaignDayOf } from './meta/campaign-day.js';
+import { campaignDayOf, shownDay } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -97,6 +97,8 @@ uiRoot.dataset.mode = 'menu';   // tills första banan är laddad: ingen HUD
 // (renderer.compileAsync), så att sidan inte fryser och första bildrutan inte hackar.
 // Mätt 0.6.0 (docs/balance-log.md, Laddning): kartans CPU-del är under 0,15 s; nästan hela
 // väntan var GPU:ns första bildruta (shaderprogram), som med mjukvaru-GL tar 20-30 s.
+// 0.22.1: undanlagda lappar (Esc mellan dagarna), se deferLesson
+let deferred = { mode: null, ids: new Set() };
 let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null, marks = null;
 let day = 1, sim = null;
 const worlds = new Map();
@@ -1778,6 +1780,17 @@ const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`
 // kandidaterna). Ingången själv om den syns, annars där vägen kommer in i bild. Syns vägen inte alls:
 // vid kanten på linjen från mitten mot ingången. Under vågen bara för ingångar vars zombier inte
 // syns än, och för den som nästa grupp kommer från.
+// 0.22.1 (speltestet av 0.22.0, fynd 4: skylten följde skärmkanten och hamnade på rondellen bland enheterna): skylten
+// har en fast plats i världen, ENTRY_AT meter före basen längs vägen (eller där vägen kommer in i den skarpa ytan om det
+// är närmare), och står på den biten (ENTRY_SPAN meter). Syns inte den biten står skylten vid skärmkanten och pekar dit
+// (reserven i hud.js), aldrig någon annanstans längs vägen.
+const ENTRY_AT = 100, ENTRY_SPAN = 30;
+function entryCells(cells) {
+  const c = sim.map.surroundings?.crisp, size = sim.route.grid.size;
+  let i0 = Math.max(0, cells.length - 1 - Math.round(ENTRY_AT / size));
+  if (c) { const k = cells.findIndex(q => { const p = sim.route.cellCenter(q); return p.x > c.x0 + 2 && p.x < c.x1 - 2 && p.z > c.z0 + 2 && p.z < c.z1 - 2; }); if (k > i0) i0 = k; }
+  return cells.slice(0, i0 + Math.round(ENTRY_SPAN / size) + 1).map((q, i) => (i < i0 ? null : q));
+}
 function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
@@ -1789,11 +1802,12 @@ function gridEntries() {
     const isNext = id === next;
     // 0.16.4: en förvarnad ingång säger när den kommer ("From wave 2"), före och under vågorna innan dess
     if (later.has(id) && !(sim.phase === 'build' && later.get(id) === sim.wavesStarted + 1)) {
-      const cellsF = sim.route.paths([id])[0]?.cells ?? [], candsF = [];
+      const pathF = sim.route.paths([id])[0]?.cells ?? [], cellsF = entryCells(pathF), candsF = [];
       for (let i = 0; i < cellsF.length && candsF.length < 48; i += 2) {
+        if (cellsF[i] == null) continue;
         const c = sim.route.cellCenter(cellsF[i]), q = onScreen(c.x, c.z, 0);
         if (!q.in) continue;
-        const t = sim.route.cellCenter(cellsF[Math.min(i + 3, cellsF.length - 1)]), u = onScreen(t.x, t.z);
+        const t = sim.route.cellCenter(pathF[Math.min(i + 3, pathF.length - 1)]), u = onScreen(t.x, t.z);
         candsF.push({ x: q.sx, y: q.sy, angle: Math.atan2(u.sy - q.sy, u.sx - q.sx) + Math.PI });
       }
       const spF = sim.route.spawns.find(q => q.id === id), sF = onScreen(spF.x, spF.z, EDGE);
@@ -1812,12 +1826,13 @@ function gridEntries() {
     const lines = counts.length ? counts.map(countText) : ['Horde incoming'];
     // 0.16.2: under vågen är talen det som ännu inte kommit härifrån, och det står (vågens rad säger hela vågen)
     if (wave && counts.length) lines[lines.length - 1] += ' to come';
-    const cells = sim.route.paths([id])[0]?.cells ?? [];
+    const path = sim.route.paths([id])[0]?.cells ?? [], cells = entryCells(path);
     const cands = [];
     for (let i = 0; i < cells.length && cands.length < 48; i += 2) {
+      if (cells[i] == null) continue;
       const c = sim.route.cellCenter(cells[i]), s = onScreen(c.x, c.z, 0);
       if (!s.in) continue;
-      const t = sim.route.cellCenter(cells[Math.min(i + 3, cells.length - 1)]), u = onScreen(t.x, t.z);
+      const t = sim.route.cellCenter(path[Math.min(i + 3, path.length - 1)]), u = onScreen(t.x, t.z);
       cands.push({ x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI });
     }
     const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
@@ -1942,6 +1957,9 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     e.preventDefault();
     // 0.21.0: på kartbordet lägger Esc ihop en utbredd hög, annars öppnas spelmenyn
+    // 0.22.1 (speltestet av 0.22.0, fynd 2): en lapp mellan dagarna läggs undan med Esc men räknas inte som sedd; den
+    // kommer tillbaka nästa gång skylten eller bordet visas
+    if (mode !== 'play' && lesson?.step.kind === 'show' && !menu.isOpen()) { if (!e.repeat) deferLesson(); return; }
     if (mode === 'opmap' && sheet?.escape && !menu.isOpen()) { if (!e.repeat && !sheet.escape()) menu.show(); return; }
     const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
       category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS,
@@ -1954,6 +1972,11 @@ addEventListener('keydown', e => {
     else if (what === 'skip-lesson') skipLesson();
     else if (what === 'open-menu') menu.show();
     return;
+  }
+  // 0.22.1 (speltestet av 0.22.0, fynd 2: Enter på lappen "Spend RP..." startade dagen): mellan dagarna stänger Enter
+  // (och Space) först lappen; nästa Enter gör det skylten säger
+  if (lesson && !menu.isOpen() && mode !== 'play' && lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space')) {
+    e.preventDefault(); if (!e.repeat) releaseLesson(); return;
   }
   if (lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption')) {
     if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); releaseLesson(); return; }
@@ -2043,7 +2066,9 @@ addEventListener('blur', () => { hud.shift(false); shiftHeld = false; });
 // progress.lessons (src/meta/lessons.js).
 const feat = f => !!sim && allowed(sim, f);
 const meta = f => metaFeatures(progress).has(f);
-const coach = createCoach(uiRoot, { onRelease: () => releaseLesson(), onClick: (e, step) => { if (step?.kind === 'show') releaseLesson(); forwardClick(e.clientX, e.clientY); }, onFewer: () => { progress = setTipsMode(progress, 'new'); save(); } });
+// 0.22.1 (speltestet av 0.22.0, fynd 3: ett klick på lappen över Stores köpte Ksp 88 II): mellan dagarna fångar lappen
+// klicket. I striden går klicket som förut vidare till kartan under (0.16.2: ställer ut kortet man håller, placeringsprovet).
+const coach = createCoach(uiRoot, { onRelease: () => releaseLesson(), onClick: (e, step) => { if (step?.kind === 'show') releaseLesson(); if (mode === 'play') forwardClick(e.clientX, e.clientY); }, onFewer: () => { progress = setTipsMode(progress, 'new'); save(); } });
 let lesson = null;             // { step, pause, missing }
 let lastEsc = -Infinity;
 let card = null;               // fiendens presentationsruta { type, el, close }
@@ -2147,6 +2172,8 @@ function lessonWorldPts(t) {
   else if (w === 'evac') { for (const path of routeKeys.evacPaths ?? []) for (let i = 0; i < path.length; i += 2) pts.push(path[i]); }
   else if (w === 'dormant') { for (const d of sim.dayCfg.dormant ?? []) if (d.intel !== false) { const q = houseDoor(sim.map, d.house, sim.route); pts.push([q.x, q.z]); } }
   else if (w === 'civdown') { if (civDownAt) pts.push(civDownAt); }
+  // 0.22.1 (speltestet av 0.22.0, fynd 4): platsen där skrotbilarna gör en synlig ruttändring (dayCfg.carSpot)
+  else if (w === 'carSpot') { if (sim.dayCfg.carSpot) pts.push(sim.dayCfg.carSpot); }
   // 0.18.1: korseldens rutor (crossfireZones) och enheten med lägst sanity under verkans gräns
   // 0.18.1: villorna närmast en ingångs gata (mb-2.houses: Stenbyvägen), några på varje sida
   else if (w.startsWith('street:')) {
@@ -2255,6 +2282,8 @@ function finishLesson() {
   coach.hide(); lesson = null;
 }
 function releaseLesson() { if (lesson?.step.kind === 'show') finishLesson(); }
+// 0.22.1: undanlagda lappar (Esc mellan dagarna), per skärm; de visas igen när läget byts
+function deferLesson() { if (!lesson) return; if (deferred.mode !== mode) deferred = { mode, ids: new Set() }; deferred.ids.add(lesson.step.id); coach.hide(); lesson = null; }
 // Esc under ett steg hoppar över det; ett andra Esc inom 1 s hoppar över resten av dagens lektion (avsnitt 5.4).
 function skipLesson() {
   const now = performance.now();
@@ -2291,8 +2320,9 @@ function updateLessons() {
   }
   // en ny ingång har företräde: inga nya plåtar eller bildtexter medan raden står
   if (performance.now() < newsUntil) return;
+  if (deferred.mode !== mode) deferred = { mode, ids: new Set() };
   for (const l of lessonList()) {
-    if (isSeen(progress, l.id)) continue;
+    if (isSeen(progress, l.id) || deferred.ids.has(l.id)) continue;
     if (l.done && lessonTest(l.done)) { progress = markSeen(progress, l.id); save(); continue; }
     // 0.16.4: mellan dagarna hör stegen till olika skärmar (kartan, resultatet, förrådet); ett som väntar på kartan
     // stoppar inte resultatets
@@ -2482,6 +2512,8 @@ function setMode(m, makeSheet) {
   if (sheet) sheet.close();
   // 0.16.0: en lektionsplåt hör till skylten eller dagen den visades på (den kommer tillbaka om den inte setts)
   if (lesson) { coach.hide(); lesson = null; }
+  // 0.22.1: undanlagda lappar kommer tillbaka när skylten eller bordet visas igen
+  deferred = { mode: null, ids: new Set() };
   closeManual();
   closePanel();
   stopPlacing();
@@ -2643,7 +2675,7 @@ function startDay(n) {
   // 0.16.0: uppdragsrutan (#hint) är ersatt av lektionsplåten (src/ui/coach.js)
   // 0.21.3 (H539): kampanjens dag i titeln, banans dag smått under
   const cd = campaignDayOf(map.id, n);
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: cd, where: `${placeShort(map.id)} · ${n}` } : {}));
+  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: shownDay(map.id, n), where: `${placeShort(map.id)} · ${n}` } : {}));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
@@ -2686,7 +2718,8 @@ function dayFrame() {
 // Gnesta Norr (map.camera.intro): ett kort svep från ingången i norr ner till basen när spelaren
 // går till linjen. Klick, hjul eller tangent hoppar över.
 function introPan(frame) {
-  if (!frame || !map.camera.intro) return;
+  // 0.22.1: en dag med egen bild (dayCfg.view, Vikingavägen) börjar i den, utan svep från ingången
+  if (!frame || !map.camera.intro || sim.dayCfg.view) return;
   const first = sim.dayCfg.waves[0].groups[0].spawn ?? sim.route.spawns[0].id;
   const sp = sim.route.spawns.find(q => q.id === first);
   if (!sp) return;
@@ -2724,7 +2757,8 @@ function showResult() {
   // 0.16.0: RP syns först när förrådet öppnar; före kartan går knappen direkt till nästa dag; efter en förlust
   // föreslås dagens uppslag i Field manual (designen avsnitt 5.3)
   const i = dayStage(map.id, day), entry = !lastResult.won && meta('manual') ? (LESSONS[STAGES[i]?.id] ?? []).map(l => manualEntry(l.manual)).find(Boolean) : null;
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
+  // 0.22.1 (speltestet av 0.22.0, fynd 1): kampanjens dag, som HUD:en
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, day: shownDay(map.id, lastResult.day ?? day), totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
     manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
     onRetry: () => (hubTable() ? showTable() : meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
@@ -2835,7 +2869,7 @@ if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return ro
   open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
   showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
   // 0.21.0: kartbordet (prov och skärmbilder)
-  showTable: () => showTable(), get hub() { return settings.hub; }, setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); }, get sheet() { return sheet; },
+  showTable: () => showTable(), get nowPaths() { return nowPaths; }, get hub() { return settings.hub; }, setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); }, get sheet() { return sheet; },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
@@ -2956,7 +2990,7 @@ function abandon() {
   save();
 }
 const menu = mountMenu(uiRoot, {
-  mode: () => mode, day: () => day, speed: () => speed, canSpeed, setSpeed,
+  mode: () => mode, day: () => shownDay(map.id, day), speed: () => speed, canSpeed, setSpeed,
   resume: () => {}, restart: () => { abandon(); startDay(day); }, toMain: () => { abandon(); showMenu(); },
   settings: () => settings,
   setSetting: (k, v) => {

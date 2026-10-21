@@ -13,6 +13,17 @@ Björnlunda är en spelbar sektor: kampanjens dag 11 och 12 (kampanjplanen avsni
 - **Kopplingen:** bordets markör och order ("Commander, Björnlunda"), operationskartan, kampanjens dag (Day 11 och 12), Quick jump till dag 1 och 2 i debugmenyn med truppen en spelare har där, och balansens policyer. Laxne-valet (beslutat att ligga mellan Mölnbo dag 3 och Björnlunda dag 1) är inte byggt; kroken står i src/data/bjornlunda-play.js. Inga nya lektioner (Björnlunda befäster det man kan), Field manual orörd.
 - **Balansen:** kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre. Dag 1 hp 10, dag 2 hp 7, horden går fortare än i Mölnbo (byn är stor). docs/balance-log.md, Björnlunda 0.23.0.
 - Förhandsvisningen (bjornlunda.html) delar landmärkena med spelet, och kartans rutnät räknas först när det behövs.
+## 0.22.1 (speltestet av 0.22.0) (2026-10-21)
+
+Speltestet av 0.22.0 sa NEJ (nära): bågen håller och dag 4 känns som "med nöd och näppe", men fem saker (docs/playtests/2026-10-21-0.22.0.md).
+
+- **Ett dagnummer.** Resultatrutan, menyns Restart day, introt, HUD:en, bordets blad och operationskartan tar dagen ur samma hjälpare (src/meta/campaign-day.js shownDay). Dag 4 heter "Day 4 held.", inte "Day 1 held.".
+- **Enter på en lapp vid bordet** stänger lappen; först när ingen lapp väntar gör Enter det skylten säger (Deploy). Esc lägger undan en lapp utan att den räknas som sedd; den kommer tillbaka nästa gång bordet eller skylten visas.
+- **Lappen fångar klicket.** Ett klick på lappen stänger den och inget annat; inget under den kan träffas genom den (förut köpte ett klick på lappen över Stores Ksp 88 II). Bara i striden går ett klick på det dämpade lagret vidare till kartan.
+- **Vikingavägen läses lättare.** Dagen börjar utzoomad (längst ut 96 m, var 84) med basen och de tre infarterna i bild, utan svep från skogen. Ingångarnas skyltar har en fast plats vid sin väg, 100 m före basen; syns den inte står skylten vid skärmkanten och pekar dit, i stället för att följa kanten och hamna bland enheterna. Lektionen pekar på gatan där skrotbilarna vänder första vågen (skogsvägen söderifrån går runt kvarteret), och när bilarna står visar pilarna den nya vägen ("New route. They walk around the cars.").
+- **Mindre pengar dag 7 och 8.** Förnödenheterna per dödad är en fjärdedel på Vikingavägen och hälften Mölnbo dag 1. Den vanliga spelaren hade 2 100 till 2 400 $ över på Vikingavägen; nu 540 till 620.
+- **RP som inte spenderats.** Trycker man Deploy med RP nog för en nivå eller en uppgradering lyfts klämbrädan en gång med "You have N RP. Spend it?", Open requisition och Deploy anyway (Enter).
+- Layoutprovet: klick mitt på en lapp över Stores (inget annat får klicket), Enter och Esc på lappen, påminnelsen om RP, rullans andra blad med 24 enheter, Vikingavägens bild, skyltar och bilarnas nya väg.
 
 ## 0.22.0 (Hagstumosse efter kampanjbågen) (2026-10-20)
 
