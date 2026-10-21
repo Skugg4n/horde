@@ -48,7 +48,7 @@ export function inlineImports(html) {
   const mod = html.match(/<script type="module">([\s\S]*?)<\/script>/);
   return mod ? [...mod[1].matchAll(/^import\s[^'"]*?['"]\.\/([^'"]+)['"]/gm)].map(m => m[1]) : [];
 }
-export const PREVIEWS = ['bjornlunda.html', 'gnesta-centrum.html', 'laxne.html'];
+export const PREVIEWS = ['bjornlunda.html', 'gnesta-centrum.html', 'laxne.html', 'gnesta-vastra-rondell.html'];
 const MODS = /(<script src="loadbar\.js[^"]*"[^>]*?) data-modules="\d+"/;
 export function renderPreview(html) {
   const imports = inlineImports(html), n = reachable(imports) + (/from 'three'/.test(html) && !imports.length ? 1 : 0);
