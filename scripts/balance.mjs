@@ -1084,7 +1084,8 @@ export function nearBasePlan(map, day, r) {
   return { lines: [], wire, guns: cp.spots, squads: sq.spots, roofs: roofs.spots, roofFacing: roofs.facings, len: ps.map(q => q.cells.length), cov: cp.cover };
 }
 POLICIES.blNear = { ...POLICIES.naive, nearBase: 40 };
-// (blNear prövas bara dag 1: dag 2 står den vid basen och de civila dör uppe i byn, som avsett)
+// 0.23.2 (omtestet av 0.23.1): också dag 2, där ordern är "Hold the base. Cover the yellow lines from there." Mellan dagarna
+// gäller bordets regler (src/meta/operation.js finishDay: tröttheten och bytet av utmattade), som för alla spelare.
 // Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed).
 const blArrival = new Map();
 export function bjornlundaArrival(seedOffset = 0) {
@@ -1092,9 +1093,7 @@ export function bjornlundaArrival(seedOffset = 0) {
   return blArrival.get(seedOffset);
 }
 export function bjornlundaCampaign(policy = 'blSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
-  // blNear prövas bara dag 1 (dagens order: stå vid basen); dag 2 är evakueringen
-  const until = policy === 'blNear' ? { mapId: 'bjornlunda', day: 2 } : null;
-  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond, until });
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond });
 }
 // Truppen kartläsaren går in i Björnlunda dag 2 med (src/data/arrival.js ARRIVAL_TROOP.bjornlunda.days, Quick jump)
 export function bjornlundaDayTroop(day, policy = 'blSkilled', seedOffset = 0) {

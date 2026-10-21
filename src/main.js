@@ -647,7 +647,8 @@ function updateGhostTip() {
   const flash = tipFlash && performance.now() < tipFlash.until ? tipFlash.text : null;
   // 0.19.0 (H458): spärren i handen stänger sista vägen: varningen vid pekaren (placeringen går ändå)
   const shut = placing?.kind === 'obstacle' && spot?.ok && !!routeKeys.shuts;
-  const show = !!flash || (placing && spot && !spot.ok) || shut;
+  const detour = placing?.kind === 'obstacle' && spot?.ok && !shut && routeKeys.detour ? `This sends them down ${routeKeys.detour}.` : null;
+  const show = !!flash || (placing && spot && !spot.ok) || shut || !!detour;
   // 0.19.0 (H459): över ett hus som enheten kan gå in i: INTO HOUSE
   const intoHouse = placing && placing.kind === 'gun' && spot && spot.key >= 0 && spot.ok && !!garrisonHouseAt(sim, spot.key, placing.type);
   const where = placing && placing.kind === 'gun' && (intoHouse || WEAPONS[placing.type]?.roof) && spot && spot.key >= 0;
@@ -662,9 +663,9 @@ function updateGhostTip() {
   ghostTip.hidden = !show;
   ghostTip.classList.toggle('flash', !!flash);
   if (!show) return;
-  const t = flash ?? (shut ? SHUT_WARN : reasonText(spot.reason));
+  const t = flash ?? (shut ? SHUT_WARN : detour ?? reasonText(spot.reason));
   if (ghostTip.textContent !== t) ghostTip.textContent = t;
-  ghostTip.classList.toggle('warn', !flash && shut);
+  ghostTip.classList.toggle('warn', !flash && (shut || !!detour));
   const at = flash ? tipFlash : pointer;
   ghostTip.style.left = at.x + 'px'; ghostTip.style.top = at.y + 'px';
 }
@@ -839,6 +840,8 @@ const pipEls = new Map();
 // 0.12.0 (H118, speltestet av 0.11.0: $ 1 180 kvar som inte gick att använda): när alla platser är
 // tagna och kassan räcker till en uppgradering säger spelet det en gång per dag.
 let spareTold = false;
+let cashTold = false;
+const CASH_NUDGE = 400;
 let civToldAt = -Infinity, builtTold = false, climbTold = false;
 // 0.13.0 (H105): uppdraget med de civila uppe i mitten: hur många som är framme och hur många som behövs.
 const evacEl = document.createElement('div');
@@ -862,7 +865,8 @@ function updateEvac() {
   // de framme (gula), strecket vid så många som behövs, och de förlorade av så många som får falla.
   evacEl.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the civilians reach the ice rink.';
   const maxLost = ev.total - ev.need;
-  evacEl.querySelector('.n').innerHTML = `Evacuated <b>${ev.safe}</b> / ${ev.need} needed · <span class="${ev.lost ? 'lost' : ''}">Lost ${ev.lost} / ${maxLost}</span>`;
+  // 0.23.2 (omtestet av 0.23.1: "needed · Lost" bröts mitt i): två hela rader
+  evacEl.querySelector('.n').innerHTML = `<span class="ln">Evacuated <b>${ev.safe}</b> / ${ev.need} needed</span> <span class="ln ${ev.lost ? 'lost' : ''}">Lost ${ev.lost} / ${maxLost}</span>`;
   const pct = n => (100 * n / ev.total).toFixed(2) + '%';
   evacEl.querySelector('.safe').style.width = pct(ev.safe);
   evacEl.querySelector('.need').style.left = pct(ev.need);
@@ -1421,6 +1425,8 @@ function onBreach(evs = []) {
   if (time - lastBaseToast >= BASE_TOAST_GAP) {
     lastBaseToast = time;
     note(uiRoot, street ? `Base under attack! From ${street}` : 'Base under attack!', 'warn', from ? { onClick: () => lookAt(from.x, from.z), ms: 6000 } : undefined);
+    // 0.23.2 (omtestet av 0.23.1: över 1 000 $ kvar i varje förlust): första träffen på basen med pengar kvar, en gång per dag
+    if (!cashTold && feat('supplies') && sim.cash >= CASH_NUDGE) { cashTold = true; note(uiRoot, `You have $${Math.floor(sim.cash)}. Wire and barriers help now.`, '', { ms: 7000 }); }
   }
   tip('tip.base');
 }
@@ -1796,7 +1802,9 @@ const spawnName = id => sim.map.spawns?.find(s => s.id === id)?.name ?? id;
 // och nedräkningen): hela vågens grupper. Under vågen: de som ännu inte släppts, och med överlapp
 // nästa vågs grupper. Map ingång -> [[typ, antal], ...] i gruppernas ordning.
 const PLURAL = { walker: 'walkers', runner: 'runners', brute: 'brutes', armored: 'armoured', crawler: 'crawlers' };
-const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`;
+// 0.23.2: brittisk stavning som fiendekortet ("1 armoured", förut "1 armored")
+const SINGULAR = { armored: 'armoured' };
+const countText = ([type, n]) => `${n} ${n === 1 ? SINGULAR[type] ?? type : PLURAL[type] ?? type}`;
 // Gnesta: en etikett per ingång som används nu, på gatan (H091): på första punkten längs hordens väg
 // från ingången där etiketten ryms i bild utan att täcka gränssnittet (hud.js väljer bland
 // kandidaterna). Ingången själv om den syns, annars där vägen kommer in i bild. Syns vägen inte alls:
@@ -1920,7 +1928,9 @@ function updateRoutes() {
     routeKeys.blocks = blockKey();
   }
   // 0.19.0 (H458): med en spärr i handen som stänger sista vägen visas vägarna också när V slagit av dem
-  const forceRoute = placing?.kind === 'obstacle' && !!routeKeys.shuts;
+  // 0.23.2 (omtestet av 0.23.1: skrotbilarna skickade horden ner Smedjevägen bakom linjen utan förvarning): med ett hinder
+  // i handen syns vägarna alltid, också när V slagit av dem
+  const forceRoute = placing?.kind === 'obstacle';
   routeLines.set('now', showRoute || forceRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey + (forceRoute && !showRoute ? '|f' : ''));
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
   // 0.12.0 (H114): när en barrikad går sönder blinkar den nya vägen några sekunder
@@ -1951,6 +1961,7 @@ function updateRoutes() {
     // 0.19.0 (H458, H457): stänger spärren i handen den sista öppna vägen för någon av dagens ingångar (också de som
     // kommer först i en senare våg)? Då står varningen vid pekaren och hela vägvyn visas
     routeKeys.shuts = holding ? shutsLastRoad(obs) : false;
+    routeKeys.detour = holding && !same && !routeKeys.shuts ? uncoveredDetour(nowPaths, paths) : null;
   }
   routeLines.set('preview', routeKeys.previewPaths, pKey);
   return { cells, tone: ob ? 'paper' : 'rust' };
@@ -1963,6 +1974,23 @@ function shutsLastRoad(obs) {
   return then.some((p, i) => p.through != null && now[i]?.through == null);
 }
 const SHUT_WARN = 'This shuts every road. They will smash through.';
+// 0.23.2: gatan där den nya vägen går inom DETOUR_NEAR meter från basen och ingen enhet ser den (null om ingen). Bara de
+// rutor den nya vägen går som den gamla inte gick.
+const DETOUR_NEAR = 25;
+function uncoveredDetour(before, after) {
+  const b = sim.route.base, seen = new Set();
+  for (const g of sim.guns) for (const k of g.sight?.keys ?? []) seen.add(k);
+  for (let i = 0; i < after.length; i++) {
+    const old = new Set(before[i]?.cells ?? []), bare = [];
+    for (const k of after[i].cells) {
+      if (old.has(k)) continue;
+      const [x, z] = sim.route.grid.center(k);
+      if (Math.hypot(x - b.x, z - b.z) <= DETOUR_NEAR && !seen.has(k)) bare.push(k);
+    }
+    if (bare.length) return rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i]?.cells ?? [], bare) ?? 'another street';
+  }
+  return null;
+}
 addEventListener('keydown', e => {
   // 0.12.2: det man skriver i debugmenyns fält styr inte spelet; Esc stänger menyn
   if (e.target?.closest?.('#debug')) { if (e.key === 'Escape') { e.preventDefault(); debugUi.close(); } return; }
@@ -2712,7 +2740,7 @@ function startDay(n) {
   if (!cfg) { showBetween(); return; }
   day = n;
   sim = createSim(withTweaks(cfg));
-  failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
+  failingWarned.clear(); toldSpawns.clear(); shotAt.clear(); alerts.length = 0; routeFlash = 0; spareTold = false; cashTold = false; rotating = null; civToldAt = -Infinity; builtTold = false; climbTold = false; reserveWarned = false; evacKey = '';
   enemyWait.clear(); wavePauses = { wave: -1, n: 0, at: -Infinity }; civDownAt = null; if (card) { card.close(); card = null; }
   sightCache.clear(); validCache.sig = '';
   scene.userData.molnbo?.reset(); trainUi.reset(); exodusUi.reset(); resetMarks();

@@ -653,6 +653,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #evac .n { font-size: 16px; letter-spacing: 0.06em; margin-top: 3px; }
 #evac .n b { font: 600 20px 'IBM Plex Mono', monospace; color: #f2c46b; }
 #evac .n .lost { color: #e0866a; }
+#evac .n .ln { white-space: nowrap; }
 /* 0.14.1: stapeln (framme gult, strecket vid så många som behövs, förlorade rött från höger) */
 #evac .evbar { position: relative; height: 6px; margin: 6px 0 0; width: 100%; background: rgba(233,223,201,0.12); border-radius: 1px; overflow: visible; }
 #evac .evbar .safe { position: absolute; left: 0; top: 0; bottom: 0; background: #f2c46b; }
@@ -1474,6 +1475,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-row .ty { width: 84px; flex: none; color: #4a4030; overflow: hidden; font: 400 14px Oswald, sans-serif; }
 .hub .tb-row .mn { width: 30px; flex: none; text-align: right; }
 .hub .tb-row .sv { width: 62px; flex: none; font: 600 14px Oswald, sans-serif; }
+.hub .tb-row .sv .mvp { font-style: normal; font-size: 10px; color: #a5761c; margin-left: 2px; vertical-align: super; }
 .hub .tb-row .sv .ok { color: #4e7a2a; } .hub .tb-row .sv .tired { color: #a5761c; } .hub .tb-row .sv .bad { color: #a8321e; } .hub .tb-row .sv .mv { color: #a5761c; font-style: italic; }
 .hub .tb-row .lvl { width: 28px; flex: none; color: #a5761c; font-size: 13.75px; letter-spacing: -.1em; }
 .hub .tb-row .pr { width: 74px; flex: none; text-align: right; color: #8a3a20; font-weight: 600; }

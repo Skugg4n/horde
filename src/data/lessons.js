@@ -135,6 +135,10 @@ export const LESSONS = {
     { id: 'gnn-4.target', kind: 'caption', when: 'afterWave1', target: { world: 'gun' }, text: 'Target priority: select a unit and press', keys: ['T'], manual: 'target' },
   ],
   // 0.20.0: dag 3, håll tills klockan gått ut, sedan uttåget
+  // 0.23.2 (omtestet av 0.23.1): dag 12 pekar på basens två vägar in, inget nytt begrepp
+  'bl-2': [
+    { id: 'bl-2.base', kind: 'show', when: 'start', target: { world: 'route' }, text: 'Hold the base. They come down Villavägen and Stationsvägen.' },
+  ],
   'mb-3': [
     { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'Hold until the clock runs out. Then we pull out.', manual: 'train' },
     // 0.18.0 (skiva 1, kampanjplanens centrum dag 16): överrända pjäser

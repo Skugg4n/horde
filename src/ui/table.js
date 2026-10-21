@@ -244,9 +244,11 @@ export function rosterOrder(rows) {
 }
 function rowHtml(c, wide, pencil) {
   const box = (lane, on) => `<button type="button" class="tb-box${on ? ' on' : ''}" data-box="${lane}" data-uid="${c.uid}" aria-label="${lane === 'battle' ? 'Into battle' : 'Reserve'}"><i>${on ? '✕' : ''}</i></button>`;
-  const st = c.moved ? `<span class="mv" title="${esc(c.moved.long)}">Moved</span>` : `<span class="${STATE_CLS(c.fatigue)}">${esc(c.state)}</span>`;
+  // 0.23.2 (omtestet av 0.23.1: "Moved" dolde Rested/Tired/Exhausted): tillståndet står alltid; flyttad av tröttheten är
+  // en liten blyertsnot bredvid, och skälet står på radens hovringsrad
+  const st = `<span class="${STATE_CLS(c.fatigue)}">${esc(c.state)}</span>${c.moved ? '<i class="mvp" aria-label="Moved">✎</i>' : ''}`;
   const stars = '★'.repeat(Math.max(1, Math.min(3, c.level)));
-  return `<div class="tb-row" data-uid="${c.uid}">${box('battle', c.lane === 'battle')}${box('rest', c.lane === 'rest')}
+  return `<div class="tb-row" data-uid="${c.uid}"${c.moved ? ` title="${esc(c.moved.long)}"` : ''}>${box('battle', c.lane === 'battle')}${box('rest', c.lane === 'rest')}
     <span class="un" data-read data-name>${esc(c.name)}</span>${wide ? `<span class="ty">${esc(c.role)}</span>` : ''}
     <span class="mn">${c.max ? `${c.men}/${c.max}` : '1/1'}</span><span class="sv" data-read data-fat>${st}</span>
     <span class="lvl" title="Level ${c.level}${c.vet ? ', veteran' : ''}">${stars}</span>${pencil ? `<button type="button" class="tb-pm" data-pm data-a="lvl" data-uid="${c.uid}" aria-label="Train, refill or return" title="Train, refill or return">✎</button>` : ''}</div>`;
@@ -296,7 +298,8 @@ function storesHtml(ups, rp, fr, sheet) {
 // Tröttheten flyttade någon efter dagen: en rad på rullan
 function movedNote(z) {
   const m = [...z.battle, ...z.rest].filter(c => c.moved);
-  return m.length ? m.map(c => `${c.name}: ${c.moved.long.toLowerCase()}`).join('. ') + '.' : '';
+  // 0.23.2: en kort rad (förut alla namnen, som klipptes); skälet per enhet står på raden
+  return m.length ? `✎ ${m.length} moved by fatigue. Hover a row for why.` : '';
 }
 const WEAPONS_NAME = type => unitName({ type });
 // Liten meny på ett kort (⋯): nästa nivå, påfyllnad och tillbaka, med pris
@@ -466,7 +469,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   function wire() {
     for (const b of view.querySelectorAll('[data-up]')) b.addEventListener('click', e => { e.stopPropagation(); const r = handlers.act?.('upgrade', b.dataset.up); if (r?.ok) p = r.progress; render(); });
     for (const b of view.querySelectorAll('[data-pm]')) b.addEventListener('click', e => { e.stopPropagation(); const uid = Number(b.dataset.uid); cmenu = cmenu === uid ? null : uid; confirmReturn = null; render(); });
-    for (const b of view.querySelectorAll('[data-box]')) b.addEventListener('click', e => { e.stopPropagation(); if (!b.classList.contains('on')) lane(Number(b.dataset.uid), b.dataset.box); });
+    // 0.23.2 (omtestet av 0.23.1: ett klick på den kryssade BTL-rutan gjorde inget): en kryssad ruta flyttar till den andra
+    for (const b of view.querySelectorAll('[data-box]')) b.addEventListener('click', e => { e.stopPropagation(); const on = b.classList.contains('on'); lane(Number(b.dataset.uid), on ? (b.dataset.box === 'battle' ? 'rest' : 'battle') : b.dataset.box); });
     for (const b of view.querySelectorAll('[data-req]')) b.addEventListener('click', e => { e.stopPropagation(); buy(b.dataset.req); });
     for (const b of view.querySelectorAll('[data-page]')) b.addEventListener('click', e => { e.stopPropagation(); page = b.dataset.rel ? 'rel' : Number(b.dataset.page); cmenu = null; laneNote = null; render(); });
     view.querySelector('[data-dog]')?.addEventListener('click', e => { e.stopPropagation(); storeSheet++; render(); });

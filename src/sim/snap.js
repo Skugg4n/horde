@@ -53,7 +53,12 @@ export function snapObstacle(sim, x, z, type) {
     if (c.ok) return { key: k, ok: true };
     fallback ??= { key: k, ...c };
   }
-  return fallback ?? { key: -1, ok: false, reason: 'ingen gata' };
+  if (fallback) return fallback;
+  // 0.23.2 (omtestet av 0.23.1: taggtråd nekades med "Only on the road" mitt på Stationsvägen vid Wattrangsborg): gatan
+  // närmast basen hör till basen (rutnätets bas, BASE_RADIUS), så skälet säger det
+  const baseSet = new Set(g.base ?? []);
+  if (near(g, x, z, SNAP).some(k => baseSet.has(k))) return { key: -1, ok: false, reason: 'basnära' };
+  return { key: -1, ok: false, reason: 'ingen gata' };
 }
 
 // 0.12.1 (speltestet av 0.12.0: Psg 90 siktad på ishallens tak hamnade på marken bakom hallen): när

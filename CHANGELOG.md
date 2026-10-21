@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.23.2 (omtestet av 0.23.1, Björnlunda dag 12) (2026-10-21)
+
+Omtestet (docs/playtests/2026-10-21-0.23.1-bjornlunda.md): dag 11 vanns på första försöket, dag 12 föll tre gånger av tre med truppen man har efter dag 11.
+
+- **Dag 12 går att hålla från basen:** husen som töms ligger nu inom cirka 110 m från Wattrangsborg, vid Villavägen, Smedjevägen och Stationsvägen. Ordern: "Hold the base. Cover the yellow lines from there." Lektionen pekar på basens två vägar in: "Hold the base. They come down Villavägen and Stationsvägen."
+- **Förstärkning före dag 12:** Hemvärnet skickar två grupper och en Ksp 90 (leveransen bl-2), blygsamt som bågen säger.
+- **Tröttheten:** balansen och spelet använder samma regler mellan dagarna (src/meta/operation.js finishDay: de som slogs blir trötta, utmattade byts mot utvilade). Ett nytt prov spelar dag 11 med den som står vid basen, lägger bordets regler på och kräver att dag 12 vinns inom tre försök i alla seeds.
+- **Rullan:** tillståndet (Rested, Tired, Exhausted) står alltid; en flyttad enhet får en liten blyertsnot bredvid och skälet på radens hovringsrad. Raden längst ner säger hur många som flyttats. Ett klick på en kryssad ruta flyttar enheten till den andra.
+- **Spärrar och skrotbilar:** med ett hinder i handen syns hordens vägar alltid, och leder hindret dem inom 25 m från basen genom en gata som ingen enhet ser står "This sends them down Smedjevägen." vid pekaren.
+- **Pengarna:** första gången basen tar en träff med minst 400 $ kvar: "You have $N. Wire and barriers help now."
+- **Taggtråd vid basen:** gatan närmast basen hör till basen; skälet säger nu "Too close to the base. A bit further out." (förut "Only on the road").
+- **Små saker:** evakueringsrutan bryter mellan "needed" och "Lost", "1 armoured" (förut "1 armored"), ingångarnas namn i "What we face" utan stor bokstav mitt i meningen.
+
 ## 0.23.1 (speltestet av 0.23.0, Björnlunda) (2026-10-21)
 
 Speltestet (docs/playtests/2026-10-21-0.23.0-bjornlunda.md) sa nej: en vanlig spelare vann inte dag 11 på fyra försök, och dag 12 föll på första.

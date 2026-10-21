@@ -152,9 +152,11 @@ export const RELEASES = [
   { id: 'bl-1', map: 'bjornlunda', day: 1, from: 'FM', adopt: true,
     text: 'They are turning west round Gnesta, at Björnlunda. No good troops to send. Hunters from the village join you.',
     grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
+  // 0.23.2 (omtestet av 0.23.1: dag 12 gick inte att vinna med truppen man har efter dag 11): en blygsam förstärkning,
+  // Hemvärnets två grupper och en Ksp 90 (kampanjplanen: inga bra trupper här)
   { id: 'bl-2', map: 'bjornlunda', day: 2, from: 'MCF',
-    text: 'People are still in their houses west of Wattrangsborg. Get them out before the south side falls.',
-    stock: { ksp58: 1, inf: 1 } },
+    text: 'People are still in their houses near Wattrangsborg. Hemvärnet sends two squads and a Ksp 90.',
+    grant: [{ type: 'hv', count: 2 }, { type: 'm249' }], stock: { ksp58: 1, inf: 1 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

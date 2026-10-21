@@ -20,7 +20,7 @@ import { SECTORS, RELEASES } from '../src/data/depot.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
 import { mapUnlocked } from '../src/meta/progress.js';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
-import { bjornlundaCampaign, bjornlundaArrival, bjornlundaDayTroop, blAttempts, blPrints } from '../scripts/balance.mjs';
+import { bjornlundaCampaign, bjornlundaArrival, bjornlundaDayTroop, blAttempts, blPrints, playOpDay } from '../scripts/balance.mjs';
 
 const route = routeFor(bl), g = route.grid, p = placementFor(bl);
 const daySpawns = d => [...new Set(d.waves.flatMap(w => w.groups.map(q => q.spawn)))].sort();
@@ -190,8 +190,8 @@ test('dag 2: de markerade husen går de gula linjerna till Wattrangsborg, först
   }
   const first = ev.groups.filter(q => q.wave === 0).map(q => dist(q.house)), last = ev.groups.filter(q => q.wave === 2).map(q => dist(q.house));
   assert.ok(Math.max(...first) < Math.min(...last), `${first} mot ${last}`);
-  // ett hus söder om spåret: de civila måste över plankorsningen där horden söderifrån kommer
-  assert.ok(ev.groups.some(q => { const h = bl.buildings.find(b => b.id === q.house); return h.z > 90 && h.x < -60; }));
+  // 0.23.2 (omtestet av 0.23.1): husen ligger nära basen, så att den som håller basen täcker linjerna
+  for (const q of ev.groups) assert.ok(dist(q.house) < 120, q.house);
 });
 
 test('kampanjen: Björnlunda öppnar efter Mölnbo dag 3, truppen följer med och byns jägare kommer till', () => {
@@ -214,9 +214,12 @@ test('kampanjen: Björnlunda öppnar efter Mölnbo dag 3, truppen följer med oc
   for (const r of RELEASES.filter(x => x.map === 'bjornlunda')) assert.ok(r.text.split(/\s+/).length <= 20, r.id);
 });
 
-test('inlärningen: Björnlunda lägger inget nytt begrepp, och Field manual är orörd', () => {
+test('inlärningen: Björnlunda lägger inget nytt begrepp, dag 12 pekar på basens vägar, Field manual orörd', () => {
   for (const id of ['bl-1', 'bl-2']) assert.deepEqual(STAGES.find(s => s.id === id).adds, [], id);
-  assert.ok(!LESSONS['bl-1'] && !LESSONS['bl-2']);
+  // 0.23.2: dag 12 pekar på basens två vägar in (Villavägen, Stationsvägen); inget nytt begrepp
+  assert.ok(!LESSONS['bl-1']);
+  assert.deepEqual(LESSONS['bl-2'].map(l => l.target.world), ['route']);
+  assert.match(LESSONS['bl-2'][0].text, /Villavägen and Stationsvägen/);
   assert.deepEqual([...featuresFor('bjornlunda', 1)].sort(), [...featuresFor('molnbo', 3)].sort());
 });
 
@@ -230,8 +233,8 @@ const nearBase = SEEDS.map(s => bjornlundaCampaign('blNear', { seedOffset: s, ma
 test('balans: kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre', () => {
   for (const [i, r] of skilled.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); assert.deepEqual(a, [1, 1], `blSkilled seed ${i}`); }
   for (const [i, r] of normal.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blNormal seed ${i}: ${a}`); }
-  // dag 11 går att vinna genom att stå vid basen, där ordern säger, inom 1 till 3 försök
-  for (const [i, r] of nearBase.entries()) { const a = blAttempts(r.log)[0]; assert.ok(a >= 1 && a <= 3, `blNear seed ${i}: ${a}`); }
+  // dag 11 och 12 går att vinna genom att stå vid basen, där ordern säger, inom 1 till 3 försök
+  for (const [i, r] of nearBase.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `blNear seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blNear seed ${i}: ${a}`); }
 });
 
 test('balans: dag 2 får de civila in, högst cirka 250 levande och högst två vågor ute, dagarna sex till sju minuter', () => {
@@ -261,10 +264,12 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // 0.23.0 (H545): första kvittot, dag 1 hp 10 och dag 2 hp 7 (docs/balance-log.md Björnlunda 0.23.0).
 // 0.23.1 (speltestet av 0.23.0): alla nya, avsiktligt: mindre spelyta, kartläsaren vid basen dag 1, dag 1 hp 8 och dag 2
 // hp 6, bounty 0,9 och 1, overlap 12, bjässarna mitt i sista vågen, söderifrån senare dag 2. docs/balance-log.md 0.23.1.
+// 0.23.2 (omtestet av 0.23.1): dag 12 nytt, avsiktligt: husen nära basen, leveransen bl-2 (två Hemvärnsgrupper och en
+// Ksp 90). docs/balance-log.md 0.23.2.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '46f80682', 'bjornlunda 2': 'e962a0ba' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '5a093df8', 'bjornlunda 2': '3e97901a' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '46f80682', 'bjornlunda 2': '45f6baee' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '5a093df8', 'bjornlunda 2': '378e1969' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
@@ -291,4 +296,29 @@ test('dag 2: gruppen söderifrån väntar tills andra vågens civila har gått',
   for (const q of d2.evac.groups.filter(x => x.wave === 1)) assert.ok(q.at <= 4, q.house);
   // ingångarnas skyltar står där vägen kommer in i bild (main.js entryCells), inte där vägarna går ihop
   assert.ok(bl.entryAt >= 500);
+});
+
+// 0.23.2 (omtestet av 0.23.1: dag 12 gick inte att vinna med truppen man har efter dag 11). Mellan dagarna gäller bordets
+// regler (src/meta/operation.js finishDay: tröttheten och att utmattade byts mot utvilade), samma funktion som spelet
+// anropar efter en dag (main.js finishOpDay). Dag 11 vunnen av den som står vid basen, sedan bordets regler, sedan dag 12.
+test('dag 12 med truppen efter dag 11 (bordets trötthet), den som står vid basen vinner inom tre försök', async () => {
+  const { readFileSync } = await import('node:fs');
+  // samma funktion i spelet och i balansen
+  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /finishDay as finishOpDay[^\n]*from '\.\/meta\/operation\.js'/);
+  assert.match(readFileSync(new URL('../scripts/balance.mjs', import.meta.url), 'utf8'), /finishDay[^\n]*from '\.\.\/src\/meta\/operation\.js'/);
+  for (const [i, s] of SEEDS.entries()) {
+    let p = bjornlundaArrival(s);
+    const d1 = playOpDay(p, 'bjornlunda', 1, 'blNear', { seedOffset: s });
+    assert.ok(d1.won, `seed ${i}: dag 11`);
+    p = finishDay(p, { mapId: 'bjornlunda', day: 1, won: true, intelEarned: d1.intelEarned, report: d1.report, evac: d1.evac }).progress;
+    // de som slogs är trötta (bordets regel)
+    assert.ok(unitsIn(p, 'bjornlunda').some(u => (u.fatigue ?? 0) >= 1), `seed ${i}: ingen trött`);
+    let won = 0;
+    for (let a = 1; a <= 3 && !won; a++) {
+      const d2 = playOpDay(p, 'bjornlunda', 2, 'blNear', { seedOffset: s });
+      p = finishDay(p, { mapId: 'bjornlunda', day: 2, won: d2.won, intelEarned: d2.intelEarned, report: d2.report, evac: d2.evac }).progress;
+      if (d2.won) won = a;
+    }
+    assert.ok(won >= 1, `seed ${i}: dag 12 inom tre försök`);
+  }
 });

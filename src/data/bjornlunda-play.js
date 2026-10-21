@@ -72,8 +72,8 @@ function fogPoint(id, hint, out = SPAWN_OUT) {
 // in i villorna; 0.23.1, förut Korsbacksvägen, som nu ligger i diset). Dag 2 också söderifrån: S1 Ekvägen ur skogen söder om spåret och S2 Ängsvägen från
 // Hembygdsgården i sydväst; båda kommer över plankorsningen vid Ekvägen, den enda vägen över spåret i byn.
 export const SPAWNS = [
-  { id: 'w1', name: 'Väg 57/223 from Stjärnhov', day: 1, at: fogPoint('vag-57-223-28', [0, -128]) },
-  { id: 'w2', name: 'Along the tracks', day: 1, at: fogPoint('service-60', [-128, 38]) },
+  { id: 'w1', name: 'väg 57/223 from Stjärnhov', day: 1, at: fogPoint('vag-57-223-28', [0, -128]) },
+  { id: 'w2', name: 'along the tracks', day: 1, at: fogPoint('service-60', [-128, 38]) },
   { id: 'w3', name: 'Lokalvägen', day: 1, at: fogPoint('lokalvagen-10', [-128, -100]) },
   { id: 's1', name: 'Ekvägen south', day: 2, at: fogPoint('ekvagen-2', [-123, 176]) },
   { id: 's2', name: 'Ängsvägen', day: 2, at: fogPoint('angsvagen-29', [-128, 140]) },
@@ -245,11 +245,12 @@ function homeNear(x, z, taken) {
   taken.add(best.id);
   return best.id;
 }
-// Dag 2: husen som evakueras, i tur och ordning. Som Mölnbo 0.20.1: först de närmast basen (Stationsvägen vid ICA och
-// Smedjevägen), sedan längre ut, sist de i väster och söder om spåret där horden kommer in, när spelaren har ställt sig.
+// Dag 2: husen som evakueras, i tur och ordning. Som Mölnbo 0.20.1: först de närmast basen, sedan längre ut.
 export const EVAC_HOMES = (() => {
   const taken = new Set();
-  return [[10, 70], [-12, 30], [-40, 20], [-60, -20], [-100, 100], [-70, 5]].map(([x, z]) => homeNear(x, z, taken));
+  // 0.23.2 (omtestet av 0.23.1: dag 12 föll tre av tre när spelaren spred sig västerut längs linjerna): husen ligger
+  // inom cirka 110 m från basen, vid Villavägen, Smedjevägen och Stationsvägen, så att den som håller basen täcker dem
+  return [[55, 73], [33, 103], [70, 61], [23, 96], [65, 46], [26, 29]].map(([x, z]) => homeNear(x, z, taken));
 })();
 // 0.23.1 (speltestet av 0.23.0): introna säger gatorna (inte väderstreck), ordern säger var man ska stå (vid
 // Wattrangsborg, där Stationsvägen och Villavägen möts; en spelare som ställer allt inom 40 m från basen ska klara dag 1,
@@ -269,7 +270,8 @@ export const DAYS = [
              { groups: [g('walker', 28, 0.4, 0, 'w3'), g('walker', 24, 0.4, 2, 'w2'), g('runner', 14, 0.4, 8, 'w1'), tell('Armoured ones along the tracks!', g('armored', 3, 2.4, 6, 'w2')), g('brute', 2, 3, 4, 'w3')] } ] },
   { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 6, overlap: 12, overlapMin: 0.3, bounty: 1,
     intro: { title: 'Day 2: Get them out', text: 'Väg 57/223 and the tracks again, and Ekvägen over the level crossing.' },
-    order: { text: 'Cover the yellow lines to Wattrangsborg. Ekvägen comes over the crossing.' },
+    // 0.23.2 (omtestet av 0.23.1: ordern drog spelaren västerut, bort från basen)
+    order: { text: 'Hold the base. Cover the yellow lines from there.' },
     objective: 'Get the marked houses to Wattrangsborg.',
     // basen, Stationsvägen och plankorsningen (där horden söderifrån kommer in) i bild
     // 0.23.1 (speltestet av 0.23.0: plankorsningen och vägarna söderifrån syntes inte före vågen): också södra sidan

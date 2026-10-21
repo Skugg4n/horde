@@ -48,6 +48,7 @@ const REASONS = {
   'redan': 'This position already has a kit.',
   'zombier': 'Zombies in the way',
   'ingen gata': 'Only on the road',
+  'basnära': 'Too close to the base. A bit further out.',
   // Hemvärnet (0.9.0)
   'trångt': 'No room for the squad here',
   'trångt-man': 'No room for one more rifleman here',
