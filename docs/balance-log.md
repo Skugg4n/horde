@@ -1379,3 +1379,18 @@ Speltestet (docs/playtests/2026-10-21-0.23.0-bjornlunda.md): en vanlig spelare s
 Första skottet: den vanliga spelaren efter 6 s, den som står vid basen efter 55 s (horden går fram till korsningen). Pengarna över ligger under målet 300 till 600 $ för den vanliga spelaren och över för kartläsaren dag 11 (den köper bara taggtråden och lådorna när truppen står); en människa som köper mer tråd hamnar däremellan.
 
 Fingeravtrycken: blSkilled 46f80682, e962a0ba; blNormal 5a093df8, 3e97901a. Quick jump-truppen oförändrad.
+
+## Björnlunda 0.23.2: omtestet av 0.23.1 (dag 12)
+
+Omtestet (docs/playtests/2026-10-21-0.23.1-bjornlunda.md): dag 11 vanns på första försöket med ordern, dag 12 föll tre av tre med truppen efter dag 11. Testaren trodde att balansen spelade dag 12 med utvilad trupp.
+
+**Tröttheten.** Kontrollerat: balansen (scripts/balance.mjs opCampaign) och spelet (main.js finishOpDay) anropar samma funktion mellan dagarna, src/meta/operation.js finishDay, som gör de som slogs trötta och byter utmattade i striden mot utvilade i reserven; startkonfigurationen (opStartConfig) tar stridsbanan med tröttheten. Balansens dag 12 spelades alltså med trötta enheter (tre utmattade Psg 90 i striden för seed 0). Det som skilde var Quick jump till dag 12 (utvilad trupp, src/data/arrival.js) och var spelaren ställde sig: testaren följde ordern västerut längs linjerna, och horden kom ner Villavägen och längs Stationsvägen in i basen. Nytt prov: den som står vid basen vinner dag 11, bordets regler läggs på (tröttheten kontrolleras), och dag 12 vinns inom tre försök i alla seeds.
+
+**Dag 12.** Husen som töms ligger inom 54 till 110 m från basen (förut upp till 250 m, ett söder om spåret), så att den som håller basen täcker linjerna. Ordern "Hold the base. Cover the yellow lines from there." och lektionen mot Villavägen och Stationsvägen. Förstärkning före dag 12 (bl-2): två Hemvärnsgrupper och en Ksp 90. hp 6, need 18 oförändrade.
+
+    blSkilled  båda dagarna första försöket; dag 12 bas 17 till 20, 366 till 393 s, kvar 115 till 237 $, civila 24 av 24
+    blNormal   första försöket utom seed 3 (dag 11 tre, dag 12 två); dag 12 bas 4 till 20, 349 till 395 s
+    blNear     båda dagarna första försöket, dag 12 bas 15 till 20, 395 till 411 s, civila 24 av 24 (kvar cirka 1 000 $: den köper inget när truppen står)
+    toppen     143 levande, högst två vågor ute
+
+Evakueringen är nu lätt (24 av 24 för alla tre spelarna); det svåra är basen. Fingeravtrycken: blSkilled 46f80682, 45f6baee; blNormal 5a093df8, 378e1969. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad med förstärkningen.

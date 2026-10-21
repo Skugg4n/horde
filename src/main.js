@@ -1987,7 +1987,8 @@ function uncoveredDetour(before, after) {
       const [x, z] = sim.route.grid.center(k);
       if (Math.hypot(x - b.x, z - b.z) <= DETOUR_NEAR && !seen.has(k)) bare.push(k);
     }
-    if (bare.length) return rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i]?.cells ?? [], bare) ?? 'another street';
+    // gatan är den där den nya vägen går mest (omvägen), inte den sista biten vid basen där vägarna går ihop
+    if (bare.length) return rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i]?.cells ?? [], after[i].cells) ?? 'another street';
   }
   return null;
 }
