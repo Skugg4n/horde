@@ -219,7 +219,7 @@ export function convert(plan, cfg) {
     const pts = simplify(TP(rd.pts), 0.35);
     if (pts.length < 2) return;
     const name = rd.name ?? (rd.ref ? `Väg ${rd.ref.replace(';', '/')}` : null);
-    let surface = rd.surface === 'gravel' || rd.surface === 'unpaved' || rd.surface === 'dirt' || rd.surface === 'ground' || rd.type === 'track' ? 'gravel'
+    let surface = name && cfg.gravelNames?.includes(name) ? 'gravel' : rd.surface === 'gravel' || rd.surface === 'unpaved' || rd.surface === 'dirt' || rd.surface === 'ground' || rd.type === 'track' ? 'gravel'
       : rd.surface === 'asphalt' || rd.surface === 'paved' ? 'asphalt' : k.surface;
     if (cfg.paveFootways && rd.cls === 'E' && !rd.surface && rd.type !== 'path') surface = 'asphalt';
     const o = { id: `${slug(name ?? rd.type)}-${i}`, name, ref: rd.ref ?? null, cls: rd.cls, type: rd.type, surface, width: rd.cls === 'B' && rd.type === 'secondary' ? 7 : k.width, pts };

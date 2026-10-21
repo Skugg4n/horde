@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horde · Västerkärv</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+<style>
+  #stage { cursor: grab; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .street { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font: 600 12px 'Oswald', sans-serif;
+            letter-spacing: 0.18em; text-transform: uppercase; color: rgba(240,232,212,0.62); text-shadow: 0 1px 3px rgba(20,14,8,0.7); }
+  .sk { position: absolute; transform: translate(-50%, -140%); white-space: nowrap; font: 600 11px 'Oswald', sans-serif; letter-spacing: 0.08em;
+        padding: 1px 6px; background: var(--plate); border: 1px solid var(--plate-edge); border-radius: 2px; display: none; }
+  #labels.sketch .sk { display: block; }
+  #labels.off .street { display: none; }
+  #head { position: fixed; top: 14px; left: 14px; padding: 8px 14px 10px; max-width: 420px; }
+  #head .t { font-family: 'Saira Stencil One', sans-serif; font-size: 26px; line-height: 1.1; }
+  #head .s { font-size: 12px; color: var(--paper-dim); letter-spacing: 0.06em; margin-top: 2px; }
+  #head .k { font: 11px 'IBM Plex Mono', monospace; color: var(--paper-dim); margin-top: 6px; line-height: 1.5; }
+  #info { position: fixed; right: 10px; bottom: 6px; font: 11px 'IBM Plex Mono', monospace; opacity: .5; text-align: right; }
+  #credit { position: fixed; left: 10px; bottom: 24px; font: 10px 'IBM Plex Mono', monospace; opacity: .45; }
+</style>
+</head><body>
+<div id="stage" class="grade"></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+<script src="loadbar.js" data-name="Västerkärv" data-modules="24" data-share="0.3"></script>
+<div id="labels"></div>
+<div id="head" class="plate">
+  <div class="t">VÄSTERKÄRV</div>
+  <div class="s">A farm south-west of Gnesta (anonymised). The horde comes by small roads and paths from the west and south-west, over open fields; the base is the farmhouse, the way out is east and north along the gravel road. Map preview, no gameplay.</div>
+  <div class="k">drag / WASD / arrows: pan · wheel: zoom<br>L: names · G: walk grid · R: approach and exits · H: home</div>
+</div>
+<div id="ver"></div>
+<div id="info"></div>
+<div id="credit">Map data © OpenStreetMap contributors (ODbL) · paths and houses OSM lacks added by hand after a satellite image (position and size only)</div>
+<script type="module">
+import * as THREE from 'three';
+import { VERSION } from './src/version.js';
+import { mark, now as tNow, add as tAdd } from './src/meta/load-timing.js';
+import { vasterkarv as map, VASTERKARV_VERSION } from './src/data/vasterkarv.js';
+import { gridPath } from './src/data/osm-map.js';
+import { createScene } from './src/render/scene.js';
+import { gridOverlay } from './src/render/gnesta-world.js';
+import { buildOsmWorld, sketchOverlay } from './src/render/osm-world.js';
+import { gard, ladan, uthus, ladugard, maskinhall, stoneWall, tractor, dieselTank, balePile, machine, fieldGate, cairn } from './src/render/vasterkarv-kit.js';
+mark('moduler');   // laddtiden (H502): moduler och kartans data klara
+
+// Förhandsvisningen har inget ljud; ?mute finns för att provkörningarna ska kunna säga det utan att något låter.
+document.getElementById('ver').textContent = `Västerkärv ${VASTERKARV_VERSION} · v${VERSION}`;
+const { renderer, scene, camera, sun, fill } = createScene(document.getElementById('stage'), map);
+sun.shadow.mapSize.set(4096, 4096);
+
+const KIT = { gard, ladan, uthus, ladugard, maskinhall, stoneWall, tractor, dieselTank, balePile, machine, fieldGate, cairn };
+// 0.20.0 (H502): mätaren (loadbar.js) följer stegen: världen, shaderprogrammen, första bildrutan
+const nextPaint = () => new Promise(r => requestAnimationFrame(() => r()));
+window.__loadbar?.step('Raising the houses', 0.05); await nextPaint();
+const tWorld = tNow();
+const world = buildOsmWorld(scene, map, { kit: KIT });
+tAdd(map.id + ':värld', tWorld);
+const grid = gridOverlay(map.grid); grid.visible = false; scene.add(grid);
+const sketch = sketchOverlay(map, gridPath); scene.add(sketch.group);
+
+// ---------- kamera: samma vinkel som Gnesta och Mölnbo, går att panorera ----------
+const OFFSET = new THREE.Vector3(40, 46, 40);
+const SUN = new THREE.Vector3(-34, 30, 26);
+const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
+const HOME = new THREE.Vector3(map.camera.target[0], 0, map.camera.target[1]);
+const target = HOME.clone();
+const LIMIT = map.camera.pan;
+const [ZMIN, ZMAX] = map.camera.zoom;
+let view = map.camera.view;
+function applyCamera() {
+  target.x = Math.min(LIMIT.x1, Math.max(LIMIT.x0, target.x));
+  target.z = Math.min(LIMIT.z1, Math.max(LIMIT.z0, target.z));
+  const a = innerWidth / innerHeight, v = a < 1 ? view * 1.5 : view;
+  camera.left = -v * a / 2; camera.right = v * a / 2; camera.top = v / 2; camera.bottom = -v / 2;
+  // utzoomad: kameran backar längs samma linje (bilden är densamma) så att närplanet inte klipper marken nertill
+  const back = Math.max(1, view / 45);
+  camera.position.copy(target).addScaledVector(OFFSET, back); camera.lookAt(target);
+  camera.far = 500 + back * 140;
+  camera.updateProjectionMatrix();
+  fill.position.copy(target).add(OFFSET); fill.target.position.copy(target);
+  // skuggkameran följer med och täcker det som syns
+  sun.position.copy(target).add(SUN); sun.target.position.copy(target);
+  const half = Math.min(110, Math.max(34, view * a * 0.95));
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 240 });
+  sun.shadow.camera.updateProjectionMatrix();
+  // diset följer zoomen så att en översikt inte drunknar
+  const extra = (back - 1) * OFFSET.length();
+  scene.fog.near = 95 + extra + Math.max(0, view - 60) * 1.2; scene.fog.far = 210 + extra + Math.max(0, view - 60) * 1.6;
+}
+addEventListener('resize', applyCamera); applyCamera();
+
+let drag = null;
+const stage = document.getElementById('stage');
+const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; stage.style.cursor = 'grabbing'; });
+addEventListener('pointerup', () => { drag = null; stage.style.cursor = ''; });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = view / innerHeight;
+  target.addScaledVector(R, -(e.clientX - drag.x) * k).addScaledVector(D, -(e.clientY - drag.y) * k / PITCH);
+  drag = { x: e.clientX, y: e.clientY }; applyCamera();
+});
+stage.addEventListener('wheel', e => { e.preventDefault(); view = Math.min(ZMAX, Math.max(ZMIN, view * Math.exp(e.deltaY * 0.001))); applyCamera(); }, { passive: false });
+
+const keys = new Set();
+const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
+addEventListener('keydown', e => {
+  if (PAN[e.code]) { keys.add(e.code); e.preventDefault(); }
+  if (e.code === 'KeyL') labelsEl.classList.toggle('off');
+  if (e.code === 'KeyG') grid.visible = !grid.visible;
+  if (e.code === 'KeyR') { sketch.group.visible = !sketch.group.visible; labelsEl.classList.toggle('sketch', sketch.group.visible); }
+  if (e.code === 'KeyH') { target.copy(HOME); view = map.camera.view; applyCamera(); }
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+// ---------- namn: gatorna och landmärkena; skissernas namn syns med R ----------
+const labelsEl = document.getElementById('labels');
+const mk = (text, at, cls) => {
+  const el = document.createElement('div'); el.className = cls; el.textContent = text;
+  labelsEl.appendChild(el);
+  return { el, p: new THREE.Vector3(at[0], 0.3, at[1]) };
+};
+const labels = [
+  ...map.labels.map(l => mk(l.text, l.at, 'street')),
+  ...map.sketch.spawns.map(s => mk(s.name, s.field ?? s.at, 'sk')),
+  ...(map.sketch.exits ?? []).map(s => mk(s.name, s.at, 'sk')),
+  ...(map.sketch.base ? [mk(map.sketch.base.name, map.sketch.base.at, 'sk')] : []),
+];
+
+// ---------- loopen ----------
+const info = document.getElementById('info');
+const v3 = new THREE.Vector3();
+let last = performance.now(), time = 0, frames = 0, fpsT = 0, fps = 0;
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.05); last = now; time += dt;
+  if (keys.size) {
+    let ux = 0, uy = 0;
+    for (const k of keys) { ux += PAN[k][0]; uy += PAN[k][1]; }
+    const sp = view * 0.9 * dt;
+    target.addScaledVector(R, ux * sp).addScaledVector(D, uy * sp / PITCH);
+    applyCamera();
+  }
+  world.update(dt, time);
+  renderer.render(scene, camera);
+  if (!tick.drawn) { tick.drawn = true; mark('första bild'); window.__loadbar?.done(); }
+  for (const l of labels) {
+    v3.copy(l.p).project(camera);
+    l.el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px';
+    l.el.style.top = ((1 - v3.y) / 2 * innerHeight) + 'px';
+  }
+  frames++; fpsT += dt;
+  if (fpsT > 0.5) {
+    fps = Math.round(frames / fpsT); frames = 0; fpsT = 0;
+    const r = renderer.info.render;
+    info.textContent = `calls ${r.calls} · tris ${(r.triangles / 1000).toFixed(0)}k · ${fps} fps`;
+  }
+  requestAnimationFrame(tick);
+}
+// shaderprogrammen kompileras parallellt medan skylten står, i stället för i första bildrutan
+window.__loadbar?.step('Mixing the paint', 0.75); await nextPaint();
+{ const t = tNow(); try { await renderer.compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
+  scene.traverse(o => { if (o.material?.map) renderer.initTexture(o.material.map); }); tAdd(map.id + ':shader', t); }
+requestAnimationFrame(tick);
+// för felsökning: window.__vasterkarv
+window.__vasterkarv = { renderer, scene, camera, map, world, sketch, target, setView(v) { view = v; applyCamera(); }, focus(x, z, v) { target.set(x, 0, z); if (v) view = v; applyCamera(); },
+  toggle(k) { dispatchEvent(new KeyboardEvent('keydown', { code: k })); } };
+</script>
+</body></html>

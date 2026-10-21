@@ -56,6 +56,9 @@ export default {
   rural: [{ name: 'Landet', poly: [[-420, -400], [440, -400], [440, 420], [-420, 420]] }],
   stub: 4,
   keep: { C: 0.8 },   // grusvägens båge går tätt förbi boningshuset (4 m från väggen till mittlinjen)
+  // OSM har ingen yta på grusvägarna (bara unclassified); de ritas som grus. Betesmarken (meadow) som gräs, åkern som åker.
+  gravelNames: ['Grusvägen', 'Södra grusvägen'],
+  landuse: { meadow: 'lawn' },
   noPois: true,   // OSM:s platsnamn pekar ut gården
   // Falurött och gult trä; svart plåt och tegel. (Husen här är landmärken och lantbruksbyggnader, men grannens
   // bostadshus tar villareglerna om OSM ger dem som bostäder.)
@@ -99,8 +102,8 @@ export default {
   // grova drag.
   extraRoads: [
     { name: 'Skogsvägen', type: 'track', cls: 'D', width: 3, surface: 'gravel', pts: [[-352, 108], [-300, 108], [-250, 106], [-205, 111], [-160, 118], [-110, 120], [-80, 122], [-59, 123]] },
-    { name: 'Traktorspåret', type: 'track', cls: 'D', width: 3, surface: 'gravel', pts: [[-352, -128], [-300, -118], [-250, -110], [-200, -103], [-150, -102], [-105, -98], [-70, -70], [-42, -38], [-20, -8], [-8, 18], [-0.2, 34.8]] },
-    { name: 'Gårdsstigen', type: 'track', cls: 'D', width: 3, surface: 'gravel', pts: [[4.4, 38.9], [14, 22], [36, -16], [62, -42], [80, -60], [96, -70]] },
+    { name: 'Traktorspåret', type: 'track', cls: 'D', width: 3, surface: 'gravel', pts: [[-352, -128], [-300, -118], [-250, -110], [-200, -103], [-150, -102], [-105, -98], [-70, -70], [-42, -38], [-22, -8], [-12, 14], [-5, 27], [-0.2, 34.8]] },
+    { name: 'Gårdsstigen', type: 'track', cls: 'D', width: 3, surface: 'gravel', pts: [[-5, 27], [6, 21], [15, 16], [36, -16], [62, -42], [80, -60], [96, -70]] },
   ],
   // Ridbanan (satellitbilden): grusplan vid grannens gård.
   extraGround: {
@@ -108,11 +111,10 @@ export default {
   },
   lamps: {},
   labels: [
-    { text: 'Gården', at: [10, 62] },
     { text: 'Gårdsplanen', at: [14, 28] },
     { text: 'Åkern i sydväst', at: [-110, -45] },
     { text: 'Skogsbrynet', at: [-135, -50] },
-    { text: 'Grusvägens båge', at: [-18, 82] },
+    { text: 'Grusvägens båge', at: [-30, 92] },
     { text: 'Grannens gård', at: [160, -95] },
     { text: 'Ridbanan', at: [222, -105] },
     { text: 'Stenrösena', at: [5, 150] },
