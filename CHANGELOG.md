@@ -1,5 +1,19 @@
 # Ändringslogg
 
+## 0.23.0 (Björnlunda) (2026-10-21)
+
+Björnlunda är en spelbar sektor: kampanjens dag 11 och 12 (kampanjplanen avsnitt 10, H545). Den öppnar när Mölnbo dag 3 (uttåget) är vunnen.
+
+- **Basen är Wattrangsborg**, bygdegården vid väg 57/223 i byns sydöstra hörn, med igenspikade dörrar som ishallen och Folkets hus. Den ligger på östra sidan, där väg 57 går vidare mot Gnesta: horden västerifrån måste genom byn eller längs förbifarten. Kyrkan ligger utanför kartan och mot horden, gamla stationen och ICA likaså.
+- **Dag 1 (dag 11), försvar från väst:** väg 57/223 från Stjärnhov, längs spåret västerifrån och Korsbacksvägen in i villorna. Fyra vågor, bjässar och pansrade i de två sista. Introt: "From the west: väg 57/223 from Stjärnhov, and along the tracks."
+- **Dag 2 (dag 12), evakuering och försvar från väst och syd:** sex markerade hus går de gula linjerna till Wattrangsborg (Hagstumosses evakuering), först de närmast basen, sist ett hus söder om spåret och ett i väster. Horden kommer också söderifrån, Ekvägen och Ängsvägen från Hembygdsgården, över plankorsningen, den enda vägen över spåret i byn. Större än dag 1. Introt: "West again, and from the south over the level crossing."
+- **Slutet** läses som en vinst och pekar vidare: "Björnlunda held, and its people got out. Next: the western roundabout in Gnesta."
+- **Ledningen** har inga bra trupper att skicka: truppen från Mölnbo följer med, och byns jägare blir två grupper frivilliga.
+- **Husen:** villorna, radhusen, ICA och de andra husen på spelytan går att besätta; Psg 90 får ligga på de platta taken (ICA, gula trevåningshuset, radhusen, sparbanken, affärshusen). Tre upptrampade stigar mellan trädgårdarna (Stationsvägen till Smedjevägen i norr, Smedjevägen till Villavägen på två ställen) ger omvägar när en gata spärras.
+- **Kopplingen:** bordets markör och order ("Commander, Björnlunda"), operationskartan, kampanjens dag (Day 11 och 12), Quick jump till dag 1 och 2 i debugmenyn med truppen en spelare har där, och balansens policyer. Laxne-valet (beslutat att ligga mellan Mölnbo dag 3 och Björnlunda dag 1) är inte byggt; kroken står i src/data/bjornlunda-play.js. Inga nya lektioner (Björnlunda befäster det man kan), Field manual orörd.
+- **Balansen:** kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre. Dag 1 hp 10, dag 2 hp 7, horden går fortare än i Mölnbo (byn är stor). docs/balance-log.md, Björnlunda 0.23.0.
+- Förhandsvisningen (bjornlunda.html) delar landmärkena med spelet, och kartans rutnät räknas först när det behövs.
+
 ## 0.22.0 (Hagstumosse efter kampanjbågen) (2026-10-20)
 
 Hagstumosse har kampanjbågens fyra dagar (kampanjplanen avsnitt 10, H539). Förut tio: Ishallen 5 och Vikingavägen 5. Mölnbo dag 1 är nu kampanjens dag 8.

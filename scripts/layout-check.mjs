@@ -9,6 +9,7 @@
 // och raderna, på Mölnbo dag 1 och 4 och E4 dag 2. 0.19.2: lektionerna dag 2 och 4 mot köpraden, dag 5:s skyltar,
 // pendeltågets signal och perrongen, och världens lappar (märkena, lägena, etiketten, raderna) mot allt annat.
 // 0.21.0: kartbordet (auditTable) dag 1, dag 2, dag 8 och Mölnbo dag 1, en utbredd hög och Requisition som klämbräda.
+// 0.23.0: Björnlunda dag 1 och 2 (introna, resultatet med sektorns slut och gränssnittet före första vågen).
 // Högarna får ligga på varandra; det som ska läsas ([data-read]: översta bladets text, kanternas rubriker, kortens rygg,
 // lapparna, klämbrädan) får inte vara täckt av något annat föremål och ska ligga inne i fönstret och i sitt föremål.
 // De gamla skyltarna (operationskartan, förrådet) provas med inställningen Classic.
@@ -188,7 +189,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 21;
+const TABLE_SCOPES = 22;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -281,6 +282,8 @@ async function tableChecks(page, label) {
   if (!/Vikingavägen · Day 7/.test(nb)) errors.push(`table-daynumber @${label}: klämbrädan säger "${nb}"`);
   if (!/ORDER 0?7\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-norr:1"]')?.textContent ?? ''`))) errors.push(`table-daynumber @${label}: ordern är inte ORDER 07`);
   await show(reach('molnbo', 1), 'table-molnbo-1');
+  // 0.23.0 (H545): Björnlunda på bordet (markören, ordern och personalrullan)
+  await show(reach('bjornlunda', 1), 'table-bjornlunda-1');
   // 16 enheter (0.22.0: ankomsten till Mölnbo har 15, så en Ksp 90 till; förut 20 utan fyra)
   await show(reach('molnbo', 1, `const here = O.unitsIn(p, 'molnbo'), n = 16 - here.length, drop = n < 0 ? here.slice(n).map(u => u.uid) : []; p = { ...p, op: { ...p.op, units: [...p.op.units.filter(u => !drop.includes(u.uid)), ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 950 + i, type: 'm249', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };`), 'table-units-16');
   const cards = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
@@ -441,6 +444,19 @@ async function run() {
     await check('molnbo-opmap');
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); H.showDepot('molnbo', 'opmap', { day: 3 }); })()`);
     await check('molnbo-depot');
+    // 0.23.0 (H545): Björnlunda dag 1 och 2 (kampanjens dag 11 och 12): introna, och resultatet efter dag 2 med sektorns slut
+    for (const d of [1, 2]) {
+      await ev(`(async () => { const H = window.__horde; await H.jump('bjornlunda', ${d}); H.startDay(${d}); })()`);
+      await check(`bjornlunda-${d}-intro`);
+    }
+    await ev(`window.__horde.sheetAction('go')`);
+    await page.waitForTimeout(400);
+    await skipLessons();
+    await dropLessons();
+    await ev(`(() => { window.__horde.sim.phase = 'won'; })()`);
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(900);
+    await check('bjornlunda-2-result');
     // 0.17.1: gränssnittet i striden (auditHud): lektionsplåten med PAUSED över köpraden, raden vid pekaren nära
     // DAY-rutan, tågets ruta med ingångarnas etiketter, mitt i en våg, och E4 med lektionsplåten vid köpraden
     // lektionsplåtarna bort med Esc tills ingen står kvar; öppnade ett Esc pausmenyn stängs den (Resume)
@@ -534,6 +550,14 @@ async function run() {
     await page.waitForTimeout(1500);
     if (!(await ev(`!document.querySelector('.platlabel').hidden`))) errors.push(`hud-molnbo-2-train @${W}: klicket på banderollen visar inte perrongen`);
     await checkHud('hud-molnbo-2-platform');
+    // 0.23.0 (H545): Björnlunda före första vågen: dag 1 (ingångarna i väster) och dag 2 (evakueringens ruta, de gula
+    // linjerna och husens lappar)
+    for (const d of [1, 2]) {
+      await ev(`(async () => { const H = window.__horde; await H.jump('bjornlunda', ${d}); })()`);
+      await clearLessons();
+      await ev(`window.__horde.rig?.skipTour?.()`);
+      await checkHud(`hud-bjornlunda-${d}-build`);
+    }
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     // 0.21.0: kartbordet (0.21.1: också i 1440x900 och 1920x1080, se nedan)

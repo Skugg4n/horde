@@ -250,8 +250,8 @@ export const DAYS = [
   { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 10, overlap: 20, overlapMin: 0.3,
     intro: { title: 'Day 1: From the west', text: 'From the west: väg 57/223 from Stjärnhov, and along the tracks.' },
     objective: 'Hold Wattrangsborg.',
-    // basen och Stationsvägen förbi ICA (dit vägen längs spåret kommer) i bild
-    view: { pts: [WATT.entrance, [-25, 62], [60, 40]] },
+    // basen (med plats under den för köpraden) och Stationsvägen förbi ICA (dit vägen längs spåret kommer) i bild
+    view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [60, 40]] },
     tail: { n: 8, after: 6, mul: 4 },
     waves: [ say('From Stjärnhov, down väg 57/223.', { groups: [g('walker', 14, 0.7, 0, 'w1', 14), g('runner', 4, 0.9, 10, 'w1')] }),
              say('Along the tracks from the west!', { groups: [g('walker', 22, 0.5, 0, 'w2'), g('walker', 12, 0.6, 4, 'w1'), g('runner', 6, 0.6, 12, 'w2')] }),
@@ -261,7 +261,7 @@ export const DAYS = [
     intro: { title: 'Day 2: Get them out', text: 'West again, and from the south over the level crossing.' },
     objective: 'Get the marked houses to Wattrangsborg.',
     // basen, Stationsvägen och plankorsningen (där horden söderifrån kommer in) i bild
-    view: { pts: [WATT.entrance, [-25, 62], [-80, 70]] },
+    view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [-80, 70]] },
     tail: { n: 8, after: 6, mul: 4 },
     // all: dagen vinns först när vågorna är hållna OCH de civila är framme (src/sim/sim.js checkEvac)
     evac: { need: 18, all: true,

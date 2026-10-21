@@ -1324,3 +1324,23 @@ Fingeravtrycken:
 - skilled: gnesta 3 c772668d, gnesta-norr 1 795bf800 (övriga oförändrade)
 - mbSmart bd69454f, e33f91c4, d496490c; mbNaive 8bae3ad7, 6d627559, 429ae660
 - simuleringens kvitto: Gnesta South day 3 63fd5a37 (bjässarna; den fasta styrkan vinner med full bas), Gnesta North day 1 4393a798 (förut day 2 dabfdccd; förlorar i första vågen som förut)
+
+## Björnlunda 0.23.0: sektorn efter Mölnbo (H545)
+
+Kampanjplanen avsnitt 10: Björnlunda är kampanjens dag 11 (försvar från väst) och 12 (evakuering och försvar från väst och syd). Basen Wattrangsborg i byns sydöstra hörn. Spelaren kommer från Mölnbo med det kartläsaren har efter uttåget (`bjornlundaArrival`: `molnboCampaign('mbSmart')`), 18 enheter plus byns två grupper jägare (leveransen bl-1); tio får stå ute. `npm run balance -- bjornlunda`.
+
+**Spelarna.** blSkilled läser kartan: dag 1 möter den horden tidigt på gatorna (planens `near` -0,3), dag 2 håller den förbifarten öster om byn som en egen flank (`focus` x > 30, vikt 2) och linjen närmare basen (`near` 0,3), och täcker de civilas väg (evacMap). blNormal är `normal` med evakueringens tips. Mätt: den vanliga `skilled` (förnödenheterna och djupets verb fullt ut, garnisonen och sikta på de starkaste) förlorade dag 1 i fyra av fem seeds där `normal` vann; utan förnödenheterna vann den alla, med bemanna igen i stället för hela djupet likaså. Med samma trupp kostar ammunitionen och sandsäckarna här mer än de ger, och planens `lastLine` (linjen framför basen) lät horden från fyra håll komma fram samtidigt. Kartläsaren här köper inte förnödenheterna och bemannar tysta pjäser igen.
+
+**Banan.** Vägarna in är långa (191 till 262 rutor, Mölnbo 56 till 206), så `pace` 1,5 (Mölnbo 1,15) och `overlap` 20 s. Med 1,15 tog dag 1 elva minuter. Spärrar styr knappt här: tre parallella gator (Stationsvägen, Smedjevägen, Villavägen) och stigarna gör att en spärr ger 0 till 34 rutors omväg, så kartläsaren spärrar inte (BL_BLOCKS tom). En spärrad Villavägen skickar väg 57/223 över stigen vid ICA och Korsbacksvägen över stigen i norr (provet).
+
+**Dag 1:** hp prövat 8, 9, 10, 11, 12, 14. Stupet ligger mellan 11 och 12 (alla förlorar på 12). På 10 vinner kartläsaren alla fem seeds direkt, den vanliga spelaren fyra direkt och en på andra försöket i provkörningen utan rekvisition mellan försöken; med kampanjens rekvisition alla direkt.
+
+**Dag 2:** hp prövat 7, 8, 11. På 11 förlorar alla. På 8 förlorade båda spelarna enstaka seeds i tredje och fjärde vågen: allt kommer samtidigt (sista vågen från fem ingångar) och förbifarten (väg 57/223) står obevakad. Sista vågen lättad (walkers 36 och 30 till 30 och 26, löparna Korsbacksvägen i stället för väg 57/223, de pansrade längs spåret), hp 7, need 18 av 24 (kartläsaren tappar fyra i varje seed, den vanliga noll till två).
+
+    blSkilled  båda dagarna första försöket; dag 1 bas 15 till 19 (496 till 512 s), dag 2 bas 14 till 18 (491 till 498 s), civila 20 av 24
+    blNormal   båda dagarna första försöket; dag 1 bas 6 till 15 (524 till 557 s), dag 2 bas 1 till 19 (424 till 487 s), civila 22 till 24
+    toppen     119 levande, högst två vågor ute
+
+Dagarna är långa (åtta till nio minuter); provet tillåter tio. Kortare vägar kräver en mindre spelyta (förhandsvisningens CRISP) och ingick inte.
+
+Fingeravtrycken: blSkilled 0f487cd8, a685d10a; blNormal b01f7c53, dcfb02cd. Quick jump-truppen (src/data/arrival.js ARRIVAL_TROOP.bjornlunda, dag 2 `bjornlundaDayTroop`). Mölnbos fingeravtryck är oförändrade.
