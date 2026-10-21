@@ -1009,8 +1009,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .entry, .entry * { pointer-events: none !important; }
 /* 0.17.1: en genombruten spärr (en lucka): tom röd ram */
 .obbar.breached { border-color: #d4482c; animation: none; }
-/* 0.17.1: fiendekortets PAUSED uppe i mitten, inte över köpraden */
-#enemycard .paused { top: 22px; bottom: auto; }
+/* 0.17.1: fiendekortets PAUSED inte över köpraden. 0.25.1 (H564): inte heller över vågens rad överst i mitten; den
+   står i kortets rubrikrad, till höger */
+#enemycard .eh .paused { position: static; transform: none; margin-left: auto; color: rgba(233,223,201,0.55); }
 /* 0.17.2: Quick jump i debugmenyn */
 #debug .row.quick { gap: 4px; }
 #debug .row.quick > label:first-child { width: 100%; }
@@ -1260,6 +1261,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-order .hd { display: flex; justify-content: space-between; gap: 10px; font-size: 13.75px; letter-spacing: .14em; font-weight: 600; border-bottom: 1.5px solid #221d16; padding-bottom: 6px; }
 .hub .tb-order .meta { font-size: 13.75px; line-height: 1.55; margin: 9px 0 10px; color: #3a3226; }
 .hub .tb-order .txt { font-size: 16px; font-weight: 600; line-height: 1.38; }
+.hub .tb-end .txt { margin: 14px 0 64px; font-size: 18px; }
+.hub .tb-end .tb-btn { position: relative; }
 .hub .tb-order .sig { font-size: 13.75px; margin-top: 12px; color: #4a4030; letter-spacing: .04em; line-height: 1.45; }
 #ui .hub .tb-kbd { display: inline-block; margin-top: 14px; font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; background: rgba(255,250,235,.25);
   border: 1.5px solid #221d16; padding: 4px 9px 3px; border-radius: 2px; cursor: pointer; }

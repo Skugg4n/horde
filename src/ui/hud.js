@@ -2,7 +2,7 @@
 // (kvar och Snabbare). Plus det som visas när något händer: basen tar skada, horden kommer,
 // vad vågen består av.
 import { campaignDayOf, shownDay } from '../meta/campaign-day.js';
-import { placeShort } from '../meta/table.js';
+import { whereOf } from '../meta/table.js';
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { earlyBonus, hasNextWave, waveLeft, overlapGate } from '../sim/sim.js';
@@ -215,7 +215,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     // 0.21.3 (H539): kampanjens dag stort, banan och dess dag smått under ("Mölnbo · 2")
     const cd = campaignDayOf(sim.map.id, sim.day);
     set(el.day, String(shownDay(sim.map.id, sim.day)).padStart(2, '0'));
-    set(el.where, cd != null ? `${placeShort(sim.map.id)} · ${sim.day}` : '');
+    // 0.25.1 (H564): en endagsbana visar hela namnet och kampanjens dag (src/meta/table.js whereOf)
+    set(el.where, cd != null ? whereOf(sim.map.id, sim.day) : '');
     set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
     // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut

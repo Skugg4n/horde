@@ -25,7 +25,7 @@ import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { tableSheet } from './ui/table.js';
 // 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
 import { choiceOverlay } from './ui/choice.js';
-import { recordDay, recordLoss, swapCards, campaignDay, placeShort, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst } from './meta/table.js';
 import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -681,6 +681,15 @@ function updateGhostTip() {
   ghostTip.classList.toggle('warn', !flash && (shut || !!detour));
   const at = flash ? tipFlash : pointer;
   ghostTip.style.left = at.x + 'px'; ghostTip.style.top = at.y + 'px';
+  // 0.25.1 (H564, speltestet av 0.25.0: "Roof too steep. T..." klipptes i högerkanten): når skälet förbi fönstrets kant
+  // står det till vänster om pekaren (och ovanför den nära nederkanten)
+  fitAtPointer(ghostTip, at.x, at.y);
+}
+function fitAtPointer(el, x, y) {
+  const w = el.offsetWidth, h = el.offsetHeight;
+  const left = x + 14 + w > innerWidth - 8, up = y + 14 + h > innerHeight - 8;
+  const tf = `translate(${left ? `calc(-100% - 14px)` : '14px'}, ${up ? `calc(-100% - 14px)` : '14px'})`;
+  if (el.style.transform !== tf) el.style.transform = tf;
 }
 renderer.domElement.addEventListener('pointermove', e => { shiftHeld = e.shiftKey; });
 addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; }, true);
@@ -2018,13 +2027,21 @@ function uncoveredDetour(before, after) {
   }
   return null;
 }
+// 0.25.1 (H563, speltestet av 0.25.0: tre Enter för att stänga tips gick rakt igenom "Deploy anyway" och introt): en
+// Enter är en handling. Efter en Enter som gjort något (stängt en lapp, tryckt en knapp) och när en ny skylt visas trycker
+// Enter inte skyltens knapp på ENTER_SETTLE_MS; trycket äts upp (preventDefault och stopPropagation). En lapp som just
+// kommit går ändå att stänga med Enter (det är en handling, och inget under den nås).
+const ENTER_SETTLE_MS = 300;
+let enterQuietUntil = 0;
+const settleEnter = () => { enterQuietUntil = Math.max(enterQuietUntil, performance.now() + ENTER_SETTLE_MS); };
 addEventListener('keydown', e => {
   // 0.12.2: det man skriver i debugmenyns fält styr inte spelet; Esc stänger menyn
   if (e.target?.closest?.('#debug')) { if (e.key === 'Escape') { e.preventDefault(); debugUi.close(); } return; }
+  if (e.key === 'Enter' && e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); return; }
   // 0.16.0: fiendens presentationsruta (Continue), Field manual (J, Esc) och lektionsplåten (Esc hoppar över,
   // Enter och Space släpper ett steg som bara visar något) går före allt annat
   if (card) {
-    if ((e.key === 'Enter' || e.code === 'Space' || e.key === 'Escape') && !e.repeat) { e.preventDefault(); closeCard(); }
+    if ((e.key === 'Enter' || e.code === 'Space' || e.key === 'Escape') && !e.repeat) { e.preventDefault(); if (e.key === 'Enter') settleEnter(); closeCard(); }
     return;
   }
   if (manual) {
@@ -2055,10 +2072,10 @@ addEventListener('keydown', e => {
   // 0.22.1 (speltestet av 0.22.0, fynd 2: Enter på lappen "Spend RP..." startade dagen): mellan dagarna stänger Enter
   // (och Space) först lappen; nästa Enter gör det skylten säger
   if (lesson && !menu.isOpen() && mode !== 'play' && lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space')) {
-    e.preventDefault(); if (!e.repeat) releaseLesson(); return;
+    e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) { if (e.key === 'Enter') settleEnter(); releaseLesson(); } return;
   }
   if (lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption')) {
-    if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); releaseLesson(); return; }
+    if (lesson.step.kind === 'show' && (e.key === 'Enter' || e.code === 'Space') && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); if (e.key === 'Enter') settleEnter(); releaseLesson(); return; }
     // ett 'show' under hård paus: inga andra tangenter; ett 'step': handlingen går, men Enter och Space startar
     // inget annat än vad steget gäller (Start the wave)
     // 0.16.2: en siffra (ta upp ett kort) släpper ett 'show' och tar upp kortet, som ett klick på plåten gör
@@ -2082,8 +2099,11 @@ addEventListener('keydown', e => {
   // en Enter gör en sak (skylten byts i samma tryck: else if)
   if (e.key === 'Enter' && !e.repeat) {
     // 0.14.1: förrådet som steg (Deploy), och på förlustskylten är Try again det markerade valet
-    const a = { intro: 'go', result: lastResult?.won === false ? 'retry' : 'opmap', opmap: 'go', menu: 'continue', depot: 'deploy' }[mode];
-    if (a && !menu.isOpen()) { e.preventDefault(); sheetAction(a); }
+    // 0.25.1 (H561): på kampanjens slutblad är To menu det enda valet
+    const a = { intro: 'go', result: lastResult?.won === false ? 'retry' : 'opmap', opmap: sheet?.ended?.() ? 'menu' : 'go', menu: 'continue', depot: 'deploy' }[mode];
+    // en lapp som just stängts eller en skylt som just kom: trycket äts upp i stället för att trycka skyltens knapp
+    if (a && !menu.isOpen() && performance.now() < enterQuietUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
+    else if (a && !menu.isOpen()) { e.preventDefault(); settleEnter(); sheetAction(a); }
   }
   if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) go({ stack: e.shiftKey }); }
   if (e.key === 'Shift') { hud.shift(true); shiftHeld = true; }
@@ -2640,6 +2660,8 @@ function setMode(m, makeSheet) {
   if (m !== 'result') exodusUi.reset();
   mode = m;
   uiRoot.dataset.mode = m;
+  // 0.25.1 (H563): en ny skylt tar inte en Enter som trycktes för den förra
+  if (m !== 'play') settleEnter();
   sheet = makeSheet ? makeSheet() : null;
 }
 // Knapp på skylten via tangent: samma sak som att klicka på den.
@@ -2694,7 +2716,10 @@ function withChoiceSheet(s, again) {
     onPick: opt => {
       const r = makeChoice(progress, sh.choice, opt);
       if (!r.ok) { audio.ui('deny'); return; }
-      progress = r.progress; save(); audio.ui('click');
+      progress = r.progress;
+      // 0.25.1 (H563): rullan för nästa strid föreslår de utvilade före de trötta
+      progress = restedFirst(progress, tableNext(progress)?.sector);
+      save(); audio.ui('click');
       again();
     },
   });
@@ -2703,6 +2728,8 @@ function withChoiceSheet(s, again) {
 function showTable() {
   setMode('opmap', () => withChoiceSheet(tableSheet(uiRoot, progress, {
     onGo: id => tableGo(id),
+    // 0.25.1 (H561): kampanjens slutblad har en knapp, To menu
+    onMenu: () => showMenu(),
     act: (kind, ...args) => {
       const r = TABLE_ACTS[kind](progress, ...args);
       if (r.ok) { progress = r.progress; save(); audio.ui('click'); } else audio.ui('deny');
@@ -2805,7 +2832,7 @@ function startDay(n) {
   // 0.21.3 (H539): kampanjens dag i titeln, banans dag smått under
   const cd = campaignDayOf(map.id, n);
   // 0.24.1 (H556): dagen som spelas (sim.dayCfg: ett val kan ha ändrat introt, Björnlunda dag 1 efter FALL BACK)
-  setMode('intro', () => dayIntro(uiRoot, sim.dayCfg, cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: shownDay(map.id, n), where: `${placeShort(map.id)} · ${n}` } : {}));
+  setMode('intro', () => dayIntro(uiRoot, sim.dayCfg, cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: shownDay(map.id, n), where: whereOf(map.id, n) } : {}));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).
@@ -2865,6 +2892,8 @@ function finishDay() {
   if (won) {
     const lost = (report?.units ?? []).reduce((a, u) => { const unit = before.op.units.find(x => x.uid === u.uid); return a + (unit?.men != null && u.alive != null ? Math.max(0, unit.men - u.alive) : 0); }, 0);
     progress = recordDay(progress, { mapId: map.id, day, kills: sim.kills, waves: sim.dayCfg.waves.length, lost, saved: sim.evac?.safe ?? null, total: sim.evac?.total ?? null });
+    // 0.25.1 (H563, speltestet av 0.25.0): natten efter dagen föreslår rullan de utvilade före de trötta från slaget
+    progress = restedFirst(progress, tableNext(progress)?.sector);
   } else progress = recordLoss(progress, { mapId: map.id, day, kills: sim.kills, cleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lostBy: sim.lostBy ?? null });
   save();
   // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)
@@ -2876,6 +2905,8 @@ function finishDay() {
     won, day, rp: f.rp, attempt: f.attempt, kills: sim.kills, lostBy: sim.lostBy ?? null, evac: sim.evac ? { ...sim.evac, place: sim.map.evacPlace ?? null } : null,
     // 0.17.1: samma våg som plåten uppe till vänster visade (hud.js waveCounts och waveLabel)
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, wave: waveCounts(sim).wave, lastDay: day >= map.days.length, losses,
+    // 0.25.1 (H561): den sista byggda dagen är vunnen, kampanjen tar slut tills vidare (inget att fylla på eller köpa)
+    final: won && !!campaignEnd(progress),
   };
   showResult();
   // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången

@@ -13,7 +13,7 @@
 //
 // Sparfilen: progress.table = { layout: { [objekt-id]: { x, y } }, log: { 'bana:dag': { kills, waves, lost, saved } } }.
 // Fältet är valfritt (äldre v4-filer saknar det) och tvättas av normalizeTable; inget annat i sparfilen rörs.
-import { campaignDayOf, shownDay } from './campaign-day.js';
+import { campaignDayOf, shownDay, CAMPAIGN_MAPS } from './campaign-day.js';
 import { MAPS } from '../data/maps.js';
 import { SECTORS, RELEASES, poolOf, releaseOf as releaseById } from '../data/depot.js';
 import { ENEMIES } from '../data/lessons.js';
@@ -23,7 +23,7 @@ import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE
 import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
 import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { dayFor, openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
+import { dayFor, openSectors, currentMap, sectorStatus, sectorClosed, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, unitWorth, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -98,6 +98,14 @@ export function dayBefore(mapId, day, p = null) {
 // Platsens namn på klämbrädan: fasen i Hagstumosse, annars sektorns korta namn (samma som menyn)
 const PHASE = { gnesta: 'Ishallen', 'gnesta-norr': 'Vikingavägen' };
 export const placeShort = map => PHASE[map] ?? SECTORS.find(s => s.maps?.includes(map))?.short ?? MAPS[map]?.name ?? map;
+// 0.25.1 (H564, speltestet av 0.25.0: "RONDELLEN · 1" i HUD:en): platsen under dagnumret i HUD:en och introt. En bana
+// med en enda dag har inget eget dagnummer att visa ("· 1"): där står banans hela namn och kampanjens dag
+// ("Gnesta · Västra rondellen · Day 13"); annars kortnamnet och banans dag ("Mölnbo · 2").
+export function whereOf(map, day) {
+  const m = MAPS[map];
+  if (m?.days?.length === 1) return `${m.name} · Day ${shownDay(map, day)}`;
+  return `${placeShort(map)} · ${day}`;
+}
 // Nästa strid: sektorn (den valda om den har en dag kvar), banan och dagen. null när inget återstår.
 export function nextBattle(p, sector = null) {
   const open = openSectors(p).filter(id => currentMap(p, id));
@@ -115,7 +123,7 @@ export function titleOf(map, day) {
 }
 const sender = k => SENDERS[k] ?? k ?? 'Försvarsmakten';
 // Platsens namn i rapporterna
-const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola', 'gnesta-vastra-rondell': 'The roundabout' };
+const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola', 'gnesta-vastra-rondell': 'Västra rondellen' };
 const placeName = map => PLACE[map] ?? MAPS[map]?.name ?? map;
 
 // ---------- bladen ----------
@@ -168,6 +176,18 @@ export function closedSheet(p, s) {
   const text = o?.summary ?? (o?.text ? o.text.split(/(?<=\.)\s/)[0] : `${s.name} holds.`);
   const days = maps.reduce((a, m) => a + MAPS[m].days.length, 0);
   return { id: `closed:${s.id}`, kind: 'closed', sector: s.id, name: s.short ?? s.name, text, days, stamp: 'HELD' };
+}
+
+// ---------- kampanjens slut (0.25.1, H561) ----------
+// Kampanjen tar slut tills vidare när den sista byggda dagen är vunnen: den sista banan i kampanjens ordning
+// (src/meta/campaign-day.js CAMPAIGN_MAPS) som finns i src/data/maps.js är stängd och inget nästa slag finns. Läggs en
+// ny bana (Västerkärv, dag 14) till i kampanjen och MAPS finns ett nästa slag, och slutet försvinner av sig självt.
+export const lastBuiltMap = () => [...CAMPAIGN_MAPS].reverse().find(id => MAPS[id]) ?? null;
+export function campaignEnd(p) {
+  const last = lastBuiltMap();
+  if (!last || !sectorClosed(p, last) || nextBattle(p)) return null;
+  return { id: 'end', head: 'Operation Södermanland', text: 'Campaign continues in a later version. Thank you for holding Gnesta.', button: 'To menu',
+    days: campaignDay(last, MAPS[last].days.length, p) };
 }
 
 // ---------- uppdragshögarna ----------
@@ -333,7 +353,8 @@ export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
     fatigue: fatigueOn ? f : null, state: fatigueOn ? FATIGUE.names[f] : (u.men === 0 ? 'No men' : 'Ready'),
     // 0.21.2: spelet flyttade enheten efter en vunnen dag (src/meta/operation.js finishDay)
     reinf: reinforcementOf(p, u),
-    moved: u.moved === 'rest:exhausted' ? { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' } : u.moved === 'battle:rested' ? { long: 'Moved into battle: rested', short: 'Moved in: rested' } : null,
+    moved: u.moved === 'rest:exhausted' ? { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' } : u.moved === 'rest:tired' ? { long: 'Moved to reserve: tired', short: 'Moved: tired' }
+      : u.moved === 'battle:rested' ? { long: 'Moved into battle: rested', short: 'Moved in: rested' } : null,
   };
 }
 // Korten i sektorn: förrådets banor (lanes) som de är, ett kort per enhet.
@@ -345,6 +366,33 @@ export function cardZones(p, sector) {
   // 0.21.1 (speltestet, fynd 11: ordningen kastades om när ett kort flyttades): fast ordning, typ och nummer
   const TYPES = Object.keys(TAG), ord = (a, b) => (TYPES.indexOf(a.type) - TYPES.indexOf(b.type)) || a.uid - b.uid;
   return { sector: poolOf(sector), cap: L.cap, battle: [...L.battle].sort(ord).map(card), rest: [...L.rest].sort(ord).map(card) };
+}
+// 0.25.1 (H563, speltestet av 0.25.0: rullan föreslog 9 trötta från förra slaget medan 13 utvilade satt i reserven):
+// natten efter en vunnen dag går de utvilade in före de trötta. Varje trött i striden (den minst värda först) byts mot en
+// utvilad i reserven (den mest värda först) så länge det finns utvilade; båda får en rad om varför (u.moved). Spelaren
+// kan byta tillbaka; förslaget görs en gång, när dagen är vunnen (main.js finishDay), inte varje gång bordet ritas.
+const fitUnit = u => u.men == null || u.men > 0;
+export function restedFirst(p, sector) {
+  if (sector == null || !metaFeatures(p).has('fatigue')) return p;
+  const L = lanes(p, sector);
+  const rested = L.rest.filter(u => !(u.fatigue ?? 0) && fitUnit(u)).sort((a, b) => unitWorth(b) - unitWorth(a) || a.uid - b.uid);
+  const tired = L.battle.filter(u => (u.fatigue ?? 0) >= 1).sort((a, b) => (b.fatigue ?? 0) - (a.fatigue ?? 0) || unitWorth(a) - unitWorth(b) || a.uid - b.uid);
+  const n = Math.min(rested.length, tired.length);
+  if (!n) return p;
+  const inB = new Set(L.battle.map(u => u.uid)), out = new Set(tired.slice(0, n).map(u => u.uid)), inn = new Set(rested.slice(0, n).map(u => u.uid));
+  const units = p.op.units.map(u => {
+    if (u.sector !== poolOf(sector)) return u;
+    if (out.has(u.uid)) return { ...u, lane: 'rest', moved: 'rest:tired' };
+    if (inn.has(u.uid)) return { ...u, lane: 'battle', moved: 'battle:rested' };
+    return { ...u, lane: inB.has(u.uid) ? 'battle' : 'rest' };
+  });
+  // den som går in tar platsen på rullan som den trötta lämnar
+  let q = { ...p, op: { ...p.op, units } };
+  const S = cardSlots(p, sector), t = tableOf(q), lay = { ...t.layout };
+  const outs = tired.slice(0, n).map(u => u.uid), ins = rested.slice(0, n).map(u => u.uid);
+  outs.forEach((uid, k) => { const i = S.battle.indexOf(uid), j = S.rest.indexOf(ins[k]); if (i >= 0) lay[slotKey(ins[k])] = { x: i, y: 0 }; if (j >= 0) lay[slotKey(uid)] = { x: j, y: 1 }; });
+  q = { ...q, table: { ...t, layout: lay } };
+  return q;
 }
 // Byt plats på två kort i var sin bana: den i striden vilar, den i reserven går in. Samma regler som förrådets banor
 // (setLane): nekas något står framsteget orört.
@@ -492,7 +540,7 @@ export function tableState(p, { sector = null } = {}) {
   const radio = radioStrips(p, nb);
   const depot = meta.has('depot');
   const state = {
-    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p),
+    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p), end: campaignEnd(p),
     intel: enemies && meta.has('opmap') ? intelNote(p, nb) : null,
     zones: depot && nb ? cardZones(p, nb.sector) : null,
     clipboard: depot ? { rp: meta.has('rp') ? p.rp : null, next: nb } : null,
@@ -501,7 +549,7 @@ export function tableState(p, { sector = null } = {}) {
     // hörnet, med slutbladet (HELD) överst; den breds ut bara vid klick
     archive: piles.some(x => x.closed) ? { id: 'archive', sheets: piles.filter(x => x.closed).flatMap(x => x.sheets), tops: piles.filter(x => x.closed).map(x => x.sheets.at(-1)) } : null,
   };
-  state.objects = ['map', ...piles.filter(x => !x.closed).map(x => x.id), ...(state.archive ? ['archive'] : []), ...(radio.length ? ['radio'] : []), ...(enemies ? ['enemies'] : []), ...(state.clipboard ? ['clipboard'] : []), ...(state.zones ? ['zones'] : [])];
+  state.objects = ['map', ...piles.filter(x => !x.closed).map(x => x.id), ...(state.archive ? ['archive'] : []), ...(radio.length ? ['radio'] : []), ...(enemies ? ['enemies'] : []), ...(state.clipboard ? ['clipboard'] : []), ...(state.zones ? ['zones'] : []), ...(state.end ? ['end'] : [])];
   return state;
 }
 // 0.21.1 (speltestet, fynd 2 och 8: Deploy klipptes i 1024x614 och 1920x1080, text på 6 till 7 px): bordets yta följer
@@ -529,6 +577,9 @@ export function defaultPlace(state, id, fr = F0) {
   if (id === 'archive') return { x: 20, y: Math.round(Math.min(330, fr.zoneY - 190)), r: 0 };
   if (id === 'enemies') return { x: Math.round(fr.enemyX), y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger
   if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 0.6 };
+  // 0.25.1 (H561): kampanjens slutblad (det finns ingen nästa strid och ingen klämbräda)
+  // under kartbladet, så att kartan (och Gnesta) syns; i låga fönster så långt ned det går
+  if (id === 'end') return { x: Math.round(fr.mapX + 230 * fr.mapS), y: Math.round(Math.max(fr.mapY + 300 * fr.mapS, Math.min(fr.mapY + 590 * fr.mapS, fr.H - 290))), r: -0.8 };
   if (id.startsWith('pile:')) {
     const pl = state.piles.find(x => x.id === id), s = pl?.sector;
     const row = SECTOR_TABLE[s];

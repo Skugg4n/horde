@@ -35,7 +35,7 @@ export const SECTORS = [
   // 0.24.0 (H552): Laxne (src/data/laxne-play.js), bara när spelaren valt att försvara byn (src/data/choices.js)
   { id: 'laxne', name: 'Laxne', full: 'Laxne · Laxne skola', short: 'Laxne', x: 0.26, y: 0.10, maps: ['laxne'] },
   // 0.25.0 (H559): Gnesta västra rondell (src/data/gnesta-vastra-rondell-play.js), öppnar efter Björnlunda dag 2
-  { id: 'gnesta-vastra-rondell', name: 'Västra rondellen', full: 'Gnesta · Västra rondellen', short: 'Rondellen', x: 0.41, y: 0.27, maps: ['gnesta-vastra-rondell'] },
+  { id: 'gnesta-vastra-rondell', name: 'Västra rondellen', full: 'Gnesta · Västra rondellen', short: 'Västra rondellen', x: 0.41, y: 0.27, maps: ['gnesta-vastra-rondell'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];

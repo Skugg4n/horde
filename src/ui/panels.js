@@ -630,7 +630,9 @@ export function dayIntro(root, dayCfg, cash, onGo, { n = null, where = null } = 
 // 0.16.0 (inlärningen): RP syns först när förrådet öppnar (showRp), på E4 bara VICTORY och radion. next: knappen
 // efter en vunnen dag ('Operations map', eller 'Next day' innan kartan är upplåst). manualHint: efter en förlust
 // ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null }, { onRetry, onOpMap, onMenu, onManual }) {
+// 0.25.1 (H561, speltestet av 0.25.0: segerkortet efter kampanjens sista dag sa "Refill at Requisition" och "RP to spend"
+// fast inget följer): final = den sista byggda dagen är vunnen. Då står förlusterna utan påfyllnad, och RP att lägga står inte.
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
@@ -647,7 +649,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   const rpTable = rp && showRp ? `<div class="rptab">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v >= 0 ? '+' : ''}${v}</b></div>`).join('')}<div class="tot"><span>Requisition points</span><b>+${rp.total}</b></div></div>` : '';
   const lost = losses.filter(l => l.men || l.destroyed);
   const lossLine = won
-    ? (!depot ? '' : lost.length ? `<p class="note-line">Losses stand: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}. Refill at Requisition.</p>` : '')
+    ? (!depot ? '' : lost.length ? `<p class="note-line">${final ? 'Losses' : 'Losses stand'}: ${lost.map(l => (l.destroyed ? `${l.name} lost` : `${l.name} -${l.men}`)).join(', ')}.${final ? '' : ' Refill at Requisition.'}</p>` : '')
     : `<p class="note-line">The day starts over with the force you went in with.${showRp && depot ? ' Spend your RP at Requisition first.' : ''}</p>${manualHint ? `<button type="button" class="link mhint" data-a="manual">Field manual: ${manualHint.title}</button>` : ''}`;
   // 0.14.2 (speltestet av 0.14.1: "VICTORY" följt av "The roadblock at E4 has fallen silent" lästes fortfarande
   // som en förlust): rubriken står ensam, sedan siffrorna, och sist sektorns berättelse som ett radiomeddelande
@@ -672,7 +674,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     ${sectorDone && !showRp ? '' : `<div class="facts">
       <div><span>Kills</span><b>${kills}</b></div>
       ${waveFact}
-      ${showRp ? `<div><span>RP to spend</span><b>${totalRp}</b></div>` : ''}
+      ${showRp && !final ? `<div><span>RP to spend</span><b>${totalRp}</b></div>` : ''}
     </div>`}
     ${story}
     <div class="acts">${main}</div>
@@ -689,7 +691,8 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
 // (var operationen står: plats, dag och RP), New operation som en riktig sekundär knapp, versionen i hörnet.
 // status: { place, day } eller null.
 export function mainMenu(root, { started, rp, status, onContinue, onNew, version }) {
-  const rpText = `${String(Math.round(rp)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f')} RP`;
+  // 0.25.1 (H564, speltestet av 0.25.0: "· 1 132 RP" lästes som dag 1 och 132 RP): tusental med komma, "1,132 RP"
+  const rpText = `${String(Math.round(rp)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} RP`;
   const where = status?.place ? status.place + (status.day ? `, day ${status.day}` : '') : null;
   const line = [where, rpText].filter(Boolean).join(' · ');
   const p = plate(root, 'menu', `
@@ -710,7 +713,8 @@ export function mainMenu(root, { started, rp, status, onContinue, onNew, version
 // 0.14.1 (speltestet av 0.14.0: "Barricade do..." och "Barricade failing" ovanpå varandra): notiserna
 // staplas i en kolumn uppe i mitten, högst NOTE_MAX åt gången; fler väntar i kö och kommer när en går.
 // Samma text som redan syns visas inte två gånger (den står kvar lite längre i stället).
-const NOTE_MAX = 3, NOTE_MS = 3200;
+// 0.25.1 (H564, speltestet av 0.25.0: fyra notiser staplades samtidigt): högst två åt gången, resten väntar i kö
+const NOTE_MAX = 2, NOTE_MS = 3200;
 const noteQueue = [];
 function noteStack(root) {
   let st = root.querySelector('#notes');

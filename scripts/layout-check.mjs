@@ -332,9 +332,33 @@ async function tableChecks(page, label) {
   // 0.25.0 (H559): västra rondellen efter Björnlunda dag 12: ordern för kampanjens dag 13, Ksp 88:an som förstärkning
   await show(reach('gnesta-vastra-rondell', 1), 'table-rondell-1');
   if (!/ORDER 13\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-vastra-rondell:1"]')?.textContent ?? ''`))) errors.push(`table-rondell-1 @${label}: rondellen är inte dag 13`);
+  // 0.25.1 (H563, speltestet av 0.25.0): DAY 13 på kartan ligger inte under klämbrädan (mitten och hörnen syns)
+  {
+    const hid = await ev(`(() => { const g = document.querySelector('#hub .tb-mapsvg .dayl'); if (!g) return 'saknas'; const r = g.getBoundingClientRect(); const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 3, r.top + 3], [r.right - 3, r.bottom - 3]]; return pts.filter(([x, y]) => !document.elementFromPoint(x, y)?.closest('.tb-map')).length ? 'täckt' : ''; })()`);
+    if (hid) errors.push(`table-rondell-1 @${label}: DAY 13 på kartan ${hid}`);
+  }
   // och kampanjens slut tills Västerkärv finns: rondellen hållen, inget nästa slag, slutbladet säger "To be continued."
   await show(reach('gnesta-vastra-rondell', 1, `p = O.finishDay(p, { mapId: 'gnesta-vastra-rondell', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-campaign-end');
   if (!/To be continued\./.test(await ev(`document.querySelector('#hub [data-sheet="closed:gnesta-vastra-rondell"]')?.textContent ?? ''`))) errors.push(`table-campaign-end @${label}: slutbladet säger inte "To be continued."`);
+  // 0.25.1 (H561): kampanjens slutblad med en knapp, To menu; Enter går till menyn, och Continue i menyn visar bladet igen
+  {
+    const sc = `table-campaign-end @${label}`;
+    const e = await ev(`(() => { const s = document.querySelector('#hub .tb-end'); if (!s) return null; const r = s.getBoundingClientRect(); return { txt: s.querySelector('.txt')?.textContent, btns: [...s.querySelectorAll('button')].map(b => b.textContent.trim()), all: document.querySelectorAll('#hub button[data-a="go"]').length, in: r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 }; })()`);
+    if (!e) errors.push(`${sc}: inget slutblad`);
+    else {
+      if (e.txt !== 'Campaign continues in a later version. Thank you for holding Gnesta.') errors.push(`${sc}: slutbladet säger "${e.txt}"`);
+      if (e.btns.length !== 1 || !/^To menu/i.test(e.btns[0])) errors.push(`${sc}: knapparna är ${JSON.stringify(e.btns)}`);
+      if (e.all) errors.push(`${sc}: en Deploy-knapp ligger kvar`);
+      if (!e.in) errors.push(`${sc}: slutbladet ryms inte i fönstret`);
+    }
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(400);
+    if (await ev('window.__horde.mode') !== 'menu') errors.push(`${sc}: Enter gick inte till menyn (${await ev('window.__horde.mode')})`);
+    const line = await ev(`document.querySelector('.menu-status')?.textContent ?? ''`);
+    if (/· \d \d{3}/.test(line) || /\d\u202f\d{3}/.test(line)) errors.push(`${sc}: menyns rad "${line}" läses som en dag`);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+    if (!(await ev(`!!document.querySelector('#hub .tb-end')`))) errors.push(`${sc}: Continue i menyn visar inte slutbladet`);
+  }
   // 16 enheter (0.22.0: ankomsten till Mölnbo har 15, så en Ksp 90 till; förut 20 utan fyra)
   await show(reach('molnbo', 1, `const here = O.unitsIn(p, 'molnbo'), n = 16 - here.length, drop = n < 0 ? here.slice(n).map(u => u.uid) : []; p = { ...p, op: { ...p.op, units: [...p.op.units.filter(u => !drop.includes(u.uid)), ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 950 + i, type: 'm249', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };`), 'table-units-16');
   const cards = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
@@ -406,6 +430,35 @@ async function tableChecks(page, label) {
     if (await ev('window.__horde.mode') === 'opmap') errors.push(`table-nudge @${label}: Deploy anyway startade inte dagen`);
     await page.waitForTimeout(500);
   } else errors.push(`table-note-enter @${label}: lappen om Stores kom inte`);
+  // 0.25.1 (H563, speltestet av 0.25.0: tre Enter för att stänga en lapp gick igenom "Deploy anyway" och introt): tre Enter
+  // i rad, tillståndet efter varje. Den första stänger lappen, de två nästa (inom en halv sekund) gör ingenting. Sedan en
+  // Enter i taget: påminnelsen, Deploy anyway, och en Enter direkt när introt kommer hoppar inte över det.
+  await show(reach('gnesta-norr', 1, noteSetup), 'table-enter-3', { lessons: true, audit: false });
+  if (await waitNote() === 'after-gn-4.up') {
+    const sc = `table-enter-3 @${label}`;
+    const state = () => ev(`({ mode: window.__horde.mode, lesson: window.__horde.lesson ?? null, nudge: !!document.querySelector('#hub .tb-nudge') })`);
+    for (let k = 1; k <= 3; k++) {
+      await page.keyboard.press('Enter'); await page.waitForTimeout(90);
+      const s = await state();
+      if (s.mode !== 'opmap' || s.lesson || s.nudge) errors.push(`${sc}: efter Enter ${k}: ${JSON.stringify(s)}`);
+    }
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+    const s4 = await state();
+    if (!s4.nudge || s4.mode !== 'opmap') errors.push(`${sc}: Enter 4 lyfte inte påminnelsen: ${JSON.stringify(s4)}`);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+    if (await ev('window.__horde.mode') !== 'opmap') errors.push(`${sc}: Enter 5 (direkt efter påminnelsen) startade dagen`);
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__horde.mode === 'intro' || window.__horde.mode === 'play', null, { timeout: 20000 }).catch(() => {});
+    const m = await ev('window.__horde.mode');
+    if (m === 'opmap') errors.push(`${sc}: Deploy anyway startade inte dagen`);
+    else if (m === 'intro') {
+      await page.keyboard.press('Enter'); await page.waitForTimeout(100);
+      if (await ev('window.__horde.mode') !== 'intro') errors.push(`${sc}: en Enter direkt när introt kom hoppade över det`);
+    }
+    await page.waitForTimeout(500);
+  } else errors.push(`table-enter-3 @${label}: lappen om Stores kom inte`);
   // 0.23.3 (H548, speltestet av 0.23.2: lappen åt första klicket var man än klickade, och låg över fiendekortet): lappen
   // ligger inte över fiendekortet eller klämbrädans knappar; ett klick på en flik eller ruta går igenom och lappen står kvar;
   // Deploy med lappen uppe startar dagen

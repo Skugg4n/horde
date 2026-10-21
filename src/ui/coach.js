@@ -164,10 +164,10 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
 export function enemyCard(root, { title, report, portrait, onContinue }) {
   const el = document.createElement('div');
   el.id = 'enemycard';
-  el.innerHTML = `<div class="sheet plate ecard"><div class="eh"><i></i>New enemy</div>
+  // 0.25.1 (H564, speltestet av 0.25.0: PAUSED låg på vågens rad överst i mitten): PAUSED står i kortets egen rubrikrad
+  el.innerHTML = `<div class="sheet plate ecard"><div class="eh"><i></i>New enemy<span class="paused">PAUSED</span></div>
     <div class="eb">${portrait ? `<img alt="${esc(title)}" src="${portrait}">` : '<div class="noimg"></div>'}<div class="etext"><div class="h">${esc(title)}</div><p class="radio-l">${esc(report)}</p></div></div>
-    <div class="acts"><button type="button" class="act main" data-a="continue"><span class="a">Continue</span><kbd>Enter</kbd></button></div></div>
-    <div class="paused">PAUSED</div>`;
+    <div class="acts"><button type="button" class="act main" data-a="continue"><span class="a">Continue</span><kbd>Enter</kbd></button></div></div>`;
   root.appendChild(el);
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
   el.querySelector('[data-a="continue"]').addEventListener('click', () => onContinue());

@@ -50,33 +50,77 @@ export function penBox(x, y, text, anchor) {
   const w = text.length * PEN_W, x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
   return { x0, y0: y - PEN_H + 3, x1: x0 + w, y1: y + 3 };
 }
+// 0.25.1 (H563, speltestet av 0.25.0: dag 13:s "held, 1 day" stod direkt under BJÖRNLUNDA och lästes som Björnlundas,
+// "held, 3 days" låg på vägskölden 57): en pennrad måste ligga närmare sin egen markör än någon annan markör eller ort
+// (annars läses den som deras), och vägsköldarna räknas som upptagna. Går inget nära provas en ring längre ut.
+const PEN_NEAR = [[0, 50, 'middle'], [0, 30, 'middle'], [15, 5, 'start'], [-15, 5, 'end'], [0, -18, 'middle'], [15, 22, 'start'], [-15, 22, 'end']];
+const PEN_RING = (() => {
+  const out = [];
+  for (const r of [24, 36, 48, 62]) for (let k = 0; k < 16; k++) {
+    const a = Math.PI / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 8), dx = Math.cos(a) * r, dy = Math.sin(a) * r + 4;
+    out.push([Math.round(dx), Math.round(dy), Math.abs(dx) < 8 ? 'middle' : dx > 0 ? 'start' : 'end']);
+  }
+  return out;
+})();
 export function penSpots(state) {
   const out = new Map();
   if (!state.opmap) return out;
   const hit = (a, b) => a.x0 < b.x1 + 2 && b.x0 < a.x1 + 2 && a.y0 < b.y1 + 2 && b.y0 < a.y1 + 2;
   const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
-  const taken = [];
-  for (const [n, k, big, dx, dy] of TOWNS) { const x = gx(PLACES[k][0]) + dx, y = gy(PLACES[k][1]) + dy; taken.push({ x0: x, y0: y - (big ? 15 : 12.5), x1: x + n.length * (big ? 10 : 8.2), y1: y + 3 }); }
-  for (const pl of state.piles) { const xy = sectorXY(pl.sector); if (xy) taken.push({ x0: xy[0] - 12, y0: xy[1] - 12, x1: xy[0] + 12, y1: xy[1] + 12 }); }
+  const taken = [], points = [];
+  for (const [n, k, big, dx, dy] of TOWNS) {
+    const px = gx(PLACES[k][0]), py = gy(PLACES[k][1]), x = px + dx, y = py + dy;
+    taken.push({ x0: x, y0: y - (big ? 15 : 12.5), x1: x + n.length * (big ? 10 : 8.2), y1: y + 3 });
+    points.push([px, py]);
+  }
+  for (const r of ROADS) { const x = gx(r.at[0]), y = gy(r.at[1]); taken.push({ x0: x - 12, y0: y - 7, x1: x + 12, y1: y + 6 }); }
+  // sjöarnas namn (som kartan skriver dem, mitt i sjön)
+  for (const l of LAKES) if (l.label !== false) { const cx = gx(l.pts.reduce((a, q) => a + q[0], 0) / l.pts.length), cy = gy(l.pts.reduce((a, q) => a + q[1], 0) / l.pts.length) + 3, w = l.n.length * 7.6; taken.push({ x0: cx - w / 2, y0: cy - 10, x1: cx + w / 2, y1: cy + 2 }); }
+  for (const pl of state.piles) { const xy = sectorXY(pl.sector); if (xy) { taken.push({ x0: xy[0] - 12, y0: xy[1] - 12, x1: xy[0] + 12, y1: xy[1] + 12 }); points.push(xy); } }
+  for (const id of state.lost ?? []) { const xy = sectorXY(id); if (xy) points.push(xy); }
   const nb = state.next, nxy = nb && sectorXY(nb.sector);
-  if (nxy) { const [dx, dy] = SECTOR_TABLE[nb.sector]?.day ?? [24, -38]; taken.push({ x0: nxy[0] + dx, y0: nxy[1] + dy - 17, x1: nxy[0] + dx + 150, y1: nxy[1] + dy + 26 }); }
+  if (nxy) { const [dx, dy] = SECTOR_TABLE[nb.sector]?.day ?? [24, -38]; taken.push({ x0: nxy[0] + dx, y0: nxy[1] + dy - 17, x1: nxy[0] + dx + 150, y1: nxy[1] + dy + 26 }); points.push(nxy); }
   for (const pl of state.piles) {
     const xy = sectorXY(pl.sector);
     if (!pl.closed || !xy || pl.sector === nb?.sector) continue;
     const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector)), [x, y] = xy;
     // 0.24.1 (H558, speltestet av 0.24.0: "held, 1 days" vid Laxne)
     const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} ${c.days === 1 ? 'day' : 'days'}`;
-    const cands = [[x, y + 50, 'middle'], [x, y + 30, 'middle'], [x + 15, y + 5, 'start'], [x - 15, y + 5, 'end'], [x, y - 18, 'middle'], [x + 15, y + 22, 'start'], [x - 15, y + 22, 'end']]
-      .map(([cx, cy, a]) => ({ x: cx, y: cy, anchor: a, text, box: penBox(cx, cy, text, a) }));
-    const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0);
+    const cands = [...PEN_NEAR, ...PEN_RING].map(([dx, dy, a]) => ({ x: x + dx, y: y + dy, anchor: a, text, box: penBox(x + dx, y + dy, text, a) }));
+    // radens närmaste punkt (inte mitten: en lång rad läses från änden som står vid markören). Orten som markören står i
+    // (inom 16 px, Gnesta för två sektorer i Gnesta) räknas inte som en annan plats
+    const owner = b => {
+      const near = ([px, py]) => Math.hypot(Math.max(b.x0 - px, 0, px - b.x1), Math.max(b.y0 - py, 0, py - b.y1));
+      const own = near(xy);
+      return points.every(q => Math.hypot(q[0] - x, q[1] - y) < 16 || near(q) > own + 6);
+    };
+    const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0) + (owner(c2.box) ? 0 : 5000);
     const best = cands.find(c2 => !cost(c2)) ?? cands.reduce((b, c2) => (cost(c2) < cost(b) ? c2 : b));
     out.set(pl.sector, best);
     taken.push(best.box);
   }
   return out;
 }
-// Kartans geografi (fast) och lägesbilden (sektorerna, nästa strid). sel: den valda sektorn.
-export function mapSvg(state, sel) {
+// 0.25.1 (H563, speltestet av 0.25.0: "DAY 13 · forward groups" låg dold bakom klämbrädan): var DAY n står. Först
+// sektorns plats (src/data/table.js SECTOR_TABLE day), annars en plats runt markören som inte ligger under det som
+// täcker kartan (avoid: rutor i kartans bildpunkter, klämbrädan) och inte på ortnamnen. Svar: { dx, dy, far }.
+const DAY_W = 132, DAY_SPOTS = [[24, -38], [-40, 30], [30, -64], [-40, -110], [20, -110], [-150, -40], [-160, 10], [40, 40], [-90, -70], [-200, -10], [-150, 60], [-240, 30], [-260, -50], [-320, -40], [-320, 10], [-330, -90]];
+export function dayLabelSpot(nb, avoid = []) {
+  const xy = sectorXY(nb.sector);
+  if (!xy) return null;
+  const [x, y] = xy, own = SECTOR_TABLE[nb.sector]?.day ?? [24, -38];
+  const box = ([dx, dy]) => ({ x0: x + dx - 4, y0: y + dy - 20, x1: x + dx + DAY_W, y1: y + dy + 28 });
+  const towns = TOWNS.map(([n, k, big, tx, ty]) => { const px = gx(PLACES[k][0]) + tx, py = gy(PLACES[k][1]) + ty; return { x0: px, y0: py - (big ? 15 : 12.5), x1: px + n.length * (big ? 10 : 8.2), y1: py + 3 }; });
+  const hit = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const inMap = b => b.x0 >= 0 && b.y0 >= 64 && b.x1 <= MAP_W && b.y1 <= MAP_H;
+  const ok = (o, strict) => inMap(box(o)) && !avoid.some(a => hit(box(o), a)) && (!strict || !towns.some(t => hit(box(o), t)));
+  if (ok(own, false)) return { dx: own[0], dy: own[1], far: false };
+  const c = DAY_SPOTS.find(o => ok(o, true)) ?? DAY_SPOTS.find(o => ok(o, false));
+  return c ? { dx: c[0], dy: c[1], far: true } : { dx: own[0], dy: own[1], far: false };
+}
+// Kartans geografi (fast) och lägesbilden (sektorerna, nästa strid). sel: den valda sektorn. avoid: rutor (kartans
+// bildpunkter) där något ligger över kartan, så att DAY n hamnar bredvid.
+export function mapSvg(state, sel, avoid = []) {
   let s = `<rect width="${MAP_W}" height="${MAP_H}" fill="#151710"/><rect width="${MAP_W}" height="${MAP_H}" fill="url(#tbrelief)" opacity=".5"/>`;
   for (let i = 0; i <= 10; i++) { const x = i * MAP_W / 10; s += `<line x1="${x}" y1="0" x2="${x}" y2="${MAP_H}" class="gl"/>`; if (i < 10) s += `<text x="${x + 4}" y="12" class="grid">${String.fromCharCode(65 + i)}</text>`; }
   for (let i = 0; i <= 7; i++) { const y = i * MAP_H / 7; s += `<line x1="0" y1="${y}" x2="${MAP_W}" y2="${y}" class="gl"/>`; if (i < 7) s += `<text x="4" y="${y + 13}" class="grid">${i + 1}</text>`; }
@@ -132,12 +176,17 @@ export function mapSvg(state, sel) {
         s += `<path d="M${(bx - nx * 11 - ny * 6).toFixed(1)} ${(by - ny * 11 + nx * 6).toFixed(1)} L${bx.toFixed(1)} ${by.toFixed(1)} L${(bx - nx * 11 + ny * 6).toFixed(1)} ${(by - ny * 11 - nx * 6).toFixed(1)}" class="arrowhead"/>`;
       }
       s += `<g class="sec st-next" data-sector="${nb.sector}"><circle cx="${x}" cy="${y}" r="22" class="hit"/><circle cx="${x}" cy="${y}" r="11" fill="none" stroke="#e0603c" stroke-width="2"/><circle cx="${x}" cy="${y}" r="20" fill="none" stroke="rgba(224,96,60,.45)" stroke-width="2"/></g>`;
-      // DAY n: pennstreck och siffran där kartan har plats (src/data/table.js SECTOR_TABLE day), dagens titel under
-      const [dx, dy] = SECTOR_TABLE[nb.sector]?.day ?? [24, -38];
+      // DAY n: pennstreck och siffran där kartan har plats (src/data/table.js SECTOR_TABLE day, eller dayLabelSpot när
+      // något ligger över den platsen), dagens titel under
+      const sp = dayLabelSpot(nb, avoid), dx = sp.dx, dy = sp.dy;
       const lx = x + dx, ly = y + dy;
-      s += `<path d="M${(x + Math.sign(dx || 1) * 12).toFixed(1)} ${(y - 14).toFixed(1)} Q ${(lx + 6).toFixed(1)} ${(ly + 12).toFixed(1)} ${(lx + 70).toFixed(1)} ${(ly + 6).toFixed(1)}" class="penline"/>`;
-      s += pen(lx, ly, `DAY ${nb.n}`, 'start', 'pen big');
-      if (nb.title) s += pen(lx + 2, ly + 22, nb.title.toLowerCase());
+      if (!sp.far) s += `<path d="M${(x + Math.sign(dx || 1) * 12).toFixed(1)} ${(y - 14).toFixed(1)} Q ${(lx + 6).toFixed(1)} ${(ly + 12).toFixed(1)} ${(lx + 70).toFixed(1)} ${(ly + 6).toFixed(1)}" class="penline"/>`;
+      else {
+        // längre bort: ett blyertsstreck från etikettens närmaste hörn till markörens kant
+        const ex = dx < 0 ? lx + 70 : lx, ey = dy < 0 ? ly + 26 : ly - 18, a = Math.atan2(ey - y, ex - x);
+        s += `<path d="M${ex.toFixed(1)} ${ey.toFixed(1)} Q ${((ex + x) / 2 + 10).toFixed(1)} ${((ey + y) / 2 - 10).toFixed(1)} ${(x + Math.cos(a) * 22).toFixed(1)} ${(y + Math.sin(a) * 22).toFixed(1)}" class="penline"/>`;
+      }
+      s += `<g class="dayl">${pen(lx, ly, `DAY ${nb.n}`, 'start', 'pen big')}${nb.title ? pen(lx + 2, ly + 22, nb.title.toLowerCase()) : ''}</g>`;
     }
   }
   // 0.21.3: ögonblicket står en gång, på remsan överst på kartbladet (.tb-moment)
@@ -183,6 +232,12 @@ function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = nu
   if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy, top)}</div>`;
   return `<div class="tb-obj tb-paper tb-report${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:40px">${closedHtml(sh)}</div>`;
 }
+// 0.25.1 (H561): kampanjens slutblad (src/meta/table.js campaignEnd), en knapp: To menu (Enter)
+const endHtml = (e, place) => `<div class="tb-obj tb-paper tb-order tb-end" data-obj="end" data-sheet="end" style="--x:${place.x};--y:${place.y};--w:400;--r:${place.r};--z:60">
+  <div class="hd"><span>${esc(e.head.toUpperCase())}</span><span>${e.days ? `DAY ${two(e.days)}` : ''}</span></div>
+  <div class="txt" data-read>${esc(e.text)}</div>
+  <button type="button" class="tb-btn main" data-a="menu" data-read><span class="one">${esc(e.button)}</span><kbd>Enter</kbd></button>
+  <div class="tb-stamp" style="right:18px;bottom:96px;transform:rotate(-4deg)">TO BE CONTINUED</div></div>`;
 const BESIDE_H = 168, BESIDE_GAP = 14;
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
@@ -411,8 +466,12 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     radioOrder = keepOrder(radioOrder, state.radio.map(s => s.id), state.radio[state.radio.length - 1]?.id);
     const mp = place('map');
     const deployOnNote = !state.clipboard;
+    // 0.25.1 (H563): klämbrädan (där den ligger) i kartans bildpunkter, så att DAY n inte hamnar under den
+    const rosterOn = !!(state.clipboard && state.zones), cp = rosterOn ? place('clipboard') : null;
+    const toMap = (tx, ty) => [(tx - mp.x) / fr.mapS - 10, (ty - mp.y) / fr.mapS - 10];
+    const avoid = cp ? [(([x0, y0], [x1, y1]) => ({ x0, y0, x1, y1 }))(toMap(cp.x - 6, cp.y - 26), toMap(cp.x + fr.rosterW + 6, cp.y + fr.rosterH))] : [];
     let html = `<div class="tb-obj tb-paper tb-map" data-obj="map" style="--x:${mp.x};--y:${mp.y};--w:880;--h:600;--r:${mp.r};--s:${fr.mapS.toFixed(3)};--z:${zOf.map ?? 2}">
-      ${mapSvg(state, sel)}<div class="crease v"></div><div class="crease h"></div>
+      ${mapSvg(state, sel, avoid)}<div class="crease v"></div><div class="crease h"></div>
       <div class="marg l">LANTMÄTERIET · 1:250 000 · SÖDERMANLAND</div><div class="marg r">${state.next && state.next.n > 1 ? `CORRECTED NIGHT ${state.next.n - 1}` : 'FIRST ISSUE'}</div>
       ${state.next ? `<div class="tb-moment" data-read>${state.next.n > 1 ? `Night ${state.next.n - 1} → Day ${state.next.n}` : `Day ${state.next.n}`}</div>` : ''}
       ${pinMarks(state)}</div>${insetSheet()}`;
@@ -422,10 +481,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
       html += pileHtml(pl, pp, { deploy: deployOnNote && pl.current, spreadSrc: spread === pl.id });
     }
     if (state.archive) html += archiveHtml(state.archive, place('archive'), spread === 'archive');
+    if (state.end) html += endHtml(state.end, place('end'));
     if (state.radio.length) html += radioHtml(state.radio, radioOrder, place('radio'));
     if (state.enemies) html += enemyHtml(state.enemies, enemyOrder, state.intel, place('enemies'), null);
     // 0.21.7: personalrullan på klämbrädan och förrådets blad (H544, H542)
-    const rosterOn = !!(state.clipboard && state.zones);
     if (rosterOn) html += rosterHtml(state, place('clipboard'), fr, { page, note: laneNote?.text ?? movedNote(state.zones), nudge });
     const ups = rosterOn ? storeList(p) : [];
     if (ups.length) html += storesHtml(ups, p.rp, fr, storeSheet);
@@ -542,6 +601,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
       confirmReturn = null; render();
     });
     for (const b of view.querySelectorAll('[data-a="go"]')) b.addEventListener('click', e => { e.stopPropagation(); go(); });
+    view.querySelector('[data-a="menu"]')?.addEventListener('click', e => { e.stopPropagation(); handlers.onMenu?.(); });
     view.querySelector('[data-a="spend"]')?.addEventListener('click', e => { e.stopPropagation(); nudge = null; page = 0; laneNote = { lane: 'rest', text: 'Train units with ✎, or buy in Stores.' }; render(); });
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
     view.querySelector('.tb-spread')?.addEventListener('click', () => { spread = null; render(); });
@@ -608,6 +668,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     lifted: () => el.classList.contains('roster'),
     page: () => page,
     requisition, tidy: doTidy, go,
+    // 0.25.1 (H561): kampanjens slut ligger på bordet (Enter = To menu)
+    ended: () => !!tableState(p).end,
     spread: id => { spread = id; render(); },
   };
 }

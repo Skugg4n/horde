@@ -255,7 +255,7 @@ export const vastraRondellPlay = {
   // outro.end är raden som säger att kampanjen fortsätter senare. När Västerkärv byggs: ta bort end och ge Västerkärv
   // unlock { map: 'gnesta-vastra-rondell', day: 1 }.
   outro: { text: 'The roundabout held. Their forward groups broke on väg 57. Next: Västerkärv. To be continued.',
-    summary: 'The roundabout held. To be continued.', next: 'vasterkarv', end: 'To be continued.' },
+    summary: 'Västra rondellen held. To be continued.', next: 'vasterkarv', end: 'To be continued.' },
   baseLabel: 'Barrstigen · Base',
   // ingångarnas skyltar där vägen kommer in i bild (main.js entryCells), inte i rondellen där vägarna går ihop
   entryAt: 1000,
