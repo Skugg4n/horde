@@ -223,10 +223,12 @@ function homeNear(x, z, taken) {
   return best.id;
 }
 // Husen som evakueras, i tur och ordning: först de närmast skolan (Laxne skolväg och Invägen), sedan längre ut längs 223
-// och Invägen. Alla inom 100 m från skolan, så att den som håller skolan (ordern) täcker linjerna (Björnlunda 0.23.2).
+// och Invägen. Alla inom cirka 100 m från skolan, så att den som håller skolan (ordern) täcker linjerna (Björnlunda 0.23.2),
+// och minst 30 m isär, så att deras lappar ("Evacuates · wave N") inte hamnar på varandra. Fem hus (fler ryms inte så
+// nära skolan med det avståndet).
 export const EVAC_HOMES = (() => {
   const taken = new Set();
-  return [[-107, 188], [-28, 149], [-106, 176], [-14, 144], [-79, 124], [-16, 120]].map(([x, z]) => homeNear(x, z, taken));
+  return [[-107, 188], [-28, 149], [-113, 151], [-16, 120], [-79, 124]].map(([x, z]) => homeNear(x, z, taken));
 })();
 export const DAYS = [
   // hp 7: balansen (docs/balance-log.md, Laxne 0.24.0); 8 som Björnlunda dag 1 fällde skolan för den vanliga spelaren
@@ -238,9 +240,9 @@ export const DAYS = [
     view: { pts: [SCHOOL.entrance, SCHOOL.at(-SCHOOL.len / 2, 0), [-92, 119], [19, 38]] },
     tail: { n: 8, after: 6, mul: 4 },
     evac: { need: 18, all: true,
-      groups: [{ house: EVAC_HOMES[0], count: 4, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 4, at: 6, wave: 0 },
-        { house: EVAC_HOMES[2], count: 4, at: 0, wave: 1 }, { house: EVAC_HOMES[3], count: 4, at: 3, wave: 1 },
-        { house: EVAC_HOMES[4], count: 4, at: 4, wave: 2 }, { house: EVAC_HOMES[5], count: 4, at: 10, wave: 2 }] },
+      groups: [{ house: EVAC_HOMES[0], count: 5, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 5, at: 6, wave: 0 },
+        { house: EVAC_HOMES[2], count: 5, at: 0, wave: 1 }, { house: EVAC_HOMES[3], count: 5, at: 3, wave: 1 },
+        { house: EVAC_HOMES[4], count: 4, at: 4, wave: 2 }] },
     // Vägen är lång (remsan och byn, cirka 700 m): inga krypare (de skulle gå i fem minuter), och bjässarna i sista vågen
     // går först i den, så att dagen inte slutar med en minut av eftersläntrare.
     waves: [ say('Down road 223 from Mariefred.', { groups: [g('walker', 14, 0.6, 0, 'n', 20), g('walker', 8, 0.7, 4, 'nw', 20), g('runner', 4, 0.9, 8, 'n')] }),

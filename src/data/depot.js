@@ -161,11 +161,11 @@ export const RELEASES = [
     text: 'People are still in their houses near Wattrangsborg. Hemvärnet sends two squads and a Ksp 90.',
     grant: [{ type: 'hv', count: 2 }, { type: 'm249' }], stock: { ksp58: 1, inf: 1 } },
   // 0.24.0 (H552): bara efter DEFEND LAXNE (choice). Byns Hemvärn kom ut med truppen och följer med till Björnlunda: två
-  // utvilade grupper, så att dag 13 går att vinna efter tre dagar i rad (Laxne, Björnlunda dag 1 och 2; tröttheten,
+  // utvilade grupper och en Ksp 90, så att dag 13 går att vinna efter tre dagar i rad (Laxne, Björnlunda dag 1 och 2; tröttheten,
   // docs/balance-log.md Laxne 0.24.0). FALL BACK har inga.
   { id: 'bl-lx', map: 'bjornlunda', day: 1, from: 'FM', choice: ['laxne', 'defend'],
-    text: 'Laxne Hemvärn came out with you. Two squads join you at Björnlunda.',
-    grant: [{ type: 'hv', count: 2, level: 2 }] },
+    text: 'Laxne Hemvärn came out with you: two squads and a Ksp 90 join you at Björnlunda.',
+    grant: [{ type: 'hv', count: 2, level: 2 }, { type: 'm249', level: 2 }] },
   // ---------- Laxne (0.24.0, H552) ----------
   // Den valfria dagen: spelaren valde DEFEND LAXNE på bordet. Truppen från Mölnbo följer med (adopt). Byns jägare kommer
   // till; ledningen har inget annat.

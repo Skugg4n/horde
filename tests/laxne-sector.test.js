@@ -101,11 +101,14 @@ test('vägarna: från båda ingångarna till skolan, och Klämmingen går inte a
   assert.equal(build(createSim({ map: lx, day: 1, cash: 99999 }), k, 'm249').ok, false);
 });
 
-test('husen och evakueringen: de markerade husen går de gula linjerna till skolan, alla inom cirka 100 m', () => {
+test('husen och evakueringen: de markerade husen går de gula linjerna till skolan, alla inom cirka 100 m och isär', () => {
   const sim = createSim({ map: lx, day: 1, cash: 99999, depth: true });
   assert.ok(housesFor(sim).length >= 40, `${housesFor(sim).length} hus`);
   assert.ok(!housesFor(sim).some(h => h.kind === 'laxneSchool'), 'skolan går inte att besätta');
   const ev = lx.days[0].evac;
+  // isär, så att lapparna ("Evacuates · wave N") inte hamnar på varandra (layoutprovet)
+  const hs = EVAC_HOMES.map(id => lx.buildings.find(b => b.id === id));
+  for (const a of hs) for (const b of hs) if (a !== b) assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > 30, `${a.id} ${b.id}`);
   assert.equal(new Set(EVAC_HOMES).size, EVAC_HOMES.length);
   for (const q of ev.groups) {
     const h = lx.lots.plots.find(x => x.id === q.house)?.house;
@@ -158,9 +161,9 @@ test('DEFEND LAXNE: Laxne är dag 11 med truppen från Mölnbo och byns jägare,
   assert.equal(mapUnlocked(q, 'bjornlunda'), true);
   const nb2 = nextBattle(q);
   assert.deepEqual([nb2.map, nb2.day, nb2.n], ['bjornlunda', 1, 12]);
-  // Laxnes Hemvärn följer med (bara efter DEFEND), byns jägare i Björnlunda som förut
+  // Laxnes Hemvärn följer med (två grupper och en Ksp 90, bara efter DEFEND), byns jägare i Björnlunda som förut
   assert.ok(q.op.released.includes('bl-lx') && q.op.released.includes('bl-1'));
-  assert.equal(unitsIn(q, 'bjornlunda').length, n + 2 + 2 + 2);
+  assert.equal(unitsIn(q, 'bjornlunda').length, n + 2 + 3 + 2);
   assert.equal(campaignDayOf('bjornlunda', 1, q.choices), 12);
   assert.equal(campaignDayOf('bjornlunda', 2, q.choices), 13);
   assert.equal(progressDay(q, 'bjornlunda'), 12);
@@ -320,11 +323,11 @@ test('hoppet till Laxne (Quick jump) har truppen och forskningen balansen räkna
 });
 
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Laxne).
-// 0.24.0 (H552): första kvittot, Laxne hp 7, fart 2,2; Björnlunda i grenen DEFEND LAXNE med Laxnes Hemvärn (bl-lx).
+// 0.24.0 (H552): första kvittot, Laxne hp 7, fart 2,2; Björnlunda i grenen DEFEND LAXNE med Laxnes Hemvärn och en Ksp 90 (bl-lx).
 const pr = (f, rs) => f([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket (Laxne, och Björnlunda efter DEFEND LAXNE)', () => {
-  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '428f013a' });
-  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': 'fa79f8f0' });
-  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': '4bbcbc6c', 'bjornlunda 2': '7f5b001e' });
-  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': '75323e46', 'bjornlunda 2': '55d5cabe' });
+  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '336fa851' });
+  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': '1926d646' });
+  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': '7bb9025d', 'bjornlunda 2': '6383b64e' });
+  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': 'adac4528', 'bjornlunda 2': '58ce25fa' });
 });
