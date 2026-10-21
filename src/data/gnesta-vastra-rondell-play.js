@@ -230,7 +230,10 @@ export const DAYS = [
   // hp 16: balansen (docs/balance-log.md, Västra rondellen 0.25.0). Vägarna är korta (cirka 230 och 300 m) och truppen
   // är hela Björnlunda-truppen med en Ksp 88: med Björnlundas 7 stod basen orörd för alla spelare. 18 fällde den vanliga
   // spelaren sex gånger i grenen DEFEND LAXNE (tröttare trupp efter tre dagar i rad).
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16, overlap: 12, overlapMin: 0.3, bounty: 0.75,
+  // 0.25.1 (H562, speltestet av 0.25.0: tre vinster av tre, 885 till 1 094 $ över): hp 17 (den vanliga spelaren vinner på
+  // första försöket med basen 2 till 10 kvar i båda grenarna; 18 och 19 fällde den i grenen DEFEND) och bounty 0,65
+  // (spelaren vid basen har 410 till 462 $ över, förut 530 till 563). docs/balance-log.md, Västra rondellen 0.25.1.
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 17, overlap: 12, overlapMin: 0.3, bounty: 0.65,
     intro: { title: 'Day 1: Forward groups', text: 'Down väg 57 from Björnlunda, and D 830 out of the forest.' },
     order: { text: 'Hold the roundabout from the villa on Barrstigen.' },
     objective: 'Stop their forward groups at the roundabout.',

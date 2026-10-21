@@ -289,10 +289,11 @@ test('hoppet till rondellen (Quick jump) har truppen och forskningen balansen r�
 
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Västra rondellen).
 // 0.25.0 (H559): första kvittot, hp 16, fart 1,3, ankomsten efter Björnlunda med kartläsaren (blSkilled) och Ksp 88 (vr-1).
+// 0.25.1 (H562): hp 17, bounty 0,65 (speltestet av 0.25.0: för lätt, pengarna över).
 const pr = rs => vrPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket (vrSkilled och vrNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '173f0d61' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: '34385450' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'b4a8a6b4' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '0ccd55f4' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'fe48a158' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'a3dc3a06' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '8b24ed51' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '1bc7f223' });
 });

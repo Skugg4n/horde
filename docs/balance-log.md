@@ -1460,6 +1460,29 @@ Grenen DEFEND LAXNE är svårare (truppen har slagits tre dagar i rad och är tr
     toppen     under 100 levande, högst två vågor ute
 
 Fingeravtrycken: FALL BACK vrSkilled 173f0d61, vrNormal 34385450 (vrNear f3ca2329); DEFEND vrSkilled b4a8a6b4, vrNormal 0ccd55f4. Dagen är cirka fem och en halv minut; en fråga till speltestet om den känns som en känselspröt eller som för lätt.
+### Västra rondellen 0.25.1: svårare och mindre pengar (H562)
+
+Speltestet av 0.25.0 (docs/playtests/2026-10-21-0.25.0.md, fynd 2): tre försök, tre vinster, ingen rimlig uppställning nära förlust, 885 till 1 094 $ oanvända. Målet: den vanliga spelaren vinner inom 1 till 3 försök, den som står vid basen har 6 till 12 bas kvar, 300 till 600 $ över. `node scripts/balance.mjs rondell [policy|-] [fallback|defend]`, kvar = kassan när dagen är slut, försök:bas:
+
+    FALL BACK  hp 19            vrNormal 1 till 3 försök, bas 1 till 7; vrNear bas 15 till 20; vrSkilled 15 till 20
+    FALL BACK  hp 20            vrNormal 1 till 4 försök; vrNear bas 9 till 19; vrSkilled 12 till 18
+    FALL BACK  hp 18, pansrade 1,2   vrNormal 2 till 4 försök; vrNear bas 9 till 18; vrSkilled 11 till 18
+    FALL BACK  hp 19, pansrade 1,4   vrNormal faller (fyra seeds av fem); vrSkilled bas 7 till 15
+    FALL BACK  hp 18, springare och pansrade 1,5   vrNormal faller på alla seeds; vrNear bas 3 till 7
+    FALL BACK  hp 21, antalen 0,9   vrNormal 1 till 6 försök, seed 3 faller
+    DEFEND     hp 19            vrNormal faller på tre seeds av fem
+    DEFEND     hp 18            vrNormal faller på seed 3
+    hp 17, bounty 0,65 (valt):
+    FALL BACK  vrSkilled  första försöket, bas 19 till 20, kvar 154 till 304
+               vrNormal   första försöket, bas 2 till 10, kvar 119 till 226
+               vrNear     första försöket, bas 15 till 20, kvar 441 till 463
+    DEFEND     vrSkilled  första försöket, bas 12 till 18
+               vrNormal   första försöket, bas 2 till 8
+    toppen     under 90 levande, dagen 304 till 344 s
+
+Fler springare eller pansrade slår ut den vanliga spelaren långt innan de som står vid basen märker det, och grenen DEFEND LAXNE (den tröttare truppen) tål inte mer än hp 17. Målet 6 till 12 bas för spelarna vid basen nås därför inte utan att den vanliga spelaren faller: hp 17 ger den vanliga spelaren en dag nära förlust (bas 2 till 10) och lämnar de vid basen med 15 till 20 i grenen FALL BACK och 12 till 18 i DEFEND. Bounty 0,65 (förut 0,75): spelaren vid basen har 441 till 463 $ över (förut 530 till 563). Antalen är oförändrade: springare och pansrade, inga bjässar.
+
+Fingeravtrycken: FALL BACK vrSkilled fe48a158, vrNormal a3dc3a06 (vrNear 7815da06); DEFEND vrSkilled 8b24ed51, vrNormal 1bc7f223.
 ### Laxne 0.24.1: pengarna över (H558)
 
 Speltestet av 0.24.0 (docs/playtests/2026-10-21-0.24.0-laxne.md, fynd 8): varje Laxne-försök slutade med 970 till 1 130 $ oanvända, eftersom alla enheter redan stod ute och bara spärrar fanns kvar att köpa. Målet: 300 till 600 $ över för kartläsaren som står vid skolan (lxSkilled, nearBase 40). `node scripts/balance.mjs laxne`, kvar = kassan när dagen är slut:
