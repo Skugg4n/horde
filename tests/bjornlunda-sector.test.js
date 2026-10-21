@@ -247,6 +247,6 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // 0.23.0 (H545): första kvittot, dag 1 hp 10 och dag 2 hp 7 (docs/balance-log.md Björnlunda 0.23.0).
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '0f487cd8', 'bjornlunda 2': 'a685d10a' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': 'b01f7c53', 'bjornlunda 2': 'dcfb02cd' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '151020d9', 'bjornlunda 2': 'd990cfa1' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '18aa277c', 'bjornlunda 2': '8efae5bd' });
 });

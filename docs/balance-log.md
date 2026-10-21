@@ -1352,3 +1352,9 @@ Testaren hade 2 412 och 2 537 $ över på Vikingavägen. Förnödenheterna per d
     Mölnbo dag 1  mbSmart 99 $ över (var 107), mbNaive 469 (var 717); utfallen oförändrade
 
 Fingeravtrycken: Hagstumosse oförändrade (överskottet räknas inte in). mbSmart nya avsiktligt: 5dfecc8d, d825f47f, 6b02e86f (samma baser och försök, sekunder skiljer). mbNaive oförändrade.
+
+### Björnlunda 0.23.0 efter sammanslagningen med 0.22.1
+
+Master 0.22.1 (Hagstumosse fyra dagar och speltestets rättelser, mindre pengar dag 7 och 8) är inslagen. Ankomsttruppen till Björnlunda är densamma (20 enheter, samma nivåer och forskning; provet för Quick jump-truppen är grönt utan ändring), men RP vid ankomsten ändrades (294), och RP ingår i fingeravtrycket. Utfallen: blSkilled alla dagar första försöket (dag 1 bas 15 till 16, dag 2 14 till 19), blNormal alla dagar första försöket (dag 1 bas 6 till 15, dag 2 1 till 19), toppen 119. Målen står (normal inom 1 till 3, skilled första försöket). Nya fingeravtryck, avsiktligt: blSkilled 151020d9, d990cfa1; blNormal 18aa277c, 8efae5bd.
+
+Ingången från Stjärnhov: OSM har ref "57;223" på förbifarten där den kommer in i nordväst (väg 223 för sig först söder om korsningen), så introt säger "väg 57/223 from Stjärnhov" som kartan.
