@@ -11,7 +11,20 @@ Kampanjplanen avsnitt 10 och Olas beslut 2026-10-20 (H552): efter Mölnbo dag 10
 - **Kartan:** ingen Fjäderfabriken (Olas beslut; byggnaden står som en lada). Skolgården fick en grusstig runt skolan; OSM:s gångvägar som gick genom skolans fotavtryck är borta i spelet. Spelytan slutar där Skottvångsvägen möter 223.
 - **Sparfilen:** valet sparas i progress.choices (och kostnaden i progress.choiceRp), tvättas när filen läses, och en fil från 0.23.x som redan stod i Björnlunda har inget val att göra (Björnlunda står öppen, ingen kostnad).
 - **Quick jump:** Laxne 1 (gör valet DEFEND); Björnlunda utan val gör FALL BACK utan kostnad.
-- **Balansen:** Laxne hp 7 och fart 2,2 (vägen är cirka 700 m). Björnlunda dag 11 hp 7,5 (förut 8): med valets större första våg förlorade den vanliga spelaren dag 11 fyra gånger på seed 3. docs/balance-log.md, Laxne 0.24.0.
+- **Balansen:** Laxne hp 7 och fart 2,2 (vägen är cirka 700 m). Björnlunda dag 11 hp 7,25 (förut 8, ovanpå 0.23.3:s lägre inkomst): med valets större första våg förlorade den vanliga spelaren dag 11 fyra till sex gånger på seed 3.
+- **Dra eller hålla:** om man hållit innan man drar räknas på händelsernas egna tidsstämplar, så att en tung bildruta mellan trycket och rörelsen inte gör en snabb dragning till siktande (placeringsprovet på Laxne).
+- **Rullan i 1024 px:** rubriken säger "RP" i stället för "REQUISITION" när rullan är smal och bryts aldrig, så att tresiffriga RP inte knuffar Deploy under klämbrädan (syntes efter FALL BACK). docs/balance-log.md, Laxne 0.24.0.
+
+## 0.23.3 (tredje testet av Björnlunda, bordets småfel) (2026-10-21)
+
+Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md) sa ja; det här är friktionen det hittade.
+
+- **Lapparna på bordet äter inga klick:** mellan dagarna stängs en lapp bara av ett klick på lappen eller Enter. Andra klick går till det man klickade på (flikar, rutor, Deploy), och lappen står kvar. Lappen ställs aldrig över fiendekortet eller klämbrädans knappar och flikar.
+- **Förstärkningen syns på rullan:** Hemvärnets två grupper och Ksp 90 före dag 12 står överst under rubriken "Reinforcement · Hemvärnet" ("sent, no RP"), märkta NEW tills dagen spelats. Fliken med det som går att köpa heter "Released by command · N to buy".
+- **Kartbladet:** "held, 4 days" och "held, 3 days" står inte längre ihop vid Gnesta (pennraderna ställs där de inte krockar).
+- **Omvägen ritas:** med ett hinder i handen visas den nya vägen bredare och bara för vägarna som ändras, så att "This sends them down Smedjevägen." syns på kartan.
+- **Inget tyst nej:** ett klick som rördes lite med något i handen säger "Moved while clicking. Click again to place." vid pekaren.
+- **Balansen:** mindre förnödenheter per dödad på Björnlunda (0,75 dag 11, 0,7 dag 12), och när bara bjässar lever och högst fyra skyndar de genast mot basen. Dagarna cirka 50 s kortare. docs/balance-log.md, Björnlunda 0.23.3.
 
 ## 0.23.2 (omtestet av 0.23.1, Björnlunda dag 12) (2026-10-21)
 

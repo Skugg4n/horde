@@ -1395,6 +1395,23 @@ Omtestet (docs/playtests/2026-10-21-0.23.1-bjornlunda.md): dag 11 vanns på för
 
 Evakueringen är nu lätt (24 av 24 för alla tre spelarna); det svåra är basen. Fingeravtrycken: blSkilled 46f80682, 45f6baee; blNormal 5a093df8, 378e1969. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad med förstärkningen.
 
+## Björnlunda 0.23.3: tredje testet (pengarna och bjässarnas svans, H550)
+
+Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md): 805 $ kvar efter dag 11 och 1 258 $ efter dag 12 fast testaren köpte taggtråd, och 60 till 70 s i slutet med 2 till 4 bjässar och inget att göra.
+
+**Förnödenheter per dödad:** dag 11 bounty 0,9 till 0,75, dag 12 1 till 0,7. Prövat 0,5 och 0,55: blNear (står vid basen och köper inget, närmast testarens sätt) landade på 435 och 399 $, men blNormal fastnade på dag 11 i fyra seeds av fem (den köper taggtråd hela dagen och behöver inkomsten). 0,7 dag 11 gav blNormal fem försök i seed 3. 0,75 och 0,7 är det lägsta där blNormal håller målet (inom 1 till 3 försök).
+
+**Bjässarnas svans:** ny regel tail.brutes (src/sim/sim.js TAIL, 0 = av, standard). Lever bara bjässar och högst så många skyndar de genast och hela vägen, också de nära basen (förut bara de som hade mer än 40 % av vägen kvar, efter tail.after). Björnlunda båda dagarna brutes 4. Dagarna blev cirka 50 s kortare för den som står vid basen (dag 11 408 till 355 s, dag 12 411 till 365 till 379 s). Andra banor oförändrade.
+
+    blSkilled  båda dagarna första försöket; dag 11 bas 18, 351 till 355 s, kvar 82 till 532 $; dag 12 bas 11 till 17, kvar 90 till 229 $
+    blNormal   första försöket utom seed 3 dag 11 (två); dag 11 bas 1 till 5, kvar 83 till 228 $; dag 12 bas 11 till 17, kvar 92 till 229 $
+    blNear     båda dagarna första försöket; dag 11 bas 18, kvar 682 $; dag 12 bas 11 till 17, kvar 465 till 599 $
+    toppen     143 levande
+
+Målet 300 till 600 $ kvar: blNear dag 12 inom, dag 11 något över (682 $); blNormal och blSkilled under, som förut (de lägger pengarna på tråd och lådor). En människa som köper tråd som testaren hamnar mellan blNear och blNormal. Lägre inkomst dag 11 går inte utan att blNormal fastnar; nästa steg vore dyrare tråd eller lägre startkassa, inte prövat.
+
+Fingeravtrycken: blSkilled 963024c8, 9121edbc; blNormal 94c66df2, c1e6d164. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad: kartläsaren köper inte längre en Ksp 58 före dag 12.
+
 ## Laxne 0.24.0: Laxne-valet (H552)
 
 Kampanjplanen avsnitt 10, Olas beslut 2026-10-20. Efter Mölnbo dag 3 (kampanjens dag 10) väljer spelaren på bordet: DEFEND LAXNE (Laxne dag 11, Björnlunda dag 12 och 13) eller FALL BACK (Björnlunda dag 11 och 12, 150 RP dras, första vågen dag 11 en fjärdedel större). Balansen räknar båda grenarna: `node scripts/balance.mjs laxne` och `node scripts/balance.mjs bjornlunda - fallback|defend`. Ankomsten är kartläsarens efter Mölnbo (molnboCampaign('mbSmart')), före valet 294 till 419 RP.
@@ -1411,3 +1428,10 @@ Dagen är lång för den som står vid skolan (knappt 8 minuter); en fråga till
 **Björnlunda efter FALL BACK (dag 11 och 12).** Med 150 RP dragna och första vågen +25 % (src/meta/operation.js dayFor, dataflaggan choiceMod) förlorade den vanliga spelaren dag 11 fyra gånger på seed 3 (också utan RP-kostnaden: sex). Dag 11 hp 8 till 7,5: alla tre spelarna vinner båda dagarna på första försöket, blNormal dag 11 med basen 1 till 7. Ankomsten 144 till 269 RP. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) utan Mölnbos sista Ksp 58 (RP räckte inte). Fingeravtrycken: blSkilled 58ba2e3e, a2b6e94b; blNormal 2a7d6889, 09405b0a.
 
 **Björnlunda efter DEFEND LAXNE (dag 12 och 13).** Tre stridsdagar i rad: truppen kommer trött (efter Laxne står de flesta på Exhausted), och dag 13 föll tre gånger för blNormal och blSkilled på seed 3. Laxnes Hemvärn följer med efter DEFEND (leveransen bl-lx, bara i den grenen): två grupper och en Ksp 90, utvilade. Med bara de två grupperna föll dag 13 fortfarande tre gånger för blNormal seed 3. Med Ksp 90: alla tre spelarna båda dagarna på första försöket (dag 12 cirka 360 till 400 s, dag 13 350 till 390 s). Ankomsten 351 till 570 RP. Fingeravtrycken: blSkilled 7bb9025d, 6383b64e; blNormal adac4528, 58ce25fa.
+
+### Laxne 0.24.0 efter sammanslagningen med 0.23.3
+
+0.23.3 sänkte Björnlundas inkomst (bounty 0,75 och 0,7) och lade till bjässarnas svans. Omräknat för båda grenarna (`node scripts/balance.mjs bjornlunda - fallback|defend`, `laxne`): med dag 1 hp 7,5 förlorade blNormal dag 11 sex gånger på seed 3 efter FALL BACK (efter DEFEND tre). Dag 1 hp 7,5 till 7,25: alla tre spelarna vinner båda dagarna på första försöket i båda grenarna (FALL BACK: blNormal dag 11 bas 2 till 8, 335 till 365 s; DEFEND: bas 10 till 15). Laxne oförändrad (egen bounty): lxSkilled 336fa851, lxNormal 1926d646, båda första försöket. Quick jump dag 12 i FALL BACK: Ksp 90 från bl-2 utan nivå II.
+
+    FALL BACK  blSkilled ca2c34e9, ef11e85a; blNormal 38c5f03f, 8bd6a77d
+    DEFEND     blSkilled d2d84a21, b429b011; blNormal 62de394f, 4d87a09b

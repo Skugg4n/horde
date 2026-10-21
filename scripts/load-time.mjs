@@ -8,7 +8,7 @@ const PORT = process.env.PORT ?? 8146, RUNS = +(process.env.RUNS ?? 3);
 const B = `http://localhost:${PORT}/`;
 const PAGES = [
   { id: 'E4', game: 'riksvagen' }, { id: 'Ishallen', game: 'gnesta' }, { id: 'Vikingavägen', game: 'gnesta-norr' }, { id: 'Mölnbo', game: 'molnbo' },
-  { id: 'bjornlunda.html', url: 'bjornlunda.html', g: '__bjornlunda' }, { id: 'gnesta-centrum.html', url: 'gnesta-centrum.html', g: '__gnesta' }, { id: 'laxne.html', url: 'laxne.html', g: '__laxne' },
+  { id: 'bjornlunda.html', url: 'bjornlunda.html', g: '__bjornlunda' }, { id: 'gnesta-centrum.html', url: 'gnesta-centrum.html', g: '__gnesta' }, { id: 'laxne.html', url: 'laxne.html', g: '__laxne' }, { id: 'gnesta-vastra-rondell.html', url: 'gnesta-vastra-rondell.html', g: '__vastraRondell' },
 ].filter(p => !process.env.ONLY || process.env.ONLY.split(',').includes(p.id));
 // Funktioner vars inklusiva tid räknas (namn: kategori)
 const CATS = [
@@ -24,7 +24,7 @@ const CATS = [
 ];
 const INIT = () => {
   window.__lt = { first: null, inter: null };
-  const g = () => window.__laxne || window.__bjornlunda || window.__gnesta || (window.__horde?.scene && document.getElementById('loading')?.hidden && window.__horde);
+  const g = () => window.__laxne || window.__vastraRondell || window.__bjornlunda || window.__gnesta || (window.__horde?.scene && document.getElementById('loading')?.hidden && window.__horde);
   let seen = null, last = 0, calm = 0;
   const f = t => {
     const now = performance.now();

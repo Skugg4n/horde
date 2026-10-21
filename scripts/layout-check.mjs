@@ -190,7 +190,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 26;
+const TABLE_SCOPES = 28;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -310,12 +310,15 @@ async function tableChecks(page, label) {
     await run('table-laxne-1');
   }
   // FALL BACK: Björnlunda dag 11 med lägesrapporten under ordern och radion
-  // (rp 150: kostnaden tar allt. Med tresiffriga RP bryts rullans rubrik i 1024 px och Deploy klipps; det är
-  // src/ui/table.js, som en annan gren rättar: se rapporten för 0.24.0)
-  await show(reach('molnbo', 3, atChoice + ` p = O.makeChoice({ ...p, rp: 150 }, 'laxne', 'fallback').progress;`), 'table-fallback');
+  // med riktiga RP efteråt (450): rullans rubrik bryts inte och Deploy ryms (0.24.0, src/ui/table.js rqLabel)
+  await show(reach('molnbo', 3, atChoice + ` p = O.makeChoice({ ...p, rp: 600 }, 'laxne', 'fallback').progress;`), 'table-fallback');
   if (!/Laxne is on its own\./.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen lägesrapport om Laxne`);
   if (!/Laxne/.test(await ev(`document.querySelector('#hub .tb-radio')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen radio om Laxne`);
   if (!/ORDER 11\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:bjornlunda:1"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: Björnlunda är inte dag 11`);
+  // 0.23.3 (H549): Björnlunda dag 12, förstärkningen under en egen rubrik på rullans första blad, tre rader NEW
+  await show(reach('bjornlunda', 2), 'table-bjornlunda-2');
+  const reinf = await ev(`({ head: document.querySelector('#hub .tb-roster .tb-row.grp')?.textContent ?? '', fresh: document.querySelectorAll('#hub .tb-roster .tb-row.re .tb-new').length })`);
+  if (!/Reinforcement · Hemvärnet/.test(reinf.head) || reinf.fresh !== 3) errors.push(`table-bjornlunda-2 @${label}: förstärkningen syns inte på rullan ("${reinf.head}", ${reinf.fresh} NEW)`);
   // 16 enheter (0.22.0: ankomsten till Mölnbo har 15, så en Ksp 90 till; förut 20 utan fyra)
   await show(reach('molnbo', 1, `const here = O.unitsIn(p, 'molnbo'), n = 16 - here.length, drop = n < 0 ? here.slice(n).map(u => u.uid) : []; p = { ...p, op: { ...p.op, units: [...p.op.units.filter(u => !drop.includes(u.uid)), ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 950 + i, type: 'm249', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };`), 'table-units-16');
   const cards = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
@@ -384,6 +387,40 @@ async function tableChecks(page, label) {
     if (await ev('window.__horde.mode') === 'opmap') errors.push(`table-nudge @${label}: Deploy anyway startade inte dagen`);
     await page.waitForTimeout(500);
   } else errors.push(`table-note-enter @${label}: lappen om Stores kom inte`);
+  // 0.23.3 (H548, speltestet av 0.23.2: lappen åt första klicket var man än klickade, och låg över fiendekortet): lappen
+  // ligger inte över fiendekortet eller klämbrädans knappar; ett klick på en flik eller ruta går igenom och lappen står kvar;
+  // Deploy med lappen uppe startar dagen
+  const fatSetup = `const L = await import('/src/data/lessons.js'); p = { ...p, rp: 0, lessons: { seen: Object.values(L.LESSONS).flat().map(l => l.id).filter(id => id !== 'after-gnn-3.fatigue'), mode: 'on', read: [] } };`;
+  await show(reach('molnbo', 1, fatSetup), 'table-tip-through', { lessons: true, audit: false });
+  let tipOn = false;
+  for (let i = 0; i < 20 && !(tipOn = await ev(`window.__horde.lesson === 'after-gnn-3.fatigue'`)); i++) await page.waitForTimeout(200);
+  if (!tipOn) errors.push(`table-tip-through @${label}: lappen om tröttheten kom inte`);
+  else {
+    await page.waitForTimeout(400);
+    const covers = await ev(`(() => { const r = document.querySelector('#coach .cplate').getBoundingClientRect(), out = [];
+      for (const n of document.querySelectorAll('#hub .tb-enemy.top, #hub .tb-roster .tb-btn, #hub .tb-roster .tb-tab')) { const q = n.getBoundingClientRect(); if (q.width && r.left < q.right && q.left < r.right && r.top < q.bottom && q.top < r.bottom) out.push(n.className); }
+      return out; })()`);
+    if (covers.length) errors.push(`table-tip-through @${label}: lappen ligger över ${covers.join(', ')}`);
+    // ett klick på en kryssad BTL-ruta går igenom (enheten vilar; striden kan vara full åt andra hållet) och lappen står kvar
+    const box = await ev(`(() => { const b = [...document.querySelectorAll('#hub .tb-roster [data-box="battle"].on')].find(b => { const r = b.getBoundingClientRect(); const pr = document.querySelector('#coach .cplate').getBoundingClientRect(); return r.width && !(r.left < pr.right && pr.left < r.right && r.top < pr.bottom && pr.top < r.bottom); }); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, uid: b.dataset.uid, lane: b.dataset.box, on: b.classList.contains('on') }; })()`);
+    if (!box) errors.push(`table-tip-through @${label}: ingen ruta att klicka`);
+    else {
+      await page.mouse.click(box.x, box.y); await page.waitForTimeout(300);
+      // rutan som klickades är kryssad efter klicket (en kryssad ruta flyttar till den andra)
+      const on = await ev(`document.querySelector('#hub .tb-roster [data-box="${box.lane}"][data-uid="${box.uid}"]')?.classList.contains('on') ?? null`);
+      if (on === box.on) errors.push(`table-tip-through @${label}: klicket på rutan gick inte igenom`);
+      if (await ev(`window.__horde.lesson`) !== 'after-gnn-3.fatigue') errors.push(`table-tip-through @${label}: klicket på rutan stängde lappen`);
+    }
+    // Deploy med lappen uppe: dagen startar
+    const go = await ev(`(() => { const b = document.querySelector('#hub .tb-roster .tb-btn[data-a="go"]'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    if (!go) errors.push(`table-tip-through @${label}: ingen Deploy på klämbrädan`);
+    else {
+      await page.mouse.click(go[0], go[1]);
+      await page.waitForFunction(() => window.__horde.mode === 'intro' || window.__horde.mode === 'play', null, { timeout: 20000 }).catch(() => {});
+      if (await ev('window.__horde.mode') === 'opmap') errors.push(`table-tip-through @${label}: Deploy med lappen uppe startade inte dagen`);
+      await page.waitForTimeout(500);
+    }
+  }
   // 0.22.1: rullans andra blad med 24 enheter (fyra på blad 2)
   await show(reach('molnbo', 1, `const n = 24 - O.unitsIn(p, 'molnbo').length; p = { ...p, op: { ...p.op, units: [...p.op.units, ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 970 + i, type: i % 2 ? 'm249' : 'hv', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true, ...(i % 2 ? {} : { men: 4 }) }))] } };`), 'table-roster-24');
   const tab2 = await ev(`(() => { const b = [...document.querySelectorAll('#hub .tb-roster [data-page]')].find(x => /sheet 2/.test(x.textContent)); if (b) b.click(); return !!b; })()`);
@@ -661,6 +698,40 @@ async function run() {
     await page.waitForTimeout(1500);
     if (!(await ev(`!document.querySelector('.platlabel').hidden`))) errors.push(`hud-molnbo-2-train @${W}: klicket på banderollen visar inte perrongen`);
     await checkHud('hud-molnbo-2-platform');
+    // 0.23.3 (H551, speltestet av 0.23.2: "This sends them down Smedjevägen" men ingen ny väg ritades): skrotbilarna i
+    // handen på Björnlunda dag 2, pekaren på en gata där varningen kommer; förhandsvisningen av den nya vägen ritas
+    await ev(`(async () => { const H = window.__horde; await H.jump('bjornlunda', 2); })()`);
+    await clearLessons();
+    await ev(`window.__horde.rig?.skipTour?.()`);
+    await ev(`window.__horde.startPlacing('car')`);
+    const detourCells = await ev(`(() => { const s = window.__horde.sim, b = s.route.base, ids = [...new Set(s.dayCfg.waves.flatMap(w => w.groups.map(g => g.spawn ?? s.route.spawns[0].id)))], out = [];
+      for (const p of s.route.paths(ids)) for (const k of p.cells) { const [x, z] = s.route.grid.center(k), d = Math.hypot(x - b.x, z - b.z); if (d < 60 && d > 8 && !out.some(o => o.k === k)) out.push({ k, x, z, d }); }
+      return out.sort((a, c) => c.d - a.d); })()`);
+    let detour = null;
+    for (const c of detourCells) {
+      await ev(`window.__horde.lookAt?.(${c.x}, ${c.z})`);
+      await page.waitForTimeout(60);
+      const sp = await ev(`(() => { const H = window.__horde, v = H.camera.position.clone().set(${c.x}, 0, ${c.z}).project(H.camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; })()`);
+      await page.mouse.move(sp[0], sp[1]);
+      await page.waitForTimeout(200);
+      const t = await ev(`({ tip: document.querySelector('#ghosttip')?.hidden ? '' : document.querySelector('#ghosttip')?.textContent ?? '', on: window.__horde.routeLines.layers.preview.visible, n: window.__horde.routeLines.layers.preview.geometry.attributes?.position?.count ?? 0 })`);
+      if (/This sends them down/.test(t.tip)) { detour = { ...t, sp }; break; }
+    }
+    if (!detour) errors.push(`hud-bjornlunda-detour @${W}: ingen omvägsvarning med skrotbilarna i handen`);
+    else if (!detour.on || detour.n < 12) errors.push(`hud-bjornlunda-detour @${W}: "${detour.tip}" utan ritad ny väg (${detour.on ? detour.n + ' punkter' : 'dold'})`);
+    else await checkHud('hud-bjornlunda-detour');
+    // en taggtråd som inte läggs (klicket rördes lite och räknas inte) säger det vid pekaren, aldrig tyst
+    if (detour) {
+      await ev(`window.__horde.startPlacing('wire')`);
+      const cash0 = await ev('window.__horde.sim.cash');
+      await page.mouse.move(detour.sp[0], detour.sp[1]); await page.mouse.down();
+      await page.mouse.move(detour.sp[0] + 14, detour.sp[1] + 6, { steps: 3 }); await page.mouse.up();
+      await page.waitForTimeout(250);
+      const tip = await ev(`document.querySelector('#ghosttip')?.hidden ? '' : document.querySelector('#ghosttip')?.textContent ?? ''`);
+      if (await ev('window.__horde.sim.cash') === cash0 && !tip) errors.push(`hud-bjornlunda-wire @${W}: taggtråden lades inte och inget sades vid pekaren`);
+    }
+    await ev(`window.__horde.stopPlacing()`);
+    await page.mouse.move(2, 200);
     // 0.23.0 (H545): Björnlunda före första vågen: dag 1 (ingångarna i väster) och dag 2 (evakueringens ruta, de gula
     // linjerna och husens lappar)
     for (const d of [1, 2]) {

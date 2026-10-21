@@ -42,6 +42,38 @@ const PL = pts => pts.map(([lo, la], i) => (i ? 'L' : 'M') + gx(lo).toFixed(1) +
 export const sectorXY = id => { const k = SECTOR_TABLE[id]?.place, c = k && PLACES[k]; return c ? [gx(c[0]), gy(c[1])] : null; };
 const DIR = { north: [0, -1], 'north-east': [0.7, -0.7], east: [1, 0], 'south-east': [0.7, 0.7], south: [0, 1], 'south-west': [-0.7, 0.7], west: [-1, 0], 'north-west': [-0.7, -0.7] };
 
+// 0.23.3 (H551, speltestet av 0.23.2: "held, 4 days" och "held, 3 days" stod ihop vid Gnesta): de klara sektorernas
+// pennrader ställs där de inte krockar med varandra, orternas namn eller markörerna. Under markören om det går, annars
+// till höger, till vänster eller ovanför; i värsta fall där den krockar minst. Svar: Map(sektor -> { x, y, anchor, text, box }).
+const PEN_W = 6.4, PEN_H = 14;
+export function penBox(x, y, text, anchor) {
+  const w = text.length * PEN_W, x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+  return { x0, y0: y - PEN_H + 3, x1: x0 + w, y1: y + 3 };
+}
+export function penSpots(state) {
+  const out = new Map();
+  if (!state.opmap) return out;
+  const hit = (a, b) => a.x0 < b.x1 + 2 && b.x0 < a.x1 + 2 && a.y0 < b.y1 + 2 && b.y0 < a.y1 + 2;
+  const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+  const taken = [];
+  for (const [n, k, big, dx, dy] of TOWNS) { const x = gx(PLACES[k][0]) + dx, y = gy(PLACES[k][1]) + dy; taken.push({ x0: x, y0: y - (big ? 15 : 12.5), x1: x + n.length * (big ? 10 : 8.2), y1: y + 3 }); }
+  for (const pl of state.piles) { const xy = sectorXY(pl.sector); if (xy) taken.push({ x0: xy[0] - 12, y0: xy[1] - 12, x1: xy[0] + 12, y1: xy[1] + 12 }); }
+  const nb = state.next, nxy = nb && sectorXY(nb.sector);
+  if (nxy) { const [dx, dy] = SECTOR_TABLE[nb.sector]?.day ?? [24, -38]; taken.push({ x0: nxy[0] + dx, y0: nxy[1] + dy - 17, x1: nxy[0] + dx + 150, y1: nxy[1] + dy + 26 }); }
+  for (const pl of state.piles) {
+    const xy = sectorXY(pl.sector);
+    if (!pl.closed || !xy || pl.sector === nb?.sector) continue;
+    const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector)), [x, y] = xy;
+    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} days`;
+    const cands = [[x, y + 50, 'middle'], [x, y + 30, 'middle'], [x + 15, y + 5, 'start'], [x - 15, y + 5, 'end'], [x, y - 18, 'middle'], [x + 15, y + 22, 'start'], [x - 15, y + 22, 'end']]
+      .map(([cx, cy, a]) => ({ x: cx, y: cy, anchor: a, text, box: penBox(cx, cy, text, a) }));
+    const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0);
+    const best = cands.find(c2 => !cost(c2)) ?? cands.reduce((b, c2) => (cost(c2) < cost(b) ? c2 : b));
+    out.set(pl.sector, best);
+    taken.push(best.box);
+  }
+  return out;
+}
 // Kartans geografi (fast) och lägesbilden (sektorerna, nästa strid). sel: den valda sektorn.
 export function mapSvg(state, sel) {
   let s = `<rect width="${MAP_W}" height="${MAP_H}" fill="#151710"/><rect width="${MAP_W}" height="${MAP_H}" fill="url(#tbrelief)" opacity=".5"/>`;
@@ -60,17 +92,16 @@ export function mapSvg(state, sel) {
   for (const [n, k, big, dx, dy] of TOWNS) { const x = gx(PLACES[k][0]), y = gy(PLACES[k][1]); s += big ? `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" class="tw"/>` : `<circle cx="${x}" cy="${y}" r="2.6" class="tw"/>`; s += `<text x="${x + dx}" y="${y + dy}" class="town${big ? ' big' : ''}">${n}</text>`; }
   // ---------- lägesbilden ----------
   const pen = (x, y, t, a = 'start', cls = 'pen') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a}" class="${cls}">${esc(t)}</text>`;
-  const nb = state.next;
+  const nb = state.next, spots = penSpots(state);
   for (const pl of state.piles) {
     const xy = sectorXY(pl.sector);
     if (!xy || pl.sector === nb?.sector) continue;
     if (!state.opmap) continue;
     const [x, y] = xy;
     if (pl.closed) {
-      const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector));
-      const blue = pl.status === 'held';
+      const blue = pl.status === 'held', sp = spots.get(pl.sector);
       s += `<g class="sec st-${pl.status}" data-sector="${pl.sector}"><circle cx="${x}" cy="${y}" r="18" class="hit"/><circle cx="${x}" cy="${y}" r="8.5" fill="${blue ? 'rgba(143,196,232,.30)' : 'rgba(138,128,112,.35)'}" stroke="${blue ? '#8fc4e8' : '#8a8070'}" stroke-width="1.5"/></g>`;
-      s += pen(x, y + 50, `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} days`, 'middle');
+      if (sp) s += pen(sp.x, sp.y, sp.text, sp.anchor);
     } else {
       const thr = pl.status === 'threatened';
       s += `<g class="sec st-${pl.status}" data-sector="${pl.sector}"><circle cx="${x}" cy="${y}" r="18" class="hit"/>${thr ? `<circle cx="${x}" cy="${y}" r="16" class="pulse"/>` : ''}<circle cx="${x}" cy="${y}" r="9" fill="${thr ? 'rgba(224,96,60,.3)' : 'rgba(159,196,106,.28)'}" stroke="${thr ? '#e0603c' : '#9fc46a'}" stroke-width="1.6"/></g>`;
@@ -242,22 +273,35 @@ const TYPE_ORDER = ['hv', 'civ', 'inf', 'm249', 'm2', 'ksp58', 'ak5', 'psg90', '
 export function rosterOrder(rows) {
   return [...rows].sort((a, b) => ((TYPE_ORDER.indexOf(a.type) + 1 || 99) - (TYPE_ORDER.indexOf(b.type) + 1 || 99)) || a.uid - b.uid);
 }
+// 0.23.3 (H549, speltestet av 0.23.2: förstärkningen såg ut som alla andra rader): rullans rader i ordning, och
+// förstärkningen från ledningen (c.reinf) först, under en egen rubrikrad per avsändare, tills dagen spelats (så att den
+// syns på första bladet). Rubriken tar en rad på bladet.
+export function rosterItems(z) {
+  const rows = rosterOrder(rosterRows(z)), out = [];
+  for (const by of [...new Set(rows.filter(c => c.reinf).map(c => c.reinf.by))]) out.push({ head: by }, ...rows.filter(c => c.reinf?.by === by));
+  return [...out, ...rows.filter(c => !c.reinf)];
+}
+const headHtml = by => `<div class="tb-row grp" data-read><span class="gh">Reinforcement · ${esc(by)}</span><span class="gs">sent, no RP</span></div>`;
 function rowHtml(c, wide, pencil) {
+  if (c.head) return headHtml(c.head);
   const box = (lane, on) => `<button type="button" class="tb-box${on ? ' on' : ''}" data-box="${lane}" data-uid="${c.uid}" aria-label="${lane === 'battle' ? 'Into battle' : 'Reserve'}"><i>${on ? '✕' : ''}</i></button>`;
   // 0.23.2 (omtestet av 0.23.1: "Moved" dolde Rested/Tired/Exhausted): tillståndet står alltid; flyttad av tröttheten är
   // en liten blyertsnot bredvid, och skälet står på radens hovringsrad
   const st = `<span class="${STATE_CLS(c.fatigue)}">${esc(c.state)}</span>${c.moved ? '<i class="mvp" aria-label="Moved">✎</i>' : ''}`;
   const stars = '★'.repeat(Math.max(1, Math.min(3, c.level)));
-  return `<div class="tb-row" data-uid="${c.uid}"${c.moved ? ` title="${esc(c.moved.long)}"` : ''}>${box('battle', c.lane === 'battle')}${box('rest', c.lane === 'rest')}
+  return `<div class="tb-row${c.reinf ? ' re' : ''}" data-uid="${c.uid}"${c.moved ? ` title="${esc(c.moved.long)}"` : ''}>${box('battle', c.lane === 'battle')}${box('rest', c.lane === 'rest')}
     <span class="un" data-read data-name>${esc(c.name)}</span>${wide ? `<span class="ty">${esc(c.role)}</span>` : ''}
     <span class="mn">${c.max ? `${c.men}/${c.max}` : '1/1'}</span><span class="sv" data-read data-fat>${st}</span>
-    <span class="lvl" title="Level ${c.level}${c.vet ? ', veteran' : ''}">${stars}</span>${pencil ? `<button type="button" class="tb-pm" data-pm data-a="lvl" data-uid="${c.uid}" aria-label="Train, refill or return" title="Train, refill or return">✎</button>` : ''}</div>`;
+    ${c.reinf ? `<span class="lvl" title="Level ${c.level}"><i class="tb-new" data-read>NEW</i></span>` : `<span class="lvl" title="Level ${c.level}${c.vet ? ', veteran' : ''}">${stars}</span>`}${pencil ? `<button type="button" class="tb-pm" data-pm data-a="lvl" data-uid="${c.uid}" aria-label="Train, refill or return" title="Train, refill or return">✎</button>` : ''}</div>`;
 }
 // pages: rullans blad (20 rader var) och bladet med släppta enheter; page: det som ligger överst
 function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   const z = state.zones, nb = state.next, p = state._p;
   const wide = fr.rosterW >= 470, pencil = true;
-  const rows = rosterOrder(rosterRows(z));
+  // 0.24.0: i en smal rulla (1024 px) står "RP" i stället för "REQUISITION", så att rubriken inte bryts av tresiffriga RP
+  // (efter Laxne-valet FALL BACK) och knuffar Deploy under klämbrädan
+  const rqLabel = wide ? 'REQUISITION' : 'RP';
+  const rows = rosterItems(z);
   const sheets = [];
   for (let i = 0; i < Math.max(1, Math.ceil(rows.length / ROSTER_ROWS)); i++) sheets.push({ kind: 'roster', i, rows: rows.slice(i * ROSTER_ROWS, (i + 1) * ROSTER_ROWS) });
   const rel = metaFeatures(p).has('requisition') ? releasedCards(p, z.sector) : null;
@@ -268,14 +312,14 @@ function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   const top = page === 'rel' ? (relAt >= 0 ? relAt : 0) : Math.min(page, sheets.length - 1), cur = sheets[top];
   const title = nb ? `${esc(nb.place)} · Day ${nb.n}` : 'Personnel';
   const head = cur.kind === 'roster'
-    ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
+    ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>${rqLabel} <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
        <div class="tb-row hd"><span class="bx" title="Into battle">BTL</span><span class="bx" title="Reserve">RES</span><span class="un">UNIT</span>${wide ? '<span class="ty">TYPE</span>' : ''}<span class="mn">MEN</span><span class="sv">STATE</span><span class="lvl">LVL</span>${pencil ? '<span class="tb-pm sp"></span>' : ''}</div>
        ${cur.rows.map(c => rowHtml(c, wide, pencil)).join('')}`
-    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')}</div>
+    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>${rqLabel} <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')}</div>
        <div class="tb-row hd rel"><span class="un">UNIT</span><span class="ty">TYPE</span><span class="mn">MEN</span><span class="pr">PRICE</span><span class="bx">BUY</span></div>
        ${cur.rows.length ? cur.rows.map(c => `<div class="tb-row rel${c.ok ? '' : ' off'}"><span class="un" data-read>${esc(c.name)}</span><span class="ty">${esc(c.role)}</span><span class="mn">${c.max ? `${c.max}/${c.max}` : '1/1'}</span><span class="pr" data-read>${c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost}` : 'Not now'}</span><button type="button" class="tb-box buy" data-req="${c.type}" ${c.ok ? '' : 'disabled'} aria-label="Buy"><i></i></button></div>`).join('')
          : '<p class="none" data-read>Nothing released here yet.</p>'}`;
-  const tabs = sheets.map((sh, k) => (k === top ? '' : `<button type="button" class="tb-tab" data-page="${k}"${sh.kind === 'released' ? ' data-rel="1"' : ''}>${sh.kind === 'roster' ? (sheets.filter(x => x.kind === 'roster').length > 1 ? `Roster · sheet ${sh.i + 1}` : 'Roster') : `Released by command${sh.rows.some(r => r.ok) ? ` · ${sh.rows.length} new` : ''}`}</button>`)).join('');
+  const tabs = sheets.map((sh, k) => (k === top ? '' : `<button type="button" class="tb-tab" data-page="${k}"${sh.kind === 'released' ? ' data-rel="1"' : ''}>${sh.kind === 'roster' ? (sheets.filter(x => x.kind === 'roster').length > 1 ? `Roster · sheet ${sh.i + 1}` : 'Roster') : `Released by command${sh.rows.some(r => r.ok) ? ` · ${sh.rows.length} to buy` : ''}`}</button>`)).join('');
   const foot = `<div class="ft" data-read><span>BATTLE <b>${z.battle.length} of ${z.cap}</b></span><span>RESERVE <b>${z.rest.length}</b></span></div>
     <div class="note" data-read>${esc(note ?? '')}</div>`;
   const under = sheets.length > 1 ? sheets.map((_, k) => (k === top ? '' : `<div class="tb-under" style="--k:${Math.min(2, k + 1)}"></div>`)).join('') : '';
@@ -440,7 +484,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   function requisition(on = null) {
     const st = tableState(p, { sector: sel });
     if (!st.clipboard || !st.zones) return;
-    const rosterSheets = Math.max(1, Math.ceil((st.zones.battle.length + st.zones.rest.length) / ROSTER_ROWS));
+    const rosterSheets = Math.max(1, Math.ceil(rosterItems(st.zones).length / ROSTER_ROWS));
     const relPage = metaFeatures(p).has('requisition') ? rosterSheets : -1;
     if (relPage < 0) return;
     page = (on ?? page !== 'rel') ? 'rel' : 0; cmenu = null; render();

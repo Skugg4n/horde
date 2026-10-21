@@ -420,7 +420,9 @@ renderer.domElement.addEventListener('pointerdown', e => {
   const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
   const kind = pressKind({ button: e.button, holding: true, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0, alt: e.altKey });
   if (kind === 'aim' || kind === 'hold') spot = sp;
-  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), drag: false, moved: false };
+  // 0.24.0: tiden räknas på händelsernas egna tidsstämplar (e.timeStamp), så att en tung bildruta mellan trycket och första
+  // rörelsen inte gör en snabb dragning till ett håll (placeringsprovets quick-drag på Laxne)
+  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), ts0: e.timeStamp, drag: false, moved: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
@@ -428,7 +430,7 @@ addEventListener('pointermove', e => {
   if (!aim.moved) {
     if (!isDrag(e.clientX - aim.sx, e.clientY - aim.sy)) return;
     aim.moved = true;
-    aim.drag = dragAims(aim.kind, performance.now() - aim.t0);
+    aim.drag = dragAims(aim.kind, aim.ts0 != null ? e.timeStamp - aim.ts0 : performance.now() - aim.t0);
     // en vänsterdragning innan man hållit klart: inget sikte, ingen panorering; säg hur det görs
     if (!aim.drag && aim.kind === 'hold' && placing) flashTip('Hold, then drag to aim');
   }
@@ -450,6 +452,8 @@ addEventListener('pointerup', e => {
   // ett vanligt klick: plockaren sköter det (vänsterknappen); en dragning som inte siktade släpps utan att något händer
   if (act === 'click') return;
   if (a.moved && a.button === BUTTON.left) suppressClick = true;
+  // 0.23.3 (H551): ett klick som rördes lite med något i handen (inget sikte) lägger inget: säg det vid pekaren
+  if (a.moved && !a.drag && a.kind !== 'hold' && a.button === BUTTON.left && placing && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
   if (act === 'place-aimed' && placing) { spot = a.sp; logPlace({ out: 'aimed', key: a.sp.key }); placeHere(a.sp.key); }
 });
 // 0.17.2 (Olas önskan): i uppställningen går en utställd enhet att dra till en ny plats (samma som Reposition).
@@ -784,9 +788,13 @@ const picker = createPicker(() => camera, renderer.domElement, () => (placing ||
   const moved = leftDown ? isDrag(pointer.x - leftDown.x, pointer.y - leftDown.y) : false;
   const d = rig.takeDrag() || moved, s0 = takeSuppress();
   if ((d || s0) && placing) logPlace({ out: s0 ? 'ignored-aim' : 'ignored-pan' });
+  // 0.23.3 (H551, speltestet av 0.23.2: en taggtråd blev inte lagd, utan meddelande): ett klick som rördes lite (inte en
+  // riktig panorering) och därför inte räknas säger det vid pekaren; en placering misslyckas aldrig tyst
+  if (d && !s0 && placing && leftDown && Math.hypot(pointer.x - leftDown.x, pointer.y - leftDown.y) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
   return d || s0;
 } });
 let leftDown = null;
+const SLOPPY_PX = 40, MOVED_CLICK = 'Moved while clicking. Click again to place.';
 renderer.domElement.addEventListener('pointerdown', e => { leftDown = e.button === BUTTON.left ? { x: e.clientX, y: e.clientY } : null; }, true);
 picker.onPick(p => mapPick(p));
 function mapPick(p) {
@@ -1961,7 +1969,8 @@ function updateRoutes() {
     routeKeys.preview = pKey;
     const paths = sim.route.paths(ids, obs);
     const same = paths.every((p, i) => p.cells.join() === nowPaths[i]?.cells.join());
-    routeKeys.previewPaths = same ? null : paths.map(p => p.cells.map(cellWorld));
+    // 0.23.3 (H551): bara vägarna som ändras (förut alla, och den nya låg under de gamla och syntes knappt)
+    routeKeys.previewPaths = same ? null : paths.filter((p, i) => p.cells.join() !== nowPaths[i]?.cells.join()).map(p => p.cells.map(cellWorld));
     // 0.19.0 (H458, H457): stänger spärren i handen den sista öppna vägen för någon av dagens ingångar (också de som
     // kommer först i en senare våg)? Då står varningen vid pekaren och hela vägvyn visas
     routeKeys.shuts = holding ? shutsLastRoad(obs) : false;
@@ -2204,10 +2213,11 @@ const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not(
   '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark',
   // 0.23.1 (speltestet av 0.23.0: förrådets lappar låg över tillstånd och priser): personalrullan på bordet, så att lappen
   // ställs bredvid klämbrädan och inte över raderna
-  '.tb-roster'];
+  '.tb-roster', '.tb-enemies'];
 // 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
 // uppe och banderollerna)
-const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note'];
+// 0.23.3 (H548): på bordet fiendekortet överst och klämbrädans knappar och flikar; lappen ställs bredvid
+const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note', '#hub .tb-enemy.top', '#hub .tb-roster .tb-btn', '#hub .tb-roster .tb-tab'];
 function coachHard() {
   const out = [];
   for (const sel of COACH_HARD) for (const n of uiRoot.querySelectorAll(sel)) { if (n.hidden) continue; const r = n.getBoundingClientRect(); if (r.width && r.height) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 }); }
@@ -2330,7 +2340,7 @@ function startLesson(step) {
   if (pause) countHardPause();
   lesson = { step, pause: pause && mode === 'play', missing: 0 };
   const first = mode === 'play' && !lessonsOf(progress).seen.some(id => LESSONS[STAGES[0].id].some(l => l.id === id)) && tipsMode(progress) === 'on' && step.kind !== 'caption';
-  coach.show({ ...step, text: fillText(step.text), pause: lesson.pause, dim: pause, fewer: first });
+  coach.show({ ...step, text: fillText(step.text), pause: lesson.pause, dim: pause, fewer: first, through: mode !== 'play' });
   // 0.19.2 (speltestet av 0.19.1, fynd 5: farten hoppade till 1x efter varje tips som pausar): pausen står still av sig
   // själv, och spelarens fart gäller igen när tipset stängs
   if (step.kind !== 'caption') audio.ui('click');

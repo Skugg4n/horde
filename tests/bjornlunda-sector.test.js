@@ -270,13 +270,15 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // hp 6, bounty 0,9 och 1, overlap 12, bjässarna mitt i sista vågen, söderifrån senare dag 2. docs/balance-log.md 0.23.1.
 // 0.23.2 (omtestet av 0.23.1): dag 12 nytt, avsiktligt: husen nära basen, leveransen bl-2 (två Hemvärnsgrupper och en
 // Ksp 90). docs/balance-log.md 0.23.2.
+// 0.23.3 (H550, speltestet av 0.23.2: 805 och 1 258 $ över): bounty 0,75 och 0,7 (förut 0,9 och 1), bjässarnas svans
+// (tail.brutes 4). docs/balance-log.md 0.23.3.
 // 0.24.0 (H552): alla nya, avsiktligt: ankomsten är grenen FALL BACK (valets kostnad 150 RP, första vågen dag 11 en
-// fjärdedel större) och dag 1 hp 7,5 (förut 8). Grenen DEFEND LAXNE provas i tests/laxne-sector.test.js.
+// fjärdedel större) och dag 1 hp 7,25 (förut 8), ovanpå 0.23.3:s inkomst och svans. Grenen DEFEND LAXNE provas i tests/laxne-sector.test.js.
 // docs/balance-log.md Laxne 0.24.0.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '58ba2e3e', 'bjornlunda 2': 'a2b6e94b' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '2a7d6889', 'bjornlunda 2': '09405b0a' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': 'ca2c34e9', 'bjornlunda 2': 'ef11e85a' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '38c5f03f', 'bjornlunda 2': '8bd6a77d' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen

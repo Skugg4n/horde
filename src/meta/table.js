@@ -15,7 +15,7 @@
 // Fältet är valfritt (äldre v4-filer saknar det) och tvättas av normalizeTable; inget annat i sparfilen rörs.
 import { campaignDayOf, shownDay } from './campaign-day.js';
 import { MAPS } from '../data/maps.js';
-import { SECTORS, RELEASES, poolOf } from '../data/depot.js';
+import { SECTORS, RELEASES, poolOf, releaseOf as releaseById } from '../data/depot.js';
 import { ENEMIES } from '../data/lessons.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { WEAPONS } from '../data/weapons.js';
@@ -302,6 +302,14 @@ export function radioStrips(p, nb = nextBattle(p)) {
 }
 
 // ---------- truppkorten ----------
+// 0.23.3 (H549): förstärkningen från ledningen (leveransen har reinforce) är NY tills dagen den kom till har spelats
+// (vunnen eller förlorad). Svar: { by: 'Hemvärnet' } eller null.
+export function reinforcementOf(p, u) {
+  const r = u?.rel ? releaseById(u.rel) : null;
+  if (!r?.reinforce) return null;
+  const st = mapState(p, r.map);
+  return st.unlockedDay <= r.day && !(st.attempts?.[r.day] > 0) ? { by: r.reinforce, release: r.id } : null;
+}
 const TAG = { hv: 'HV', inf: 'INF', civ: 'VOL', m249: 'KSP 90', m2: 'KSP 88', ksp58: 'KSP 58', ak5: 'AK 5', psg90: 'PSG 90', epa: 'EPA' };
 export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
   const max = maxMen(u, p.research), f = u.fatigue ?? 0;
@@ -313,6 +321,7 @@ export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
     men: u.men ?? null, max, vet: !!vetOf(u), fresh: (u.wins ?? 0) === 0,
     fatigue: fatigueOn ? f : null, state: fatigueOn ? FATIGUE.names[f] : (u.men === 0 ? 'No men' : 'Ready'),
     // 0.21.2: spelet flyttade enheten efter en vunnen dag (src/meta/operation.js finishDay)
+    reinf: reinforcementOf(p, u),
     moved: u.moved === 'rest:exhausted' ? { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' } : u.moved === 'battle:rested' ? { long: 'Moved into battle: rested', short: 'Moved in: rested' } : null,
   };
 }

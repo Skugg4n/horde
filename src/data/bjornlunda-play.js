@@ -257,9 +257,10 @@ export const EVAC_HOMES = (() => {
 // scripts/balance.mjs blNear), bjässarna kommer mitt i sista vågen och inte sist ensamma, mindre förnödenheter per dödad
 // (bounty), och dag 2:s grupp söderifrån kommer efter att de civila i andra vågen gått förbi plankorsningen.
 export const DAYS = [
-  // 0.24.0 (H552): hp 7,5 (förut 8). Med valets större första våg förlorade den vanliga spelaren dag 11 fyra gånger
-  // (seed 3); med 7,5 vinner alla på första försöket, med basen nere på 1 till 7. docs/balance-log.md Laxne 0.24.0.
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7.5, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+  // 0.23.3 (H550): bounty 0,75 (förut 0,9). 0.24.0 (H552): hp 7,25 (förut 8). Med valets större första våg förlorade den
+  // vanliga spelaren dag 11 fyra gånger (seed 3; med 0.23.3:s lägre inkomst sex); med 7,25 vinner alla på första
+  // försöket. docs/balance-log.md Laxne 0.24.0.
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7.25, overlap: 12, overlapMin: 0.3, bounty: 0.75,
     // 0.24.0 (H552, Laxne-valet): släppte spelaren Laxne är horden närmare, första vågen en fjärdedel större
     // (src/meta/operation.js dayFor)
     choiceMod: { choice: ['laxne', 'fallback'], firstWave: 1.25 },
@@ -268,12 +269,12 @@ export const DAYS = [
     objective: 'Hold the crossing in front of Wattrangsborg.',
     // basen (med plats under den för köpraden) och Stationsvägen förbi ICA (dit vägen längs spåret kommer) i bild
     view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [60, 40]] },
-    tail: { n: 8, after: 6, mul: 4 },
+    tail: { n: 8, after: 6, mul: 4, brutes: 4 },
     waves: [ say('From Stjärnhov, down väg 57/223.', { groups: [g('walker', 12, 0.7, 0, 'w1', 14), g('walker', 8, 0.7, 0, 'w2', 14), g('runner', 4, 0.9, 8, 'w1')] }),
              say('Along the tracks!', { groups: [g('walker', 22, 0.5, 0, 'w2'), g('walker', 12, 0.6, 4, 'w1'), g('runner', 6, 0.6, 10, 'w2')] }),
              { groups: [g('walker', 26, 0.45, 0, 'w1'), g('walker', 18, 0.5, 4, 'w2'), tell('Into the houses from Lokalvägen!', g('walker', 14, 0.6, 6, 'w3')), tell('Brutes on väg 57/223!', g('brute', 2, 3, 8, 'w1'))] },
              { groups: [g('walker', 28, 0.4, 0, 'w3'), g('walker', 24, 0.4, 2, 'w2'), g('runner', 14, 0.4, 8, 'w1'), tell('Armoured ones along the tracks!', g('armored', 3, 2.4, 6, 'w2')), g('brute', 2, 3, 4, 'w3')] } ] },
-  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 6, overlap: 12, overlapMin: 0.3, bounty: 1,
+  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 6, overlap: 12, overlapMin: 0.3, bounty: 0.7,
     intro: { title: 'Day 2: Get them out', text: 'Väg 57/223 and the tracks again, and Ekvägen over the level crossing.' },
     // 0.23.2 (omtestet av 0.23.1: ordern drog spelaren västerut, bort från basen)
     order: { text: 'Hold the base. Cover the yellow lines from there.' },
@@ -281,7 +282,7 @@ export const DAYS = [
     // basen, Stationsvägen och plankorsningen (där horden söderifrån kommer in) i bild
     // 0.23.1 (speltestet av 0.23.0: plankorsningen och vägarna söderifrån syntes inte före vågen): också södra sidan
     view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-100, 55], [-100, 140]] },
-    tail: { n: 8, after: 6, mul: 4 },
+    tail: { n: 8, after: 6, mul: 4, brutes: 4 },
     // all: dagen vinns först när vågorna är hållna OCH de civila är framme (src/sim/sim.js checkEvac)
     // 0.23.1: andra vågens hus går direkt när vågen börjar (förut 4 och 14 s), och gruppen söderifrån kommer 20 s senare
     evac: { need: 18, all: true,
