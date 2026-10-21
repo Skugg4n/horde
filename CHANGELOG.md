@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.25.0 (Gnesta västra rondell, dag 13) (2026-10-21)
+
+Kampanjplanen avsnitt 10 (H559): "Dag 13, Gnesta västra rondell. Försvar mot förtrupper."
+
+- **Västra rondellen är spelbar** som kampanjens dag 13 (dag 14 efter DEFEND LAXNE), efter Björnlunda. En dag med fyra vågor: förtrupperna kommer längs väg 57 från Björnlunda och D 830 ur skogen, mindre än en hel hord, med springare och pansrade i klungorna och inga bjässar (det stora anfallet kommer dag 15). Introt: "Down väg 57 from Björnlunda, and D 830 out of the forest." Ordern: "Hold the roundabout from the villa on Barrstigen."
+- **Basen** är förhandsvisningens villa på Barrstigen, cirka 46 m öster om rondellen, med igenspikad dörr och sandsäckar (ishallens modell i mindre skala). Villorna längs gamla landsvägen och Barrstigen går att besätta; Psg 90 får stå på radhusens tak och på villataket närmast rondellen.
+- **Omvägar:** tre grusstigar mellan trädgårdarna (Västra Storgatan ned till Barrstigen, Furulundsvägen upp till Barrstigen öster om basen, 57 sydost upp till Furulundsvägen), så att en spärrad gata ger en omväg i stället för en vägg.
+- **Truppen** från Björnlunda följer med, och Försvarsmakten skickar en Ksp 88 (märkt som förstärkning på rullan).
+- **Kampanjens slut tills vidare:** när rondellen hålls säger radion "The roundabout held. Their forward groups broke on väg 57. Next: Västerkärv. To be continued." och slutbladet på bordet "The roundabout held. To be continued." Inget nästa slag; Västerkärv (dag 14) är inte byggd (kroken outro.next i src/data/gnesta-vastra-rondell-play.js).
+- **Bordet:** markören strax väster om Gnesta, ordern till "Commander, Gnesta". Quick jump: Rondell 1.
+- **Balansen:** hp 16, fart 1,3. Alla tre spelarna vinner på första försöket i båda grenarna av Laxne-valet; den vanliga spelaren med basen 4 till 12 kvar. docs/balance-log.md, Västra rondellen 0.25.0.
+
 ## 0.24.0 (Laxne-valet) (2026-10-21)
 
 Kampanjplanen avsnitt 10 och Olas beslut 2026-10-20 (H552): efter Mölnbo dag 10 ber Laxne om hjälp, och spelaren väljer.
