@@ -22,7 +22,7 @@ import { SECTORS, RELEASES } from '../src/data/depot.js';
 import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus, makeChoice, canChoose, dayFor, opStartConfig, syncOperation } from '../src/meta/operation.js';
 import { mapUnlocked, choiceOf, choicePending, normalizeChoices } from '../src/meta/progress.js';
 import { loadProgress, saveProgress } from '../src/meta/save.js';
-import { nextBattle, choiceSheet, missionPiles, radioStrips, tableState } from '../src/meta/table.js';
+import { nextBattle, choiceSheet, missionPiles, radioStrips, tableState, intelNote } from '../src/meta/table.js';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
 import { laxneCampaign, laxneArrival, lxAttempts, lxPrints, bjornlundaCampaign, blAttempts, blPrints } from '../scripts/balance.mjs';
 
@@ -302,6 +302,28 @@ test('kopplingen: bordets markör och mottagare, sektorn, leveranserna, inlärni
   assert.doesNotMatch(readFileSync(new URL('../src/ui/table.js', import.meta.url), 'utf8'), /choice/i);
 });
 
+test('ordern med rutorna: båda priserna står på bladet före något kryss', async () => {
+  const { choiceHtml } = await import('../src/ui/choice.js');
+  const sh = choiceSheet({ ...atChoice(), rp: 400 }), html = choiceHtml(sh, null);
+  for (const o of sh.options) assert.ok(html.includes(o.cost), o.cost);
+  assert.match(html, /−\d+ RP\. Bigger first wave at Björnlunda\./);
+});
+// 0.24.1 (H558, speltestet av 0.24.0: lappen nämnde bara vandrare och löpare, bjässarna och de pansrade fällde basen)
+test('"What we face" i Laxne nämner alla typer i vågorna, med antalen ur vågdatan', () => {
+  const q = makeChoice(atChoice(), 'laxne', 'defend').progress, n = intelNote(q);
+  const count = t => lx.days[0].waves.flatMap(w => w.groups).filter(g => g.type === t).reduce((a, g) => a + g.count, 0);
+  for (const [t, word] of [['walker', 'Walkers'], ['runner', 'runners'], ['armored', 'Armoured'], ['brute', 'brutes']]) {
+    assert.ok(count(t) > 0, t);
+    assert.match(n.text, new RegExp(`${word} ${count(t)}\\b`, 'i'), n.text);
+  }
+});
+test('kartbordet: en klar sektor med en dag säger "held, 1 day" (inte "1 days")', async () => {
+  const { penSpots } = await import('../src/ui/table.js');
+  const q = winDay(makeChoice(atChoice(), 'laxne', 'defend').progress, 'laxne', 1);
+  const t = penSpots(tableState(q)).get('laxne')?.text;
+  assert.equal(t, 'held, 1 day');
+});
+
 // Balansen (docs/balance-log.md, Laxne 0.24.0). Spelaren kommer med det kartläsaren har efter Mölnbo och valde DEFEND.
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const lxSkilled = SEEDS.map(s => laxneCampaign('lxSkilled', { seedOffset: s, maxAttempts: 6 }));
@@ -343,7 +365,8 @@ test('hoppet till Laxne (Quick jump) har truppen och forskningen balansen räkna
 const pr = (f, rs) => f([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket (Laxne, och Björnlunda efter DEFEND LAXNE)', () => {
   assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '336fa851' });
-  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': '1926d646' });
+  // 0.24.1 (H558): bounty 0,78 (förut 0,9); kartläsaren oförändrad, den vanliga spelaren ny. docs/balance-log.md Laxne 0.24.1.
+  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': 'daf435b4' });
   assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': 'd2d84a21', 'bjornlunda 2': 'b429b011' });
   assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': '62de394f', 'bjornlunda 2': '4d87a09b' });
 });

@@ -1840,6 +1840,14 @@ function entryCells(cells) {
   if (c) { const k = cells.findIndex(q => { const p = sim.route.cellCenter(q); return p.x > c.x0 + 2 && p.x < c.x1 - 2 && p.z > c.z0 + 2 && p.z < c.z1 - 2; }); if (k > i0) i0 = k; }
   return cells.slice(0, i0 + Math.round(ENTRY_SPAN / size) + 1).map((q, i) => (i < i0 ? null : q));
 }
+// 0.24.1 (H558, speltestet av 0.24.0: Laxnes två skyltar staplades mitt upptill, långt från sina vägar): reserven vid
+// skärmkanten pekar dit hordens väg kommer in i bild (Laxne: uppe till höger, där väg 223 kommer ner), inte rakt mot
+// ingången långt ute. Syns vägen inte alls: mot skyltens plats i världen (första rutan entryCells ger), sist ingången.
+function entryPoint(id, path, cells) {
+  for (const k of path) { const c = sim.route.cellCenter(k); if (onScreen(c.x, c.z, EDGE).in) return c; }
+  const k = cells.find(c => c != null);
+  return k != null ? sim.route.cellCenter(k) : sim.route.spawns.find(q => q.id === id);
+}
 function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
@@ -1859,7 +1867,7 @@ function gridEntries() {
         const t = sim.route.cellCenter(pathF[Math.min(i + 3, pathF.length - 1)]), u = onScreen(t.x, t.z);
         candsF.push({ x: q.sx, y: q.sy, angle: Math.atan2(u.sy - q.sy, u.sx - q.sx) + Math.PI });
       }
-      const spF = sim.route.spawns.find(q => q.id === id), sF = onScreen(spF.x, spF.z, EDGE);
+      const spF = entryPoint(id, pathF, cellsF), sF = onScreen(spF.x, spF.z, EDGE);
       const dxF = sF.sx - cx, dyF = sF.sy - cy, kF = Math.min(Math.abs((cx - EDGE) / (dxF || 1e-6)), Math.abs((dyF < 0 ? cy - 110 : cy - 120) / (dyF || 1e-6)));
       out.push({ cands: candsF, fallback: { x: cx + dxF * kF, y: cy + dyF * kF, angle: Math.atan2(-dyF, -dxF) + Math.PI }, lines: [`From wave ${later.get(id)}`], sub: spawnName(id), next: false });
       continue;
@@ -1884,7 +1892,7 @@ function gridEntries() {
       const t = sim.route.cellCenter(path[Math.min(i + 3, path.length - 1)]), u = onScreen(t.x, t.z);
       cands.push({ x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI });
     }
-    const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
+    const sp = entryPoint(id, path, cells), s = onScreen(sp.x, sp.z, EDGE);
     const dx = s.sx - cx, dy = s.sy - cy;
     const half = dy < 0 ? cy - 110 : cy - 120;
     const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
@@ -2218,7 +2226,8 @@ const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not(
   '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark',
   // 0.23.1 (speltestet av 0.23.0: förrådets lappar låg över tillstånd och priser): personalrullan på bordet, så att lappen
   // ställs bredvid klämbrädan och inte över raderna
-  '.tb-roster', '.tb-enemies'];
+  // 0.24.1 (H558, speltestet av 0.24.0: "Spend RP...", "Bars compare..." och "Upgrades improve..." låg över förrådet)
+  '.tb-roster', '.tb-enemies', '.tb-stores'];
 // 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
 // uppe och banderollerna)
 // 0.23.3 (H548): på bordet fiendekortet överst och klämbrädans knappar och flikar; lappen ställs bredvid

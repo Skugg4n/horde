@@ -366,12 +366,15 @@ async function tableChecks(page, label) {
     const before = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
     const c = await ev(`(() => { const r = document.querySelector('#coach .cplate').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
     const under = await ev(`(() => { document.querySelector('#coach').style.visibility = 'hidden'; const n = document.elementFromPoint(${c[0]}, ${c[1]}); document.querySelector('#coach').style.visibility = ''; return n?.closest('[data-up], [data-req], [data-a], [data-box], [data-pm]') ? n.outerHTML.slice(0, 60) : null; })()`);
+    // 0.24.1 (H558, speltestet av 0.24.0: tipsrutorna låg över förrådet): lappen ställs bredvid förrådet. Klicket på den
+    // provas ändå (inget får gå igenom till bordet); något klickbart under den är inte längre ett krav
+    const over = await ev(`(() => { const a = document.querySelector('#coach .cplate')?.getBoundingClientRect(), b = document.querySelector('#hub .tb-stores')?.getBoundingClientRect(); return !!(a && b && a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2); })()`);
+    if (over) errors.push(`table-note @${label}: lappen ligger över förrådet`);
     await page.mouse.click(c[0], c[1]);
     await page.waitForTimeout(500);
     const after = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
     if (after !== before) errors.push(`table-note @${label}: klicket på lappen gick igenom till ${under ?? 'bordet'}`);
     if (await ev('window.__horde.lesson')) errors.push(`table-note @${label}: klicket stängde inte lappen`);
-    if (!under) errors.push(`table-note @${label}: inget klickbart under lappen (provet prövar inget)`);
   }
   await show(reach('gnesta-norr', 1, noteSetup), 'table-note-enter', { lessons: true, audit: false });
   if (await waitNote() === 'after-gn-4.up') {

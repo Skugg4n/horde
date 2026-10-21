@@ -232,7 +232,10 @@ export const EVAC_HOMES = (() => {
 })();
 export const DAYS = [
   // hp 7: balansen (docs/balance-log.md, Laxne 0.24.0); 8 som Björnlunda dag 1 fällde skolan för den vanliga spelaren
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+  // 0.24.1 (H558, speltestet av 0.24.0): bounty 0,78 (förut 0,9; 970 till 1 130 $ blev över varje försök), och intel
+  // 'known': byns folk har sett horden, så lappen "What we face" nämner också bjässarna och de pansrade i sista vågen
+  // (förut bara vandrare och löpare; försök 1 föll på bjässarna). docs/balance-log.md Laxne 0.24.1.
+  { n: 1, intel: 'known', supplies: 600, arsenal: ALL, startCash: 2200, hp: 7, overlap: 12, overlapMin: 0.3, bounty: 0.78,
     intro: { title: 'Day 1: Hold Laxne', text: 'Down road 223 from Mariefred, and Skottvångsvägen.' },
     order: { text: 'Hold Laxne skola. Get the marked houses in.' },
     objective: 'Get the marked houses to Laxne skola.',

@@ -23,7 +23,7 @@ import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE
 import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
 import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
+import { dayFor, openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -278,13 +278,15 @@ const plural = n => (/ed$/.test(n) ? n : n + 's');
 const listJoin = xs => (xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1] : xs[0] ?? '');
 export function intelNote(p, nb = nextBattle(p)) {
   if (!nb) return null;
-  const it = intelFor(MAPS[nb.map], nb.day);
+  const it = intelFor(MAPS[nb.map], nb.day, dayFor(p, nb.map, nb.day));
   if (!it) return null;
   const parts = [];
   if (it.entries.length) parts.push(`From ${listJoin(it.entries.slice(0, 3).map(e => e.name))}.`);
   if (it.quality === 'unknown') parts.push('Numbers and types unknown.');
   else {
-    const ts = [...it.types].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type)).slice(0, 3);
+    // 0.24.1 (H558, speltestet av 0.24.0: Laxnes lapp nämnde bara vandrare och löpare, bjässarna fällde basen): alla
+    // typer som underrättelserna känner (förut högst tre)
+    const ts = [...it.types].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
     const n = t => (t.count != null ? `${t.count}` : t.range ? `${t.range[0]} to ${t.range[1]}` : '');
     parts.push(ts.map((t, i) => `${i ? plural(t.name).toLowerCase() : plural(t.name)} ${n(t)}`.trim()).join(', ') + '.');
     if (it.later) parts.push('Later waves unconfirmed.');

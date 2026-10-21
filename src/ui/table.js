@@ -64,7 +64,8 @@ export function penSpots(state) {
     const xy = sectorXY(pl.sector);
     if (!pl.closed || !xy || pl.sector === nb?.sector) continue;
     const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector)), [x, y] = xy;
-    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} days`;
+    // 0.24.1 (H558, speltestet av 0.24.0: "held, 1 days" vid Laxne)
+    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} ${c.days === 1 ? 'day' : 'days'}`;
     const cands = [[x, y + 50, 'middle'], [x, y + 30, 'middle'], [x + 15, y + 5, 'start'], [x - 15, y + 5, 'end'], [x, y - 18, 'middle'], [x + 15, y + 22, 'start'], [x - 15, y + 22, 'end']]
       .map(([cx, cy, a]) => ({ x: cx, y: cy, anchor: a, text, box: penBox(cx, cy, text, a) }));
     const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0);
@@ -161,7 +162,7 @@ const reportHtml = (r, top = true) => `${top ? '' : '<div class="tb-l2" data-rea
   <div class="txt"${top ? ' data-read' : ''}>${r.lead ? `<b>${esc(r.lead)}</b> ` : ''}${esc(r.text)}</div>
   <div class="sig">${esc(r.from)}</div>`;
 const closedHtml = c => `
-  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} DAYS</span></div>
+  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} ${c.days === 1 ? 'DAY' : 'DAYS'}</span></div>
   <div class="txt" data-read>${esc(c.text)}</div>
   <div class="tb-stamp olive" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(c.stamp)}</div>`;
 // Bara rubrikraden syns (ett blad under ett annat)
