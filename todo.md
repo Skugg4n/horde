@@ -493,4 +493,4 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H557 | ui | Håll och dra för att sikta på ogiltig plats gör ingenting tyst; ge samma orsak vid pekaren som ett klick.
 - [ ] H558 | laxne | Hotbladet nämner bara vandrare och löpare; lägg till bjässar och pansrade. "1 DAYS" → "1 day". Hordeetiketter staplas mitt upptill. 970 till 1 130 $ oanvänt per dag. Tipsrutor täcker förrådet.
 - [ ] H559 | karta | Gnesta västra rondell spelbar som kampanjdag 13 (försvar mot förtrupper från väst, bågen avsnitt 10). Dag 15 (överkörda) och dag 19 (spår) senare, egna specar.
-- [ ] H560 | karta | Västerkärv: förhandsvisning via OSM-pipelinen (refs i horde-refs/vasterkarv) inför dag 14 (stigar, EPA, civila, någon Ksp).
+- [x] H560 | karta | Västerkärv: förhandsvisning via OSM-pipelinen (refs i horde-refs/vasterkarv) inför dag 14 (stigar, EPA, civila, någon Ksp). Klart som preview (vasterkarv.html 0.1.0, 2026-10-21): spawns på småvägar i väster och sydväst (extraRoads, antagna), utgångar österut och norrut, bas i boningshuset (förslag), stengärdsgårdar, traktor, grannens gård. Spelbana (dag 14) återstår.
