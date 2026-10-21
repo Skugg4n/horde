@@ -8,8 +8,10 @@ import * as THREE from 'three';
 // 0.10.1: vägen som gäller nu bredare och tydligare (den ligger kvar hela dagen)
 // 0.10.2: bredare igen, så att pilarna syns som pilar i spelets zoom
 // 0.16.1: danger, farozonerna där de civilas väg går in på hordens (src/sim/evac-danger.js), röda fläckar på den gula
-const WIDTH = { now: 1.8, preview: 0.6, evac: 1.1, danger: 3.4 };
-const Y = { now: 0.09, preview: 0.1, evac: 0.115, danger: 0.125 };
+// 0.23.3 (H551, speltestet av 0.23.2: "This sends them down Smedjevägen" men ingen ny väg syntes): förhandsvisningen
+// bredare och starkare (förut 0.6 m, tunna streck som försvann i spelets zoom)
+const WIDTH = { now: 1.8, preview: 1.3, evac: 1.1, danger: 3.4 };
+const Y = { now: 0.09, preview: 0.13, evac: 0.115, danger: 0.125 };
 
 // Rutnätets trappsteg tas bort (Ramer-Douglas-Peucker), sedan rundas hörnen av (Chaikin), så
 // att bandet följer gatan i stället för att slingra sig ruta för ruta.
@@ -114,13 +116,13 @@ const THREAT = 0xc2321c, PREVIEW = 0xe8823a, EVAC = 0xf2c46b, DANGER = 0xff4a22;
 export function createRouteLines(scene, { heightAt = null } = {}) {
   const layers = {
     now: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(THREAT, 0.55, 2.6)),
-    preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PREVIEW, 0.85, 2.0)),
+    preview: new THREE.Mesh(new THREE.BufferGeometry(), material(PREVIEW, 1.0, 2.4)),
     evac: new THREE.Mesh(new THREE.BufferGeometry(), chevrons(EVAC, 0.8, 2.2)),
     danger: new THREE.Mesh(new THREE.BufferGeometry(), material(DANGER, 0.95, 0)),
   };
   for (const [k, m] of Object.entries(layers)) { m.renderOrder = 4; m.frustumCulled = false; m.visible = false; m.name = 'route-' + k; scene.add(m); }
   const keys = { now: '', preview: '', evac: '', danger: '' };
-  layers.evac.renderOrder = 5; layers.danger.renderOrder = 6;
+  layers.evac.renderOrder = 5; layers.danger.renderOrder = 6; layers.preview.renderOrder = 7;
   // paths: [{ cells: [x, z][] }] i världskoordinater. key: ändras när vägen ändras.
   function set(layer, paths, key) {
     const m = layers[layer];

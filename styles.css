@@ -805,6 +805,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #coach .catch { position: fixed; inset: 0; pointer-events: auto; cursor: pointer; }
 #coach.yield .cplate, #coach.yield .lead { visibility: hidden; }
 #coach:not(.k-show) .catch { display: none; }
+#coach.through .catch { display: none; }
 #coach .hole { position: fixed; border-radius: 4px; transition: left .25s, top .25s, width .25s, height .25s; }
 #coach.dimmed .hole { box-shadow: 0 0 12px 9999px rgba(22, 18, 14, 0.55); }
 #coach.dimmed .hole[hidden] + .marks + .lead + .cplate { box-shadow: 0 0 0 9999px rgba(22, 18, 14, 0.45), 0 6px 18px rgba(0,0,0,.35); }
@@ -1479,6 +1480,12 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-row .sv .ok { color: #4e7a2a; } .hub .tb-row .sv .tired { color: #a5761c; } .hub .tb-row .sv .bad { color: #a8321e; } .hub .tb-row .sv .mv { color: #a5761c; font-style: italic; }
 .hub .tb-row .lvl { width: 28px; flex: none; color: #a5761c; font-size: 13.75px; letter-spacing: -.1em; }
 .hub .tb-row .pr { width: 74px; flex: none; text-align: right; color: #8a3a20; font-weight: 600; }
+/* 0.23.3 (H549): förstärkningen från ledningen, rubrikrad och NEW-stämpel (skild från fliken Released by command, köp) */
+.hub .tb-row.grp { height: 18.5px; border-bottom: 1.5px solid #2f4a5c; color: #2f4a5c; font: 600 13.75px Oswald, sans-serif; letter-spacing: .1em; justify-content: space-between; }
+.hub .tb-row.grp .gh { white-space: nowrap; }
+.hub .tb-row.grp .gs { font: italic 400 14px Oswald, sans-serif; letter-spacing: .02em; color: #4a5a64; }
+.hub .tb-row.re { background: rgba(47,74,92,.10); }
+.hub .tb-row .tb-new { font: 600 13.75px Oswald, sans-serif; font-style: normal; letter-spacing: .04em; color: #2f4a5c; }
 .hub .tb-row.rel { height: 24px; } .hub .tb-row.rel.off { color: #7a705c; }
 #ui .hub .tb-box { width: 26px; height: 17px; flex: none; padding: 0; position: relative; background: none; border: 0; cursor: pointer; }
 #ui .hub .tb-box::before { content: ''; position: absolute; left: 6px; top: 2px; width: 12px; height: 12px; border: 1.3px solid #2b261e; }
