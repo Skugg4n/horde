@@ -5,7 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
 import { bjornlundaPlay as bl, PATHS, WATT, SPAWNS, EVAC_HOMES, SHAPES } from '../src/data/bjornlunda-play.js';
-import { CRISP, RAIL } from '../src/data/bjornlunda.js';
+import { RAIL } from '../src/data/bjornlunda.js';
+import { CRISP } from '../src/data/bjornlunda-play.js';
+import { setCameraYaw, screenAxes, OFFSET } from '../src/render/camera-eye.js';
 import { distPolyline } from '../src/data/osm-map.js';
 import { rect, distRect, placementFor, KIND } from '../src/sim/placement.js';
 import { routeFor } from '../src/sim/route.js';
@@ -35,11 +37,17 @@ test('Björnlunda är en bana efter Mölnbo: kampanjens dag 11 och 12, korta int
     assert.match(d.intro.title, /^Day \d: /);
     // högst tolv ord, på engelska, och de säger varifrån horden kommer
     assert.ok(d.intro.text.split(/\s+/).length <= 12, d.intro.text);
-    assert.match(d.intro.text, /west/i);
+    // 0.23.1 (speltestet av 0.23.0): gatorna, inte väderstrecken
+    assert.doesNotMatch(d.intro.text, /\b(west|east|north|south)\b/i);
+    assert.ok(d.order.text.split(/\s+/).length <= 12, d.order.text);
     assert.doesNotMatch(JSON.stringify(d), /—/);
   }
   assert.match(bl.days[0].intro.text, /Stjärnhov/);
-  assert.match(bl.days[1].intro.text, /south/);
+  assert.match(bl.days[0].intro.text, /tracks/);
+  assert.match(bl.days[1].intro.text, /Ekvägen over the level crossing/);
+  // ordern dag 1 säger var man ska stå
+  assert.match(bl.days[0].order.text, /Wattrangsborg/);
+  assert.match(bl.days[0].order.text, /Stationsvägen and Villavägen/);
   // slutet läses som en vinst och pekar mot Gnesta västra rondell
   assert.match(bl.outro.text, /held/);
   assert.match(bl.outro.text, /roundabout in Gnesta/);
@@ -47,7 +55,7 @@ test('Björnlunda är en bana efter Mölnbo: kampanjens dag 11 och 12, korta int
   assert.doesNotMatch(bl.outro.text, /—/);
 });
 
-test('dag 1 bara västerifrån (väg 57/223, spåret, Korsbacksvägen), dag 2 väster och söder med en större hord', () => {
+test('dag 1 bara västerifrån (väg 57/223, spåret, Lokalvägen), dag 2 väster och söder med en större hord', () => {
   const [d1, d2] = bl.days;
   assert.deepEqual(daySpawns(d1), ['w1', 'w2', 'w3']);
   assert.deepEqual(daySpawns(d2), ['s1', 's2', 'w1', 'w2', 'w3']);
@@ -56,7 +64,7 @@ test('dag 1 bara västerifrån (väg 57/223, spåret, Korsbacksvägen), dag 2 v�
   assert.ok(count(d2) > count(d1), `${count(d2)} mot ${count(d1)}`);
   // ingångarna i väster ligger väster om byn, de i söder söder om spåret
   const at = id => SPAWNS.find(s => s.id === id).at;
-  for (const id of ['w2', 'w3']) assert.ok(at(id)[0] < -100, id);
+  for (const id of ['w2', 'w3']) assert.ok(at(id)[0] < CRISP.x0, id);
   assert.ok(at('w1')[1] < CRISP.z0, 'väg 57/223 kommer in i nordväst');
   for (const id of ['s1', 's2']) assert.ok(at(id)[1] > 140 && distPolyline(...at(id), RAIL.pts) > 30, id);
   // och i dimkanten, utanför den skarpa ytan
@@ -129,7 +137,7 @@ test('gångvägarna: smala grusstigar fria från husen, och en spärrad Villavä
   const obs = blockAt([[56, 53]]);
   const [w1] = rt.paths(['w1'], obs), [w3] = rt.paths(['w3'], obs);
   assert.ok(w1.reaches && w1.through == null && uses(w1.cells, 'stigSyd') >= 10, 'väg 57/223 runt via stigen vid ICA');
-  assert.ok(w3.reaches && w3.through == null && uses(w3.cells, 'stigNorr') >= 10, 'Korsbacksvägen runt via stigen i norr');
+  assert.ok(w3.reaches && w3.through == null, 'Lokalvägen når basen');
 });
 
 test('husen: grupper i hus längs huvudgatorna, prickskyttelägen på de stora taken, ingen placering på spåret', () => {
@@ -249,4 +257,30 @@ const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
   assert.deepEqual(pr(skilled), { 'bjornlunda 1': '151020d9', 'bjornlunda 2': 'd990cfa1' });
   assert.deepEqual(pr(normal), { 'bjornlunda 1': '18aa277c', 'bjornlunda 2': '8efae5bd' });
+});
+
+// 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
+test('kameran: Björnlunda vrids så att väster är till vänster, de andra banorna står som förut', () => {
+  assert.equal(bl.camera.yaw, 0);
+  for (const id of ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo']) assert.equal(MAPS[id].camera.yaw ?? 45, 45, id);
+  try {
+    setCameraYaw(0);
+    const { right, down } = screenAxes();
+    assert.deepEqual(right.map(v => Math.round(v * 1e6) / 1e6), [1, 0, 0]);
+    assert.deepEqual(down.map(v => Math.round(v * 1e6) / 1e6), [0, 0, 1]);
+    assert.ok(Math.abs(OFFSET[0]) < 1e-9 && OFFSET[2] > 50, 'kameran söder om blickpunkten');
+    // ingångarna i väster hamnar till vänster om basen på skärmen
+    for (const id of ['w2', 'w3', 's2']) { const s = SPAWNS.find(q => q.id === id); assert.ok(s.at[0] * right[0] + s.at[1] * right[2] < bl.base.at[0] * right[0] + bl.base.at[1] * right[2] - 100, id); }
+  } finally { setCameraYaw(45); }
+  for (const [i, v] of [40, 46, 40].entries()) assert.ok(Math.abs(OFFSET[i] - v) < 1e-9, 'tillbaka till 45 grader');
+});
+
+// 0.23.1 (speltestet av 0.23.0, fynd 3): dag 2:s grupp söderifrån kommer efter att andra vågens civila gått förbi
+test('dag 2: gruppen söderifrån väntar tills andra vågens civila har gått', () => {
+  const d2 = bl.days[1], w = d2.waves[1];
+  const south = w.groups.filter(q => q.spawn === 's1' || q.spawn === 's2');
+  assert.ok(south.length && Math.min(...south.map(q => q.delay)) >= 18);
+  for (const q of d2.evac.groups.filter(x => x.wave === 1)) assert.ok(q.at <= 4, q.house);
+  // ingångarnas skyltar står där vägen kommer in i bild (main.js entryCells), inte där vägarna går ihop
+  assert.ok(bl.entryAt >= 500);
 });

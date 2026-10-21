@@ -42,7 +42,8 @@ const MAX_TICKS = 30 * 900;
 // vägen i stället för att alla ser samma bit). Minst MIN_SPACING mellan pjäserna. Lika: lägst
 // rutnyckel. Deterministiskt. Returnerar rutnycklarna i ordning och varje rutas täckning.
 const coverCache = new Map();
-export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheKey = null } = {}) {
+// 0.23.1: within { x, z, r }: bara platser inom r meter från punkten (Björnlundas spelare som står vid basen)
+export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheKey = null, within = null } = {}) {
   const key = cacheKey && JSON.stringify([map.id, cacheKey, range, count, decay]);
   if (key && coverCache.has(key)) return coverCache.get(key);
   const p = placementFor(map);
@@ -57,6 +58,7 @@ export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheK
   for (let c = 0; c < p.n; c++) {
     if (p.kind[c] !== KIND.open) continue;
     const at = p.center(c), sees = [];
+    if (within && Math.hypot(at.x - within.x, at.z - within.z) > within.r) continue;
     for (const t of targets) {
       const q = p.center(t);
       if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && lineOfSightH(p, c, t)) sees.push(t);
@@ -834,7 +836,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
   // 0.16.0: barrikaderna är upplåsta från South dag 2 (src/meta/unlocks.js); före det spärrar ingen
   const canBlock = !cfg.allow || cfg.allow.includes('block');
-  let plan = !isTown ? (P.e4FirstOnly ? (() => { const sp = e4SpawnPlan(daySpawns(map, day)[0]).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; })() : opPlan(map, day, null)) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
+  let plan = P.nearBase ? nearBasePlan(map, day, P.nearBase) : !isTown ? (P.e4FirstOnly ? (() => { const sp = e4SpawnPlan(daySpawns(map, day)[0]).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; })() : opPlan(map, day, null)) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
   if (isTown && P.blocks && canBlock && P.plan !== 'smart' && !P.followRoute) {
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
@@ -1050,7 +1052,26 @@ REQUISITION.bjornlunda = ['lvl:civ:2', 'unit:civ:4', 'lvl:hv:2', 'lvl:m249:2', '
 // (garnisonen, sikta på de starkaste) gav här SÄMRE utfall än utan, för samma trupp (mätt: skilled förlorade dag 1 där
 // normal vann). Kartläsaren här är den som läser kartan (smart plan) och bemannar tysta pjäser igen, utan de köpen.
 POLICIES.blSkilled = { plan: 'smart', blocks: true, early: false, supplies: false, rest: true, depth: 'recrew', evacMap: true };
+// 0.23.1 (speltestet av 0.23.0): kartläsaren gör som ordern säger och står vid korsningen framför Wattrangsborg (inom 40 m
+// från basen), med taggtråden och köpen som förut. Spridd längs vägarna (planen ovan) var svagare än samlad vid basen
+// när ingångarna kom närmare.
+POLICIES.blSkilled.nearBase = 40;
 POLICIES.blNormal = { ...POLICIES.normal, evacMap: true };
+// 0.23.1 (speltestet av 0.23.0: den vanliga spelaren ställde allt vid basen och förlorade dag 11 fyra gånger): spelaren
+// som inte läser kartan utan ställer allt inom r meter från basen, där dagens order säger. Pjäserna där de ser mest av
+// hordens sista bit, Psg 90 på taken nära basen, inga spärrar.
+export function nearBasePlan(map, day, r) {
+  const sim = createSim({ map, day, cash: 0, seed: 1 }), route = sim.route, p = placementFor(map);
+  const [bx, bz] = map.base.at, within = { x: bx, z: bz, r };
+  const ps = route.paths(daySpawns(map, day));
+  const cells = ps.flatMap(q => q.cells.map(c => [c, 1]));
+  const cp = coveragePlan(map, cells, { range: PLAN_RANGE, count: 12, decay: GN_DECAY, cacheKey: 'near' + r + ':' + day, within });
+  const sq = coveragePlan(map, cells, { range: WEAPONS.hv.range, count: 10, decay: GN_DECAY, cacheKey: 'nearSq' + r + ':' + day, within });
+  const near = i => { const sh = p.buildings[i]?.[0]; return sh && Math.hypot(sh.x - bx, sh.z - bz) <= r + 10; };
+  const roofs = roofPlan(map, cells, { count: 3, filter: near });
+  return { lines: [], wire: [], guns: cp.spots, squads: sq.spots, roofs: roofs.spots, roofFacing: roofs.facings, len: ps.map(q => q.cells.length), cov: cp.cover };
+}
+POLICIES.blNear = { ...POLICIES.naive, nearBase: 40 };
 // Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed).
 const blArrival = new Map();
 export function bjornlundaArrival(seedOffset = 0) {
@@ -1076,12 +1097,12 @@ const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
 if (IS_MAIN && process.argv[2] === 'bjornlunda') {
-  for (const policy of process.argv[3] ? [process.argv[3]] : ['blSkilled', 'blNormal']) {
+  for (const policy of process.argv[3] ? [process.argv[3]] : ['blSkilled', 'blNormal', 'blNear']) {
     console.log(`\n=== Björnlunda, ${policy} ===`);
     console.log('seed  ' + BL_STEPS.map(s => 'B' + s.split(' ')[1]).join(' ') + '   peak');
     const runs = SEEDS.map(seedOffset => bjornlundaCampaign(policy, { seedOffset, maxAttempts: 6 }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${blAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
-    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''}  ${x.force}`);
+    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''}  ${x.force}`);
   }
 } else if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {

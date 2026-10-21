@@ -20,7 +20,12 @@ import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 
 export const BJORNLUNDA_PLAY_VERSION = '0.1.0';
-const { CRISP, GROUND, RAIL } = B;
+const { GROUND, RAIL } = B;
+// 0.23.1 (speltestet av 0.23.0: en halv minut promenad före första skottet, dagen åtta minuter): spelytan är mindre än
+// förhandsvisningens (B.CRISP x -140..140, z -169..169). Norra villorna vid Humlevägen och Korsbacksvägen och västligaste
+// gårdarna ligger i diset, så att ingångarna ligger närmare byn.
+export const CRISP = { x0: -112, x1: 140, z0: -112, z1: 160 };
+export const SURROUNDINGS = { ...B.BJORNLUNDA_SURROUNDINGS, crisp: CRISP };
 export const GRID_BOUNDS = B.GRID_BOUNDS;
 const outside = (x, z) => Math.max(CRISP.x0 - x, x - CRISP.x1, CRISP.z0 - z, z - CRISP.z1);
 const inCrisp = (x, z) => outside(x, z) <= 0;
@@ -63,15 +68,15 @@ function fogPoint(id, hint, out = SPAWN_OUT) {
   return best;
 }
 // Kampanjbågen: horden kommer västerifrån (Mölnbo är förlorat, de går runt Gnesta). W1 väg 57/223 från Stjärnhov i
-// nordväst (förbifarten), W2 längs spåret västerifrån (vägen förbi gamla stationen), W3 Korsbacksvägen i nordväst
-// (rakt in i villorna). Dag 2 också söderifrån: S1 Ekvägen ur skogen söder om spåret och S2 Ängsvägen från
+// nordväst (förbifarten), W2 längs spåret västerifrån (vägen förbi gamla stationen), W3 Lokalvägen västerifrån (rakt
+// in i villorna; 0.23.1, förut Korsbacksvägen, som nu ligger i diset). Dag 2 också söderifrån: S1 Ekvägen ur skogen söder om spåret och S2 Ängsvägen från
 // Hembygdsgården i sydväst; båda kommer över plankorsningen vid Ekvägen, den enda vägen över spåret i byn.
 export const SPAWNS = [
-  { id: 'w1', name: 'Väg 57/223 from Stjärnhov', day: 1, at: fogPoint('vag-57-223-28', [-13, -168]) },
-  { id: 'w2', name: 'Along the tracks', day: 1, at: fogPoint('service-60', [-142, 29]) },
-  { id: 'w3', name: 'Korsbacksvägen', day: 1, at: fogPoint('korsbacksvagen-40', [-87, -169]) },
-  { id: 's1', name: 'Ekvägen south', day: 2, at: fogPoint('ekvagen-2', [-122, 168]) },
-  { id: 's2', name: 'Ängsvägen', day: 2, at: fogPoint('angsvagen-29', [-139, 138]) },
+  { id: 'w1', name: 'Väg 57/223 from Stjärnhov', day: 1, at: fogPoint('vag-57-223-28', [0, -128]) },
+  { id: 'w2', name: 'Along the tracks', day: 1, at: fogPoint('service-60', [-128, 38]) },
+  { id: 'w3', name: 'Lokalvägen', day: 1, at: fogPoint('lokalvagen-10', [-128, -100]) },
+  { id: 's1', name: 'Ekvägen south', day: 2, at: fogPoint('ekvagen-2', [-123, 176]) },
+  { id: 's2', name: 'Ängsvägen', day: 2, at: fogPoint('angsvagen-29', [-128, 140]) },
 ];
 
 // ---------- basen: Wattrangsborg ----------
@@ -246,32 +251,39 @@ export const EVAC_HOMES = (() => {
   const taken = new Set();
   return [[10, 70], [-12, 30], [-40, 20], [-60, -20], [-100, 100], [-70, 5]].map(([x, z]) => homeNear(x, z, taken));
 })();
+// 0.23.1 (speltestet av 0.23.0): introna säger gatorna (inte väderstreck), ordern säger var man ska stå (vid
+// Wattrangsborg, där Stationsvägen och Villavägen möts; en spelare som ställer allt inom 40 m från basen ska klara dag 1,
+// scripts/balance.mjs blNear), bjässarna kommer mitt i sista vågen och inte sist ensamma, mindre förnödenheter per dödad
+// (bounty), och dag 2:s grupp söderifrån kommer efter att de civila i andra vågen gått förbi plankorsningen.
 export const DAYS = [
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 10, overlap: 20, overlapMin: 0.3,
-    intro: { title: 'Day 1: From the west', text: 'From the west: väg 57/223 from Stjärnhov, and along the tracks.' },
-    objective: 'Hold Wattrangsborg.',
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 8, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+    intro: { title: 'Day 1: From the west', text: 'Down väg 57/223 from Stjärnhov, along the tracks and Lokalvägen.' },
+    order: { text: 'Stand at Wattrangsborg where Stationsvägen and Villavägen meet. Face both.' },
+    objective: 'Hold the crossing in front of Wattrangsborg.',
     // basen (med plats under den för köpraden) och Stationsvägen förbi ICA (dit vägen längs spåret kommer) i bild
     view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [60, 40]] },
     tail: { n: 8, after: 6, mul: 4 },
-    waves: [ say('From Stjärnhov, down väg 57/223.', { groups: [g('walker', 14, 0.7, 0, 'w1', 14), g('runner', 4, 0.9, 10, 'w1')] }),
-             say('Along the tracks from the west!', { groups: [g('walker', 22, 0.5, 0, 'w2'), g('walker', 12, 0.6, 4, 'w1'), g('runner', 6, 0.6, 12, 'w2')] }),
-             { groups: [g('walker', 26, 0.45, 0, 'w1'), g('walker', 18, 0.5, 4, 'w2'), tell('Into the houses from Korsbacksvägen!', g('walker', 14, 0.6, 8, 'w3')), tell('Brutes on väg 57/223!', g('brute', 2, 3, 18, 'w1'))] },
-             { groups: [g('walker', 28, 0.4, 0, 'w3'), g('walker', 24, 0.4, 2, 'w2'), g('runner', 14, 0.4, 10, 'w1'), tell('Armoured ones along the tracks!', g('armored', 3, 2.4, 14, 'w2')), g('brute', 2, 3, 20, 'w3')] } ] },
-  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7, overlap: 20, overlapMin: 0.3,
-    intro: { title: 'Day 2: Get them out', text: 'West again, and from the south over the level crossing.' },
+    waves: [ say('From Stjärnhov, down väg 57/223.', { groups: [g('walker', 12, 0.7, 0, 'w1', 14), g('walker', 8, 0.7, 0, 'w2', 14), g('runner', 4, 0.9, 8, 'w1')] }),
+             say('Along the tracks!', { groups: [g('walker', 22, 0.5, 0, 'w2'), g('walker', 12, 0.6, 4, 'w1'), g('runner', 6, 0.6, 10, 'w2')] }),
+             { groups: [g('walker', 26, 0.45, 0, 'w1'), g('walker', 18, 0.5, 4, 'w2'), tell('Into the houses from Lokalvägen!', g('walker', 14, 0.6, 6, 'w3')), tell('Brutes on väg 57/223!', g('brute', 2, 3, 8, 'w1'))] },
+             { groups: [g('walker', 28, 0.4, 0, 'w3'), g('walker', 24, 0.4, 2, 'w2'), g('runner', 14, 0.4, 8, 'w1'), tell('Armoured ones along the tracks!', g('armored', 3, 2.4, 6, 'w2')), g('brute', 2, 3, 4, 'w3')] } ] },
+  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+    intro: { title: 'Day 2: Get them out', text: 'Väg 57/223 and the tracks again, and Ekvägen over the level crossing.' },
+    order: { text: 'Cover the yellow lines to Wattrangsborg. Ekvägen comes over the crossing.' },
     objective: 'Get the marked houses to Wattrangsborg.',
     // basen, Stationsvägen och plankorsningen (där horden söderifrån kommer in) i bild
     view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [-80, 70]] },
     tail: { n: 8, after: 6, mul: 4 },
     // all: dagen vinns först när vågorna är hållna OCH de civila är framme (src/sim/sim.js checkEvac)
+    // 0.23.1: andra vågens hus går direkt när vågen börjar (förut 4 och 14 s), och gruppen söderifrån kommer 20 s senare
     evac: { need: 18, all: true,
-      groups: [{ house: EVAC_HOMES[0], count: 4, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 4, at: 8, wave: 0 },
-        { house: EVAC_HOMES[2], count: 4, at: 4, wave: 1 }, { house: EVAC_HOMES[3], count: 4, at: 14, wave: 1 },
-        { house: EVAC_HOMES[4], count: 4, at: 4, wave: 2 }, { house: EVAC_HOMES[5], count: 4, at: 14, wave: 2 }] },
-    waves: [ say('West again, down väg 57/223.', { groups: [g('walker', 16, 0.6, 0, 'w1', 14), g('runner', 6, 0.8, 8, 'w2')] }),
-             say('From the south, over the level crossing!', { groups: [g('walker', 26, 0.45, 0, 's1'), g('walker', 18, 0.5, 4, 's2'), g('walker', 16, 0.5, 6, 'w2'), g('runner', 8, 0.5, 14, 's1')] }),
-             { groups: [g('walker', 30, 0.4, 0, 'w1'), g('walker', 24, 0.4, 2, 's2'), tell('Armoured ones at the crossing!', g('armored', 3, 2.4, 10, 's1')), g('crawler', 6, 1.0, 8, 's1'), g('brute', 2, 3, 16, 'w2')] },
-             { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 26, 0.36, 4, 'w2'), tell('Runners down Korsbacksvägen!', g('runner', 14, 0.4, 8, 'w3')), tell('Brutes from Ängsvägen!', g('brute', 4, 2.5, 12, 's2')), g('armored', 4, 2, 16, 'w2')] } ] },
+      groups: [{ house: EVAC_HOMES[0], count: 4, at: 0, wave: 0 }, { house: EVAC_HOMES[1], count: 4, at: 6, wave: 0 },
+        { house: EVAC_HOMES[2], count: 4, at: 0, wave: 1 }, { house: EVAC_HOMES[3], count: 4, at: 3, wave: 1 },
+        { house: EVAC_HOMES[4], count: 4, at: 4, wave: 2 }, { house: EVAC_HOMES[5], count: 4, at: 12, wave: 2 }] },
+    waves: [ say('West again, down väg 57/223.', { groups: [g('walker', 16, 0.6, 0, 'w1', 14), g('runner', 6, 0.8, 6, 'w2', 14)] }),
+             say('From the south, over the level crossing!', { groups: [g('walker', 16, 0.5, 0, 'w2'), g('walker', 26, 0.45, 20, 's1'), g('walker', 18, 0.5, 24, 's2'), g('runner', 8, 0.5, 30, 's1')] }),
+             { groups: [g('walker', 30, 0.4, 0, 'w1'), g('walker', 24, 0.4, 2, 's2'), tell('Armoured ones at the crossing!', g('armored', 3, 2.4, 8, 's1')), g('crawler', 6, 1.0, 6, 's1'), g('brute', 2, 3, 6, 'w2')] },
+             { groups: [g('walker', 30, 0.34, 0, 's1'), g('walker', 26, 0.36, 4, 'w2'), tell('Runners down Lokalvägen!', g('runner', 14, 0.4, 6, 'w3')), tell('Brutes from Ängsvägen!', g('brute', 4, 2.5, 4, 's2')), g('armored', 4, 2, 8, 'w2')] } ] },
 ];
 // Varje ingång dagen använder syns från början med sin väg och etiketten "From wave N" (main.js foretold)
 for (const d of DAYS) {
@@ -286,12 +298,16 @@ export const bjornlundaPlay = {
   // dag 2:s civila är i säkerhet när de når bygdegården (resultatet och raderna i main.js)
   evacPlace: 'reached Wattrangsborg',
   baseLabel: 'Wattrangsborg · Base',
-  camera: { target: [40, 80], view: 60, zoom: [22, 110], pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
+  // 0.23.1: ingångarnas skyltar där vägen kommer in i bild, inte på Stationsvägen där vägarna går ihop (main.js entryCells)
+  entryAt: 1000,
+  // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, norr upp och väster till vänster
+  // (src/render/camera-eye.js setCameraYaw)
+  camera: { target: [40, 80], view: 60, zoom: [22, 110], yaw: 0, pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
   roads: ROADS, joins: B.JOINS, streams: B.STREAMS, rail: RAIL,
   ground: { ...GROUND, bounds: { x0: CRISP.x0 - 24, x1: CRISP.x1 + 24, z0: CRISP.z0 - 24, z1: CRISP.z1 + 24 }, ppm: 8 },
   buildings: B.BUILDINGS, parts: B.PARTS, streets: B.STREETS, gardens: GARDENS, props: B.PROPS, labels: B.LABELS, pois: B.POIS,
-  surroundings: B.BJORNLUNDA_SURROUNDINGS, lots: LOTS, spawns: SPAWNS, base: BASE,
+  surroundings: SURROUNDINGS, lots: LOTS, spawns: SPAWNS, base: BASE,
   // Basen: Wattrangsborgs igenspikade dörrar (render/models.js rinkEntranceModel), som ishallen och Folkets hus
   iceRink: WATT, baseModel: 'rink', hall: HALL,
   guns: 5, frontage: 10, baseHp: 20, days: DAYS,

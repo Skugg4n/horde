@@ -86,7 +86,9 @@ function auditHud(scope) {
   const out = [];
   // 0.19.2: världens lappar också (enheternas märken och lägen, perrongens etikett, raderna som stiger, pilarna vid kanten)
   const OWNERS = ['#day', '#res', '#train', '#evac', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap', '#banner', '.entry', '#coach .cplate', '#coach .paused', '#notes .note', '.panel', '#routekey', '#hint',
-    '.platlabel', '.bounty.shove', '#leakarrow', '#tailarrow', '#basearrow', '.sqtag', '.ustat'];
+    '.platlabel', '.bounty.shove', '#leakarrow', '#tailarrow', '#basearrow', '.sqtag', '.ustat',
+    // 0.23.1 (speltestet av 0.23.0, Björnlunda): evakueringens lappar och basens skylt
+    '.evacmark', '.baselabel'];
   const vis = n => { if (n.closest('[hidden]')) return false; for (let a = n; a; a = a.parentElement) { const s = getComputedStyle(a); if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05) return false; } return true; };
   const owners = [];
   for (const sel of OWNERS) for (const n of document.querySelectorAll(sel)) if (vis(n) && !owners.some(o => o.el.contains(n))) { const r = n.getBoundingClientRect(); if (r.width && r.height) owners.push({ sel, el: n, r }); }
@@ -625,6 +627,13 @@ async function run() {
       await clearLessons();
       await ev(`window.__horde.rig?.skipTour?.()`);
       await checkHud(`hud-bjornlunda-${d}-build`);
+      // 0.23.1 (speltestet av 0.23.0: lapparna på enheterna, basens skylt och evakueringens lappar ovanpå varandra och på
+      // rutorna): truppen utställd (balansens uppställning) och en minut in i första vågen
+      await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
+      for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
+      await ev(`window.__horde.advance(60)`);
+      await clearLessons();
+      await checkHud(`hud-bjornlunda-${d}-wave`);
     }
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');

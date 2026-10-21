@@ -3,12 +3,11 @@
 // Skakningen (basen tar skada, granater) läggs ovanpå som en förskjutning.
 import * as THREE from 'three';
 import { pans, isDrag, edgeDir, BUTTON } from '../ui/gesture.js';
-import { OFFSET as OFF, EYE, crispView, maxView } from './camera-eye.js';
+import { OFFSET as OFF, EYE, crispView, maxView, screenAxes } from './camera-eye.js';
 
+// 0.23.1: riktningen läses ur camera-eye.js när riggen skapas (map.camera.yaw); OFFSET är 45 grader-vinkeln för den
+// som läser den utan rigg
 export const OFFSET = new THREE.Vector3(...OFF);
-// 0.17.2 (H309): kameran står längre bort längs samma riktning (camera-eye.js), så att närplanet aldrig skär husen
-const EYE_V = new THREE.Vector3(...EYE);
-const R = new THREE.Vector3(1, 0, -1).normalize(), D = new THREE.Vector3(1, 0, 1).normalize();
 const PITCH = Math.sin(Math.atan2(46, Math.hypot(40, 40)));
 const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1] };
 
@@ -16,6 +15,9 @@ const PAN = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0
 export { crispView };
 export function createRig({ camera, map, fill, dom, holding = () => false }) {
   const cam = map.camera;
+  // 0.17.2 (H309): kameran står längre bort längs samma riktning (camera-eye.js), så att närplanet aldrig skär husen
+  const EYE_V = new THREE.Vector3(...EYE), OFFSET = new THREE.Vector3(...OFF);
+  const ax = screenAxes(), R = new THREE.Vector3(...ax.right), D = new THREE.Vector3(...ax.down);
   const canPan = !!cam.pan;
   const home = new THREE.Vector3(cam.target[0], 0, cam.target[1]);
   const target = home.clone();

@@ -58,7 +58,8 @@ export const SECTOR_TABLE = {
   gnesta: { place: 'hagstumosse', current: [248, 318], closed: [588, 360], day: [22, -46] },
   molnbo: { place: 'molnbo', current: [248, 318], closed: [960, 168], day: [-14, -52] },
   // 0.23.0 (H545)
-  bjornlunda: { place: 'bjornlunda', current: [248, 318], closed: [300, 120], day: [-30, -44] },
+  // 0.23.1: DAY n under markören (ovanför står LAXNE)
+  bjornlunda: { place: 'bjornlunda', current: [248, 318], closed: [300, 120], day: [-26, 34] },
 };
 // en sektor utan rad ovan (en ny bana från en annan gren) får en ledig plats i tur och ordning
 export const SPARE_SLOTS = [[340, 96], [760, 470], [600, 120]];

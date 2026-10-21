@@ -10,6 +10,24 @@ export const OFFSET = [40, 46, 40];
 export const DIST = Math.hypot(...OFFSET);
 export const EYE_BACK = 5;
 export const EYE = OFFSET.map(v => v * EYE_BACK);
+// 0.23.1 (speltestet av 0.23.0, Björnlunda: "from the west" kom uppifrån höger): en bana kan vrida kameran runt den
+// lodräta axeln (map.camera.yaw, grader; 45 = som alla banor förut, kameran i sydost). 0 = kameran i söder: norr upp,
+// väster till vänster. OFFSET och EYE ändras på plats; det som räknas ur dem (riggen, scenen, de civilas kryss, vyn)
+// läser dem när banans värld byggs. Bara en bana i taget har värld i bild, och main.js sätter vinkeln före bygget och
+// när en byggd bana visas igen.
+const H_DIST = Math.hypot(40, 40);
+export let YAW = 45;
+const RX = [Math.SQRT1_2, -Math.SQRT1_2], DX = [Math.SQRT1_2, Math.SQRT1_2];
+export function setCameraYaw(deg = 45) {
+  YAW = deg;
+  // 45 grader exakt som förut (inga avrundningsfel på de andra banorna)
+  const r = deg * Math.PI / 180, s = deg === 45 ? Math.SQRT1_2 : Math.sin(r), c = deg === 45 ? Math.SQRT1_2 : Math.cos(r);
+  OFFSET[0] = deg === 45 ? 40 : H_DIST * s; OFFSET[2] = deg === 45 ? 40 : H_DIST * c;
+  for (let i = 0; i < 3; i++) EYE[i] = OFFSET[i] * EYE_BACK;
+  RX[0] = c; RX[1] = -s; DX[0] = s; DX[1] = c;
+}
+// Skärmens högerriktning och nedåtriktning på marken (x, z) för vinkeln just nu
+export const screenAxes = () => ({ right: [RX[0], 0, RX[1]], down: [DX[0], 0, DX[1]] });
 export const FOG_SHIFT = DIST * (EYE_BACK - 1);
 export const NEAR = 0.1;
 export const FAR = 2000;
@@ -25,7 +43,6 @@ export function depthRange(view, aspect, height = 0, back = EYE_BACK) {
 }
 
 // Zoomen (vyns höjd i meter) som får med hela rektangeln c ({ x0, x1, z0, z1 }) vid bildformatet a.
-const RX = [Math.SQRT1_2, -Math.SQRT1_2], DX = [Math.SQRT1_2, Math.SQRT1_2];
 export function crispView(c, a, pad = 4) {
   let need = 0;
   const cx = (c.x0 + c.x1) / 2, cz = (c.z0 + c.z1) / 2;

@@ -260,17 +260,20 @@ function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   for (let i = 0; i < Math.max(1, Math.ceil(rows.length / ROSTER_ROWS)); i++) sheets.push({ kind: 'roster', i, rows: rows.slice(i * ROSTER_ROWS, (i + 1) * ROSTER_ROWS) });
   const rel = metaFeatures(p).has('requisition') ? releasedCards(p, z.sector) : null;
   if (rel) sheets.push({ kind: 'released', rows: rel });
-  const top = Math.min(page, sheets.length - 1), cur = sheets[top];
+  // 0.23.1 (speltestet av 0.23.0: efter ett köp hoppade bladet till rullans blad 2 och nästa klick missade): 'rel' är
+  // bladet med släppta enheter var det än hamnar när rullan får ett blad till
+  const relAt = sheets.findIndex(x => x.kind === 'released');
+  const top = page === 'rel' ? (relAt >= 0 ? relAt : 0) : Math.min(page, sheets.length - 1), cur = sheets[top];
   const title = nb ? `${esc(nb.place)} · Day ${nb.n}` : 'Personnel';
   const head = cur.kind === 'roster'
     ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
        <div class="tb-row hd"><span class="bx" title="Into battle">BTL</span><span class="bx" title="Reserve">RES</span><span class="un">UNIT</span>${wide ? '<span class="ty">TYPE</span>' : ''}<span class="mn">MEN</span><span class="sv">STATE</span><span class="lvl">LVL</span>${pencil ? '<span class="tb-pm sp"></span>' : ''}</div>
        ${cur.rows.map(c => rowHtml(c, wide, pencil)).join('')}`
-    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')} · buying adds them to the roster</div>
+    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')}</div>
        <div class="tb-row hd rel"><span class="un">UNIT</span><span class="ty">TYPE</span><span class="mn">MEN</span><span class="pr">PRICE</span><span class="bx">BUY</span></div>
        ${cur.rows.length ? cur.rows.map(c => `<div class="tb-row rel${c.ok ? '' : ' off'}"><span class="un" data-read>${esc(c.name)}</span><span class="ty">${esc(c.role)}</span><span class="mn">${c.max ? `${c.max}/${c.max}` : '1/1'}</span><span class="pr" data-read>${c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost}` : 'Not now'}</span><button type="button" class="tb-box buy" data-req="${c.type}" ${c.ok ? '' : 'disabled'} aria-label="Buy"><i></i></button></div>`).join('')
          : '<p class="none" data-read>Nothing released here yet.</p>'}`;
-  const tabs = sheets.map((sh, k) => (k === top ? '' : `<button type="button" class="tb-tab" data-page="${k}">${sh.kind === 'roster' ? (sheets.filter(x => x.kind === 'roster').length > 1 ? `Roster · sheet ${sh.i + 1}` : 'Roster') : `Released by command${sh.rows.some(r => r.ok) ? ` · ${sh.rows.length} new` : ''}`}</button>`)).join('');
+  const tabs = sheets.map((sh, k) => (k === top ? '' : `<button type="button" class="tb-tab" data-page="${k}"${sh.kind === 'released' ? ' data-rel="1"' : ''}>${sh.kind === 'roster' ? (sheets.filter(x => x.kind === 'roster').length > 1 ? `Roster · sheet ${sh.i + 1}` : 'Roster') : `Released by command${sh.rows.some(r => r.ok) ? ` · ${sh.rows.length} new` : ''}`}</button>`)).join('');
   const foot = `<div class="ft" data-read><span>BATTLE <b>${z.battle.length} of ${z.cap}</b></span><span>RESERVE <b>${z.rest.length}</b></span></div>
     <div class="note" data-read>${esc(note ?? '')}</div>`;
   const under = sheets.length > 1 ? sheets.map((_, k) => (k === top ? '' : `<div class="tb-under" style="--k:${Math.min(2, k + 1)}"></div>`)).join('') : '';
@@ -437,7 +440,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     const rosterSheets = Math.max(1, Math.ceil((st.zones.battle.length + st.zones.rest.length) / ROSTER_ROWS));
     const relPage = metaFeatures(p).has('requisition') ? rosterSheets : -1;
     if (relPage < 0) return;
-    page = (on ?? page !== relPage) ? relPage : 0; cmenu = null; render();
+    page = (on ?? page !== 'rel') ? 'rel' : 0; cmenu = null; render();
   }
   function toggleSpread(id) { spread = spread === id ? null : id; render(); }
   // en ruta: enheten flyttas (förrådets regler: taket, tomma grupper)
@@ -465,7 +468,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     for (const b of view.querySelectorAll('[data-pm]')) b.addEventListener('click', e => { e.stopPropagation(); const uid = Number(b.dataset.uid); cmenu = cmenu === uid ? null : uid; confirmReturn = null; render(); });
     for (const b of view.querySelectorAll('[data-box]')) b.addEventListener('click', e => { e.stopPropagation(); if (!b.classList.contains('on')) lane(Number(b.dataset.uid), b.dataset.box); });
     for (const b of view.querySelectorAll('[data-req]')) b.addEventListener('click', e => { e.stopPropagation(); buy(b.dataset.req); });
-    for (const b of view.querySelectorAll('[data-page]')) b.addEventListener('click', e => { e.stopPropagation(); page = Number(b.dataset.page); cmenu = null; laneNote = null; render(); });
+    for (const b of view.querySelectorAll('[data-page]')) b.addEventListener('click', e => { e.stopPropagation(); page = b.dataset.rel ? 'rel' : Number(b.dataset.page); cmenu = null; laneNote = null; render(); });
     view.querySelector('[data-dog]')?.addEventListener('click', e => { e.stopPropagation(); storeSheet++; render(); });
     for (const b of view.querySelectorAll('[data-cm]')) b.addEventListener('click', e => {
       e.stopPropagation();

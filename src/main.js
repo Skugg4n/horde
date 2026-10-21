@@ -11,6 +11,7 @@ import { createLeakWatch, aheadOf } from './ui/leaks.js';
 import { declutter, rectOf, union } from './ui/declutter.js';
 import { createPicker } from './render/picking.js';
 import { createRig } from './render/camera-rig.js';
+import { setCameraYaw } from './render/camera-eye.js';
 import { dangerZones, coverSpots } from './sim/evac-danger.js';
 import { mountTrain } from './ui/train.js';
 import { mountExodus } from './ui/exodus.js';
@@ -184,6 +185,8 @@ async function loadMap(id) {
   loadingId = m.id; loadTarget = m.name;
   loadingMap = (async () => {
     let w = worlds.get(m.id);
+    // 0.23.1: banans kameravinkel (map.camera.yaw, Björnlunda: väster till vänster) före bygget och när den visas igen
+    setCameraYaw(m.camera.yaw ?? 45);
     if (!w) { w = await buildMapWorld(m); worlds.set(m.id, w); }
     if (rig) rig.active = false;
     map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines; marks = w.marks;
@@ -1296,7 +1299,7 @@ function handleEvents() {
     // 0.19.0 (speltestet av 0.18.1, fynd 5): banderollen är röd och överst bland raderna, inte grå bakom omvägen
     else if (ev.t === 'routed') { note(uiRoot, routBanner(ev.type), 'warn rout', { prio: true, top: true, ms: 3500, rank: 2 }); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
     else if (ev.t === 'unitBack') note(uiRoot, ev.kind === 'rout' ? `${unitName({ type: ev.type })} regrouping in reserve.` : `${unitName({ type: ev.type })} back in reserve.`);
-    else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
+    else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn', { sub: 'Recrew: select it, press N.' }); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'recrewed') note(uiRoot, 'The gun is manned again.');
     else if (ev.t === 'enteredHouse') note(uiRoot, 'In the house. Firing from the windows.');
     else if (ev.t === 'houseBreached') { note(uiRoot, 'They broke into the house!', 'warn'); tip('tip.breach', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); }
@@ -1528,6 +1531,13 @@ function updateBaseLabel() {
   if (!show) return;
   if (baseLabel.textContent !== name) baseLabel.textContent = name;
   baseLabel.style.left = sx + 'px'; baseLabel.style.top = sy + 'px';
+  // 0.23.1 (speltestet av 0.23.0: "INF 5" över basskylten): skylten lyfts ovanför enheternas lappar vid basen
+  baseLabel.style.marginTop = '0px';
+  const tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
+  let r = baseLabel.getBoundingClientRect();
+  for (let i = 0; i < 4 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
+    baseLabel.style.marginTop = (-(i + 1) * 22) + 'px'; r = baseLabel.getBoundingClientRect();
+  }
 }
 const platLabel = document.createElement('div');
 platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'The train stops here. Hold the platform.';
@@ -1785,9 +1795,11 @@ const countText = ([type, n]) => `${n} ${n === 1 ? type : PLURAL[type] ?? type}`
 // är närmare), och står på den biten (ENTRY_SPAN meter). Syns inte den biten står skylten vid skärmkanten och pekar dit
 // (reserven i hud.js), aldrig någon annanstans längs vägen.
 const ENTRY_AT = 100, ENTRY_SPAN = 30;
+// 0.23.1 (speltestet av 0.23.0: "Ängsvägen" stod på Stationsvägen bland enheterna, där alla vägar går ihop): en bana
+// kan ställa skylten längre ut (map.entryAt meter före basen; Björnlunda: där vägen kommer in i den skarpa ytan)
 function entryCells(cells) {
   const c = sim.map.surroundings?.crisp, size = sim.route.grid.size;
-  let i0 = Math.max(0, cells.length - 1 - Math.round(ENTRY_AT / size));
+  let i0 = Math.max(0, cells.length - 1 - Math.round((sim.map.entryAt ?? ENTRY_AT) / size));
   if (c) { const k = cells.findIndex(q => { const p = sim.route.cellCenter(q); return p.x > c.x0 + 2 && p.x < c.x1 - 2 && p.z > c.z0 + 2 && p.z < c.z1 - 2; }); if (k > i0) i0 = k; }
   return cells.slice(0, i0 + Math.round(ENTRY_SPAN / size) + 1).map((q, i) => (i < i0 ? null : q));
 }
@@ -2144,7 +2156,10 @@ function uiRect(sel) {
 // 0.16.1: det lektionsplåten inte ska täcka (etiketterna, gränssnittet, kortets utfällda ruta, ledningens rad)
 // 0.17.1 (speltestet av 0.17.0: lektionsraden över DAY-rutan och över "UNITS 2/6"): tågets ruta och köpradens rubrik
 const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not([hidden])', '#buildbar', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
-  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark'];
+  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark',
+  // 0.23.1 (speltestet av 0.23.0: förrådets lappar låg över tillstånd och priser): personalrullan på bordet, så att lappen
+  // ställs bredvid klämbrädan och inte över raderna
+  '.tb-roster'];
 // 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
 // uppe och banderollerna)
 const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note'];
@@ -2494,6 +2509,21 @@ function updateEvacMarks() {
     const sp = el.querySelector('span'); if (sp.textContent !== t) sp.textContent = t;
     const d = houseDoor(sim.map, h, sim.route), p = toScreen(d.x, d.z);
     el.style.left = p.sx + 'px'; el.style.top = p.sy + 'px';
+  }
+  // 0.23.1 (speltestet av 0.23.0: "Evacuates · wave 3" låg över evakueringsrutan, "TIRED" över "Evacuates · wave 1"):
+  // en lapp som hamnar på gränssnittet visas inte (huset ligger vid skärmkanten); en som hamnar på en enhets lapp lyfts
+  // ovanför den
+  if (evacEls.size) {
+    const hud = hudRects(), tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
+    for (const el of evacEls.values()) {
+      el.style.marginTop = '0px';
+      let r = el.getBoundingClientRect();
+      for (let i = 0; i < 3 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
+        el.style.marginTop = (-(i + 1) * 24) + 'px'; r = el.getBoundingClientRect();
+      }
+      const hide = hud.some(u => u.x0 < r.right && r.left < u.x1 && u.y0 < r.bottom && r.top < u.y1);
+      if (el.hidden !== hide) el.hidden = hide;
+    }
   }
 }
 

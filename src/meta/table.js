@@ -179,7 +179,8 @@ export function missionPiles(p) {
       const st = mapState(p, m), last = Math.min(st.unlockedDay, MAPS[m].days.length);
       for (let d = 1; d <= last; d++) {
         sheets.push(orderSheet(m, d));
-        if ((st.losses?.[d] ?? 0) > 0 && tableOf(p).log[`lost:${m}:${d}`]) sheets.push(lostSheet(p, m, d));
+        // 0.23.1 (speltestet av 0.23.0: "Day 11 · Lost" låg kvar bredvid "held"): bara medan dagen inte är vunnen
+        if (d >= st.unlockedDay && (st.losses?.[d] ?? 0) > 0 && tableOf(p).log[`lost:${m}:${d}`]) sheets.push(lostSheet(p, m, d));
         if (d < st.unlockedDay) sheets.push(reportSheet(p, m, d));
       }
     }

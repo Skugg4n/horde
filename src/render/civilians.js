@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { createHorde } from './horde.js';
 import { hvSoldierModel, hvRun, hvDown } from './models.js';
-import { OFFSET } from './camera-rig.js';
+import { OFFSET } from './camera-eye.js';
 
 const MARK_MAX = 64, MARK_COLOR = '#f7b928';
 const CIV_SCALE = 1.25;
@@ -51,7 +51,7 @@ export function createCivilians(scene) {
   crossEdges.count = 0; crossEdges.frustumCulled = false; crossEdges.renderOrder = 8; crossEdges.castShadow = false;
   scene.add(crossEdges, crosses);
   // krysset vänt mot kameran (den står alltid åt samma håll, camera-rig.js OFFSET)
-  const mq = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(OFFSET, new THREE.Vector3(), new THREE.Vector3(0, 1, 0)));
+  const mq = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(...OFFSET), new THREE.Vector3(), new THREE.Vector3(0, 1, 0)));
   const mv = new THREE.Vector3(), ms = new THREE.Vector3();
   const mm = new THREE.Matrix4();
   let bob = 0;

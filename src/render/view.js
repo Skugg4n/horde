@@ -15,6 +15,7 @@ import { squadGhost, setSquadGhost, suppliesModel } from './models.js';
 import { SQUAD, isSquad } from '../sim/squad.js';
 import { createDormant } from './dormant.js';
 import { createCivilians } from './civilians.js';
+import { OFFSET as CAM_OFFSET } from './camera-eye.js';
 
 const FALL_TIME = 0.3;
 const OLD_VARN = typeof location !== 'undefined' && new URLSearchParams(location.search).has('oldvarn');
@@ -370,7 +371,7 @@ export function createView(scene, initialSim) {
     e.model.pivot.traverse(o => { if (o.isMesh) list.push(o); });
     e.xray = list.map(o => { const c = new THREE.Mesh(o.geometry, XRAY); c.renderOrder = 8; c.visible = false; c.castShadow = false; o.add(c); return c; });
   }
-  const camDir = new THREE.Vector3(40, 46, 40).normalize();
+  const camDir = new THREE.Vector3(...CAM_OFFSET).normalize();   // 0.23.1: banans vinkel (camera-eye.js)
   // Skyms punkten (x, y, z) av ett hus mellan den och kameran?
   function hidden(x, y, z) {
     const p = sim.place;
