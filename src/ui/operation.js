@@ -124,6 +124,8 @@ function sectorCard(p, id, meta) {
   const units = map ? unitsIn(p, id) : [];
   const lines = [];
   if (st === 'placeholder') lines.push('No reports yet.');
+  // 0.24.0 (H552): Laxne öppnar bara om spelaren väljer att försvara byn (src/data/choices.js)
+  else if (st === 'locked' && Array.isArray(map.unlock.choice)) lines.push(`Opens if you choose to defend it after day ${shownDay(map.unlock.map, map.unlock.day)}.`);
   else if (st === 'locked') lines.push(`Opens when day ${shownDay(map.unlock.map, map.unlock.day)} is held.`);
   else if (st === 'silent') lines.push('Secure. The army holds the roadblock.');
   else if (st === 'held') lines.push('Every day here is held.');

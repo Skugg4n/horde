@@ -16,7 +16,8 @@ import { WEAPONS } from '../data/weapons.js';
 import { GARRISON, poolOf, RELEASES, UNIT_RP, LEVEL_RP, REFILL_RP, RETURN_RATE, VET_WINS, UPGRADES, SUPPLY_BUDGET, SECTORS, RETIRED_NODES, UNLOCK_TIERS } from '../data/depot.js';
 import { researchNode } from '../data/research.js';
 import { ARRIVAL_TROOP } from '../data/arrival.js';
-import { newProgress, emptyOp, mapState, mapUnlocked, startConfig, dayResult, migrateV3 } from './progress.js';
+import { newProgress, emptyOp, mapState, mapUnlocked, startConfig, dayResult, migrateV3, choiceOf, choicePending, withChoice } from './progress.js';
+import { CHOICES, choiceOption } from '../data/choices.js';
 import { tierOf, tierData, MAX_LEVEL } from '../sim/stats.js';
 import { squadSize } from '../sim/squad.js';
 import { hasMeta, featuresFor } from './unlocks.js';
@@ -168,7 +169,9 @@ export const garrisonLine = id => `Below ${garrisonOf(id)}: pressure rises ${PRE
 export const hpFromPressure = n => 1 + PRESSURE_HP * n;
 
 // ---------- leveranser ----------
-export const releaseDue = (p, r) => !!MAPS[r.map] && mapUnlocked(p, r.map) && mapState(p, r.map).unlockedDay >= r.day;
+// 0.24.0 (H552): r.choice = [id, opt]: leveransen kommer bara efter det valet (src/data/choices.js)
+export const releaseDue = (p, r) => !!MAPS[r.map] && mapUnlocked(p, r.map) && mapState(p, r.map).unlockedDay >= r.day
+  && (!r.choice || choiceOf(p, r.choice[0]) === r.choice[1]);
 function applyRelease(p, r) {
   const op = copyOp(p);
   const research = [...p.research];
@@ -431,7 +434,9 @@ export const supplyBonus = research => Math.round((tierData(research, 'budget')?
 export function opStartConfig(p, day, mapId = p.mapId) {
   const base = startConfig(p, day, mapId);
   if (!base) return null;
-  const d = base.map.days[day - 1];
+  // 0.24.0 (H552): dagen som valet gjort den (Björnlunda dag 1 efter FALL BACK: första vågen större)
+  const d = dayFor(p, mapId, day);
+  if (d !== base.map.days[day - 1]) base.dayCfg = d;
   // 0.18.1: bara stridsbanan (lanes) går ut; resten vilar i förrådet
   const core = lanes(p, mapId).battle
     .map(u => ({ uid: u.uid, type: u.type, level: u.level, vet: vetOf(u), ...(u.men != null ? { men: u.men } : {}), ...(u.fatigue ? { fatigue: u.fatigue } : {}) }));
@@ -441,6 +446,32 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   return { ...base, cash: supplies ? (d.supplies ?? d.startCash) + supplyBonus(p.research) : 0, core, hpMul: hpFromPressure(pressureOf(p, mapId)),
     bountyMul: supplies ? SUPPLY_BOUNTY * (d.bounty ?? 1) : 0, allow };
 }
+// ---------- kampanjens val (0.24.0, H552, src/data/choices.js) ----------
+// Dagen som den spelas: banans dag, eller en kopia som ett val ändrat. day.choiceMod = { choice: [id, opt], firstWave }:
+// när valet är gjort blir varje grupp i första vågen firstWave gånger större (avrundat uppåt).
+export function dayFor(p, mapId, day) {
+  const d = MAPS[mapId]?.days?.[day - 1];
+  const m = d?.choiceMod;
+  if (!m || choiceOf(p, m.choice[0]) !== m.choice[1]) return d;
+  const k = m.firstWave ?? 1;
+  return { ...d, waves: d.waves.map((w, i) => (i ? w : { ...w, groups: w.groups.map(q => ({ ...q, count: Math.ceil(q.count * k) })) })) };
+}
+// Spelaren väljer på bordet. Kostnaden (option.rp) dras direkt, högst det som finns; leveranserna och sektorerna följer
+// (syncOperation: defend öppnar Laxne, fallback Björnlunda). Ett val går inte att ändra.
+export function canChoose(p, id, opt) {
+  if (!CHOICES[id] || !choiceOption(id, opt)) return { ok: false, reason: 'unknown' };
+  if (choiceOf(p, id)) return { ok: false, reason: 'chosen' };
+  if (!choicePending(p, id)) return { ok: false, reason: 'not yet' };
+  return { ok: true };
+}
+export function makeChoice(p, id, opt) {
+  const c = canChoose(p, id, opt);
+  if (!c.ok) return c;
+  const o = choiceOption(id, opt), cost = Math.min(p.rp ?? 0, o.rp ?? 0);
+  const q = { ...withChoice(p, id, opt), rp: (p.rp ?? 0) - cost, ...(o.rp ? { choiceRp: { ...(p.choiceRp ?? {}), [id]: cost } } : {}) };
+  return { ok: true, cost, progress: syncOperation(q) };
+}
+
 // RP för ett försök. base: det simuleringen räknade (dödade, vågor, lärdomen vid förlust). report:
 // src/sim/sim.js dayReport. Bonusarna bara vid vinst.
 export function rpForAttempt({ base, attempt = 1, won = false, report = null, evac = null }) {
@@ -530,11 +561,16 @@ export function debugDepot(p, preset, list = []) {
 }
 // Hoppa till en sektor och dag (debugmenyn): banorna före räknas som klara och sektorns dagar före
 // som vunna, så att leveranserna och trupperna är där en spelare som kommit dit har dem.
+// 0.24.0 (H552): ett hopp till Laxne gör valet DEFEND LAXNE, ett hopp till Björnlunda utan val FALL BACK (balansens
+// ankomst, utan kostnaden); ett gjort val står kvar.
 export function debugReach(p, mapId, day, fresh = false) {
-  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda'];
+  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda'];
+  if (mapId === 'laxne' && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'defend');
+  if (mapId === 'bjornlunda' && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'fallback');
   const maps = { ...p.maps };
   for (const id of order) {
     if (id === mapId) break;
+    if (id === 'laxne' && choiceOf(p, 'laxne') !== 'defend') continue;
     const st = mapState(p, id);
     maps[id] = { ...st, unlockedDay: Math.max(st.unlockedDay, MAPS[id].days.length + 1) };
   }

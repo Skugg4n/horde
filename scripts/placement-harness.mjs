@@ -103,7 +103,9 @@ async function run() {
       }
       const [sx, sy] = keys[Math.floor(r2 * keys.length)];
       // en punkt där just den här saken inte får stå, för retry-near och nudge
-      const bad = keys.filter(([x, y]) => { const g = H.groundAt(x, y), k = g ? p.keyAt(g.x, g.z) : -1; return k >= 0 && p.kind[k] !== 0; });
+      // 0.24.0: nudge klickar 24 px till höger och 20 px nedanför: också den punkten ska vara kartan (inte minikartan)
+      const onMap = (x, y) => document.elementFromPoint(x, y) === H.renderer.domElement;
+      const bad = keys.filter(([x, y]) => { const g = H.groundAt(x, y), k = g ? p.keyAt(g.x, g.z) : -1; return k >= 0 && p.kind[k] !== 0 && onMap(x + 24, y + 20); });
       const [bx, by] = bad.length ? bad[Math.floor(r3 * bad.length)] : [sx, sy];
       const kbd = card.querySelector('kbd')?.textContent;
       return { id: card.dataset.id, kbd, cx: cr.x + cr.width / 2, cy: cr.y + cr.height / 2, sx: sx + (r3 - 0.5) * 6, sy, bx, by };
@@ -149,6 +151,8 @@ async function run() {
     if (out.n > before + extra) res = 'placed';
     // kortet gick inte att ta upp och sa varför (alla utställda): ett skäl, inget tyst
     else if (!out.holding && !pickUp.held && pickUp.tips.length) res = 'reason';
+    // 0.24.0: after-buy när alla av typen redan står ute: kortet säger varför ("All of these are on the map") efter klicket
+    else if (!out.holding && !pickUp.held && out.tips.length) res = 'reason';
     else if (!out.holding) res = 'notHolding';
     else if (out.tips.length) res = 'reason';
     else res = 'silent';

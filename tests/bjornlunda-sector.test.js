@@ -17,7 +17,7 @@ import { STAGES, featuresFor } from '../src/meta/unlocks.js';
 import { LESSONS } from '../src/data/lessons.js';
 import { SECTOR_TABLE, ADDRESSEE } from '../src/data/table.js';
 import { SECTORS, RELEASES } from '../src/data/depot.js';
-import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus } from '../src/meta/operation.js';
+import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus, makeChoice } from '../src/meta/operation.js';
 import { mapUnlocked } from '../src/meta/progress.js';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
 import { bjornlundaCampaign, bjornlundaArrival, bjornlundaDayTroop, blAttempts, blPrints, playOpDay } from '../scripts/balance.mjs';
@@ -29,7 +29,8 @@ const road = id => bl.roads.find(r => r.id === id);
 test('Björnlunda är en bana efter Mölnbo: kampanjens dag 11 och 12, korta intron som säger varifrån de kommer', () => {
   assert.equal(MAPS.bjornlunda, bl);
   assert.equal(bl.days.length, 2);
-  assert.deepEqual(bl.unlock, { map: 'molnbo', day: 3 });
+  // 0.24.0 (H552): och Laxne-valet (tests/laxne-sector.test.js)
+  assert.deepEqual(bl.unlock, { map: 'molnbo', day: 3, choice: 'laxne' });
   assert.equal(campaignDayOf('bjornlunda', 1), 11);
   assert.equal(campaignDayOf('bjornlunda', 2), 12);
   assert.equal(campaignDayOf('molnbo', 3), 10);
@@ -194,12 +195,15 @@ test('dag 2: de markerade husen går de gula linjerna till Wattrangsborg, först
   for (const q of ev.groups) assert.ok(dist(q.house) < 120, q.house);
 });
 
-test('kampanjen: Björnlunda öppnar efter Mölnbo dag 3, truppen följer med och byns jägare kommer till', () => {
+test('kampanjen: Björnlunda öppnar efter Mölnbo dag 3 och FALL BACK, truppen följer med och byns jägare kommer till', () => {
   let p0 = debugReach(newCampaign(), 'molnbo', 3);
   assert.equal(mapUnlocked(p0, 'bjornlunda'), false);
   assert.equal(sectorStatus(p0, 'bjornlunda'), 'locked');
   const before = unitsIn(p0, 'molnbo').length;
   p0 = finishDay(p0, { mapId: 'molnbo', day: 3, won: true, intelEarned: 10, report: { units: [] } }).progress;
+  // 0.24.0 (H552): först Laxne-valet på bordet
+  assert.equal(mapUnlocked(p0, 'bjornlunda'), false);
+  p0 = makeChoice(p0, 'laxne', 'fallback').progress;
   assert.equal(mapUnlocked(p0, 'bjornlunda'), true);
   assert.equal(sectorStatus(p0, 'bjornlunda'), 'holding');
   assert.equal(unitsIn(p0, 'bjornlunda').length, before + 2, 'truppen från Mölnbo och två grupper jägare');
@@ -266,12 +270,15 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // hp 6, bounty 0,9 och 1, overlap 12, bjässarna mitt i sista vågen, söderifrån senare dag 2. docs/balance-log.md 0.23.1.
 // 0.23.2 (omtestet av 0.23.1): dag 12 nytt, avsiktligt: husen nära basen, leveransen bl-2 (två Hemvärnsgrupper och en
 // Ksp 90). docs/balance-log.md 0.23.2.
-// 0.23.3 (H550, speltestet av 0.23.2: 805 och 1 258 $ över): båda dagarna nya, avsiktligt: bounty 0,75 och 0,7 (förut 0,9
-// och 1), bjässarnas svans (tail.brutes 4). docs/balance-log.md 0.23.3.
+// 0.23.3 (H550, speltestet av 0.23.2: 805 och 1 258 $ över): bounty 0,75 och 0,7 (förut 0,9 och 1), bjässarnas svans
+// (tail.brutes 4). docs/balance-log.md 0.23.3.
+// 0.24.0 (H552): alla nya, avsiktligt: ankomsten är grenen FALL BACK (valets kostnad 150 RP, första vågen dag 11 en
+// fjärdedel större) och dag 1 hp 7,25 (förut 8), ovanpå 0.23.3:s inkomst och svans. Grenen DEFEND LAXNE provas i tests/laxne-sector.test.js.
+// docs/balance-log.md Laxne 0.24.0.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '963024c8', 'bjornlunda 2': '9121edbc' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '94c66df2', 'bjornlunda 2': 'c1e6d164' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': 'ca2c34e9', 'bjornlunda 2': 'ef11e85a' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '38c5f03f', 'bjornlunda 2': '8bd6a77d' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen

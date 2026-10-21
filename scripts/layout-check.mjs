@@ -146,7 +146,9 @@ function auditTable(scope) {
   const owner = el => el.closest('.tb-card, .tb-cell, [data-sheet], .tb-enemy, .tb-strip, .tb-postit, .tb-clipboard, .tb-zone, .tb-obj, .tb-spread') ?? el;
   // en utbredd hög täcker bordet med flit: då provas bara bladen i den
   // 0.21.4: kortets meny och den lyfta klämbrädan ligger med flit över bordet: då provas de (och korten, klämbrädan)
-  const scopeSel = document.querySelector('#hub .tb-spread') ? '#hub .tb-spread [data-read]'
+  // 0.24.0 (H552): Laxne-valet ligger med flit över bordet: då provas ordern med de två rutorna
+  const scopeSel = document.querySelector('#hub .tb-choice') ? '#hub .tb-choice [data-read], #hub .tb-choice .ch-row, #hub .tb-choice .ch-sign'
+    : document.querySelector('#hub .tb-spread') ? '#hub .tb-spread [data-read]'
     : document.querySelector('#hub .tb-cmenu') ? '#hub .tb-cmenu [data-read]'
     : document.querySelector('#hub .tb-req') ? '#hub .tb-req [data-read], #hub .tb-zone [data-read], #hub .tb-card [data-read], #hub .tb-clipboard [data-read]' : '#hub [data-read]';
   const reads = [...document.querySelectorAll(scopeSel)].filter(n => n.getClientRects().length && getComputedStyle(n).visibility !== 'hidden');
@@ -188,7 +190,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 24;
+const TABLE_SCOPES = 28;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -283,6 +285,36 @@ async function tableChecks(page, label) {
   await show(reach('molnbo', 1), 'table-molnbo-1');
   // 0.23.0 (H545): Björnlunda på bordet (markören, ordern och personalrullan)
   await show(reach('bjornlunda', 1), 'table-bjornlunda-1');
+  // 0.24.0 (H552): Laxne-valet efter Mölnbo dag 10: ordern med två rutor över bordet, kryss, underskrift, och bordet efteråt
+  const atChoice = `p = O.finishDay(p, { mapId: 'molnbo', day: 3, won: true, intelEarned: 10, report: { units: [] } }).progress;`;
+  await show(reach('molnbo', 3, atChoice + ' p = { ...p, rp: 600 };'), 'table-choice');
+  {
+    const sc = `table-choice @${label}`;
+    const c = await ev(`(() => { const s = document.querySelector('#hub .tb-choice'); if (!s) return null; const r = s.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, rows: [...s.querySelectorAll('.ch-row')].map(b => b.textContent.trim()), sign: s.querySelector('.ch-sign')?.disabled, txt: s.querySelector('.txt')?.textContent }; })()`);
+    if (!c) errors.push(`${sc}: ingen order med rutor`);
+    else {
+      if (c.l < 0 || c.t < 0 || c.r > W + 1 || c.b > page.viewportSize().height + 1) errors.push(`${sc}: ordern ryms inte i fönstret`);
+      if (c.rows.join('|') !== 'DEFEND LAXNE|FALL BACK') errors.push(`${sc}: rutorna är ${c.rows.join(', ')}`);
+      if (c.sign !== true) errors.push(`${sc}: SIGN går före ett kryss`);
+      if (c.txt !== 'Laxne asks for help. Defend it, or fall back to Björnlunda.') errors.push(`${sc}: texten är "${c.txt}"`);
+    }
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/table-choice-${label}.png` });
+    await ev(`document.querySelector('#hub .tb-choice [data-pick="defend"]')?.click()`);
+    await page.waitForTimeout(200);
+    await run('table-choice-ticked');
+    if (!/One more day/.test(await ev(`document.querySelector('#hub .tb-choice .ch-means')?.textContent ?? ''`))) errors.push(`${sc}: krysset säger inte vad det betyder`);
+    await ev(`document.querySelector('#hub .tb-choice [data-a="sign"]')?.click()`);
+    await page.waitForTimeout(500);
+    if (await ev(`!!document.querySelector('#hub .tb-choice')`)) errors.push(`${sc}: ordern ligger kvar efter underskriften`);
+    if (!/ORDER 11\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:laxne:1"]')?.textContent ?? ''`))) errors.push(`${sc}: nästa order är inte Laxne dag 11`);
+    await run('table-laxne-1');
+  }
+  // FALL BACK: Björnlunda dag 11 med lägesrapporten under ordern och radion
+  // med riktiga RP efteråt (450): rullans rubrik bryts inte och Deploy ryms (0.24.0, src/ui/table.js rqLabel)
+  await show(reach('molnbo', 3, atChoice + ` p = O.makeChoice({ ...p, rp: 600 }, 'laxne', 'fallback').progress;`), 'table-fallback');
+  if (!/Laxne is on its own\./.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen lägesrapport om Laxne`);
+  if (!/Laxne/.test(await ev(`document.querySelector('#hub .tb-radio')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen radio om Laxne`);
+  if (!/ORDER 11\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:bjornlunda:1"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: Björnlunda är inte dag 11`);
   // 0.23.3 (H549): Björnlunda dag 12, förstärkningen under en egen rubrik på rullans första blad, tre rader NEW
   await show(reach('bjornlunda', 2), 'table-bjornlunda-2');
   const reinf = await ev(`({ head: document.querySelector('#hub .tb-roster .tb-row.grp')?.textContent ?? '', fresh: document.querySelectorAll('#hub .tb-roster .tb-row.re .tb-new').length })`);
@@ -529,6 +561,17 @@ async function run() {
     await check('molnbo-opmap');
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 3); H.showDepot('molnbo', 'opmap', { day: 3 }); })()`);
     await check('molnbo-depot');
+    // 0.24.0 (H552): Laxne dag 1 (kampanjens dag 11 efter DEFEND LAXNE): introt och resultatet med sektorns slut
+    await ev(`(async () => { const H = window.__horde; await H.jump('laxne', 1); H.startDay(1); })()`);
+    await check('laxne-1-intro');
+    await ev(`window.__horde.sheetAction('go')`);
+    await page.waitForTimeout(400);
+    await skipLessons();
+    await dropLessons();
+    await ev(`(() => { window.__horde.sim.phase = 'won'; })()`);
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(900);
+    await check('laxne-1-result');
     // 0.23.0 (H545): Björnlunda dag 1 och 2 (kampanjens dag 11 och 12): introna, och resultatet efter dag 2 med sektorns slut
     for (const d of [1, 2]) {
       await ev(`(async () => { const H = window.__horde; await H.jump('bjornlunda', ${d}); H.startDay(${d}); })()`);
@@ -704,6 +747,16 @@ async function run() {
       await clearLessons();
       await checkHud(`hud-bjornlunda-${d}-wave`);
     }
+    // 0.24.0 (H552): Laxne före första vågen och en minut in i den (skolan, de gula linjerna, ingångarna norrut)
+    await ev(`(async () => { const H = window.__horde; await H.jump('laxne', 1); })()`);
+    await clearLessons();
+    await ev(`window.__horde.rig?.skipTour?.()`);
+    await checkHud('hud-laxne-1-build');
+    await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
+    for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
+    await ev(`window.__horde.advance(60)`);
+    await clearLessons();
+    await checkHud('hud-laxne-1-wave');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     // 0.21.0: kartbordet (0.21.1: också i 1440x900 och 1920x1080, se nedan)

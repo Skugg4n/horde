@@ -298,6 +298,9 @@ function rowHtml(c, wide, pencil) {
 function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   const z = state.zones, nb = state.next, p = state._p;
   const wide = fr.rosterW >= 470, pencil = true;
+  // 0.24.0: i en smal rulla (1024 px) står "RP" i stället för "REQUISITION", så att rubriken inte bryts av tresiffriga RP
+  // (efter Laxne-valet FALL BACK) och knuffar Deploy under klämbrädan
+  const rqLabel = wide ? 'REQUISITION' : 'RP';
   const rows = rosterItems(z);
   const sheets = [];
   for (let i = 0; i < Math.max(1, Math.ceil(rows.length / ROSTER_ROWS)); i++) sheets.push({ kind: 'roster', i, rows: rows.slice(i * ROSTER_ROWS, (i + 1) * ROSTER_ROWS) });
@@ -309,10 +312,10 @@ function rosterHtml(state, place, fr, { page, note, cm, nudge = null }) {
   const top = page === 'rel' ? (relAt >= 0 ? relAt : 0) : Math.min(page, sheets.length - 1), cur = sheets[top];
   const title = nb ? `${esc(nb.place)} · Day ${nb.n}` : 'Personnel';
   const head = cur.kind === 'roster'
-    ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
+    ? `<div class="th"><b data-read>${title}</b><span class="rq" data-read>${rqLabel} <i>${p.rp}</i></span></div><div class="sub" data-read>Personnel roster${sheets.filter(x => x.kind === 'roster').length > 1 ? ` · sheet ${cur.i + 1}` : ''}${nb?.title ? ` · ${esc(nb.title.toLowerCase())}` : ''}</div>
        <div class="tb-row hd"><span class="bx" title="Into battle">BTL</span><span class="bx" title="Reserve">RES</span><span class="un">UNIT</span>${wide ? '<span class="ty">TYPE</span>' : ''}<span class="mn">MEN</span><span class="sv">STATE</span><span class="lvl">LVL</span>${pencil ? '<span class="tb-pm sp"></span>' : ''}</div>
        ${cur.rows.map(c => rowHtml(c, wide, pencil)).join('')}`
-    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>REQUISITION <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')}</div>
+    : `<div class="th"><b data-read>Released by command</b><span class="rq" data-read>${rqLabel} <i>${p.rp}</i></span></div><div class="sub" data-read>New units for ${esc(nb?.place ?? '')}</div>
        <div class="tb-row hd rel"><span class="un">UNIT</span><span class="ty">TYPE</span><span class="mn">MEN</span><span class="pr">PRICE</span><span class="bx">BUY</span></div>
        ${cur.rows.length ? cur.rows.map(c => `<div class="tb-row rel${c.ok ? '' : ' off'}"><span class="un" data-read>${esc(c.name)}</span><span class="ty">${esc(c.role)}</span><span class="mn">${c.max ? `${c.max}/${c.max}` : '1/1'}</span><span class="pr" data-read>${c.ok ? `${c.cost} RP` : c.reason === 'rp' ? `Need ${c.cost}` : 'Not now'}</span><button type="button" class="tb-box buy" data-req="${c.type}" ${c.ok ? '' : 'disabled'} aria-label="Buy"><i></i></button></div>`).join('')
          : '<p class="none" data-read>Nothing released here yet.</p>'}`;

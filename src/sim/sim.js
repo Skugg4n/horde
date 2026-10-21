@@ -76,8 +76,9 @@ const countdownOf = sim => sim.tweaks?.countdown ?? COUNTDOWN;
 // andra Ksp 90) och spots (de markerade platserna, [[x, z]]: bara där får nya enheter ställas ut).
 // 0.18.0: depth (skiva 1): utan allow (proven och provbanorna) är djupets mekaniker av, så att mekanikproven räknar
 // som förut; depth: true slår på alla (provet för djupet), en lista bara de.
-export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1, allow = null, depth = null }) {
-  const dayCfg = map.days[day - 1];
+// dayCfg (0.24.0, H552): dagen som ett val ändrat (src/meta/operation.js dayFor); annars banans dag.
+export function createSim({ map, day, cash, research = [], seed = 1, tweaks = null, core = null, hpMul = 1, bountyMul = 1, allow = null, depth = null, dayCfg: dayOverride = null }) {
+  const dayCfg = dayOverride ?? map.days[day - 1];
   const res = new Set(research);
   const route = routeFor(map);
   const coreMode = Array.isArray(core);

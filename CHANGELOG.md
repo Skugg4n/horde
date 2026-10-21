@@ -1,5 +1,20 @@
 # Ändringslogg
 
+## 0.24.0 (Laxne-valet) (2026-10-21)
+
+Kampanjplanen avsnitt 10 och Olas beslut 2026-10-20 (H552): efter Mölnbo dag 10 ber Laxne om hjälp, och spelaren väljer.
+
+- **Valet på bordet:** när Mölnbo dag 10 är vunnen ligger en order från MCF över kartbordet: "Laxne asks for help. Defend it, or fall back to Björnlunda." med två blyertsrutor, DEFEND LAXNE och FALL BACK. Ett kryss säger vad valet betyder; SIGN (eller Enter) skriver under. Valet sparas och går inte att ändra. Bordet ritas av src/ui/choice.js ovanpå bordet (och ovanpå operationskartan med Classic); src/ui/table.js är orörd.
+- **DEFEND LAXNE:** Laxne blir nästa strid, kampanjens dag 11. En dag: horden norrifrån längs väg 223 (Laxnevägen från Mariefred) och Skottvångsvägen, genom remsan mellan skogen och Klämmingen och sedan genom byn. Laxne skola är basen; fem markerade hus vid Laxne skolväg, 223 och Invägen går de gula linjerna till skolan. Fyra vågor. Sjön går inte att gå över eller ställa något i. Byns jägare kommer till (två grupper), och efter Laxne följer byns Hemvärn med till Björnlunda (två grupper och en Ksp 90). Björnlunda är sedan dag 12 och 13.
+- **FALL BACK:** ingen strid, truppen kommer hel till Björnlunda. Byn lämnas: 150 RP dras (aldrig under noll), Björnlunda dag 11:s första våg är en fjärdedel större (dataflaggan choiceMod), lägesrapporten "Laxne is on its own." ligger under ordern för dag 11 och radion säger samma natt att ingen kommer till Laxne.
+- **Dagnumret** följer valet överallt (HUD, intro, resultat, bordet): Laxne 11, Björnlunda 11 och 12 eller 12 och 13.
+- **Kartan:** ingen Fjäderfabriken (Olas beslut; byggnaden står som en lada). Skolgården fick en grusstig runt skolan; OSM:s gångvägar som gick genom skolans fotavtryck är borta i spelet. Spelytan slutar där Skottvångsvägen möter 223.
+- **Sparfilen:** valet sparas i progress.choices (och kostnaden i progress.choiceRp), tvättas när filen läses, och en fil från 0.23.x som redan stod i Björnlunda har inget val att göra (Björnlunda står öppen, ingen kostnad).
+- **Quick jump:** Laxne 1 (gör valet DEFEND); Björnlunda utan val gör FALL BACK utan kostnad.
+- **Balansen:** Laxne hp 7 och fart 2,2 (vägen är cirka 700 m). Björnlunda dag 11 hp 7,25 (förut 8, ovanpå 0.23.3:s lägre inkomst): med valets större första våg förlorade den vanliga spelaren dag 11 fyra till sex gånger på seed 3.
+- **Dra eller hålla:** om man hållit innan man drar räknas på händelsernas egna tidsstämplar, så att en tung bildruta mellan trycket och rörelsen inte gör en snabb dragning till siktande (placeringsprovet på Laxne).
+- **Rullan i 1024 px:** rubriken säger "RP" i stället för "REQUISITION" när rullan är smal och bryts aldrig, så att tresiffriga RP inte knuffar Deploy under klämbrädan (syntes efter FALL BACK). docs/balance-log.md, Laxne 0.24.0.
+
 ## 0.23.3 (tredje testet av Björnlunda, bordets småfel) (2026-10-21)
 
 Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md) sa ja; det här är friktionen det hittade.

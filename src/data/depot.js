@@ -32,6 +32,8 @@ export const SECTORS = [
   { id: 'molnbo', name: 'Mölnbo', full: 'Mölnbo · Stationen', short: 'Mölnbo', x: 0.62, y: 0.15, maps: ['molnbo'] },
   // 0.23.0 (H545): Björnlunda (src/data/bjornlunda-play.js), öppnar efter Mölnbo dag 3
   { id: 'bjornlunda', name: 'Björnlunda', full: 'Björnlunda · Wattrangsborg', short: 'Björnlunda', x: 0.30, y: 0.22, maps: ['bjornlunda'] },
+  // 0.24.0 (H552): Laxne (src/data/laxne-play.js), bara när spelaren valt att försvara byn (src/data/choices.js)
+  { id: 'laxne', name: 'Laxne', full: 'Laxne · Laxne skola', short: 'Laxne', x: 0.26, y: 0.10, maps: ['laxne'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
@@ -148,7 +150,8 @@ export const RELEASES = [
   // ---------- Björnlunda (0.23.0, H545) ----------
   // Kampanjbågen dag 11 och 12. Mölnbo är släppt; horden går runt Gnesta västerut. Truppen som kom ut ur Mölnbo följer
   // med (adopt). Ledningen har inga bra trupper att skicka hit: byns jägare (två frivilliga grupper) och inget mer.
-  // Laxne-valet (kampanjplanen, beslut 2026-10-20) ska ligga före den här leveransen; inte byggt (src/data/bjornlunda-play.js).
+  // 0.24.0 (H552): Laxne-valet ligger före den här leveransen (src/data/choices.js). FALL BACK: den kommer direkt efter
+  // valet; DEFEND LAXNE: efter Laxne, och truppen därifrån följer med (adopt).
   { id: 'bl-1', map: 'bjornlunda', day: 1, from: 'FM', adopt: true,
     text: 'They are turning west round Gnesta, at Björnlunda. No good troops to send. Hunters from the village join you.',
     grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
@@ -159,6 +162,18 @@ export const RELEASES = [
   { id: 'bl-2', map: 'bjornlunda', day: 2, from: 'MCF', reinforce: 'Hemvärnet',
     text: 'People are still in their houses near Wattrangsborg. Hemvärnet sends two squads and a Ksp 90.',
     grant: [{ type: 'hv', count: 2 }, { type: 'm249' }], stock: { ksp58: 1, inf: 1 } },
+  // 0.24.0 (H552): bara efter DEFEND LAXNE (choice). Byns Hemvärn kom ut med truppen och följer med till Björnlunda: två
+  // utvilade grupper och en Ksp 90, så att dag 13 går att vinna efter tre dagar i rad (Laxne, Björnlunda dag 1 och 2; tröttheten,
+  // docs/balance-log.md Laxne 0.24.0). FALL BACK har inga.
+  { id: 'bl-lx', map: 'bjornlunda', day: 1, from: 'FM', choice: ['laxne', 'defend'],
+    text: 'Laxne Hemvärn came out with you: two squads and a Ksp 90 join you at Björnlunda.',
+    grant: [{ type: 'hv', count: 2, level: 2 }, { type: 'm249', level: 2 }] },
+  // ---------- Laxne (0.24.0, H552) ----------
+  // Den valfria dagen: spelaren valde DEFEND LAXNE på bordet. Truppen från Mölnbo följer med (adopt). Byns jägare kommer
+  // till; ledningen har inget annat.
+  { id: 'lx-1', map: 'laxne', day: 1, from: 'MCF', adopt: true,
+    text: 'Laxne skola is the gathering point. Hold road 223 until the village is out.',
+    grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
 ];
 // Leveransens sort: 'reinforcement' (trupper ledningen skickar, märkta på rullan) eller 'release' (det som blir möjligt att
 // rekvirera, eller trupper som är sektorns startstyrka)

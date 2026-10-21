@@ -20,7 +20,8 @@ import { ENEMIES } from '../data/lessons.js';
 import { ZOMBIES } from '../data/zombies.js';
 import { WEAPONS } from '../data/weapons.js';
 import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE, TABLE_W, TABLE_H } from '../data/table.js';
-import { mapState, mapUnlocked } from './progress.js';
+import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
+import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
 import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
@@ -83,13 +84,16 @@ export function recordLoss(p, { mapId, day, kills = 0, cleared = 0, waves = 0, l
 // dag, samma nummer som överallt. Kroken för kampanjbågens numrering: day.campaignDay går före när en bana har det.
 export const CAMPAIGN = STAGES.filter(s => s.map).map(s => ({ map: s.map, day: s.day }));
 // 0.21.3 (H539): kampanjens dag (src/meta/campaign-day.js), som HUD:en och introt; utanför kampanjen banans egen dag.
-export const campaignDay = (mapId, day) => shownDay(mapId, day);
+// 0.24.0 (H552): p ger valen (Laxne före Björnlunda när byn försvaras); utan p spelets nuvarande (campaign-day.js setChoices)
+export const campaignDay = (mapId, day, p = null) => shownDay(mapId, day, ...(p ? [p.choices ?? {}] : []));
 // Index i kampanjens ordning (för att sortera), -1 utanför schemat
 export const campaignIndex = (mapId, day) => CAMPAIGN.findIndex(c => c.map === mapId && c.day === day);
-// Dagen före i kampanjen (den senast vunna när (map, day) är nästa strid), eller null
-export function dayBefore(mapId, day) {
-  const i = campaignIndex(mapId, day);
-  return i > 0 ? CAMPAIGN[i - 1] : null;
+// Dagen före i kampanjen (den senast vunna när (map, day) är nästa strid), eller null. 0.24.0 (H552): med p hoppas en
+// bana som inte är öppen för spelaren över (Laxne efter FALL BACK: dagen före Björnlunda är Mölnbo dag 3).
+export function dayBefore(mapId, day, p = null) {
+  let i = campaignIndex(mapId, day) - 1;
+  while (i >= 0 && p && !mapUnlocked(p, CAMPAIGN[i].map)) i--;
+  return i >= 0 ? CAMPAIGN[i] : null;
 }
 // Platsens namn på klämbrädan: fasen i Hagstumosse, annars sektorns korta namn (samma som menyn)
 const PHASE = { gnesta: 'Ishallen', 'gnesta-norr': 'Vikingavägen' };
@@ -101,7 +105,7 @@ export function nextBattle(p, sector = null) {
   const id = want && open.includes(want) ? want : open.includes(poolOf(p.mapId)) ? poolOf(p.mapId) : open[0];
   if (!id) return null;
   const map = currentMap(p, id), day = mapState(p, map).unlockedDay;
-  return { sector: id, map, day, n: campaignDay(map, day), title: titleOf(map, day), place: placeShort(map) };
+  return { sector: id, map, day, n: campaignDay(map, day, p), title: titleOf(map, day), place: placeShort(map) };
 }
 const releaseOf = (map, day) => RELEASES.find(r => r.map === map && r.day === day) ?? null;
 // "Day 3: Brutes" -> "Brutes"
@@ -111,15 +115,15 @@ export function titleOf(map, day) {
 }
 const sender = k => SENDERS[k] ?? k ?? 'Försvarsmakten';
 // Platsens namn i rapporterna
-const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg' };
+const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola' };
 const placeName = map => PLACE[map] ?? MAPS[map]?.name ?? map;
 
 // ---------- bladen ----------
 // Ordern för en dag. Text: day.order.text om banan har en (högst 12 ord), annars introts rad. Avsändaren:
 // day.order.from, leveransens from (src/data/depot.js RELEASES) eller Försvarsmakten. Underraden är leveransens rad.
-export function orderSheet(map, day) {
+export function orderSheet(map, day, p = null) {
   const d = MAPS[map]?.days?.[day - 1] ?? {}, rel = releaseOf(map, day), o = isObj(d.order) ? d.order : null;
-  const n = campaignDay(map, day);
+  const n = campaignDay(map, day, p);
   return {
     id: `order:${map}:${day}`, kind: 'order', map, day, n,
     from: sender(o?.from ?? rel?.from ?? 'FM'), to: ADDRESSEE[poolOf(map)] ?? 'Commander, Gnesta', valid: `Day ${n}`,
@@ -130,7 +134,7 @@ export function orderSheet(map, day) {
 // rapport ur dagens siffror (table.log), så att bordet aldrig ser tomt ut. En report från P4 Sörmland är radio och
 // blir en remsa (radioStrips); rapportbladet skrivs då ur siffrorna.
 export function reportSheet(p, map, day) {
-  const d = MAPS[map]?.days?.[day - 1] ?? {}, n = campaignDay(map, day);
+  const d = MAPS[map]?.days?.[day - 1] ?? {}, n = campaignDay(map, day, p);
   const r = isObj(d.report) && typeof d.report.text === 'string' && d.report.from !== 'P4 Sörmland' ? d.report : null;
   const base = { id: `report:${map}:${day}`, kind: 'report', map, day, n };
   if (r) return { ...base, from: sender(r.from), lead: '', text: r.text.trim(), written: true };
@@ -140,7 +144,7 @@ export function reportSheet(p, map, day) {
 export function synthReport(p, map, day) {
   const e = tableOf(p).log[`${map}:${day}`];
   const lead = `${placeName(map)} held.`;
-  if (!e) return { lead, text: `The line stood through day ${campaignDay(map, day)}.` };
+  if (!e) return { lead, text: `The line stood through day ${campaignDay(map, day, p)}.` };
   const parts = [];
   if (e.kills) parts.push(`${e.kills} infected down${e.waves ? ` in ${e.waves} waves` : ''}.`);
   parts.push(e.lost ? `We lost ${e.lost} ${e.lost === 1 ? 'man' : 'men'}.` : 'No losses.');
@@ -149,7 +153,7 @@ export function synthReport(p, map, day) {
 }
 // Bladet för en förlorad dag (högst 12 ord i rubriken, utfallet under)
 export function lostSheet(p, map, day) {
-  const e = tableOf(p).log[`lost:${map}:${day}`], n = campaignDay(map, day);
+  const e = tableOf(p).log[`lost:${map}:${day}`], n = campaignDay(map, day, p);
   const out = [];
   if (e?.waves) out.push(`${e.cleared ?? 0} of ${e.waves} waves held.`);
   if (e?.kills) out.push(`${e.kills} infected down.`);
@@ -178,7 +182,9 @@ export function missionPiles(p) {
       if (!MAPS[m] || !mapUnlocked(p, m)) continue;
       const st = mapState(p, m), last = Math.min(st.unlockedDay, MAPS[m].days.length);
       for (let d = 1; d <= last; d++) {
-        sheets.push(orderSheet(m, d));
+        // 0.24.0 (H552): valets lägesrapport (FALL BACK: "Laxne is on its own.") ligger först i högen den hör till
+        if (d === 1 && m === s.maps[0]) sheets.push(...choiceReports(p, s.id));
+        sheets.push(orderSheet(m, d, p));
         // 0.23.1 (speltestet av 0.23.0: "Day 11 · Lost" låg kvar bredvid "held"): bara medan dagen inte är vunnen
         if (d >= st.unlockedDay && (st.losses?.[d] ?? 0) > 0 && tableOf(p).log[`lost:${m}:${d}`]) sheets.push(lostSheet(p, m, d));
         if (d < st.unlockedDay) sheets.push(reportSheet(p, m, d));
@@ -189,6 +195,30 @@ export function missionPiles(p) {
     const closed = status === 'held' || status === 'silent';
     if (closed) sheets.push(closedSheet(p, s));
     out.push({ id: 'pile:' + s.id, sector: s.id, sheets, closed, current: !closed && nb?.sector === s.id, status });
+  }
+  return out;
+}
+
+// ---------- kampanjens val (0.24.0, H552, src/data/choices.js) ----------
+// Ordern med de två rutorna, medan valet väntar (src/ui/choice.js ritar den över bordet). null när inget val väntar.
+export function choiceSheet(p) {
+  for (const [id, c] of Object.entries(CHOICES)) {
+    if (!choicePending(p, id)) continue;
+    const [m, d] = c.after, n = campaignDay(m, d, p);
+    return { id: 'choice:' + id, choice: id, kind: 'choice', n, from: sender(c.from), to: c.to, valid: `Night ${n}`, text: c.text,
+      options: c.options.map(o => ({ id: o.id, label: o.label, means: o.means })) };
+  }
+  return null;
+}
+// Lägesrapporten ett gjort val har (FALL BACK), som ett rapportblad på högen för sektorn efter vägskälet
+export function choiceReports(p, sector) {
+  const out = [];
+  for (const [id, c] of Object.entries(CHOICES)) {
+    const v = choiceOf(p, id), o = v && choiceOption(id, v);
+    if (!o?.report || o.pile !== sector) continue;
+    const [m, d] = c.after, rp = p.choiceRp?.[id] ?? 0;
+    out.push({ id: `report:choice:${id}`, kind: 'report', map: m, day: d, n: campaignDay(m, d, p), from: sender(o.report.from), lead: o.report.lead,
+      text: `${o.report.text}${rp ? ` ${rp} RP lost with the village.` : ''}`, written: true });
   }
   return out;
 }
@@ -257,8 +287,13 @@ export function intelNote(p, nb = nextBattle(p)) {
 // 0.21.1 (speltestet, fynd 7: samma remsa från dag 6 till 13): radion säger något bara natten efter en dag som har
 // en sändning (dagen före nästa strid). Andra dagar ligger ingen remsa på bordet.
 export function radioStrips(p, nb = nextBattle(p)) {
-  const prev = nb ? dayBefore(nb.map, nb.day) : null;
+  const prev = nb ? dayBefore(nb.map, nb.day, p) : null;
   if (!prev || !stageReached(p, { after: [prev.map, prev.day] })) return [];
+  // 0.24.0 (H552): ett val gjort natten efter dagen har sin egen sändning (FALL BACK: Laxne lämnas)
+  for (const [id, c] of Object.entries(CHOICES)) {
+    const o = choiceOf(p, id) && choiceOption(id, choiceOf(p, id));
+    if (o?.radio && c.after[0] === prev.map && c.after[1] === prev.day) return [{ id: `radio:choice:${id}`, at: o.radio.at ?? '', from: 'P4 Sörmland', text: o.radio.text }];
+  }
   const r = MAPS[prev.map]?.days?.[prev.day - 1]?.report;
   if (isObj(r) && r.from === 'P4 Sörmland' && typeof r.text === 'string')
     return [{ id: `radio:${prev.map}:${prev.day}`, at: r.at ?? '', from: 'P4 Sörmland', text: r.text.trim() }];

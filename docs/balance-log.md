@@ -1411,3 +1411,27 @@ Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md): 805 $ kvar efter da
 Målet 300 till 600 $ kvar: blNear dag 12 inom, dag 11 något över (682 $); blNormal och blSkilled under, som förut (de lägger pengarna på tråd och lådor). En människa som köper tråd som testaren hamnar mellan blNear och blNormal. Lägre inkomst dag 11 går inte utan att blNormal fastnar; nästa steg vore dyrare tråd eller lägre startkassa, inte prövat.
 
 Fingeravtrycken: blSkilled 963024c8, 9121edbc; blNormal 94c66df2, c1e6d164. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad: kartläsaren köper inte längre en Ksp 58 före dag 12.
+
+## Laxne 0.24.0: Laxne-valet (H552)
+
+Kampanjplanen avsnitt 10, Olas beslut 2026-10-20. Efter Mölnbo dag 3 (kampanjens dag 10) väljer spelaren på bordet: DEFEND LAXNE (Laxne dag 11, Björnlunda dag 12 och 13) eller FALL BACK (Björnlunda dag 11 och 12, 150 RP dras, första vågen dag 11 en fjärdedel större). Balansen räknar båda grenarna: `node scripts/balance.mjs laxne` och `node scripts/balance.mjs bjornlunda - fallback|defend`. Ankomsten är kartläsarens efter Mölnbo (molnboCampaign('mbSmart')), före valet 294 till 419 RP.
+
+**Laxne.** Vägen från ingångarna till skolan är cirka 700 m (remsan mellan skogen och sjön, sedan genom byn), mot 340 till 440 i Björnlunda. Fart 2,2 (Björnlunda 1,5). Fyra vågor, 187 zombier, inga krypare (0,95 m/s på 700 m gav en minut eftersläntrare), bjässarna först i sista vågen. Prövat: hp 8 (som Björnlunda dag 1) fällde skolan för både kartläsaren (spridd längs vägen) och den vanliga spelaren tre till sex gånger; hp 6 gav första försöket med basen 14 till 19; hp 7 valt. Kartläsaren (lxSkilled) står vid skolan som ordern säger (nearBase 40, som blSkilled); spridd längs den långa vägen (smart plan) var svagare: två till fyra försök med hp 7. Evakueringen: fem hus (5, 5, 5, 5 och 4 civila, need 18) inom 100 m från skolan och minst 30 m isär; med sex hus närmare varandra låg lapparna "Evacuates · wave N" på varandra (layoutprovet), och med ett sjätte hus 114 m ut föll kartläsaren vid skolan på de civila.
+
+    lxSkilled  första försöket alla seeds, bas 20, 469 till 472 s (står vid skolan och skjuter först efter cirka 80 s), civila 19 av 24
+    lxNormal   första försöket alla seeds, bas 8 till 17, 377 till 427 s, civila 24 av 24
+    toppen     121 levande, högst två vågor ute
+    RP         Laxne ger 263 till 377
+
+Dagen är lång för den som står vid skolan (knappt 8 minuter); en fråga till speltestet. Fingeravtrycken: lxSkilled 336fa851, lxNormal 1926d646.
+
+**Björnlunda efter FALL BACK (dag 11 och 12).** Med 150 RP dragna och första vågen +25 % (src/meta/operation.js dayFor, dataflaggan choiceMod) förlorade den vanliga spelaren dag 11 fyra gånger på seed 3 (också utan RP-kostnaden: sex). Dag 11 hp 8 till 7,5: alla tre spelarna vinner båda dagarna på första försöket, blNormal dag 11 med basen 1 till 7. Ankomsten 144 till 269 RP. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) utan Mölnbos sista Ksp 58 (RP räckte inte). Fingeravtrycken: blSkilled 58ba2e3e, a2b6e94b; blNormal 2a7d6889, 09405b0a.
+
+**Björnlunda efter DEFEND LAXNE (dag 12 och 13).** Tre stridsdagar i rad: truppen kommer trött (efter Laxne står de flesta på Exhausted), och dag 13 föll tre gånger för blNormal och blSkilled på seed 3. Laxnes Hemvärn följer med efter DEFEND (leveransen bl-lx, bara i den grenen): två grupper och en Ksp 90, utvilade. Med bara de två grupperna föll dag 13 fortfarande tre gånger för blNormal seed 3. Med Ksp 90: alla tre spelarna båda dagarna på första försöket (dag 12 cirka 360 till 400 s, dag 13 350 till 390 s). Ankomsten 351 till 570 RP. Fingeravtrycken: blSkilled 7bb9025d, 6383b64e; blNormal adac4528, 58ce25fa.
+
+### Laxne 0.24.0 efter sammanslagningen med 0.23.3
+
+0.23.3 sänkte Björnlundas inkomst (bounty 0,75 och 0,7) och lade till bjässarnas svans. Omräknat för båda grenarna (`node scripts/balance.mjs bjornlunda - fallback|defend`, `laxne`): med dag 1 hp 7,5 förlorade blNormal dag 11 sex gånger på seed 3 efter FALL BACK (efter DEFEND tre). Dag 1 hp 7,5 till 7,25: alla tre spelarna vinner båda dagarna på första försöket i båda grenarna (FALL BACK: blNormal dag 11 bas 2 till 8, 335 till 365 s; DEFEND: bas 10 till 15). Laxne oförändrad (egen bounty): lxSkilled 336fa851, lxNormal 1926d646, båda första försöket. Quick jump dag 12 i FALL BACK: Ksp 90 från bl-2 utan nivå II.
+
+    FALL BACK  blSkilled ca2c34e9, ef11e85a; blNormal 38c5f03f, 8bd6a77d
+    DEFEND     blSkilled d2d84a21, b429b011; blNormal 62de394f, 4d87a09b
