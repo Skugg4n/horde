@@ -342,3 +342,39 @@ test('personalrullan: fast radordning när en enhet flyttas, 20 rader per blad, 
   assert.equal(lanes(r.progress, 'molnbo').rest.some(u => u.uid === r.uid), true, 'den köpta ligger i reserven');
   assert.deepEqual(lanes(r.progress, 'molnbo').battle.map(u => u.uid).sort(), lanes(p, 'molnbo').battle.map(u => u.uid).sort(), 'ingen annan byter fält');
 });
+
+// 0.23.3 (H549, speltestet av 0.23.2: Hemvärnets två grupper och Ksp 90 dag 12 såg ut som alla andra rader): förstärkningen
+// minns sin leverans och är NY på rullan tills dagen spelats; leveransen är märkt som förstärkning, inte köp
+test('förstärkningen Björnlunda dag 12 märks NEW tills dagen spelats', async () => {
+  const { RELEASES, releaseKind } = await import('../src/data/depot.js');
+  const { reinforcementOf } = await import('../src/meta/table.js');
+  assert.equal(releaseKind(RELEASES.find(r => r.id === 'bl-2')), 'reinforcement');
+  assert.equal(releaseKind(RELEASES.find(r => r.id === 'bl-1')), 'release');
+  const p = debugReach(newCampaign(), 'bjornlunda', 2);
+  const fresh = p.op.units.filter(u => reinforcementOf(p, u));
+  assert.deepEqual(fresh.map(u => u.type).sort(), ['hv', 'hv', 'm249']);
+  assert.ok(fresh.every(u => reinforcementOf(p, u).by === 'Hemvärnet'));
+  const z = cardZones(p, 'bjornlunda');
+  assert.equal([...z.battle, ...z.rest].filter(c => c.reinf).length, 3);
+  // dag 11:s enheter är inte nya
+  assert.ok(p.op.units.filter(u => !u.rel).every(u => !reinforcementOf(p, u)));
+  const q = finishDay(p, { mapId: 'bjornlunda', day: 2, won: true, intelEarned: 0 }).progress;
+  assert.equal(q.op.units.filter(u => reinforcementOf(q, u)).length, 0);
+  // förlorad dag: spelad, inte ny längre
+  const l = finishDay(p, { mapId: 'bjornlunda', day: 2, won: false, intelEarned: 0 }).progress;
+  assert.equal(l.op.units.filter(u => reinforcementOf(l, u)).length, 0);
+});
+
+// 0.23.3 (H551, speltestet av 0.23.2: "held, 4 days" och "held, 3 days" stod ihop vid Gnesta): de klara sektorernas
+// pennrader krockar inte med varandra
+test('kartbladet: de klara sektorernas pennrader överlappar inte (Björnlunda dag 11 och 12)', async () => {
+  const { penSpots } = await import('../src/ui/table.js');
+  for (const d of [1, 2]) {
+    const spots = [...penSpots(tableState(debugReach(newCampaign(), 'bjornlunda', d))).values()];
+    assert.ok(spots.length >= 2);
+    for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) {
+      const a = spots[i].box, b = spots[j].box;
+      assert.ok(!(a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1), `${spots[i].text} över ${spots[j].text}`);
+    }
+  }
+});

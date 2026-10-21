@@ -174,7 +174,12 @@ function applyRelease(p, r) {
   const research = [...p.research];
   for (const t of r.tiers ?? []) if (!research.includes(t)) research.push(t);
   const sector = op.closed.includes(r.map) ? null : poolOf(r.map);
-  for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) op.units.push(newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true }));
+  for (const g of r.grant ?? []) for (let i = 0; i < (g.count ?? 1); i++) {
+    const u = newUnit(op.nextUid++, g.type, g.level ?? 1, sector, research, { granted: true });
+    // 0.23.3 (H549): en förstärkning minns sin leverans (rullan märker raderna tills dagen spelats)
+    if (r.reinforce) u.rel = r.id;
+    op.units.push(u);
+  }
   if (sector && r.stock) { const st = op.stock[sector] ??= {}; for (const [t, n] of Object.entries(r.stock)) st[t] = (st[t] ?? 0) + n; }
   // 0.17.0-molnbo: adopt, enheterna utan sektor följer med till den nya sektorn
   // (också enheter i en sektor vars alla banor är spelade: sektorn stängs strax efter i syncOperation)
@@ -553,6 +558,12 @@ export function debugReach(p, mapId, day, fresh = false) {
     return { ...q, op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   }
   const units = t.units.map(([type, level, men, wins]) => ({ uid: uid++, type, level, sector: mapId, wins, spent: 0, granted: true, ...(men != null ? { men } : {}) }));
+  // 0.23.3 (H549): förstärkningen som leveranserna just gav (rel) följer med till tabellens enheter av samma typ som inte
+  // stridit, de sista först, så att rullan märker dem också efter ett hopp
+  for (const r of unitsIn(q, mapId).filter(u => u.rel)) {
+    const u = units.findLast(x => x.type === r.type && !x.wins && !x.rel);
+    if (u) u.rel = r.rel;
+  }
   q = { ...q, research: [...new Set([...q.research, ...t.research])], op: { ...q.op, units: [...others, ...units], nextUid: uid } };
   return q;
 }

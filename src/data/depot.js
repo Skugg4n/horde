@@ -154,9 +154,14 @@ export const RELEASES = [
     grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
   // 0.23.2 (omtestet av 0.23.1: dag 12 gick inte att vinna med truppen man har efter dag 11): en blygsam förstärkning,
   // Hemvärnets två grupper och en Ksp 90 (kampanjplanen: inga bra trupper här)
-  { id: 'bl-2', map: 'bjornlunda', day: 2, from: 'MCF',
+  // 0.23.3 (H549, speltestet av 0.23.2: förstärkningen syntes inte på rullan): reinforce = förstärkning från ledningen
+  // (inte köp). Enheterna står under en egen rubrik på rullan, "Reinforcement · Hemvärnet", märkta NEW tills dagen spelats.
+  { id: 'bl-2', map: 'bjornlunda', day: 2, from: 'MCF', reinforce: 'Hemvärnet',
     text: 'People are still in their houses near Wattrangsborg. Hemvärnet sends two squads and a Ksp 90.',
     grant: [{ type: 'hv', count: 2 }, { type: 'm249' }], stock: { ksp58: 1, inf: 1 } },
 ];
+// Leveransens sort: 'reinforcement' (trupper ledningen skickar, märkta på rullan) eller 'release' (det som blir möjligt att
+// rekvirera, eller trupper som är sektorns startstyrka)
+export const releaseKind = r => (r?.reinforce ? 'reinforcement' : 'release');
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };

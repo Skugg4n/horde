@@ -43,7 +43,9 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
   function show(step) {
     cur = step;
     el.hidden = false;
-    el.className = 'k-' + step.kind + (step.dim ? ' dimmed' : '') + (step.pause ? ' pausing' : '');
+    // 0.23.3 (H548, speltestet av 0.23.2: lappen på bordet åt första klicket var man än klickade): through = mellan
+    // dagarna; bara klick PÅ lappen (eller Enter) stänger den, andra klick går till det man siktade på
+    el.className = 'k-' + step.kind + (step.dim ? ' dimmed' : '') + (step.pause ? ' pausing' : '') + (step.through ? ' through' : '');
     // 0.16.1 (speltestet av 0.16.0: "tipset stod kvar utan synlig väg vidare"): ett 'show' säger hur man går vidare
     text.innerHTML = `${esc(step.text)}${step.keys?.length ? ' ' + keysHtml(step.keys) : ''}${step.kind === 'show' ? '<span class="cgo">Click or <kbd>Enter</kbd></span>' : ''}`;
     fewer.hidden = !step.fewer;
