@@ -492,3 +492,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H556 | laxne | Efter FALL BACK: lägesrapporten med "150 RP lost" och större våg hamnar under nästa order; ska ligga synlig. Laxne får ett märke på kartan (kryss, "lost"). Björnlundas intro nämner den större vågen.
 - [ ] H557 | ui | Håll och dra för att sikta på ogiltig plats gör ingenting tyst; ge samma orsak vid pekaren som ett klick.
 - [ ] H558 | laxne | Hotbladet nämner bara vandrare och löpare; lägg till bjässar och pansrade. "1 DAYS" → "1 day". Hordeetiketter staplas mitt upptill. 970 till 1 130 $ oanvänt per dag. Tipsrutor täcker förrådet.
+- [ ] H559 | karta | Gnesta västra rondell spelbar som kampanjdag 13 (försvar mot förtrupper från väst, bågen avsnitt 10). Dag 15 (överkörda) och dag 19 (spår) senare, egna specar.
+- [ ] H560 | karta | Västerkärv: förhandsvisning via OSM-pipelinen (refs i horde-refs/vasterkarv) inför dag 14 (stigar, EPA, civila, någon Ksp).
