@@ -190,7 +190,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 28;
+const TABLE_SCOPES = 30;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -319,6 +319,12 @@ async function tableChecks(page, label) {
   await show(reach('bjornlunda', 2), 'table-bjornlunda-2');
   const reinf = await ev(`({ head: document.querySelector('#hub .tb-roster .tb-row.grp')?.textContent ?? '', fresh: document.querySelectorAll('#hub .tb-roster .tb-row.re .tb-new').length })`);
   if (!/Reinforcement · Hemvärnet/.test(reinf.head) || reinf.fresh !== 3) errors.push(`table-bjornlunda-2 @${label}: förstärkningen syns inte på rullan ("${reinf.head}", ${reinf.fresh} NEW)`);
+  // 0.25.0 (H559): västra rondellen efter Björnlunda dag 12: ordern för kampanjens dag 13, Ksp 88:an som förstärkning
+  await show(reach('gnesta-vastra-rondell', 1), 'table-rondell-1');
+  if (!/ORDER 13\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:gnesta-vastra-rondell:1"]')?.textContent ?? ''`))) errors.push(`table-rondell-1 @${label}: rondellen är inte dag 13`);
+  // och kampanjens slut tills Västerkärv finns: rondellen hållen, inget nästa slag, slutbladet säger "To be continued."
+  await show(reach('gnesta-vastra-rondell', 1, `p = O.finishDay(p, { mapId: 'gnesta-vastra-rondell', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-campaign-end');
+  if (!/To be continued\./.test(await ev(`document.querySelector('#hub [data-sheet="closed:gnesta-vastra-rondell"]')?.textContent ?? ''`))) errors.push(`table-campaign-end @${label}: slutbladet säger inte "To be continued."`);
   // 16 enheter (0.22.0: ankomsten till Mölnbo har 15, så en Ksp 90 till; förut 20 utan fyra)
   await show(reach('molnbo', 1, `const here = O.unitsIn(p, 'molnbo'), n = 16 - here.length, drop = n < 0 ? here.slice(n).map(u => u.uid) : []; p = { ...p, op: { ...p.op, units: [...p.op.units.filter(u => !drop.includes(u.uid)), ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 950 + i, type: 'm249', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true }))] } };`), 'table-units-16');
   const cards = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
@@ -585,6 +591,18 @@ async function run() {
     await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(900);
     await check('bjornlunda-2-result');
+    // 0.25.0 (H559): västra rondellen (kampanjens dag 13): introt och resultatet med kampanjens slut ("To be continued.")
+    await ev(`(async () => { const H = window.__horde; await H.jump('gnesta-vastra-rondell', 1); H.startDay(1); })()`);
+    await check('rondell-1-intro');
+    await ev(`window.__horde.sheetAction('go')`);
+    await page.waitForTimeout(400);
+    await skipLessons();
+    await dropLessons();
+    await ev(`(() => { window.__horde.sim.phase = 'won'; })()`);
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(900);
+    await check('rondell-1-result');
+    if (!/To be continued\./.test(await ev(`document.querySelector('.radio')?.textContent ?? ''`))) errors.push(`rondell-1-result @${W}: resultatet säger inte "To be continued."`);
     // 0.17.1: gränssnittet i striden (auditHud): lektionsplåten med PAUSED över köpraden, raden vid pekaren nära
     // DAY-rutan, tågets ruta med ingångarnas etiketter, mitt i en våg, och E4 med lektionsplåten vid köpraden
     // lektionsplåtarna bort med Esc tills ingen står kvar; öppnade ett Esc pausmenyn stängs den (Resume)
@@ -757,6 +775,16 @@ async function run() {
     await ev(`window.__horde.advance(60)`);
     await clearLessons();
     await checkHud('hud-laxne-1-wave');
+    // 0.25.0 (H559): västra rondellen före första vågen och en minut in i den (basen på Barrstigen, ingångarna i väster)
+    await ev(`(async () => { const H = window.__horde; await H.jump('gnesta-vastra-rondell', 1); })()`);
+    await clearLessons();
+    await ev(`window.__horde.rig?.skipTour?.()`);
+    await checkHud('hud-rondell-1-build');
+    await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
+    for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
+    await ev(`window.__horde.advance(60)`);
+    await clearLessons();
+    await checkHud('hud-rondell-1-wave');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     // 0.21.0: kartbordet (0.21.1: också i 1440x900 och 1920x1080, se nedan)

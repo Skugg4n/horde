@@ -8,6 +8,8 @@ import { buildMolnbo } from './molnbo-world.js';
 import { buildBjornlunda } from './bjornlunda-world.js';
 // 0.24.0 (H552): Laxne, kartan ur OSM (src/data/laxne-play.js)
 import { buildLaxne } from './laxne-world.js';
+// 0.25.0 (H559): Gnesta västra rondell, kartan ur OSM (src/data/gnesta-vastra-rondell-play.js)
+import { buildVastraRondell } from './vastra-rondell-world.js';
 
 let updateFn = () => {};
 export function updateWorld(dt, time) { updateFn(dt, time); }
@@ -48,7 +50,7 @@ export function asphaltTexture() {
 
 // Banornas värld: Gnesta och Gnesta Norr (tomter och gator) och E4 vid Lästringe (0.15.0).
 export function buildWorld(scene, map) {
-  const w = map.world === 'molnbo' ? buildMolnbo(scene, map) : map.world === 'osm' ? (map.id === 'laxne' ? buildLaxne(scene, map) : buildBjornlunda(scene, map)) : map.lots ? buildGnesta(scene, map) : buildE4(scene, map);
+  const w = map.world === 'molnbo' ? buildMolnbo(scene, map) : map.world === 'osm' ? (map.id === 'laxne' ? buildLaxne(scene, map) : map.id === 'gnesta-vastra-rondell' ? buildVastraRondell(scene, map) : buildBjornlunda(scene, map)) : map.lots ? buildGnesta(scene, map) : buildE4(scene, map);
   updateFn = w.update;
   return w;
 }

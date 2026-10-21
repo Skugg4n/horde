@@ -5,7 +5,8 @@
 import { MAPS } from '../data/maps.js';
 
 // 0.23.0 (H545): Björnlunda efter Mölnbo, dag 1 och 2 = kampanjens dag 11 och 12
-export const CAMPAIGN_MAPS = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda'];
+// 0.25.0 (H559): Gnesta västra rondell efter Björnlunda, en dag = kampanjens dag 13 (14 efter DEFEND LAXNE)
+export const CAMPAIGN_MAPS = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda', 'gnesta-vastra-rondell'];
 
 // 0.24.0 (H552): valfria banor, som bara räknas när valet gjorts (src/data/choices.js). Laxne kommer efter Mölnbo när
 // spelaren valt att försvara byn: Laxne är då dag 11 och Björnlunda dag 12 och 13. Utan valet (eller med FALL BACK) är

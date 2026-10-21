@@ -74,6 +74,8 @@ export const STAGES = [
   { id: 'lx-1', map: 'laxne', day: 1, adds: [] },
   { id: 'bl-1', map: 'bjornlunda', day: 1, adds: [] },
   { id: 'bl-2', map: 'bjornlunda', day: 2, adds: [] },
+  // 0.25.0 (H559): Gnesta västra rondell, försvar mot förtrupper. Inget nytt begrepp (kampanjplanen avsnitt 10).
+  { id: 'vr-1', map: 'gnesta-vastra-rondell', day: 1, adds: [] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];
 export const stageIndex = id => STAGES.findIndex(s => s.id === id);

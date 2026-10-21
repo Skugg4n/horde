@@ -9,6 +9,8 @@ import { molnbo } from './molnbo.js';
 import { bjornlundaPlay } from './bjornlunda-play.js';
 // 0.24.0 (H552): sektorn Laxne (src/data/laxne-play.js), den valfria dagen mellan Mölnbo och Björnlunda
 import { laxnePlay } from './laxne-play.js';
+// 0.25.0 (H559): sektorn Gnesta västra rondell (src/data/gnesta-vastra-rondell-play.js), kampanjens dag 13 efter Björnlunda
+import { vastraRondellPlay } from './gnesta-vastra-rondell-play.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 
@@ -55,6 +57,7 @@ export const MAPS = {
   // 0.24.0 (H552): Laxne före Björnlunda (kampanjens ordning, menyn)
   laxne: laxnePlay,
   bjornlunda: bjornlundaPlay,
+  'gnesta-vastra-rondell': vastraRondellPlay,
 };
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(MAPS.riksvagen, 'grid', () => timed('riksvagen:rutnät', () => E4.e4Grid()));

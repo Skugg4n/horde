@@ -16,6 +16,8 @@ export const PLACES = {
   bjornlunda: [17.163, 59.071], laxne: [17.10, 59.122], nykoping: [17.007, 58.753], trosa: [17.55, 58.897],
   flen: [16.588, 59.058], mariefred: [17.22, 59.262], vagnharad: [17.49, 58.946], lastringe: [17.36, 58.862],
   hagstumosse: [17.33, 59.054], stjarnhov: [16.99, 59.075],
+  // 0.25.0 (H559): Gnestas västra rondell, där väg 57 möter D 830 (plan.json:s mitt)
+  rondell: [17.285, 59.0475],
 };
 export const SEA = [[17.64, 59.19], [17.68, 59.15], [17.66, 59.08], [17.72, 59.02], [17.78, 59.06], [17.80, 59.14], [17.86, 59.17], [17.96, 59.15], [17.96, 58.70], [16.98, 58.70], [17.05, 58.745], [17.12, 58.772], [17.25, 58.80], [17.35, 58.832], [17.45, 58.865], [17.55, 58.888], [17.62, 58.93], [17.70, 58.985], [17.67, 59.05], [17.62, 59.12]];
 export const MALAREN = [[16.95, 59.30], [17.05, 59.262], [17.15, 59.268], [17.22, 59.256], [17.30, 59.252], [17.42, 59.246], [17.52, 59.232], [17.60, 59.214], [17.635, 59.204], [17.66, 59.222], [17.72, 59.252], [17.80, 59.30]];
@@ -63,6 +65,9 @@ export const SECTOR_TABLE = {
   // 0.24.0 (H552): Laxne, nordväst om Björnlunda vid Klämmingen. DAY n till vänster om markören (LAXNE står till höger,
   // Björnlunda nedanför), den klara högen uppe till vänster på kartan
   laxne: { place: 'laxne', current: [248, 318], closed: [180, 80], day: [-92, -14] },
+  // 0.25.0 (H559): Gnesta västra rondell, strax väster om Gnesta. DAY n under markören (GNESTA står till höger nedanför),
+  // den klara högen på en ledig plats uppe på kartan
+  'gnesta-vastra-rondell': { place: 'rondell', current: [248, 318], closed: [620, 110], day: [-40, 30] },
 };
 // en sektor utan rad ovan (en ny bana från en annan gren) får en ledig plats i tur och ordning
 export const SPARE_SLOTS = [[340, 96], [760, 470], [600, 120]];
@@ -73,7 +78,7 @@ export const INSET = null;
 // ---------- avsändarna ----------
 export const SENDERS = { FM: 'Försvarsmakten', MCF: 'MCF', 'Försvarsmakten': 'Försvarsmakten', 'P4 Sörmland': 'P4 Sörmland' };
 // mottagaren på ordern, per sektor
-export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta', bjornlunda: 'Commander, Björnlunda', laxne: 'Commander, Laxne' };
+export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta', bjornlunda: 'Commander, Björnlunda', laxne: 'Commander, Laxne', 'gnesta-vastra-rondell': 'Commander, Gnesta' };
 
 // ---------- radion (P4 Sörmland) ----------
 // Radioremsor som bordet visar när steget är nått, tills dagarnas eget fält finns (day.report med from 'P4 Sörmland').

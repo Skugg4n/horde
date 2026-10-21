@@ -564,9 +564,10 @@ export function debugDepot(p, preset, list = []) {
 // 0.24.0 (H552): ett hopp till Laxne gör valet DEFEND LAXNE, ett hopp till Björnlunda utan val FALL BACK (balansens
 // ankomst, utan kostnaden); ett gjort val står kvar.
 export function debugReach(p, mapId, day, fresh = false) {
-  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda'];
+  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell'];
   if (mapId === 'laxne' && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'defend');
-  if (mapId === 'bjornlunda' && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'fallback');
+  // 0.25.0 (H559): också ett hopp till västra rondellen (efter Björnlunda) utan val gör FALL BACK
+  if ((mapId === 'bjornlunda' || mapId === 'gnesta-vastra-rondell') && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'fallback');
   const maps = { ...p.maps };
   for (const id of order) {
     if (id === mapId) break;

@@ -359,7 +359,9 @@ test('förstärkningen Björnlunda dag 12 märks NEW tills dagen spelats', async
   // dag 11:s enheter är inte nya
   assert.ok(p.op.units.filter(u => !u.rel).every(u => !reinforcementOf(p, u)));
   const q = finishDay(p, { mapId: 'bjornlunda', day: 2, won: true, intelEarned: 0 }).progress;
-  assert.equal(q.op.units.filter(u => reinforcementOf(q, u)).length, 0);
+  // 0.25.0 (H559): dag 12 vunnen öppnar västra rondellen, och ledningens Ksp 88 där (vr-1) är en ny förstärkning
+  assert.equal(q.op.units.filter(u => u.rel === 'bl-2' && reinforcementOf(q, u)).length, 0);
+  assert.deepEqual(q.op.units.filter(u => reinforcementOf(q, u)).map(u => [u.type, u.rel]), [['m2', 'vr-1']]);
   // förlorad dag: spelad, inte ny längre
   const l = finishDay(p, { mapId: 'bjornlunda', day: 2, won: false, intelEarned: 0 }).progress;
   assert.equal(l.op.units.filter(u => reinforcementOf(l, u)).length, 0);
