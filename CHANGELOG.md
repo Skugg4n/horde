@@ -1,5 +1,16 @@
 # Ändringslogg
 
+## 0.25.1 (speltestet av 0.25.0) (2026-10-21)
+
+Speltestet av 0.25.0 (docs/playtests/2026-10-21-0.25.0.md) sa ja med reservationer; det här är friktionen det hittade.
+
+- **Kampanjens slut (H561):** när den sista byggda dagen är vunnen säger segerkortet inte längre "Refill at Requisition" eller "RP to spend". Bordet har ett slutblad: "Campaign continues in a later version. Thank you for holding Gnesta." med en knapp, To menu (Enter). Continue i menyn visar bladet. Slutet följer datan (den sista banan i kampanjens ordning som finns byggd, src/meta/table.js campaignEnd): när dag 14 läggs till försvinner det av sig självt.
+- **Dag 13 svårare (H562):** hp 17 (förut 16) och bounty 0,65 (förut 0,75). Den vanliga spelaren vinner på första försöket med basen 2 till 10 kvar i båda grenarna; den vid basen har 441 till 463 $ över. Målet 6 till 12 bas för spelarna vid basen nås inte utan att den vanliga spelaren faller i grenen DEFEND. docs/balance-log.md, Västra rondellen 0.25.1.
+- **Kartbladet (H563):** pennraderna ("held, 1 day") står närmast sin egen markör, inte under ett annat ortnamn, och inte på vägsköldar eller sjönamn. "DAY 13 · forward groups" flyttar bredvid klämbrädan när den annars hamnar under den, med ett blyertsstreck till markören.
+- **En Enter är en handling (H563):** en Enter som stänger en lapp, och en ny skylt som just kom, trycker inte skyltens knapp på 0,3 s. Tre Enter i rad stänger lappen och inget mer; "Deploy anyway" och introt hoppas inte över.
+- **Rullan föreslår de utvilade (H563):** natten efter en vunnen dag (och efter valet) går de utvilade in före de trötta från slaget, med en rad om varför på raden.
+- **Ett namn per yta (H564):** bordet och kartan säger "Västra rondellen"; HUD:en och introt "Gnesta · Västra rondellen · Day 13" (en endagsbana visar hela namnet och kampanjens dag i stället för "· 1"). Menyns rad säger "1,132 RP". PAUSED på fiendekortet står i kortets rubrik, inte över vågens rad. Högst två notiser åt gången (resten i kö). Skälet vid pekaren ("Roof too steep...") vänder åt vänster vid fönstrets kant.
+
 ## 0.25.0 (Gnesta västra rondell, dag 13) (2026-10-21)
 
 Kampanjplanen avsnitt 10 (H559): "Dag 13, Gnesta västra rondell. Försvar mot förtrupper."
