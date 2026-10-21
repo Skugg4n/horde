@@ -2470,7 +2470,7 @@ manualBtn.addEventListener('click', () => (manual ? closeManual() : openManual()
 uiRoot.appendChild(manualBtn);
 let manualDotT = 0;
 function updateManualBtn(dt) {
-  const show = meta('manual') && mode !== 'menu';
+  const show = meta('manual') && mode !== 'menu' && mode !== 'loading';
   if (manualBtn.hidden === show) manualBtn.hidden = !show;
   uiRoot.dataset.manual = show ? 'on' : 'off';
   if ((manualDotT -= dt) <= 0) { manualDotT = 0.5; manualBtn.classList.toggle('fresh', show && manualNew(progress).length > 0); }
@@ -2594,7 +2594,10 @@ function labelBlockers() {
 }
 
 // ---------- dagcykeln ----------
-let mode = 'menu';
+// 0.24.1 (H554, layoutprovets "menu: ingen skylt hittades" 2 till 5 av 8 laddningar): 'loading' tills första banan är
+// laddad och menyn visas (showMenu). Förut stod läget på 'menu' redan medan banan laddades, så att den som väntade på
+// läget 'menu' kom 1 till 3 s före skylten.
+let mode = 'loading';
 let sheet = null;            // skylten som visas (meny, intro, resultat, forskning)
 let lastResult = null;       // det som resultatskylten visar, för att komma tillbaka från forskning
 let warnedSave = false;
