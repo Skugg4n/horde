@@ -1,6 +1,6 @@
 // Sparning i localStorage. En sparfil raderas aldrig: en trasig eller
 // oläslig fil kopieras till 'horde.save.broken' och spelet startar om.
-import { newProgress, migrateV1, migrateV2, SAVE_VERSION, clampDays } from './progress.js';
+import { newProgress, migrateV1, migrateV2, SAVE_VERSION, clampDays, normalizeChoices } from './progress.js';
 import { newCampaign, migrateToV4, syncOperation, needsPoolMerge } from './operation.js';
 import { MAPS } from '../data/maps.js';
 import { withLessons } from './lessons.js';
@@ -100,7 +100,8 @@ export function loadProgress(storage) {
     const marked = arc ? { ...(clamped ?? parsed), migrations: [...(parsed.migrations ?? []), ARC_MIGRATION] } : null;
     const p = { ...newProgress(), lessons: undefined, ...(marked ?? clamped ?? parsed) };
     // 0.21.0: kartbordets del (table.layout, table.log) är valfri; saknas den eller är den trasig blir bordet tomt
-    return withTable(withLessons(syncOperation({ ...p, maps: { ...newProgress().maps, ...p.maps } })));
+    // 0.24.0 (H552): kampanjens val (progress.choices) tvättas; en fil utan val har inget att tvätta
+    return withTable(withLessons(syncOperation(normalizeChoices({ ...p, maps: { ...newProgress().maps, ...p.maps } }))));
   }
   // Äldre versioner: kopian behålls som den var (horde.save.v1, .v2, .v3; skrivs aldrig över), och
   // framsteget flyttas steg för steg till v3 och sedan v4 (0.14.0, operation.js migrateToV4).

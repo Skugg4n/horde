@@ -70,6 +70,8 @@ export const STAGES = [
   { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train', 'overrun'] },
   // 0.23.0 (H545): Björnlunda är en befästning av det man kan (kampanjplanen avsnitt 10): inget nytt begrepp. Dag 2 är
   // Hagstumosses evakuering igen, nu med horden från två håll.
+  // 0.24.0 (H552): Laxne, den valfria dagen (DEFEND LAXNE på bordet). Inget nytt begrepp: evakueringen och försvaret.
+  { id: 'lx-1', map: 'laxne', day: 1, adds: [] },
   { id: 'bl-1', map: 'bjornlunda', day: 1, adds: [] },
   { id: 'bl-2', map: 'bjornlunda', day: 2, adds: [] },
 ];

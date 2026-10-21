@@ -23,8 +23,10 @@ import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, ma
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
-import { recordDay, recordLoss, swapCards, campaignDay, placeShort, nextBattle as tableNext, moveCardTo, clickCard, buyCard } from './meta/table.js';
-import { campaignDayOf, shownDay } from './meta/campaign-day.js';
+// 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
+import { choiceOverlay } from './ui/choice.js';
+import { recordDay, recordLoss, swapCards, campaignDay, placeShort, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice } from './meta/table.js';
+import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
 import { ZOMBIES } from './data/zombies.js';
@@ -37,7 +39,7 @@ import { LESSONS, TIPS, ENEMIES, REVEALS, REPEAT_GAP, manualEntry } from './data
 import { createCoach, enemyCard, manualSheet } from './ui/coach.js';
 import { portraitOf } from './render/portrait.js';
 import { VET_WINS } from './data/depot.js';
-import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap, setLane } from './meta/operation.js';
+import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap, setLane, makeChoice } from './meta/operation.js';
 import { FROM_NAME, sectorOf } from './data/depot.js';
 import { loadProgress, saveProgress, resetSave } from './meta/save.js';
 import { loadDebug, saveDebug } from './meta/debug-store.js';
@@ -93,6 +95,8 @@ let autoDeployOn = (() => { try { return localStorage.getItem(AUTODEPLOY_KEY) !=
 // fil kommit ur cachen från en annan publicering.
 { const v = new URL(import.meta.url).searchParams.get('v'); if (v && v !== VERSION) window.__hordeStale?.(); }
 let progress = loadProgress();
+// 0.24.0 (H552): dagnumret följer Laxne-valet (src/meta/campaign-day.js)
+setChoices(progress.choices);
 // 0.12.2: debugmenyns reglar och hjälplager ('horde.debug', aldrig i sparfilen)
 const dbg = loadDebug();
 const withTweaks = cfg => ({ ...cfg, tweaks: dbg.tweaks });
@@ -2586,6 +2590,7 @@ let lastResult = null;       // det som resultatskylten visar, för att komma ti
 let warnedSave = false;
 
 function save() {
+  setChoices(progress.choices);
   if (saveProgress(progress) || warnedSave) return;
   warnedSave = true;
   note(uiRoot, 'Could not save.');
@@ -2628,7 +2633,7 @@ function showMenu() {
     // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
     // 0.21.0: med kartbordet börjar varje dag vid bordet (dag 1: kartan och en lapp)
     onContinue: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
-    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); if (hubTable()) showTable(); else loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
+    onNew: () => { resetSave(newCampaign()); progress = loadProgress(); setChoices(progress.choices); if (hubTable()) showTable(); else loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
   }));
 }
 // ---------- kartbordet (0.21.0, src/ui/table.js) ----------
@@ -2653,8 +2658,23 @@ const TABLE_ACTS = {
   return: (p, uid) => DEPOT_ACTS.return(p, uid),
   upgrade: (p, id) => DEPOT_ACTS.upgrade(p, id),
 };
+// 0.24.0 (H552): ett val som väntar (Laxne efter Mölnbo dag 10) läggs som en order med två rutor över bordet eller
+// operationskartan (src/ui/choice.js). Valet sparas och bordet ritas om. src/ui/table.js rörs inte.
+function withChoiceSheet(s, again) {
+  const sh = tableChoice(progress);
+  if (!s || !sh) return s;
+  const ov = choiceOverlay(s.el ?? uiRoot, sh, {
+    onPick: opt => {
+      const r = makeChoice(progress, sh.choice, opt);
+      if (!r.ok) { audio.ui('deny'); return; }
+      progress = r.progress; save(); audio.ui('click');
+      again();
+    },
+  });
+  return { ...s, close: () => { ov.close(); s.close(); }, choice: sh.choice };
+}
 function showTable() {
-  setMode('opmap', () => tableSheet(uiRoot, progress, {
+  setMode('opmap', () => withChoiceSheet(tableSheet(uiRoot, progress, {
     onGo: id => tableGo(id),
     act: (kind, ...args) => {
       const r = TABLE_ACTS[kind](progress, ...args);
@@ -2662,7 +2682,7 @@ function showTable() {
       return r;
     },
     save: p => { progress = p; save(); },
-  }));
+  }), showTable));
   // inkorgen räknas som läst (bordet visar ledningens rader som order)
   progress = markRead(progress); save();
 }
@@ -2677,13 +2697,13 @@ function tableGo(sectorId) {
 }
 // ---------- operationskartan och förrådet (0.14.0) ----------
 function showOpMap() {
-  setMode('opmap', () => opMapSheet(uiRoot, progress, {
+  setMode('opmap', () => withChoiceSheet(opMapSheet(uiRoot, progress, {
     onGo: id => goSector(id),
     onDepot: id => showDepot(id),
     onMenu: () => showMenu(),
     // inkorgen är läst när kartan har visats (de nya står markerade just den gången)
     onSeen: () => { progress = markRead(progress); save(); },
-  }));
+  }), showOpMap));
 }
 // 0.14.1 (speltestet av 0.14.0: förrådet var ett sidospår man gick förbi, och två "To deployment" i rad):
 // kartan -> Requisition (förrådet för sektorn, steget i flödet) -> Deploy -> dagens intro -> linjen.
@@ -2962,7 +2982,7 @@ if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescript
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
 // 0.22.0 (H539): Hagstumosse har kampanjbågens fyra dagar (Ishallen 1 till 3, Vikingavägen 1)
 const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 2], ['gnesta', 3],
-  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['bjornlunda', 1], ['bjornlunda', 2]];
+  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['laxne', 1], ['bjornlunda', 1], ['bjornlunda', 2]];
 async function quickJump(mapId, d) {
   await debugJump(mapId, d);
   if (lesson) { coach.hide(); lesson = null; }
@@ -3019,7 +3039,7 @@ const debugUi = mountDebug(uiRoot, {
   },
   resetSave: () => {
     const ok = resetSave(newCampaign());
-    progress = loadProgress();
+    progress = loadProgress(); setChoices(progress.choices);
     loadMap(progress.mapId).then(() => showMenu());
     return { ok };
   },

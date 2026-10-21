@@ -60,6 +60,9 @@ export const SECTOR_TABLE = {
   // 0.23.0 (H545)
   // 0.23.1: DAY n under markören (ovanför står LAXNE)
   bjornlunda: { place: 'bjornlunda', current: [248, 318], closed: [300, 120], day: [-26, 34] },
+  // 0.24.0 (H552): Laxne, nordväst om Björnlunda vid Klämmingen. DAY n till vänster om markören (LAXNE står till höger,
+  // Björnlunda nedanför), den klara högen uppe till vänster på kartan
+  laxne: { place: 'laxne', current: [248, 318], closed: [180, 80], day: [-92, -14] },
 };
 // en sektor utan rad ovan (en ny bana från en annan gren) får en ledig plats i tur och ordning
 export const SPARE_SLOTS = [[340, 96], [760, 470], [600, 120]];
@@ -70,7 +73,7 @@ export const INSET = null;
 // ---------- avsändarna ----------
 export const SENDERS = { FM: 'Försvarsmakten', MCF: 'MCF', 'Försvarsmakten': 'Försvarsmakten', 'P4 Sörmland': 'P4 Sörmland' };
 // mottagaren på ordern, per sektor
-export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta', bjornlunda: 'Commander, Björnlunda' };
+export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta', bjornlunda: 'Commander, Björnlunda', laxne: 'Commander, Laxne' };
 
 // ---------- radion (P4 Sörmland) ----------
 // Radioremsor som bordet visar när steget är nått, tills dagarnas eget fält finns (day.report med from 'P4 Sörmland').

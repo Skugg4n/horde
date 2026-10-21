@@ -7,6 +7,8 @@ import * as E4 from './e4-lastringe.js';
 import { molnbo } from './molnbo.js';
 // 0.23.0 (H545): sektorn Björnlunda (src/data/bjornlunda-play.js), kampanjens dag 11 och 12, efter Mölnbo
 import { bjornlundaPlay } from './bjornlunda-play.js';
+// 0.24.0 (H552): sektorn Laxne (src/data/laxne-play.js), den valfria dagen mellan Mölnbo och Björnlunda
+import { laxnePlay } from './laxne-play.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 
@@ -50,6 +52,8 @@ export const MAPS = {
   gnesta,
   'gnesta-norr': gnestaNorr,
   molnbo,
+  // 0.24.0 (H552): Laxne före Björnlunda (kampanjens ordning, menyn)
+  laxne: laxnePlay,
   bjornlunda: bjornlundaPlay,
 };
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)

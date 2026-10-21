@@ -15,7 +15,7 @@ import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacin
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { selectMap, mapState } from '../src/meta/progress.js';
-import { newCampaign, opStartConfig, finishDay, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
+import { newCampaign, opStartConfig, finishDay, makeChoice, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
 import { UPGRADES, UNIT_RP } from '../src/data/depot.js';
 import { MAPS } from '../src/data/maps.js';
 import { gnesta } from '../src/data/gnesta.js';
@@ -866,7 +866,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
-const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled' };
+const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled', laxne: 'lxSkilled' };
 // 0.17.2 (debugmenyns Quick jump, Olas önskan): balanspolicyns uppställning på en dag som just startats, så att striden
 // kan börja direkt. Samma plan som playOpDay (skilled, på Mölnbo mbSmart): spärrarna, pjäserna, taken och lådorna.
 export function autoDeploy(sim, policy = AUTO_POLICY[sim.map.id] ?? 'skilled') {
@@ -1086,19 +1086,58 @@ export function nearBasePlan(map, day, r) {
 POLICIES.blNear = { ...POLICIES.naive, nearBase: 40 };
 // 0.23.2 (omtestet av 0.23.1): också dag 2, där ordern är "Hold the base. Cover the yellow lines from there." Mellan dagarna
 // gäller bordets regler (src/meta/operation.js finishDay: tröttheten och bytet av utmattade), som för alla spelare.
-// Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed).
-const blArrival = new Map();
-export function bjornlundaArrival(seedOffset = 0) {
-  if (!blArrival.has(seedOffset)) blArrival.set(seedOffset, molnboCampaign('mbSmart', { seedOffset }).progress);
-  return blArrival.get(seedOffset);
+// ---------- Laxne-valet (0.24.0, H552) ----------
+// Efter Mölnbo dag 3 väljer spelaren på bordet (src/data/choices.js). Balansen räknar båda grenarna:
+//   fallback  Björnlunda direkt, med valets kostnad (RP) och dag 1:s större första våg (src/meta/operation.js dayFor)
+//   defend    Laxne först (en dag, laxneCampaign), sedan Björnlunda med det kartläsaren har efter Laxne
+// Framsteget kartläsaren har efter Mölnbo (sparas per seed), före valet.
+const mbDone = new Map();
+const molnboDone = seedOffset => { if (!mbDone.has(seedOffset)) mbDone.set(seedOffset, molnboCampaign('mbSmart', { seedOffset }).progress); return mbDone.get(seedOffset); };
+const choose = (p, opt) => { const r = makeChoice(p, 'laxne', opt); if (!r.ok) throw new Error('Laxne-valet: ' + r.reason); return r.progress; };
+// Framsteget kartläsaren har när Laxne öppnar (DEFEND LAXNE).
+export const laxneArrival = (seedOffset = 0) => choose(molnboDone(seedOffset), 'defend');
+export function laxneCampaign(policy = 'lxSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['laxne'], start: laxneArrival(seedOffset), onSecond });
 }
-export function bjornlundaCampaign(policy = 'blSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
-  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond });
+export const LX_STEPS = MAPS.laxne.days.map(d => `laxne ${d.n}`);
+export const lxAttempts = log => LX_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'laxne' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+export function lxPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  return Object.fromEntries(LX_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'laxne' && r.day === d).map(strip)))]; }));
+}
+// Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed och gren). choice 'fallback' (standard): direkt från
+// Mölnbo med FALL BACK. 'defend': efter Laxne (kartläsaren, lxSkilled).
+const blArrival = new Map();
+export function bjornlundaArrival(seedOffset = 0, choice = 'fallback') {
+  const key = choice + ':' + seedOffset;
+  if (!blArrival.has(key)) blArrival.set(key, choice === 'defend' ? laxneCampaign('lxSkilled', { seedOffset }).progress : choose(molnboDone(seedOffset), 'fallback'));
+  return blArrival.get(key);
+}
+export function bjornlundaCampaign(policy = 'blSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null, choice = 'fallback' } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset, choice), onSecond });
 }
 // Truppen kartläsaren går in i Björnlunda dag 2 med (src/data/arrival.js ARRIVAL_TROOP.bjornlunda.days, Quick jump)
 export function bjornlundaDayTroop(day, policy = 'blSkilled', seedOffset = 0) {
   return opCampaign(policy, { seedOffset, maxAttempts: 6, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), until: { mapId: 'bjornlunda', day } }).progress;
 }
+// ---------- Laxne (0.24.0, H552) ----------
+// Den valfria dagen. Spelaren kommer från Mölnbo med det kartläsaren har efter uttåget och valde att försvara byn. Samma
+// två spelare som Björnlunda: lxSkilled läser kartan (och täcker de gula linjerna, evacMap), lxNormal är den vanliga
+// spelaren. Målet: lxNormal vinner inom 1 till 3 försök. docs/balance-log.md, Laxne 0.24.0.
+const LX_BLOCKS = [];
+TOWN.laxne = {
+  blocks: () => LX_BLOCKS,
+  planOpts: (day, policy) => (policy !== 'smart' ? { roofs: 2, near: 0 } : { roofs: 2, near: 0.3 }),
+  kits: [0, 2], roofsDay: [0, 2], maxTicks: 30 * 1200,
+};
+HV_POLICY.laxne = { days: [], gap: [] };
+REQUISITION.laxne = ['lvl:civ:2', 'unit:civ:4', 'lvl:hv:2', 'lvl:m249:2', 'unit:ksp58:6', 'lvl:ksp58:3', 'unit:inf:3', 'lvl:inf:2', 'unit:m249:6', 'lvl:psg90:3', 'lvl:m2:3'];
+// Kartläsaren gör som ordern säger ("Hold Laxne skola"): allt inom 40 m från skolan, som i Björnlunda. Spridd längs den
+// långa vägen genom byn (smart plan utan nearBase) var svagare: förlorade två till fyra gånger med hp 7 (balansloggen).
+POLICIES.lxSkilled = { ...POLICIES.blSkilled, nearDays: [1] };
+POLICIES.lxNormal = { ...POLICIES.blNormal };
+POLICIES.lxNear = { ...POLICIES.blNear };
 export const BL_STEPS = MAPS.bjornlunda.days.map(d => `bjornlunda ${d.n}`);
 export const blAttempts = log => BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'bjornlunda' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function blPrints(log) {
@@ -1110,11 +1149,22 @@ export function blPrints(log) {
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
-if (IS_MAIN && process.argv[2] === 'bjornlunda') {
-  for (const policy of process.argv[3] ? [process.argv[3]] : ['blSkilled', 'blNormal', 'blNear']) {
-    console.log(`\n=== Björnlunda, ${policy} ===`);
-    console.log('seed  ' + BL_STEPS.map(s => 'B' + s.split(' ')[1]).join(' ') + '   peak');
-    const runs = SEEDS.map(seedOffset => bjornlundaCampaign(policy, { seedOffset, maxAttempts: 6 }));
+if (IS_MAIN && process.argv[2] === 'laxne') {
+  for (const policy of process.argv[3] ? [process.argv[3]] : ['lxSkilled', 'lxNormal']) {
+    console.log(`\n=== Laxne (DEFEND LAXNE), ${policy} ===`);
+    console.log('seed  ' + LX_STEPS.map(s => 'L' + s.split(' ')[1]).join(' ') + '   peak  rp vid ankomsten');
+    const runs = SEEDS.map(seedOffset => laxneCampaign(policy, { seedOffset, maxAttempts: 6 }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${lxAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}   ${laxneArrival(SEEDS[i]).rp}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
+    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''} rp ${x.rp}  ${x.force}`);
+  }
+} else if (IS_MAIN && process.argv[2] === 'bjornlunda') {
+  // 0.24.0 (H552): node scripts/balance.mjs bjornlunda [policy] [fallback|defend]: Björnlunda i valets gren
+  const choice = process.argv[4] ?? 'fallback';
+  for (const policy of process.argv[3] && process.argv[3] !== '-' ? [process.argv[3]] : ['blSkilled', 'blNormal', 'blNear']) {
+    console.log(`\n=== Björnlunda (${choice}), ${policy} ===`);
+    console.log('seed  ' + BL_STEPS.map(s => 'B' + s.split(' ')[1]).join(' ') + '   peak  rp vid ankomsten');
+    const runs = SEEDS.map(seedOffset => bjornlundaCampaign(policy, { seedOffset, maxAttempts: 6, choice }));
+    runs.forEach((r, i) => console.log(`      rp ${bjornlundaArrival(SEEDS[i], choice).rp}`));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${blAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
     for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''}  ${x.force}`);
   }

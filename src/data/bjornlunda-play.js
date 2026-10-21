@@ -257,7 +257,12 @@ export const EVAC_HOMES = (() => {
 // scripts/balance.mjs blNear), bjässarna kommer mitt i sista vågen och inte sist ensamma, mindre förnödenheter per dödad
 // (bounty), och dag 2:s grupp söderifrån kommer efter att de civila i andra vågen gått förbi plankorsningen.
 export const DAYS = [
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 8, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+  // 0.24.0 (H552): hp 7,5 (förut 8). Med valets större första våg förlorade den vanliga spelaren dag 11 fyra gånger
+  // (seed 3); med 7,5 vinner alla på första försöket, med basen nere på 1 till 7. docs/balance-log.md Laxne 0.24.0.
+  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7.5, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+    // 0.24.0 (H552, Laxne-valet): släppte spelaren Laxne är horden närmare, första vågen en fjärdedel större
+    // (src/meta/operation.js dayFor)
+    choiceMod: { choice: ['laxne', 'fallback'], firstWave: 1.25 },
     intro: { title: 'Day 1: From the west', text: 'Down väg 57/223 from Stjärnhov, along the tracks and Lokalvägen.' },
     order: { text: 'Stand at Wattrangsborg where Stationsvägen and Villavägen meet. Face both.' },
     objective: 'Hold the crossing in front of Wattrangsborg.',
@@ -318,11 +323,10 @@ export const bjornlundaPlay = {
   // vägarna in är långa (byn är stor): horden går fortare än i Mölnbo
   pace: 1.5,
   unlocks: ['block', 'm2', 'epa', 'inf', 'ksp58', 'ak5', 'psg90'],
-  // Öppnar när Mölnbo dag 3 (uttåget) är vunnen.
-  // Laxne-valet (kampanjplanen, beslut 2026-10-20: "erbjuds mellan Mölnbo dag 10 och Björnlunda dag 11") är INTE byggt.
-  // Kroken: valet läggs mellan den här grinden och leveransen bl-1 (src/data/depot.js). Släpps byn blir första vågen
-  // dag 1 större (horden närmare); försvaras den spelas Laxne före Björnlunda och unlock pekar dit.
-  unlock: { map: 'molnbo', day: 3 },
+  // Öppnar när Mölnbo dag 3 (uttåget) är vunnen OCH Laxne-valet är gjort (0.24.0, H552, src/data/choices.js): FALL BACK
+  // direkt, DEFEND LAXNE när Laxne är vunnen (src/meta/progress.js mapUnlocked). En sparfil som redan stod här före valet
+  // (leveransen bl-1 given) står öppen som förut.
+  unlock: { map: 'molnbo', day: 3, choice: 'laxne' },
 };
 // rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(bjornlundaPlay, 'grid', () => timed('bjornlunda:rutnät', () => bjornlundaGrid()));

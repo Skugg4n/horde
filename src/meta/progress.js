@@ -4,6 +4,7 @@ import { researchNode } from '../data/research.js';
 import { MAPS } from '../data/maps.js';
 import { tierOf, tierData } from '../sim/stats.js';
 import { ARRIVAL } from '../data/arrival.js';
+import { CHOICES, choiceOption } from '../data/choices.js';
 
 // Sparfil v4 (0.14.0, Operation Södermanland): rekvisitionspoäng (rp) i stället för forskningspoäng
 // (intel), research är förrådets ägda nivåer (uppgraderingar och leveransernas upplåsningar), och op är
@@ -46,7 +47,45 @@ export function mapUnlocked(progress, mapId, { debug = false } = {}) {
   const own = progress.maps?.[mapId];
   if (map.legacyUnlock != null && own && (own.unlockedDay > 1 || Object.keys(own.attempts ?? {}).length)
     && mapState(progress, map.unlock.map).unlockedDay > map.legacyUnlock) return true;
-  return mapState(progress, map.unlock.map).unlockedDay > map.unlock.day;
+  if (!(mapState(progress, map.unlock.map).unlockedDay > map.unlock.day)) return false;
+  return map.unlock.choice ? choiceGate(progress, map.unlock.choice) : true;
+}
+// ---------- kampanjens val (0.24.0, H552, src/data/choices.js) ----------
+// Spelarens val, eller null (inget val gjort, eller ett okänt värde i sparfilen).
+export function choiceOf(progress, id) {
+  const v = progress?.choices?.[id];
+  return choiceOption(id, v) ? v : null;
+}
+// En sparfil från före valet som redan fått leveransen efter vägskälet (0.23.x i Björnlunda): inget val att göra.
+export const choiceLegacy = (progress, id) => !choiceOf(progress, id) && !!CHOICES[id] && (progress?.op?.released ?? []).includes(CHOICES[id].legacy);
+// Dagen före vägskälet är vunnen och inget val är gjort: bordet visar ordern med de två rutorna.
+export function choicePending(progress, id) {
+  const c = CHOICES[id];
+  if (!c || choiceOf(progress, id) || choiceLegacy(progress, id)) return false;
+  const [m, d] = c.after;
+  return !!MAPS[m] && mapUnlocked(progress, m) && mapState(progress, m).unlockedDay > d;
+}
+// Grinden på en bana efter vägskälet. [id, opt]: bara när det valet är gjort (Laxne: defend). id: vilket val som helst,
+// och har valet en egen bana (defend: Laxne) ska den vara spelad (Björnlunda efter Laxne). En gammal sparfil (legacy)
+// står öppen som förut.
+function choiceGate(progress, gate) {
+  const [id, want] = Array.isArray(gate) ? gate : [gate, null];
+  const v = choiceOf(progress, id);
+  if (!v) return !want && choiceLegacy(progress, id);
+  if (want) return v === want;
+  const m = choiceOption(id, v)?.map;
+  return !m || (!!MAPS[m] && mapState(progress, m).unlockedDay > MAPS[m].days.length);
+}
+// Valet sparat utan kostnad (debugmenyns hopp; spelets val är src/meta/operation.js makeChoice).
+export const withChoice = (progress, id, opt) => ({ ...progress, choices: { ...(progress.choices ?? {}), [id]: opt } });
+// Sparfilens val tvättas: okända val och värden tas bort, inget annat rörs (src/meta/save.js).
+export function normalizeChoices(progress) {
+  const c = progress?.choices, r = progress?.choiceRp;
+  if (c === undefined && r === undefined) return progress;
+  const choices = {}, choiceRp = {};
+  if (c && typeof c === 'object') for (const [id, v] of Object.entries(c)) if (choiceOption(id, v)) choices[id] = v;
+  if (r && typeof r === 'object') for (const [id, v] of Object.entries(r)) if (choices[id] && Number.isFinite(v) && v >= 0) choiceRp[id] = Math.round(v);
+  return { ...progress, choices, choiceRp };
 }
 // ?debug (0.10.1): framsteget med forskningen en typisk spelare har när banan låses upp
 // (src/data/arrival.js) tillagd, för en dag som spelas. Sparas inte. fresh: ingenting läggs till.
