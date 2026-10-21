@@ -1,5 +1,14 @@
 # Ändringslogg
 
+## 0.22.2 (huvudlösa kontroller utan att äta datorn) (2026-10-21)
+
+Verktyg, inget i spelet ändras (H547). Kontrollerna drog 550 till 900 % CPU i snitt (toppar över 1 100 %) eftersom 3D-scenen ritades i mjukvara (SwiftShader).
+
+- **scripts/headless.mjs** startar Chromium för alla kontroller (layout, placement, slice1, laddtid): låg prioritet (macOS bakgrundsläge och nice 19, som webbläsarens alla processer ärver), riktig GPU via Metal, `--mute-audio`, `?mute` på varje adress och deviceScaleFactor 1. Reserv: `HORDE_GPU=0`, `HORDE_FPS=0`, `HORDE_PRIO=normal`.
+- **Gles ritning:** med ?test eller ?debug ritar `?fps=N` scenen högst N gånger per sekund (kontrollerna: 2); simuleringen och HUD:en går som vanligt. `__horde.setFps(n)` och `__horde.renderNow()`; skärmbilderna tas alltid på en färsk bild.
+- **`npm run check:all`** kör testerna, layout, placement och slice1 en i taget mot en egen server (port från 8281).
+- Mätt (CPU-sekunder för hela kontrollen): slice1 976 till 48, placement 2 411 till 46, layout över 3 400 (kraschade efter 9,5 min) till 114. Samma utfall; skärmbilderna skiljer sig inte mer än två mjukvarukörningar gör sinsemellan.
+
 ## 0.22.1 (speltestet av 0.22.0) (2026-10-21)
 
 Speltestet av 0.22.0 sa NEJ (nära): bågen håller och dag 4 känns som "med nöd och näppe", men fem saker (docs/playtests/2026-10-21-0.22.0.md).

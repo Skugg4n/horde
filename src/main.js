@@ -71,6 +71,16 @@ const BLAST_SHAKE_TIME = 0.25, BLAST_SHAKE_AMP = 0.1;   // granatsmäll: kortare
 // ?debug: alla banor går att välja och window.__horde finns i konsolen.
 const DEBUG = new URLSearchParams(location.search).has('debug');
 const TEST = new URLSearchParams(location.search).has('test');
+// 0.22.2 (H547): huvudlösa kontroller ritar 3D-scenen glest medan de bara väntar: ?fps=N (med ?test eller ?debug)
+// ritar högst N bilder per sekund, __horde.setFps(n) byter (0 = varje bildruta), __horde.renderNow() ritar en färsk
+// bild före en skärmbild. Simuleringen, HUD:en och kameran räknas varje bildruta som vanligt; bara ritningen glesas.
+let renderFps = (TEST || DEBUG) ? Math.max(0, Number(new URLSearchParams(location.search).get('fps')) || 0) : 0;
+let lastRender = -Infinity, renderWaiters = [];
+const renderApi = {
+  setFps: n => { renderFps = Math.max(0, Number(n) || 0); },
+  get fps() { return renderFps; },
+  renderNow: () => new Promise(r => renderWaiters.push(r)),
+};
 // 0.17.2 (H302): kartans kant, 'haze' eller 'dark' (src/render/molnbo-world.js EDGE_MODES). Debugmenyn byter, ?edge=dark
 // i adressen likaså (skärmbilderna); valet sparas per webbläsare.
 const EDGE_KEY = 'horde.edge';
@@ -2862,6 +2872,7 @@ function advanceSim(secs) { for (let t = 0; t < secs / DT && mode === 'play' && 
 const lessonApi = { get lesson() { return card ? 'enemy:' + card.type : lesson?.step.id ?? null; }, release: () => (card ? closeCard() : releaseLesson()), get manualOpen() { return !!manual; } };
 if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return sim; }, get mode() { return mode; }, get progress() { return progress; }, get version() { return VERSION; }, placeLog };
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
+if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(renderApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
 if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, get playSpeed() { return playSpeed(); }, get platform() { return platform; }, get leakRings() { return leakRings; }, get marks() { return marks; }, lookAt, goToPlatform, trainWarned, debugEvents: evs => { sim.events.push(...evs); handleEvents(); }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
@@ -2873,6 +2884,7 @@ if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return ro
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta
   advance: advanceSim };
 if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
+if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(renderApi));
 
 // 0.17.2 (Olas önskan): Quick jump i debugmenyn. Dagen med ankomstens trupp och forskning (som Jump to), truppen
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
@@ -3101,7 +3113,15 @@ function tick(now) {
   view.sync(vdt);
   audio.update(frameDt, sim, { paused, mode, mapId: map.id, speed: running ? playSpeed() : 1, toScreen, zombiePos: z => zombiePos(sim, z) });
   updateWorld(frameDt, time);
-  renderer.render(scene, camera);
+  if (!renderFps || renderWaiters.length || now - lastRender >= 1000 / renderFps - 1) {
+    renderer.render(scene, camera); lastRender = now;
+    // svaret först nästa bildruta: då har bilden hunnit visas
+    if (renderWaiters.length) { const w = renderWaiters; renderWaiters = []; requestAnimationFrame(() => w.forEach(r => r())); }
+  } else {
+    // ingen ritning: matriserna som render() annars räknar (skärmlägen för etiketterna)
+    if (scene.matrixWorldAutoUpdate) scene.updateMatrixWorld();
+    if (camera.parent === null && camera.matrixWorldAutoUpdate) camera.updateMatrixWorld();
+  }
   updateDebug(frameDt);
   requestAnimationFrame(tick);
 }

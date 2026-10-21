@@ -17,7 +17,7 @@ export const playwright = require(process.env.PW_PATH ?? homedir() + '/Projects/
 export const { chromium } = playwright;
 
 export const GPU = process.env.HORDE_GPU !== '0';
-export const FPS = process.env.HORDE_FPS != null ? Number(process.env.HORDE_FPS) : 0;
+export const FPS = process.env.HORDE_FPS != null ? Number(process.env.HORDE_FPS) : 2;
 export const GPU_ARGS = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
 
 let lowered = false;
