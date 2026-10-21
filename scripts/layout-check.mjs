@@ -290,13 +290,15 @@ async function tableChecks(page, label) {
   await show(reach('molnbo', 3, atChoice + ' p = { ...p, rp: 600 };'), 'table-choice');
   {
     const sc = `table-choice @${label}`;
-    const c = await ev(`(() => { const s = document.querySelector('#hub .tb-choice'); if (!s) return null; const r = s.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, rows: [...s.querySelectorAll('.ch-row')].map(b => b.textContent.trim()), sign: s.querySelector('.ch-sign')?.disabled, txt: s.querySelector('.txt')?.textContent }; })()`);
+    const c = await ev(`(() => { const s = document.querySelector('#hub .tb-choice'); if (!s) return null; const r = s.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, rows: [...s.querySelectorAll('.ch-row .ch-lbl')].map(b => b.textContent.trim()), costs: [...s.querySelectorAll('.ch-row .ch-cost')].map(b => b.textContent.trim()), sign: s.querySelector('.ch-sign')?.disabled, txt: s.querySelector('.txt')?.textContent }; })()`);
     if (!c) errors.push(`${sc}: ingen order med rutor`);
     else {
       if (c.l < 0 || c.t < 0 || c.r > W + 1 || c.b > page.viewportSize().height + 1) errors.push(`${sc}: ordern ryms inte i fönstret`);
       if (c.rows.join('|') !== 'DEFEND LAXNE|FALL BACK') errors.push(`${sc}: rutorna är ${c.rows.join(', ')}`);
       if (c.sign !== true) errors.push(`${sc}: SIGN går före ett kryss`);
       if (c.txt !== 'Laxne asks for help. Defend it, or fall back to Björnlunda.') errors.push(`${sc}: texten är "${c.txt}"`);
+      // 0.24.1 (H555): båda priserna står under rutorna före krysset, i siffror
+      if (!/One day\. Your troops tire\./.test(c.costs[0] ?? '') || !/^−\d+ RP\. Bigger first wave at Björnlunda\.$/.test(c.costs[1] ?? '')) errors.push(`${sc}: priserna under rutorna är ${JSON.stringify(c.costs)}`);
     }
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/table-choice-${label}.png` });
     await ev(`document.querySelector('#hub .tb-choice [data-pick="defend"]')?.click()`);
@@ -313,6 +315,14 @@ async function tableChecks(page, label) {
   // med riktiga RP efteråt (450): rullans rubrik bryts inte och Deploy ryms (0.24.0, src/ui/table.js rqLabel)
   await show(reach('molnbo', 3, atChoice + ` p = O.makeChoice({ ...p, rp: 600 }, 'laxne', 'fallback').progress;`), 'table-fallback');
   if (!/Laxne is on its own\./.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen lägesrapport om Laxne`);
+  // 0.24.1 (H556): rapporten ligger bredvid ordern (hela texten läsbar, inte under), och Laxne har ett kryss på kartan
+  {
+    const b = await ev(`(() => { const r = document.querySelector('#hub [data-sheet="report:choice:laxne"] .txt')?.getBoundingClientRect(), o = document.querySelector('#hub [data-sheet="order:bjornlunda:1"]')?.getBoundingClientRect(); return r && o ? { rb: r.bottom, ot: o.top, rl: r.left, rr: r.right, ol: o.left, or: o.right } : null; })()`);
+    if (!b) errors.push(`table-fallback @${label}: rapporten eller ordern saknas`);
+    else if (b.rb > b.ot && b.rr > b.ol && b.rl < b.or) errors.push(`table-fallback @${label}: rapportens text ligger under ordern`);
+    if (!/150 RP lost/.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"] .txt')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: rapporten säger inte "150 RP lost"`);
+    if (!(await ev(`!!document.querySelector('#hub .tb-mapsvg .st-lost[data-sector="laxne"]')`))) errors.push(`table-fallback @${label}: Laxne har inget kryss på kartan`);
+  }
   if (!/Laxne/.test(await ev(`document.querySelector('#hub .tb-radio')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen radio om Laxne`);
   if (!/ORDER 11\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:bjornlunda:1"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: Björnlunda är inte dag 11`);
   // 0.23.3 (H549): Björnlunda dag 12, förstärkningen under en egen rubrik på rullans första blad, tre rader NEW
@@ -356,12 +366,15 @@ async function tableChecks(page, label) {
     const before = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
     const c = await ev(`(() => { const r = document.querySelector('#coach .cplate').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
     const under = await ev(`(() => { document.querySelector('#coach').style.visibility = 'hidden'; const n = document.elementFromPoint(${c[0]}, ${c[1]}); document.querySelector('#coach').style.visibility = ''; return n?.closest('[data-up], [data-req], [data-a], [data-box], [data-pm]') ? n.outerHTML.slice(0, 60) : null; })()`);
+    // 0.24.1 (H558, speltestet av 0.24.0: tipsrutorna låg över förrådet): lappen ställs bredvid förrådet. Klicket på den
+    // provas ändå (inget får gå igenom till bordet); något klickbart under den är inte längre ett krav
+    const over = await ev(`(() => { const a = document.querySelector('#coach .cplate')?.getBoundingClientRect(), b = document.querySelector('#hub .tb-stores')?.getBoundingClientRect(); return !!(a && b && a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2); })()`);
+    if (over) errors.push(`table-note @${label}: lappen ligger över förrådet`);
     await page.mouse.click(c[0], c[1]);
     await page.waitForTimeout(500);
     const after = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
     if (after !== before) errors.push(`table-note @${label}: klicket på lappen gick igenom till ${under ?? 'bordet'}`);
     if (await ev('window.__horde.lesson')) errors.push(`table-note @${label}: klicket stängde inte lappen`);
-    if (!under) errors.push(`table-note @${label}: inget klickbart under lappen (provet prövar inget)`);
   }
   await show(reach('gnesta-norr', 1, noteSetup), 'table-note-enter', { lessons: true, audit: false });
   if (await waitNote() === 'after-gn-4.up') {

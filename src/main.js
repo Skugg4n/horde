@@ -416,13 +416,16 @@ renderer.domElement.addEventListener('pointerdown', e => {
   }
   if (!placing) return;
   if (placing.move && e.shiftKey && e.button === BUTTON.left) return;   // Shift-klick: en waypoint (plockaren)
-  const here = hasCone() ? picker.pickAt(e.clientX, e.clientY) : null;
+  // 0.24.1 (H557, speltestet av 0.24.0: håll och dra på en ogiltig plats gjorde ingenting, utan skäl): platsen under trycket
+  // tas alltid, så att släppet efter en dragning därifrån kan säga varför, som ett klick gör
+  const here = picker.pickAt(e.clientX, e.clientY);
   const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
   const kind = pressKind({ button: e.button, holding: true, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0, alt: e.altKey });
+  const bad = sp && !sp.ok ? sp : null;
   if (kind === 'aim' || kind === 'hold') spot = sp;
   // 0.24.0: tiden räknas på händelsernas egna tidsstämplar (e.timeStamp), så att en tung bildruta mellan trycket och första
   // rörelsen inte gör en snabb dragning till ett håll (placeringsprovets quick-drag på Laxne)
-  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), ts0: e.timeStamp, drag: false, moved: false };
+  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, bad, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), ts0: e.timeStamp, drag: false, moved: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
@@ -452,8 +455,10 @@ addEventListener('pointerup', e => {
   // ett vanligt klick: plockaren sköter det (vänsterknappen); en dragning som inte siktade släpps utan att något händer
   if (act === 'click') return;
   if (a.moved && a.button === BUTTON.left) suppressClick = true;
+  // 0.24.1 (H557): en dragning från en plats där saken inte får stå säger samma skäl vid pekaren som ett klick där
+  if (a.moved && !a.drag && a.kind === 'hand' && a.bad && placing) { logPlace({ out: 'reason-aim', key: a.bad.key, reason: a.bad.reason }); flashTip(reasonText(a.bad.reason)); audio.ui('deny'); }
   // 0.23.3 (H551): ett klick som rördes lite med något i handen (inget sikte) lägger inget: säg det vid pekaren
-  if (a.moved && !a.drag && a.kind !== 'hold' && a.button === BUTTON.left && placing && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
+  else if (a.moved && !a.drag && a.kind !== 'hold' && a.button === BUTTON.left && placing && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
   if (act === 'place-aimed' && placing) { spot = a.sp; logPlace({ out: 'aimed', key: a.sp.key }); placeHere(a.sp.key); }
 });
 // 0.17.2 (Olas önskan): i uppställningen går en utställd enhet att dra till en ny plats (samma som Reposition).
@@ -1835,6 +1840,14 @@ function entryCells(cells) {
   if (c) { const k = cells.findIndex(q => { const p = sim.route.cellCenter(q); return p.x > c.x0 + 2 && p.x < c.x1 - 2 && p.z > c.z0 + 2 && p.z < c.z1 - 2; }); if (k > i0) i0 = k; }
   return cells.slice(0, i0 + Math.round(ENTRY_SPAN / size) + 1).map((q, i) => (i < i0 ? null : q));
 }
+// 0.24.1 (H558, speltestet av 0.24.0: Laxnes två skyltar staplades mitt upptill, långt från sina vägar): reserven vid
+// skärmkanten pekar dit hordens väg kommer in i bild (Laxne: uppe till höger, där väg 223 kommer ner), inte rakt mot
+// ingången långt ute. Syns vägen inte alls: mot skyltens plats i världen (första rutan entryCells ger), sist ingången.
+function entryPoint(id, path, cells) {
+  for (const k of path) { const c = sim.route.cellCenter(k); if (onScreen(c.x, c.z, EDGE).in) return c; }
+  const k = cells.find(c => c != null);
+  return k != null ? sim.route.cellCenter(k) : sim.route.spawns.find(q => q.id === id);
+}
 function gridEntries() {
   const out = [], wave = sim.phase === 'wave';
   if (!wave && sim.phase !== 'build') return out;
@@ -1854,7 +1867,7 @@ function gridEntries() {
         const t = sim.route.cellCenter(pathF[Math.min(i + 3, pathF.length - 1)]), u = onScreen(t.x, t.z);
         candsF.push({ x: q.sx, y: q.sy, angle: Math.atan2(u.sy - q.sy, u.sx - q.sx) + Math.PI });
       }
-      const spF = sim.route.spawns.find(q => q.id === id), sF = onScreen(spF.x, spF.z, EDGE);
+      const spF = entryPoint(id, pathF, cellsF), sF = onScreen(spF.x, spF.z, EDGE);
       const dxF = sF.sx - cx, dyF = sF.sy - cy, kF = Math.min(Math.abs((cx - EDGE) / (dxF || 1e-6)), Math.abs((dyF < 0 ? cy - 110 : cy - 120) / (dyF || 1e-6)));
       out.push({ cands: candsF, fallback: { x: cx + dxF * kF, y: cy + dyF * kF, angle: Math.atan2(-dyF, -dxF) + Math.PI }, lines: [`From wave ${later.get(id)}`], sub: spawnName(id), next: false });
       continue;
@@ -1879,7 +1892,7 @@ function gridEntries() {
       const t = sim.route.cellCenter(path[Math.min(i + 3, path.length - 1)]), u = onScreen(t.x, t.z);
       cands.push({ x: s.sx, y: s.sy, angle: Math.atan2(u.sy - s.sy, u.sx - s.sx) + Math.PI });
     }
-    const sp = sim.route.spawns.find(q => q.id === id), s = onScreen(sp.x, sp.z, EDGE);
+    const sp = entryPoint(id, path, cells), s = onScreen(sp.x, sp.z, EDGE);
     const dx = s.sx - cx, dy = s.sy - cy;
     const half = dy < 0 ? cy - 110 : cy - 120;
     const k = Math.min(Math.abs((cx - EDGE) / (dx || 1e-6)), Math.abs(half / (dy || 1e-6)));
@@ -2213,7 +2226,8 @@ const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not(
   '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark',
   // 0.23.1 (speltestet av 0.23.0: förrådets lappar låg över tillstånd och priser): personalrullan på bordet, så att lappen
   // ställs bredvid klämbrädan och inte över raderna
-  '.tb-roster', '.tb-enemies'];
+  // 0.24.1 (H558, speltestet av 0.24.0: "Spend RP...", "Bars compare..." och "Upgrades improve..." låg över förrådet)
+  '.tb-roster', '.tb-enemies', '.tb-stores'];
 // 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
 // uppe och banderollerna)
 // 0.23.3 (H548): på bordet fiendekortet överst och klämbrädans knappar och flikar; lappen ställs bredvid
@@ -2470,7 +2484,7 @@ manualBtn.addEventListener('click', () => (manual ? closeManual() : openManual()
 uiRoot.appendChild(manualBtn);
 let manualDotT = 0;
 function updateManualBtn(dt) {
-  const show = meta('manual') && mode !== 'menu';
+  const show = meta('manual') && mode !== 'menu' && mode !== 'loading';
   if (manualBtn.hidden === show) manualBtn.hidden = !show;
   uiRoot.dataset.manual = show ? 'on' : 'off';
   if ((manualDotT -= dt) <= 0) { manualDotT = 0.5; manualBtn.classList.toggle('fresh', show && manualNew(progress).length > 0); }
@@ -2594,7 +2608,10 @@ function labelBlockers() {
 }
 
 // ---------- dagcykeln ----------
-let mode = 'menu';
+// 0.24.1 (H554, layoutprovets "menu: ingen skylt hittades" 2 till 5 av 8 laddningar): 'loading' tills första banan är
+// laddad och menyn visas (showMenu). Förut stod läget på 'menu' redan medan banan laddades, så att den som väntade på
+// läget 'menu' kom 1 till 3 s före skylten.
+let mode = 'loading';
 let sheet = null;            // skylten som visas (meny, intro, resultat, forskning)
 let lastResult = null;       // det som resultatskylten visar, för att komma tillbaka från forskning
 let warnedSave = false;
@@ -2787,7 +2804,8 @@ function startDay(n) {
   // 0.16.0: uppdragsrutan (#hint) är ersatt av lektionsplåten (src/ui/coach.js)
   // 0.21.3 (H539): kampanjens dag i titeln, banans dag smått under
   const cd = campaignDayOf(map.id, n);
-  setMode('intro', () => dayIntro(uiRoot, map.days[n - 1], cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: shownDay(map.id, n), where: `${placeShort(map.id)} · ${n}` } : {}));
+  // 0.24.1 (H556): dagen som spelas (sim.dayCfg: ett val kan ha ändrat introt, Björnlunda dag 1 efter FALL BACK)
+  setMode('intro', () => dayIntro(uiRoot, sim.dayCfg, cfg.cash, () => { setMode('play'); introPan(frame); }, cd != null ? { n: shownDay(map.id, n), where: `${placeShort(map.id)} · ${n}` } : {}));
 }
 // Kameran när dagen börjar (0.10.1, speltestet: "var basen ligger syns inte"): ishallens entré och
 // vägen dit från dagens första ingång i bild, så långt zoomen räcker (högst 120 m av vägen).

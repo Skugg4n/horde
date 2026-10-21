@@ -1245,6 +1245,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-mapsvg .pen { font: italic 400 13.5px Oswald, sans-serif; fill: rgba(215,210,185,.82); letter-spacing: .03em; }
 .hub .tb-mapsvg .pen.big { font-size: 17px; font-style: normal; fill: rgba(233,223,201,.9); letter-spacing: .14em; }
 .hub .tb-mapsvg .penline { fill: none; stroke: rgba(215,210,185,.6); stroke-width: 1.3; }
+/* 0.24.1 (H556): sektorn som valet lämnade, ett blyertskryss */
+.hub .tb-mapsvg .pencross { fill: none; stroke: rgba(215,210,185,.78); stroke-width: 2; stroke-linecap: round; }
 .hub .tb-mapsvg .ttl { font: 24px 'Saira Stencil One', sans-serif; fill: rgba(233,223,201,.85); }
 .hub .tb-mapsvg .sub { font: 600 11px 'IBM Plex Mono', monospace; fill: rgba(185,173,148,.9); letter-spacing: .18em; }
 .hub .tb-mapsvg .sec { cursor: pointer; }
@@ -1531,12 +1533,15 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .tb-choice .meta { font-size: 13.75px; line-height: 1.55; margin: 9px 0 10px; color: #3a3226; }
 .tb-choice .txt { font-size: 17px; font-weight: 600; line-height: 1.38; }
 .tb-choice .ch-rows { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 10px; }
-#ui .tb-choice .ch-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px 4px; background: none; border: 0; cursor: pointer;
+#ui .tb-choice .ch-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 6px 4px; background: none; border: 0; cursor: pointer;
   font: 600 16px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; text-align: left; }
 #ui .tb-choice .ch-row:hover .ch-box { background: rgba(34,29,22,.08); }
 .tb-choice .ch-box { flex: none; width: 24px; height: 24px; border: 2px solid #3a3226; display: grid; place-items: center;
   font: 700 18px 'IBM Plex Mono', monospace; color: #3a3a3a; transform: rotate(-2deg); }
 .tb-choice .ch-row.on .ch-box { border-color: #221d16; }
+/* 0.24.1 (H555): priset under rutan, från början */
+.tb-choice .ch-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tb-choice .ch-cost { font: 400 14px/1.35 'IBM Plex Mono', monospace; letter-spacing: 0; color: #5a3a20; }
 .tb-choice .ch-means { font-size: 14px; line-height: 1.45; color: #3a3226; min-height: 42px; }
 #ui .tb-choice .ch-sign { display: inline-block; margin-top: 12px; font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: .1em; color: #221d16; background: rgba(255,250,235,.25);
   border: 1.5px solid #221d16; padding: 7px 12px; cursor: pointer; }

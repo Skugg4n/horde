@@ -180,6 +180,7 @@ async function run() {
 //   hold-aim      en pjäs med skjutvinkel i handen (Psg 90 om den finns), tryck, håll och dra: den ställs ut där trycket var, vänd mot pekaren
 //   right-aim     samma med höger-dra (utan att hålla)
 //   alt-aim       samma med Alt och vänster-dra (utan att hålla)
+//   hold-bad      tryck, håll och dra från en plats där pjäsen inte får stå: skälet vid pekaren, inget ställs ut (0.24.1, H557)
 async function gestures(page) {
   // 0.17.2: en ny sparfil först (försöken ovan hoppar mellan banorna, och truppen följer med till den senaste sektorn)
   await page.evaluate(() => { try { localStorage.clear(); } catch {} });
@@ -314,6 +315,20 @@ async function gestures(page) {
     // vänd ungefär åt höger på skärmen; kameran står still och kortet är släppt
     const userAimed = await page.evaluate(() => (window.__horde.placeLog ?? []).slice(-3).some(e => e.out === 'aimed'));
     check(name, b.n === a.n + 1 && b.holding === null && !moved(a, b) && userAimed, { a, b });
+  }
+  // 0.24.1 (H557, speltestet av 0.24.0: håll och dra på en ogiltig plats gjorde ingenting, utan skäl): samma skäl vid
+  // pekaren som ett klick där, inget ställs ut och kortet ligger kvar i handen
+  {
+    await fresh(coned, aimSc, true);
+    const at = await find(false);
+    if (!at) check('hold-bad', false, { reason: 'ingen punkt' });
+    else {
+      const a = await state();
+      await drag(at, 'left', { dx: 160, dy: 0, hold: 420 });
+      const b = await state();
+      const r = await page.evaluate(() => ({ log: (window.__horde.placeLog ?? []).slice(-3).map(e => e.out), tip: document.getElementById('ghosttip')?.hidden === false ? document.getElementById('ghosttip').textContent : '' }));
+      check('hold-bad', b.n === a.n && b.holding === coned && r.log.includes('reason-aim'), { a, b, ...r });
+    }
   }
   return { pass, fail };
 }

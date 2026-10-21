@@ -23,7 +23,7 @@ import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE
 import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
 import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
+import { dayFor, openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -206,7 +206,9 @@ export function choiceSheet(p) {
     if (!choicePending(p, id)) continue;
     const [m, d] = c.after, n = campaignDay(m, d, p);
     return { id: 'choice:' + id, choice: id, kind: 'choice', n, from: sender(c.from), to: c.to, valid: `Night ${n}`, text: c.text,
-      options: c.options.map(o => ({ id: o.id, label: o.label, means: o.means })) };
+      // 0.24.1 (H555, speltestet av 0.24.0: priset syntes först efter krysset, och utan siffror): cost står under rutan från
+      // början, FALL BACK med RP-summan som dras (högst det spelaren har, src/meta/operation.js makeChoice)
+      options: c.options.map(o => { const rp = Math.min(p.rp ?? 0, o.rp ?? 0); return { id: o.id, label: o.label, means: o.means, rp, cost: [rp ? `−${rp} RP.` : '', o.cost ?? ''].filter(Boolean).join(' ') }; }) };
   }
   return null;
 }
@@ -218,8 +220,15 @@ export function choiceReports(p, sector) {
     if (!o?.report || o.pile !== sector) continue;
     const [m, d] = c.after, rp = p.choiceRp?.[id] ?? 0;
     out.push({ id: `report:choice:${id}`, kind: 'report', map: m, day: d, n: campaignDay(m, d, p), from: sender(o.report.from), lead: o.report.lead,
-      text: `${o.report.text}${rp ? ` ${rp} RP lost with the village.` : ''}`, written: true });
+      text: `${rp ? `${rp} RP lost. ` : ''}${o.report.text}`, written: true, beside: true });
   }
+  return out;
+}
+
+// 0.24.1 (H556): sektorerna som ett val lämnade (FALL BACK: Laxne), för kartans blyertskryss och "lost"
+export function lostSectors(p) {
+  const out = [];
+  for (const id of Object.keys(CHOICES)) { const v = choiceOf(p, id), o = v && choiceOption(id, v); if (o?.lost) out.push(o.lost); }
   return out;
 }
 
@@ -269,13 +278,15 @@ const plural = n => (/ed$/.test(n) ? n : n + 's');
 const listJoin = xs => (xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1] : xs[0] ?? '');
 export function intelNote(p, nb = nextBattle(p)) {
   if (!nb) return null;
-  const it = intelFor(MAPS[nb.map], nb.day);
+  const it = intelFor(MAPS[nb.map], nb.day, dayFor(p, nb.map, nb.day));
   if (!it) return null;
   const parts = [];
   if (it.entries.length) parts.push(`From ${listJoin(it.entries.slice(0, 3).map(e => e.name))}.`);
   if (it.quality === 'unknown') parts.push('Numbers and types unknown.');
   else {
-    const ts = [...it.types].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type)).slice(0, 3);
+    // 0.24.1 (H558, speltestet av 0.24.0: Laxnes lapp nämnde bara vandrare och löpare, bjässarna fällde basen): alla
+    // typer som underrättelserna känner (förut högst tre)
+    const ts = [...it.types].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
     const n = t => (t.count != null ? `${t.count}` : t.range ? `${t.range[0]} to ${t.range[1]}` : '');
     parts.push(ts.map((t, i) => `${i ? plural(t.name).toLowerCase() : plural(t.name)} ${n(t)}`.trim()).join(', ') + '.');
     if (it.later) parts.push('Later waves unconfirmed.');
@@ -481,7 +492,7 @@ export function tableState(p, { sector = null } = {}) {
   const radio = radioStrips(p, nb);
   const depot = meta.has('depot');
   const state = {
-    next: nb, opmap: meta.has('opmap'), piles, enemies, radio,
+    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p),
     intel: enemies && meta.has('opmap') ? intelNote(p, nb) : null,
     zones: depot && nb ? cardZones(p, nb.sector) : null,
     clipboard: depot ? { rp: meta.has('rp') ? p.rp : null, next: nb } : null,

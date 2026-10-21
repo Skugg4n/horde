@@ -1435,3 +1435,17 @@ Dagen är lång för den som står vid skolan (knappt 8 minuter); en fråga till
 
     FALL BACK  blSkilled ca2c34e9, ef11e85a; blNormal 38c5f03f, 8bd6a77d
     DEFEND     blSkilled d2d84a21, b429b011; blNormal 62de394f, 4d87a09b
+
+### Laxne 0.24.1: pengarna över (H558)
+
+Speltestet av 0.24.0 (docs/playtests/2026-10-21-0.24.0-laxne.md, fynd 8): varje Laxne-försök slutade med 970 till 1 130 $ oanvända, eftersom alla enheter redan stod ute och bara spärrar fanns kvar att köpa. Målet: 300 till 600 $ över för kartläsaren som står vid skolan (lxSkilled, nearBase 40). `node scripts/balance.mjs laxne`, kvar = kassan när dagen är slut:
+
+    bounty 0,9   lxSkilled kvar 551 till 701; lxNormal kvar 88 till 211, bas 8 till 17
+    bounty 0,8   lxSkilled kvar 451 till 601; lxNormal kvar 211 till 227, bas 2 till 6
+    bounty 0,78  lxSkilled kvar 431 till 581; lxNormal kvar 122 till 221, bas 4 till 17   (valt)
+
+0,8 lämnade 601 $ på tre seeds, en hårsmån över målet; 0,78 ger 431 till 581. Båda spelarna vinner fortfarande på första försöket på alla fem seeds, med de civila inne (lxSkilled 19 av 24, lxNormal 24 av 24) och dagen under 8 minuter (469 till 472 s respektive 379 till 427 s). Kartläsarens försök är oförändrade (samma köp, samma utfall), så hans fingeravtryck står kvar; den vanliga spelarens är nytt. Björnlunda efter DEFEND LAXNE påverkas inte (kassan följer inte med mellan dagarna): blSkilled, blNormal och blNear har samma fingeravtryck som förut och vinner båda dagarna på första försöket.
+
+Samtidigt fick Laxne `intel: 'known'` (byns folk har sett horden): lappen "What we face" nämner alla fyra typerna med antalen ur vågorna, också bjässarna och de pansrade i sista vågen. Påverkar inte simuleringen.
+
+    lxSkilled 336fa851 (oförändrat), lxNormal daf435b4 (förut 1926d646)

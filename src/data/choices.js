@@ -17,10 +17,13 @@ export const CHOICES = {
     text: 'Laxne asks for help. Defend it, or fall back to Björnlunda.',
     legacy: 'bl-1',
     options: [
-      { id: 'defend', label: 'DEFEND LAXNE', map: 'laxne', means: 'One more day. Laxne skola is the base.' },
-      { id: 'fallback', label: 'FALL BACK', rp: 150, pile: 'bjornlunda', means: 'No battle, troops saved. Laxne is lost: fewer RP, a bigger first wave at Björnlunda.',
-        // lägesrapporten på Björnlundas hög (natten efter Mölnbo) och radion samma natt
-        report: { from: 'MCF', lead: 'Laxne is on its own.', text: 'The troops are coming to Björnlunda whole. Laxne is not: the village was left to the horde, and the people who stayed are lost. The horde is closer now. Expect more of them in the first wave.' },
+      // cost: priset under rutan från början (0.24.1, H555); FALL BACK får RP-summan framför (src/meta/table.js choiceSheet)
+      { id: 'defend', label: 'DEFEND LAXNE', map: 'laxne', cost: 'One day. Your troops tire.', means: 'One more day. Laxne skola is the base.' },
+      { id: 'fallback', label: 'FALL BACK', rp: 150, pile: 'bjornlunda', lost: 'laxne', cost: 'Bigger first wave at Björnlunda.', means: 'No battle, troops saved. Laxne is left to the horde.',
+        // lägesrapporten på Björnlundas hög (natten efter Mölnbo) och radion samma natt. 0.24.1 (H556, speltestet av 0.24.0:
+        // kostnaden syntes inte under nästa order): kort, med summan först (choiceReports: "150 RP lost."), och den ligger
+        // bredvid ordern (src/ui/table.js pileHtml). lost: sektorn får ett blyertskryss och "lost" på kartan.
+        report: { from: 'MCF', lead: 'Laxne is on its own.', text: 'Expect a bigger first wave.' },
         radio: { at: '05:50', text: 'Nobody is coming to Laxne. People along road 223 are told to drive south towards Björnlunda and Gnesta now. Buses to Laxne are cancelled.' } },
     ],
   },

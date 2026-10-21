@@ -34,8 +34,8 @@ const countTypes = waves => {
   return m;
 };
 // { quality, waves, types: [{ type, name, count, range, known }], entries: [{ id, name, dir, known }], note }
-export function intelFor(map, day) {
-  const d = map.days?.[day - 1];
+// d: dagen som den spelas (0.24.1: src/meta/operation.js dayFor, ett val kan ha gjort första vågen större); standard banans dag
+export function intelFor(map, day, d = map.days?.[day - 1]) {
   if (!d) return null;
   const quality = INTEL_QUALITY.includes(d.intel) ? d.intel : 'partial';
   const waves = d.waves;

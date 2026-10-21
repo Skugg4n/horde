@@ -64,7 +64,8 @@ export function penSpots(state) {
     const xy = sectorXY(pl.sector);
     if (!pl.closed || !xy || pl.sector === nb?.sector) continue;
     const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector)), [x, y] = xy;
-    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} days`;
+    // 0.24.1 (H558, speltestet av 0.24.0: "held, 1 days" vid Laxne)
+    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} ${c.days === 1 ? 'day' : 'days'}`;
     const cands = [[x, y + 50, 'middle'], [x, y + 30, 'middle'], [x + 15, y + 5, 'start'], [x - 15, y + 5, 'end'], [x, y - 18, 'middle'], [x + 15, y + 22, 'start'], [x - 15, y + 22, 'end']]
       .map(([cx, cy, a]) => ({ x: cx, y: cy, anchor: a, text, box: penBox(cx, cy, text, a) }));
     const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0);
@@ -108,6 +109,14 @@ export function mapSvg(state, sel) {
       s += pen(x + 14, y + 20, thr ? 'threatened' : 'holding');
     }
     if (sel === pl.sector) s += `<circle cx="${x}" cy="${y}" r="24" class="selring"/>`;
+  }
+  // 0.24.1 (H556): en sektor som valet lämnade (FALL BACK: Laxne) får ett blyertskryss och "lost" bredvid
+  if (state.opmap) for (const id of state.lost ?? []) {
+    const xy = sectorXY(id);
+    if (!xy || id === nb?.sector) continue;
+    const [x, y] = xy;
+    s += `<g class="sec st-lost" data-sector="${id}"><path d="M${x - 8} ${y - 8} L${x + 8} ${y + 8} M${x + 8} ${y - 8} L${x - 8} ${y + 8}" class="pencross"/></g>`;
+    s += pen(x - 12, y + 18, 'lost', 'end');
   }
   if (nb) {
     const xy = sectorXY(nb.sector);
@@ -153,7 +162,7 @@ const reportHtml = (r, top = true) => `${top ? '' : '<div class="tb-l2" data-rea
   <div class="txt"${top ? ' data-read' : ''}>${r.lead ? `<b>${esc(r.lead)}</b> ` : ''}${esc(r.text)}</div>
   <div class="sig">${esc(r.from)}</div>`;
 const closedHtml = c => `
-  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} DAYS</span></div>
+  <div class="hd"><span>${esc(c.name.toUpperCase())}</span><span>${c.days} ${c.days === 1 ? 'DAY' : 'DAYS'}</span></div>
   <div class="txt" data-read>${esc(c.text)}</div>
   <div class="tb-stamp olive" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(c.stamp)}</div>`;
 // Bara rubrikraden syns (ett blad under ett annat)
@@ -166,14 +175,15 @@ const lostHtml = (l, deploy, top = true) => `
   <div class="out"${top ? ' data-read' : ''}>${esc(l.outcome)}</div>
   ${deploy ? `<button type="button" class="tb-kbd" data-a="go">DEPLOY DAY ${l.n} · ENTER</button>` : ''}
   <div class="tb-stamp" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(l.stamp)}</div>`;
-function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, top = true, old = false, current = false }) {
+function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = null, h = null, top = true, old = false, current = false }) {
   const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`, age = `${old ? ' old' : ''}${current ? ' cur' : ''}`;
   if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
   if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order${top ? '' : ' under'}${age}${stamp ? ' stamped' : ''}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${current ? '<span class="tb-newtab">NEW</span>' : ''}${orderHtml(sh, { deploy, stamp, top })}<div class="tb-clip" data-clip></div></div>`;
-  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:338">${reportHtml(sh, top)}</div>`;
+  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:${h ?? 338}">${reportHtml(sh, top)}</div>`;
   if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy, top)}</div>`;
   return `<div class="tb-obj tb-paper tb-report${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:40px">${closedHtml(sh)}</div>`;
 }
+const BESIDE_H = 168, BESIDE_GAP = 14;
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
 function pileHtml(pl, place, { deploy, spreadSrc = false }) {
@@ -186,12 +196,17 @@ function pileHtml(pl, place, { deploy, spreadSrc = false }) {
     const ti = pl.sheets.map(x => x.kind).lastIndexOf('order'), top = pl.sheets[ti];
     const rest = pl.sheets.filter((_, i) => i !== ti), last = rest.at(-1);
     const under = last && (last.kind === 'report' || last.kind === 'lost') ? last : null;
+    // 0.24.1 (H556, speltestet av 0.24.0: "150 RP lost" låg under nästa order, bara rubriken syntes): valets lägesrapport
+    // (FALL BACK) ligger hel och läsbar ovanför ordern, inte under den, när det finns plats under bordets överkant
+    const beside = under?.beside && place.y - 8 >= BESIDE_H + BESIDE_GAP;
     // kanterna ligger ovanför högen; så många som ryms under bordets överkant (resten när man breder ut)
-    const fit = Math.max(0, Math.min(2, Math.floor((place.y - 8) / 36)));
+    const fit = beside ? 0 : Math.max(0, Math.min(2, Math.floor((place.y - 8) / 36)));
     const older = fit ? rest.slice(0, under ? -1 : undefined).slice(-fit) : [];
     older.forEach((o, k) => { const d = older.length - k; html += sheetHtml(o, { x: -10 * d, y: -36 * d, r: edge(k), z: k + 1, full: false, old: true }); });
-    if (under) html += sheetHtml(under, { x: 0, y: 0, r: -2.5, z: 5, full: true, top: false, old: true });
-    html += sheetHtml(top, { x: under ? 24 : 0, y: under ? (under.kind === 'report' ? 92 : 80) : 0, r: 0, z: 6, full: true, deploy, stamp: !deploy, current: true });
+    if (beside) html += sheetHtml(under, { x: 12, y: -(BESIDE_H + BESIDE_GAP), r: -1.2, z: 5, full: true, h: BESIDE_H });
+    else if (under) html += sheetHtml(under, { x: 0, y: 0, r: -2.5, z: 5, full: true, top: false, old: true });
+    const shift = under && !beside;
+    html += sheetHtml(top, { x: shift ? 24 : 0, y: shift ? (under.kind === 'report' ? 92 : 80) : 0, r: 0, z: 6, full: true, deploy, stamp: !deploy, current: true });
   } else {
     const sh = pl.sheets, n = sh.length, top = sh[n - 1];
     const older = sh.slice(Math.max(0, n - 3), n - 1);

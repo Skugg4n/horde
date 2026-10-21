@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.24.1 (speltestet av Laxne-valet) (2026-10-21)
+
+Speltestet av 0.24.0 (docs/playtests/2026-10-21-0.24.0-laxne.md) sa ja med reservationer; det här är friktionen det hittade.
+
+- **Priset står på ordern:** under DEFEND LAXNE står "One day. Your troops tire." och under FALL BACK "−150 RP. Bigger first wave at Björnlunda." från början, före krysset (summan är den som verkligen dras).
+- **Efter FALL BACK syns priset:** lägesrapporten "Laxne is on its own. 150 RP lost. Expect a bigger first wave." ligger hel ovanför nästa order, inte under den. Laxne får ett blyertskryss och "lost" på kartbladet, och introt till Björnlunda dag 11 säger "Laxne fell: a bigger first wave." (bara i den grenen).
+- **Inget tyst nej när man siktar:** håller och drar man från en plats där enheten inte får stå säger pekaren samma skäl som ett klick där ("Inside a house", "On the road").
+- **"What we face" i Laxne** nämner alla typer med antalen ur vågorna, också bjässarna och de pansrade (byns folk har sett horden). Lappen nämner nu alla kända typer, inte bara tre.
+- **Småfel:** "LAXNE 1 DAY" och "held, 1 day" (förut "1 DAYS", "1 days"). Hordens skyltar vid skärmkanten står där vägen kommer in i bild (Laxne: uppe till höger vid väg 223), inte staplade mitt upptill. Tipsrutorna på bordet ställs inte över förrådet.
+- **Pengarna i Laxne:** mindre förnödenheter per dödad (0,78, förut 0,9). Kartläsaren vid skolan har 431 till 581 $ över i stället för 551 till 701 (testaren 970 till 1 130). docs/balance-log.md, Laxne 0.24.1.
+- **Layoutprovet:** startmenyn saknades 2 till 5 gånger av 8. Orsaken: spelets läge stod på "menu" redan medan första banan laddades, och provet väntade på läget, 1 till 3 s före skylten. Läget heter nu "loading" tills menyn visas.
+
 ## 0.24.0 (Laxne-valet) (2026-10-21)
 
 Kampanjplanen avsnitt 10 och Olas beslut 2026-10-20 (H552): efter Mölnbo dag 10 ber Laxne om hjälp, och spelaren väljer.
