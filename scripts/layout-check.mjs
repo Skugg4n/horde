@@ -18,13 +18,10 @@
 //
 // Kräver en server som serverar repot (python3 -m http.server 8146) och playwright (PW_PATH eller
 // ~/Projects/zombie-high-rise/node_modules/playwright).
-import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const PORT = arg('port', '8146'), SHOTS = arg('shots', null);
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PW_PATH ?? homedir() + '/Projects/zombie-high-rise/node_modules/playwright');
+import { launch } from './headless.mjs';
 const WIDTHS = [1024, 1440, 1920];
 
 // Körs i sidan: alla textrutor i skyltarna, och felen.
@@ -418,7 +415,7 @@ async function tableChecks(page, label) {
 }
 
 async function run() {
-  const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
+  const browser = await launch();
   let errors = [], checked = 0;
   for (const W of WIDTHS) {
     const page = await browser.newPage({ viewport: { width: W, height: Math.round(W * 0.6) } });

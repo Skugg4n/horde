@@ -17,19 +17,16 @@
 //
 // Kräver en server som serverar repot (python3 -m http.server 8154) och playwright (PW_PATH eller
 // ~/Projects/zombie-high-rise/node_modules/playwright). Skärmbilderna krymps med sips till högst 250 kB.
-import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
 import { statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const PORT = arg('port', '8154'), ONLY = arg('only', null);
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PW_PATH ?? homedir() + '/Projects/zombie-high-rise/node_modules/playwright');
+import { launch } from './headless.mjs';
 const OUT = new URL('../docs/', import.meta.url).pathname;
 const MAX_BYTES = 250 * 1024;
 
-const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', e => errors.push('pageerror: ' + String(e)));
