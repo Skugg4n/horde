@@ -1436,6 +1436,30 @@ Dagen är lång för den som står vid skolan (knappt 8 minuter); en fråga till
     FALL BACK  blSkilled ca2c34e9, ef11e85a; blNormal 38c5f03f, 8bd6a77d
     DEFEND     blSkilled d2d84a21, b429b011; blNormal 62de394f, 4d87a09b
 
+## Västra rondellen 0.25.0: kampanjens dag 13, försvar mot förtrupper (H559)
+
+Kampanjplanen avsnitt 10: "Dag 13, Gnesta västra rondell. Försvar mot förtrupper." En dag efter Björnlunda (dag 13, eller 14 efter DEFEND LAXNE). Balansen räknar båda grenarna: `node scripts/balance.mjs rondell [policy|-] [fallback|defend]`. Ankomsten är kartläsarens efter Björnlunda dag 12 (bjornlundaCampaign('blSkilled') i valets gren), FALL BACK 322 till 442 RP, med ledningens Ksp 88 (leveransen vr-1). Tre spelare: vrSkilled (som blSkilled: läser kartan och står inom 40 m från basen, som ordern säger), vrNormal (blNormal) och vrNear (allt inom 40 m från basen, blNear).
+
+**Dagen.** Förtrupperna, inte horden: fyra vågor, 163 zombier (Björnlunda dag 11 har 195 före valets större första våg), 43 springare och 10 pansrade, inga bjässar (de kommer dag 15). Vägarna in är korta: cirka 230 m från väg 57 (gamla landsvägen och Furulundsvägen till Barrstigen) och 300 m från D 830 (genom rondellen och 57:s början), mot Björnlundas 340 till 440. Fart 1,3.
+
+**hp.** Med Björnlundas 7 stod basen orörd för alla tre spelarna i alla seeds (hela Björnlunda-truppen, cirka 23 enheter, mot korta vägar). Prövat i grenen FALL BACK (fart 1,3, antalen oförändrade):
+
+    hp 10  vrNormal bas 16 till 20; vrSkilled och vrNear 20
+    hp 13  vrNormal bas 13 till 16
+    hp 17  vrNormal bas 4 till 8; vrSkilled 16 till 20; vrNear 15 till 20
+    hp 19  vrNormal bas 1 till 6, seed 2 ett försök till
+    hp 21  vrNormal tre till sex försök
+
+Grenen DEFEND LAXNE är svårare (truppen har slagits tre dagar i rad och är tröttare): hp 18 fällde vrNormal sex gånger på seed 3, hp 19 två seeds. hp 16 valt: alla vinner på första försöket i båda grenarna, och den vanliga spelaren känner av förtrupperna (basen 5 till 12 kvar). Med antalen 1,3 gånger större (212 zombier, fler än en hel hord) förlorade den vanliga spelaren redan med hp 14 en gång i fyra seeds och med hp 18 föll alla utom den vid basen; kartläsaren spridd längs vägarna (smart plan utan nearBase) föll med hp 14 på seed 3. Därför oförändrade antal, och kartläsaren står vid basen som i Björnlunda.
+
+    FALL BACK  vrSkilled  första försöket, bas 18 till 20, 302 till 319 s
+               vrNormal   första försöket, bas 5 till 12, 324 till 335 s
+               vrNear     första försöket, bas 18 till 20, 305 till 316 s
+    DEFEND     vrSkilled  första försöket, bas 12 till 17, 319 till 326 s
+               vrNormal   första försöket, bas 4 till 10, 331 till 348 s
+    toppen     under 100 levande, högst två vågor ute
+
+Fingeravtrycken: FALL BACK vrSkilled 173f0d61, vrNormal 34385450 (vrNear f3ca2329); DEFEND vrSkilled b4a8a6b4, vrNormal 0ccd55f4. Dagen är cirka fem och en halv minut; en fråga till speltestet om den känns som en känselspröt eller som för lätt.
 ### Laxne 0.24.1: pengarna över (H558)
 
 Speltestet av 0.24.0 (docs/playtests/2026-10-21-0.24.0-laxne.md, fynd 8): varje Laxne-försök slutade med 970 till 1 130 $ oanvända, eftersom alla enheter redan stod ute och bara spärrar fanns kvar att köpa. Målet: 300 till 600 $ över för kartläsaren som står vid skolan (lxSkilled, nearBase 40). `node scripts/balance.mjs laxne`, kvar = kassan när dagen är slut:

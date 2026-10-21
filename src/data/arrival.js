@@ -83,4 +83,13 @@ export const ARRIVAL_TROOP = {
       ['ksp58', 2, null, 3], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['inf', 2, 5, 2], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3],
       ['hv', 1, 4, 0], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
   },
+  // 0.25.0 (H559): Gnesta västra rondell (kampanjens dag 13). Truppen kartläsaren har efter Björnlunda dag 12 i grenen
+  // FALL BACK, med ledningens Ksp 88 (leveransen vr-1): scripts/balance.mjs vastraRondellArrival, seed 0. Provet i
+  // tests/vastra-rondell-sector.test.js säger till när tabellen inte längre stämmer med balansen.
+  'gnesta-vastra-rondell': {
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 2, 4], ['ksp58', 2, null, 4], ['m2', 1, null, 4],
+      ['ksp58', 2, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5],
+      ['hv', 2, 5, 1], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 1, null, 0], ['m2', 1, null, 0]],
+  },
 };

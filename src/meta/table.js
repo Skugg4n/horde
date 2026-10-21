@@ -115,7 +115,7 @@ export function titleOf(map, day) {
 }
 const sender = k => SENDERS[k] ?? k ?? 'Försvarsmakten';
 // Platsens namn i rapporterna
-const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola' };
+const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola', 'gnesta-vastra-rondell': 'The roundabout' };
 const placeName = map => PLACE[map] ?? MAPS[map]?.name ?? map;
 
 // ---------- bladen ----------

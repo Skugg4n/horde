@@ -34,6 +34,8 @@ export const SECTORS = [
   { id: 'bjornlunda', name: 'Björnlunda', full: 'Björnlunda · Wattrangsborg', short: 'Björnlunda', x: 0.30, y: 0.22, maps: ['bjornlunda'] },
   // 0.24.0 (H552): Laxne (src/data/laxne-play.js), bara när spelaren valt att försvara byn (src/data/choices.js)
   { id: 'laxne', name: 'Laxne', full: 'Laxne · Laxne skola', short: 'Laxne', x: 0.26, y: 0.10, maps: ['laxne'] },
+  // 0.25.0 (H559): Gnesta västra rondell (src/data/gnesta-vastra-rondell-play.js), öppnar efter Björnlunda dag 2
+  { id: 'gnesta-vastra-rondell', name: 'Västra rondellen', full: 'Gnesta · Västra rondellen', short: 'Rondellen', x: 0.41, y: 0.27, maps: ['gnesta-vastra-rondell'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
@@ -174,6 +176,12 @@ export const RELEASES = [
   { id: 'lx-1', map: 'laxne', day: 1, from: 'MCF', adopt: true,
     text: 'Laxne skola is the gathering point. Hold road 223 until the village is out.',
     grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
+  // ---------- Gnesta västra rondell (0.25.0, H559) ----------
+  // Kampanjens dag 13 (14 efter DEFEND LAXNE): försvar mot förtrupper. Truppen som kom ut ur Björnlunda följer med (adopt).
+  // Ledningen skickar en Ksp 88 mot de pansrade i klungorna; inget mer (det stora anfallet kommer dag 15).
+  { id: 'vr-1', map: 'gnesta-vastra-rondell', day: 1, from: 'FM', adopt: true, reinforce: 'Försvarsmakten',
+    text: 'Their forward groups are on väg 57 and D 830. Hold the western roundabout. A Ksp 88 joins you.',
+    grant: [{ type: 'm2' }], unlock: [...NORTH_ALL, 'inf'], stock: { ksp58: 1, inf: 1 } },
 ];
 // Leveransens sort: 'reinforcement' (trupper ledningen skickar, märkta på rullan) eller 'release' (det som blir möjligt att
 // rekvirera, eller trupper som är sektorns startstyrka)

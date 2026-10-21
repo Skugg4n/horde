@@ -9,7 +9,9 @@ import { vastraRondell as map, CRISP, ROADS, BUILDINGS, GROUND, SKETCH, SOURCE, 
 import { gridPath, distPolyline, inPoly } from '../src/data/osm-map.js';
 import { MAPS } from '../src/data/maps.js';
 
-test('Västra rondellen laddar och är bara en förhandsvisning: ingen bana i spelet, inga dagar', () => {
+// 0.25.0 (H559): banan i spelet är src/data/gnesta-vastra-rondell-play.js (tests/vastra-rondell-sector.test.js); den
+// genererade kartan själv har fortfarande inga dagar och är inte banan
+test('Västra rondellen laddar och kartmodulen är bara kartan: banan i spelet är en egen modul, inga dagar här', () => {
   assert.equal(map.id, 'gnesta-vastra-rondell');
   assert.match(VASTRA_RONDELL_VERSION, /^\d+\.\d+\.\d+$/);
   assert.ok(!Object.values(MAPS).includes(map));

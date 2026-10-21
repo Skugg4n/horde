@@ -949,6 +949,8 @@ export function createView(scene, initialSim) {
       const [x, z] = rink.at(rink.face, rink.main ?? 0);
       baseHome.set(x, 0, z);
       base.rotation.y = rink.ry;
+      // 0.25.0 (H559): en mindre fasad (villan på Barrstigen) ritar planket och sandsäckarna mindre
+      if (rink.scale) base.scale.setScalar(rink.scale);
     } else if (sim.map.basePlace) {
       // Banan säger var basen står (Gnesta: på rondellens ö, mot öster).
       const b = sim.map.basePlace;

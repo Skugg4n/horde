@@ -3010,7 +3010,7 @@ if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescript
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
 // 0.22.0 (H539): Hagstumosse har kampanjbågens fyra dagar (Ishallen 1 till 3, Vikingavägen 1)
 const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 2], ['gnesta', 3],
-  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['laxne', 1], ['bjornlunda', 1], ['bjornlunda', 2]];
+  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['laxne', 1], ['bjornlunda', 1], ['bjornlunda', 2], ['gnesta-vastra-rondell', 1]];
 async function quickJump(mapId, d) {
   await debugJump(mapId, d);
   if (lesson) { coach.hide(); lesson = null; }

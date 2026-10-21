@@ -866,7 +866,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
-const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled', laxne: 'lxSkilled' };
+const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled', laxne: 'lxSkilled', 'gnesta-vastra-rondell': 'vrSkilled' };
 // 0.17.2 (debugmenyns Quick jump, Olas önskan): balanspolicyns uppställning på en dag som just startats, så att striden
 // kan börja direkt. Samma plan som playOpDay (skilled, på Mölnbo mbSmart): spärrarna, pjäserna, taken och lådorna.
 export function autoDeploy(sim, policy = AUTO_POLICY[sim.map.id] ?? 'skilled') {
@@ -1146,6 +1146,43 @@ export function blPrints(log) {
   return Object.fromEntries(BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'bjornlunda' && r.day === d).map(strip)))]; }));
 }
 
+// ---------- Gnesta västra rondell (0.25.0, H559) ----------
+// Kampanjens dag 13 (14 efter DEFEND LAXNE): förtrupperna västerifrån. Spelaren kommer från Björnlunda med det kartläsaren
+// har efter dag 12 (bjornlundaCampaign('blSkilled') i valets gren: truppen, nivåerna, tröttheten, förrådet och RP). Tre spelare:
+//   vrSkilled : läser kartan (smart plan, som blSkilled): pjäserna där de ser hordens väg, Psg 90 på taken, trupper i hus.
+//   vrNormal  : den vanliga spelaren (normal, som blNormal).
+//   vrNear    : ställer allt inom 40 m från basen, där ordern säger (blNear).
+// Målet (H559): vrNormal och vrNear vinner inom 1 till 3 försök, vrSkilled på första. docs/balance-log.md, Västra rondellen.
+const VR_BLOCKS = [];
+TOWN['gnesta-vastra-rondell'] = {
+  blocks: () => VR_BLOCKS,
+  planOpts: (day, policy) => (policy !== 'smart' ? { roofs: 2, near: 0 } : { roofs: 2, near: 0.3 }),
+  kits: [0, 2], roofsDay: [0, 2], maxTicks: 30 * 1200,
+};
+HV_POLICY['gnesta-vastra-rondell'] = { days: [], gap: [] };
+REQUISITION['gnesta-vastra-rondell'] = ['lvl:civ:2', 'lvl:hv:2', 'lvl:m249:2', 'unit:ksp58:6', 'lvl:ksp58:3', 'unit:inf:3', 'lvl:inf:2', 'lvl:m2:3', 'unit:m249:6', 'lvl:psg90:3'];
+POLICIES.vrSkilled = { ...POLICIES.blSkilled, nearDays: [1] };
+POLICIES.vrNormal = { ...POLICIES.blNormal };
+POLICIES.vrNear = { ...POLICIES.blNear };
+// Framsteget kartläsaren har när rondellen öppnar (sparas per seed och gren): Björnlunda dag 11 och 12 vunna av
+// kartläsaren, i grenen FALL BACK (standard) eller DEFEND LAXNE.
+const vrArrivalMap = new Map();
+export function vastraRondellArrival(seedOffset = 0, choice = 'fallback') {
+  const key = choice + ':' + seedOffset;
+  if (!vrArrivalMap.has(key)) vrArrivalMap.set(key, bjornlundaCampaign('blSkilled', { seedOffset, maxAttempts: 6, choice }).progress);
+  return vrArrivalMap.get(key);
+}
+export function vastraRondellCampaign(policy = 'vrSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null, choice = 'fallback' } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['gnesta-vastra-rondell'], start: vastraRondellArrival(seedOffset, choice), onSecond });
+}
+export const VR_STEPS = MAPS['gnesta-vastra-rondell'].days.map(d => `gnesta-vastra-rondell ${d.n}`);
+export const vrAttempts = log => VR_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'gnesta-vastra-rondell' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+export function vrPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  return Object.fromEntries(VR_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'gnesta-vastra-rondell' && r.day === d).map(strip)))]; }));
+}
+
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
@@ -1167,6 +1204,16 @@ if (IS_MAIN && process.argv[2] === 'laxne') {
     runs.forEach((r, i) => console.log(`      rp ${bjornlundaArrival(SEEDS[i], choice).rp}`));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${blAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
     for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''}  ${x.force}`);
+  }
+} else if (IS_MAIN && (process.argv[2] === 'rondell' || process.argv[2] === 'gnesta-vastra-rondell')) {
+  // 0.25.0 (H559): node scripts/balance.mjs rondell [policy|-] [fallback|defend]: västra rondellen i valets gren
+  const choice = process.argv[4] ?? 'fallback';
+  for (const policy of process.argv[3] && process.argv[3] !== '-' ? [process.argv[3]] : ['vrSkilled', 'vrNormal', 'vrNear']) {
+    console.log(`\n=== Västra rondellen (${choice}), ${policy} ===`);
+    console.log('seed  R1   peak  rp vid ankomsten');
+    const runs = SEEDS.map(seedOffset => vastraRondellCampaign(policy, { seedOffset, maxAttempts: 6, choice }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${vrAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}   ${vastraRondellArrival(SEEDS[i], choice).rp}${r.stuck ? '  fast' : ''}`));
+    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits} rp ${x.rp}  ${x.force}`);
   }
 } else if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {
