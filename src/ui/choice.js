@@ -1,13 +1,13 @@
 // Kampanjens val på bordet (0.24.0, H552): ordern från MCF med två blyertsrutor, ovanpå kartbordet (eller
 // operationskartan). Bladets innehåll är src/meta/table.js choiceSheet; valet görs av src/meta/operation.js makeChoice.
 // Ett klick på en ruta kryssar den (den andra töms) och visar vad det betyder; SIGN (eller Enter) skriver under.
-// Valet går inte att ångra, därför två steg.
+// Valet går inte att ångra, därför två steg. 0.24.1 (H555): priset står under varje ruta från början, i siffror.
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const two = n => String(n).padStart(2, '0');
 
 export function choiceHtml(sh, picked = null) {
   const rows = sh.options.map(o => `<button type="button" class="ch-row${picked === o.id ? ' on' : ''}" data-pick="${o.id}" aria-pressed="${picked === o.id}">
-      <span class="ch-box" aria-hidden="true">${picked === o.id ? '✕' : ''}</span><span class="ch-lbl">${esc(o.label)}</span></button>`).join('');
+      <span class="ch-box" aria-hidden="true">${picked === o.id ? '✕' : ''}</span><span class="ch-col"><span class="ch-lbl">${esc(o.label)}</span>${o.cost ? `<span class="ch-cost" data-read>${esc(o.cost)}</span>` : ''}</span></button>`).join('');
   const means = sh.options.find(o => o.id === picked)?.means ?? 'Tick one box, then sign.';
   return `<div class="hd"><span>${esc(sh.from.toUpperCase())}</span><span>ORDER ${two(sh.n)}</span></div>
     <div class="meta">TO: ${esc(sh.to)}<br>VALID: ${esc(sh.valid)}</div>

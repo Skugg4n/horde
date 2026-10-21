@@ -135,6 +135,12 @@ test('valet: efter Mölnbo dag 10 väntar ordern med två rutor på bordet; inge
   assert.equal(sh.n, 10);
   assert.deepEqual(sh.options.map(o => o.label), ['DEFEND LAXNE', 'FALL BACK']);
   for (const o of sh.options) assert.ok(words(o.means) <= 16, o.means);
+  // 0.24.1 (H555): priset under varje ruta från början, i siffror, högst 12 ord
+  const cost = Object.fromEntries(sh.options.map(o => [o.id, o.cost]));
+  assert.equal(cost.defend, 'One day. Your troops tire.');
+  assert.equal(cost.fallback, `−${Math.min(q.rp, CHOICES.laxne.options[1].rp)} RP. Bigger first wave at Björnlunda.`);
+  for (const o of sh.options) assert.ok(words(o.cost) <= 12, o.cost);
+  assert.equal(choiceSheet({ ...q, rp: 0 }).options[1].cost, 'Bigger first wave at Björnlunda.', 'utan RP: ingen summa');
   assert.equal(canChoose(q, 'laxne', 'surrender').reason, 'unknown');
   // bordet ligger kvar under (kartan, högarna)
   assert.ok(tableState(q).objects.includes('map'));
@@ -193,15 +199,25 @@ test('FALL BACK: ingen strid, truppen sparad, RP dras, lägesrapporten och radio
   assert.deepEqual(pile.sheets.map(s => s.id), ['report:choice:laxne', 'order:bjornlunda:1']);
   const rep = pile.sheets[0];
   assert.equal(rep.lead, 'Laxne is on its own.');
-  assert.match(rep.text, new RegExp(`${opt.rp} RP`));
-  assert.ok(words(rep.lead + ' ' + rep.text) <= 60);
+  // 0.24.1 (H556): kort, summan först, och den ligger bredvid ordern (beside), inte under
+  assert.equal(`${rep.lead} ${rep.text}`, `Laxne is on its own. ${opt.rp} RP lost. Expect a bigger first wave.`);
+  assert.equal(rep.beside, true);
+  // kartan: Laxne kryssad ("lost"), bara i den här grenen
+  assert.deepEqual(tableState(q).lost, ['laxne']);
+  assert.deepEqual(tableState(makeChoice(atChoice(), 'laxne', 'defend').progress).lost, []);
   const radio = radioStrips(q);
   assert.equal(radio.length, 1);
   assert.match(radio[0].text, /Laxne/);
   assert.ok(words(radio[0].text) <= 40);
   // första vågen en fjärdedel större (dataflaggan), bara den
   const base = MAPS.bjornlunda.days[0], d = dayFor(q, 'bjornlunda', 1);
-  assert.deepEqual(base.choiceMod, { choice: ['laxne', 'fallback'], firstWave: 1.25 });
+  assert.deepEqual([base.choiceMod.choice, base.choiceMod.firstWave], [['laxne', 'fallback'], 1.25]);
+  // 0.24.1 (H556): introt i den grenen säger den större vågen (högst 12 ord, gatorna kvar), annars som förut
+  assert.match(d.intro.text, /bigger first wave/);
+  assert.match(d.intro.text, /Stjärnhov/);
+  assert.ok(words(d.intro.text) <= 12, d.intro.text);
+  assert.equal(d.intro.title, base.intro.title);
+  assert.doesNotMatch(base.intro.text, /Laxne/);
   assert.deepEqual(d.waves[0].groups.map(x => x.count), base.waves[0].groups.map(x => Math.ceil(x.count * 1.25)));
   assert.deepEqual(d.waves.slice(1), base.waves.slice(1));
   assert.ok(opStartConfig(q, 1, 'bjornlunda').dayCfg, 'dagen som valet gjort den går till simuleringen');

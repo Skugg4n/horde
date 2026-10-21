@@ -263,7 +263,9 @@ export const DAYS = [
   { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7.25, overlap: 12, overlapMin: 0.3, bounty: 0.75,
     // 0.24.0 (H552, Laxne-valet): släppte spelaren Laxne är horden närmare, första vågen en fjärdedel större
     // (src/meta/operation.js dayFor)
-    choiceMod: { choice: ['laxne', 'fallback'], firstWave: 1.25 },
+    // 0.24.1 (H556): och introt säger det (dayFor tar choiceMod.intro i stället för dagens)
+    choiceMod: { choice: ['laxne', 'fallback'], firstWave: 1.25,
+      intro: { title: 'Day 1: From the west', text: 'From Stjärnhov and the tracks. Laxne fell: a bigger first wave.' } },
     intro: { title: 'Day 1: From the west', text: 'Down väg 57/223 from Stjärnhov, along the tracks and Lokalvägen.' },
     order: { text: 'Stand at Wattrangsborg where Stationsvägen and Villavägen meet. Face both.' },
     objective: 'Hold the crossing in front of Wattrangsborg.',

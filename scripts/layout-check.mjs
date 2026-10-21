@@ -290,13 +290,15 @@ async function tableChecks(page, label) {
   await show(reach('molnbo', 3, atChoice + ' p = { ...p, rp: 600 };'), 'table-choice');
   {
     const sc = `table-choice @${label}`;
-    const c = await ev(`(() => { const s = document.querySelector('#hub .tb-choice'); if (!s) return null; const r = s.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, rows: [...s.querySelectorAll('.ch-row')].map(b => b.textContent.trim()), sign: s.querySelector('.ch-sign')?.disabled, txt: s.querySelector('.txt')?.textContent }; })()`);
+    const c = await ev(`(() => { const s = document.querySelector('#hub .tb-choice'); if (!s) return null; const r = s.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, rows: [...s.querySelectorAll('.ch-row .ch-lbl')].map(b => b.textContent.trim()), costs: [...s.querySelectorAll('.ch-row .ch-cost')].map(b => b.textContent.trim()), sign: s.querySelector('.ch-sign')?.disabled, txt: s.querySelector('.txt')?.textContent }; })()`);
     if (!c) errors.push(`${sc}: ingen order med rutor`);
     else {
       if (c.l < 0 || c.t < 0 || c.r > W + 1 || c.b > page.viewportSize().height + 1) errors.push(`${sc}: ordern ryms inte i fönstret`);
       if (c.rows.join('|') !== 'DEFEND LAXNE|FALL BACK') errors.push(`${sc}: rutorna är ${c.rows.join(', ')}`);
       if (c.sign !== true) errors.push(`${sc}: SIGN går före ett kryss`);
       if (c.txt !== 'Laxne asks for help. Defend it, or fall back to Björnlunda.') errors.push(`${sc}: texten är "${c.txt}"`);
+      // 0.24.1 (H555): båda priserna står under rutorna före krysset, i siffror
+      if (!/One day\. Your troops tire\./.test(c.costs[0] ?? '') || !/^−\d+ RP\. Bigger first wave at Björnlunda\.$/.test(c.costs[1] ?? '')) errors.push(`${sc}: priserna under rutorna är ${JSON.stringify(c.costs)}`);
     }
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/table-choice-${label}.png` });
     await ev(`document.querySelector('#hub .tb-choice [data-pick="defend"]')?.click()`);
@@ -313,6 +315,14 @@ async function tableChecks(page, label) {
   // med riktiga RP efteråt (450): rullans rubrik bryts inte och Deploy ryms (0.24.0, src/ui/table.js rqLabel)
   await show(reach('molnbo', 3, atChoice + ` p = O.makeChoice({ ...p, rp: 600 }, 'laxne', 'fallback').progress;`), 'table-fallback');
   if (!/Laxne is on its own\./.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen lägesrapport om Laxne`);
+  // 0.24.1 (H556): rapporten ligger bredvid ordern (hela texten läsbar, inte under), och Laxne har ett kryss på kartan
+  {
+    const b = await ev(`(() => { const r = document.querySelector('#hub [data-sheet="report:choice:laxne"] .txt')?.getBoundingClientRect(), o = document.querySelector('#hub [data-sheet="order:bjornlunda:1"]')?.getBoundingClientRect(); return r && o ? { rb: r.bottom, ot: o.top, rl: r.left, rr: r.right, ol: o.left, or: o.right } : null; })()`);
+    if (!b) errors.push(`table-fallback @${label}: rapporten eller ordern saknas`);
+    else if (b.rb > b.ot && b.rr > b.ol && b.rl < b.or) errors.push(`table-fallback @${label}: rapportens text ligger under ordern`);
+    if (!/150 RP lost/.test(await ev(`document.querySelector('#hub [data-sheet="report:choice:laxne"] .txt')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: rapporten säger inte "150 RP lost"`);
+    if (!(await ev(`!!document.querySelector('#hub .tb-mapsvg .st-lost[data-sector="laxne"]')`))) errors.push(`table-fallback @${label}: Laxne har inget kryss på kartan`);
+  }
   if (!/Laxne/.test(await ev(`document.querySelector('#hub .tb-radio')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: ingen radio om Laxne`);
   if (!/ORDER 11\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:bjornlunda:1"]')?.textContent ?? ''`))) errors.push(`table-fallback @${label}: Björnlunda är inte dag 11`);
   // 0.23.3 (H549): Björnlunda dag 12, förstärkningen under en egen rubrik på rullans första blad, tre rader NEW

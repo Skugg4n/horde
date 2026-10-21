@@ -448,13 +448,14 @@ export function opStartConfig(p, day, mapId = p.mapId) {
 }
 // ---------- kampanjens val (0.24.0, H552, src/data/choices.js) ----------
 // Dagen som den spelas: banans dag, eller en kopia som ett val ändrat. day.choiceMod = { choice: [id, opt], firstWave }:
-// när valet är gjort blir varje grupp i första vågen firstWave gånger större (avrundat uppåt).
+// när valet är gjort blir varje grupp i första vågen firstWave gånger större (avrundat uppåt). 0.24.1 (H556): choiceMod.intro
+// ersätter dagens intro i den grenen.
 export function dayFor(p, mapId, day) {
   const d = MAPS[mapId]?.days?.[day - 1];
   const m = d?.choiceMod;
   if (!m || choiceOf(p, m.choice[0]) !== m.choice[1]) return d;
   const k = m.firstWave ?? 1;
-  return { ...d, waves: d.waves.map((w, i) => (i ? w : { ...w, groups: w.groups.map(q => ({ ...q, count: Math.ceil(q.count * k) })) })) };
+  return { ...d, ...(m.intro ? { intro: m.intro } : {}), waves: d.waves.map((w, i) => (i ? w : { ...w, groups: w.groups.map(q => ({ ...q, count: Math.ceil(q.count * k) })) })) };
 }
 // Spelaren väljer på bordet. Kostnaden (option.rp) dras direkt, högst det som finns; leveranserna och sektorerna följer
 // (syncOperation: defend öppnar Laxne, fallback Björnlunda). Ett val går inte att ändra.

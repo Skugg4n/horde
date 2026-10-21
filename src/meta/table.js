@@ -206,7 +206,9 @@ export function choiceSheet(p) {
     if (!choicePending(p, id)) continue;
     const [m, d] = c.after, n = campaignDay(m, d, p);
     return { id: 'choice:' + id, choice: id, kind: 'choice', n, from: sender(c.from), to: c.to, valid: `Night ${n}`, text: c.text,
-      options: c.options.map(o => ({ id: o.id, label: o.label, means: o.means })) };
+      // 0.24.1 (H555, speltestet av 0.24.0: priset syntes först efter krysset, och utan siffror): cost står under rutan från
+      // början, FALL BACK med RP-summan som dras (högst det spelaren har, src/meta/operation.js makeChoice)
+      options: c.options.map(o => { const rp = Math.min(p.rp ?? 0, o.rp ?? 0); return { id: o.id, label: o.label, means: o.means, rp, cost: [rp ? `−${rp} RP.` : '', o.cost ?? ''].filter(Boolean).join(' ') }; }) };
   }
   return null;
 }
@@ -218,8 +220,15 @@ export function choiceReports(p, sector) {
     if (!o?.report || o.pile !== sector) continue;
     const [m, d] = c.after, rp = p.choiceRp?.[id] ?? 0;
     out.push({ id: `report:choice:${id}`, kind: 'report', map: m, day: d, n: campaignDay(m, d, p), from: sender(o.report.from), lead: o.report.lead,
-      text: `${o.report.text}${rp ? ` ${rp} RP lost with the village.` : ''}`, written: true });
+      text: `${rp ? `${rp} RP lost. ` : ''}${o.report.text}`, written: true, beside: true });
   }
+  return out;
+}
+
+// 0.24.1 (H556): sektorerna som ett val lämnade (FALL BACK: Laxne), för kartans blyertskryss och "lost"
+export function lostSectors(p) {
+  const out = [];
+  for (const id of Object.keys(CHOICES)) { const v = choiceOf(p, id), o = v && choiceOption(id, v); if (o?.lost) out.push(o.lost); }
   return out;
 }
 
@@ -481,7 +490,7 @@ export function tableState(p, { sector = null } = {}) {
   const radio = radioStrips(p, nb);
   const depot = meta.has('depot');
   const state = {
-    next: nb, opmap: meta.has('opmap'), piles, enemies, radio,
+    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p),
     intel: enemies && meta.has('opmap') ? intelNote(p, nb) : null,
     zones: depot && nb ? cardZones(p, nb.sector) : null,
     clipboard: depot ? { rp: meta.has('rp') ? p.rp : null, next: nb } : null,
