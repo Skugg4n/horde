@@ -4,7 +4,8 @@
 // följer banornas dagar. En bana utanför kampanjen (provbanorna) har inget nummer (null).
 import { MAPS } from '../data/maps.js';
 
-export const CAMPAIGN_MAPS = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];
+// 0.23.0 (H545): Björnlunda efter Mölnbo, dag 1 och 2 = kampanjens dag 11 och 12
+export const CAMPAIGN_MAPS = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda'];
 
 // Kampanjens dag för banans dag, eller null utanför kampanjen.
 export function campaignDayOf(mapId, day) {

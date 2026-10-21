@@ -25,7 +25,7 @@
 <div id="stage" class="grade"></div>
 <div class="vignette"></div>
 <div class="grain"></div>
-<script src="loadbar.js" data-name="Björnlunda" data-modules="23" data-share="0.3"></script>
+<script src="loadbar.js" data-name="Björnlunda" data-modules="24" data-share="0.3"></script>
 <div id="labels"></div>
 <div id="head" class="plate">
   <div class="t">BJÖRNLUNDA</div>
@@ -44,7 +44,7 @@ import { gridPath } from './src/data/osm-map.js';
 import { createScene } from './src/render/scene.js';
 import { gridOverlay } from './src/render/gnesta-world.js';
 import { buildOsmWorld, sketchOverlay } from './src/render/osm-world.js';
-import { icaStore, yellowBlock, wattHall, wattWing, sparbank, signedVilla, levelCrossing, oldStation, busStop } from './src/render/bjornlunda-kit.js';
+import { KIT } from './src/render/bjornlunda-world.js';
 mark('moduler');   // laddtiden (H502): moduler och kartans data klara
 
 // Förhandsvisningen har inget ljud; ?mute finns för att provkörningarna ska kunna säga det utan att något låter.
@@ -52,16 +52,7 @@ document.getElementById('ver').textContent = `Björnlunda ${BJORNLUNDA_VERSION} 
 const { renderer, scene, camera, sun, fill } = createScene(document.getElementById('stage'), map);
 sun.shadow.mapSize.set(4096, 4096);
 
-const KIT = {
-  ica: (b, M, o) => icaStore(b, M, o),
-  yellowBlock: (b, M, o) => yellowBlock(b, M, o),
-  wattHall: (b, M, o) => wattHall(b, M, o),
-  wattWing: (b, M, o) => wattWing(b, M, o),
-  sparbank: (b, M, o) => sparbank(b, M, o),
-  sternersborg: (b, M, o) => signedVilla(b, M, { ...o, facade: 'beige', roofColor: 'tile' }, 'Sternersborgs', 'choklad & glassbar', { bg: '#efe6d2', fg: '#5a2a1e' }),
-  pastor: (b, M, o) => signedVilla(b, M, { ...o, facade: 'yellow', roofColor: 'black' }, 'Daga församling', 'pastorsexpedition', { bg: '#e8e4d8', fg: '#2a3a52' }),
-  levelCrossing, oldStation, busStop,
-};
+// 0.23.0: landmärkena (KIT) bor i src/render/bjornlunda-world.js, delade med spelet
 // 0.20.0 (H502): mätaren (loadbar.js) följer stegen: världen, shaderprogrammen, första bildrutan
 const nextPaint = () => new Promise(r => requestAnimationFrame(() => r()));
 window.__loadbar?.step('Raising the houses', 0.05); await nextPaint();

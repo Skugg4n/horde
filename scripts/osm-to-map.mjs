@@ -688,6 +688,8 @@ function emit(cfg, d) {
   s.push(`//`);
   s.push(`// Krockar vid konverteringen: ${d.report.moved} hus flyttade, ${d.report.shrunk} krympta, ${d.report.dropped.length} strukna${d.report.dropped.length ? ' (' + d.report.dropped.join(', ') + ')' : ''}.`);
   s.push(`import { osmGrid } from './osm-map.js';`);
+  // 0.23.0: rutnätet räknas när någon läser det (src/data/lazy.js), så att kartan går att importera billigt (Björnlunda är en bana)
+  s.push(`import { lazy } from './lazy.js';`);
   s.push('');
   s.push(`export const ${UP}_VERSION = ${J(cfg.version)};`);
   s.push(`export const SOURCE = ${J(d.meta)};`);
@@ -732,7 +734,7 @@ function emit(cfg, d) {
   s.push(`  roads: ROADS, joins: JOINS, streams: STREAMS, rail: RAIL, ground: { ...GROUND, bounds: { x0: CRISP.x0 - 24, x1: CRISP.x1 + 24, z0: CRISP.z0 - 24, z1: CRISP.z1 + 24 }, ppm: 8 },`);
   s.push(`  buildings: BUILDINGS, parts: PARTS, streets: STREETS, gardens: GARDENS, props: PROPS, labels: LABELS, pois: POIS, sketch: SKETCH, surroundings: ${UP}_SURROUNDINGS,`);
   s.push(`};`);
-  s.push(`${NAME}.grid = osmGrid(${NAME}, GRID_BOUNDS);`);
+  s.push(`lazy(${NAME}, 'grid', () => osmGrid(${NAME}, GRID_BOUNDS));`);
   s.push('');
   return s.join('\n');
 }

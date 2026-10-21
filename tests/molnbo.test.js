@@ -437,7 +437,9 @@ test('sparfilen: Mölnbo dag 4 och 5 från före 0.20.0 räknas som Mölnbo klar
     assert.equal(mapState(q, 'molnbo').attempts[4], 2, 'försöken står kvar');
     assert.equal(m.get('horde.save'), JSON.stringify(old), 'filen skrivs inte över vid läsningen');
     if (day > 4) assert.equal(m.get('horde.save.days'), JSON.stringify(old), 'kopian');
-    assert.equal(q.op.units.length, old.op.units.length, 'inga enheter försvinner');
+    // 0.23.0 (H545): med Mölnbo klart öppnar Björnlunda och byns jägare (leveransen bl-1) kommer till
+    assert.ok(q.op.units.length >= old.op.units.length, 'inga enheter försvinner');
+    for (const u of old.op.units) assert.ok(q.op.units.some(x => x.uid === u.uid), 'inga enheter försvinner');
   }
 });
 

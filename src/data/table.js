@@ -57,6 +57,8 @@ export const SECTOR_TABLE = {
   riksvagen: { place: 'lastringe', current: [1010, 392], closed: [880, 456], day: [44, -38] },
   gnesta: { place: 'hagstumosse', current: [248, 318], closed: [588, 360], day: [22, -46] },
   molnbo: { place: 'molnbo', current: [248, 318], closed: [960, 168], day: [-14, -52] },
+  // 0.23.0 (H545)
+  bjornlunda: { place: 'bjornlunda', current: [248, 318], closed: [300, 120], day: [-30, -44] },
 };
 // en sektor utan rad ovan (en ny bana från en annan gren) får en ledig plats i tur och ordning
 export const SPARE_SLOTS = [[340, 96], [760, 470], [600, 120]];
@@ -67,7 +69,7 @@ export const INSET = null;
 // ---------- avsändarna ----------
 export const SENDERS = { FM: 'Försvarsmakten', MCF: 'MCF', 'Försvarsmakten': 'Försvarsmakten', 'P4 Sörmland': 'P4 Sörmland' };
 // mottagaren på ordern, per sektor
-export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta' };
+export const ADDRESSEE = { riksvagen: 'Commander, roadblock E4', gnesta: 'Commander, Gnesta', molnbo: 'Commander, Gnesta', bjornlunda: 'Commander, Björnlunda' };
 
 // ---------- radion (P4 Sörmland) ----------
 // Radioremsor som bordet visar när steget är nått, tills dagarnas eget fält finns (day.report med from 'P4 Sörmland').

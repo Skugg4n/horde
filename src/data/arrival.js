@@ -52,4 +52,22 @@ export const ARRIVAL_TROOP = {
       },
     },
   },
+  // 0.23.0 (H545): Björnlunda (kampanjens dag 11 och 12). Truppen och forskningen kartläsaren har efter Mölnbo dag 3
+  // (scripts/balance.mjs bjornlundaArrival: molnboCampaign('mbSmart'), seed 0), med byns jägare (leveransen bl-1). Dag 2:
+  // truppen kartläsaren går in med efter dag 1 (bjornlundaDayTroop). Provet i tests/bjornlunda.test.js säger till när
+  // tabellen inte längre stämmer med balansen. docs/balance-log.md, Björnlunda 0.23.0.
+  bjornlunda: {
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 4], ['m249', 2, null, 4], ['hv', 2, 3, 3], ['ksp58', 2, null, 3], ['m2', 1, null, 3],
+      ['ksp58', 2, null, 3], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['inf', 2, 5, 2], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3],
+      ['hv', 1, 4, 0], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
+    days: {
+      2: {
+        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 2, null, 4], ['m2', 1, null, 4],
+          ['ksp58', 2, null, 4], ['psg90', 2, null, 4], ['psg90', 2, null, 4], ['inf', 2, 5, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 4],
+          ['hv', 2, 5, 1], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['ksp58', 2, null, 0]],
+      },
+    },
+  },
 };

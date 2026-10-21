@@ -5,6 +5,8 @@ import { gnestaNorr } from './gnesta-norr.js';
 import * as E4 from './e4-lastringe.js';
 // 0.17.0-molnbo: sektorn Mölnbo (src/data/molnbo.js), efter Hagstumosse
 import { molnbo } from './molnbo.js';
+// 0.23.0 (H545): sektorn Björnlunda (src/data/bjornlunda-play.js), kampanjens dag 11 och 12, efter Mölnbo
+import { bjornlundaPlay } from './bjornlunda-play.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 
@@ -48,6 +50,7 @@ export const MAPS = {
   gnesta,
   'gnesta-norr': gnestaNorr,
   molnbo,
+  bjornlunda: bjornlundaPlay,
 };
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(MAPS.riksvagen, 'grid', () => timed('riksvagen:rutnät', () => E4.e4Grid()));

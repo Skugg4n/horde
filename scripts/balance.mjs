@@ -862,9 +862,11 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   return { ...rest, plan };
 }
 
+// Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
+const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled' };
 // 0.17.2 (debugmenyns Quick jump, Olas önskan): balanspolicyns uppställning på en dag som just startats, så att striden
 // kan börja direkt. Samma plan som playOpDay (skilled, på Mölnbo mbSmart): spärrarna, pjäserna, taken och lådorna.
-export function autoDeploy(sim, policy = sim.map.id === 'molnbo' ? 'mbSmart' : 'skilled') {
+export function autoDeploy(sim, policy = AUTO_POLICY[sim.map.id] ?? 'skilled') {
   const P0 = POLICIES[policy], map = sim.map, day = sim.day, T = TOWN[map.id], isTown = !!T;
   const P = { ...P0, plan: P0.planBy?.[map.id] ?? P0.plan };
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
@@ -1023,10 +1025,65 @@ export function mbPrints(log) {
   return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
 }
 
+// ---------- Björnlunda (0.23.0, H545) ----------
+// Kampanjens dag 11 och 12. Spelaren kommer från Mölnbo med det kartläsaren har efter uttåget (molnboCampaign('mbSmart'):
+// truppen, nivåerna, förrådets uppgraderingar och RP). Två spelare:
+//   blSkilled : läser kartan (skilled): spärrarna, pjäserna där de ser hordens väg, Psg 90 på taken, trupper i hus,
+//               förnödenheterna, och dag 2 täcker den de civilas väg (evacMap, farozonerna).
+//   blNormal  : den vanliga spelaren (normal): ställer pjäserna efter sin egen väg, spärrar som lektionerna säger,
+//               bemannar tysta pjäser igen, och följer evakueringens tips dag 2 (de föreslagna platserna).
+// Målet (H545): blNormal vinner varje dag inom 1 till 3 försök, blSkilled på första. docs/balance-log.md, Björnlunda.
+const BL_BLOCKS = [];
+// Förbifarten och Villavägen öster om byn (väg 57/223:s flank mot basen)
+const BL_EAST = { id: 'blEast', weight: (x, z) => (x > 30 && z < 100 ? 2 : 1) };
+TOWN.bjornlunda = {
+  blocks: () => BL_BLOCKS,
+  // kartläsaren möter dem dag 1 tidigt på gatorna (near < 0). Dag 2 håller den förbifarten (väg 57/223 öster om byn) som en
+  // egen flank (de tre ingångarna i väster och söder går samma väg över plankorsningen och väger annars mest) och linjen
+  // närmare basen, dit de civila går.
+  planOpts: (day, policy) => (policy !== 'smart' ? { roofs: 3, near: 0 } : day === 2 ? { roofs: 3, near: 0.3, focus: BL_EAST } : { roofs: 3, near: -0.3 }),
+  kits: [0, 2, 3], roofsDay: [0, 3, 3], maxTicks: 30 * 1200,
+};
+HV_POLICY.bjornlunda = { days: [], gap: [] };
+REQUISITION.bjornlunda = ['lvl:civ:2', 'unit:civ:4', 'lvl:hv:2', 'lvl:m249:2', 'unit:ksp58:6', 'lvl:ksp58:3', 'unit:inf:3', 'lvl:inf:2', 'unit:m249:6', 'lvl:psg90:3', 'lvl:m2:3'];
+// 0.23.0 (balansarbetet, docs/balance-log.md Björnlunda): förnödenheterna (ammunition, sandsäckar) och djupets verb fullt ut
+// (garnisonen, sikta på de starkaste) gav här SÄMRE utfall än utan, för samma trupp (mätt: skilled förlorade dag 1 där
+// normal vann). Kartläsaren här är den som läser kartan (smart plan) och bemannar tysta pjäser igen, utan de köpen.
+POLICIES.blSkilled = { plan: 'smart', blocks: true, early: false, supplies: false, rest: true, depth: 'recrew', evacMap: true };
+POLICIES.blNormal = { ...POLICIES.normal, evacMap: true };
+// Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed).
+const blArrival = new Map();
+export function bjornlundaArrival(seedOffset = 0) {
+  if (!blArrival.has(seedOffset)) blArrival.set(seedOffset, molnboCampaign('mbSmart', { seedOffset }).progress);
+  return blArrival.get(seedOffset);
+}
+export function bjornlundaCampaign(policy = 'blSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond });
+}
+// Truppen kartläsaren går in i Björnlunda dag 2 med (src/data/arrival.js ARRIVAL_TROOP.bjornlunda.days, Quick jump)
+export function bjornlundaDayTroop(day, policy = 'blSkilled', seedOffset = 0) {
+  return opCampaign(policy, { seedOffset, maxAttempts: 6, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), until: { mapId: 'bjornlunda', day } }).progress;
+}
+export const BL_STEPS = MAPS.bjornlunda.days.map(d => `bjornlunda ${d.n}`);
+export const blAttempts = log => BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'bjornlunda' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+export function blPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  return Object.fromEntries(BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'bjornlunda' && r.day === d).map(strip)))]; }));
+}
+
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
-if (IS_MAIN && process.argv[2] === 'molnbo') {
+if (IS_MAIN && process.argv[2] === 'bjornlunda') {
+  for (const policy of process.argv[3] ? [process.argv[3]] : ['blSkilled', 'blNormal']) {
+    console.log(`\n=== Björnlunda, ${policy} ===`);
+    console.log('seed  ' + BL_STEPS.map(s => 'B' + s.split(' ')[1]).join(' ') + '   peak');
+    const runs = SEEDS.map(seedOffset => bjornlundaCampaign(policy, { seedOffset, maxAttempts: 6 }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${blAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}${r.stuck ? `  fast: dag ${r.stuck.day}` : ''}`));
+    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} dag ${x.day} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} topp ${x.peak} -${x.lostMen}/${x.lostUnits}${x.evac ? ` civ ${x.evac.safe}/${x.evac.lost}` : ''}  ${x.force}`);
+  }
+} else if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {
     console.log(`\n=== Mölnbo, ${policy} ===`);
     console.log('seed  ' + MB_STEPS.map(s => 'M' + s.split(' ')[1]).join(' ') + '   peak');

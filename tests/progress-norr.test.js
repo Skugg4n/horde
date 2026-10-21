@@ -13,8 +13,9 @@ test('menyn har banorna i ordning: E4, Gnesta, Gnesta Norr med en dag (0.22.0)',
   // 0.11.0: sektornamnen (Olas önskan), id:na oförändrade
   // 0.16.0 (Olas beslut): Gnesta South och North är faserna Ishallen och Vikingavägen av sektorn Hagstumosse
   // 0.17.0-molnbo: Mölnbo efter Hagstumosse (tests/molnbo.test.js)
-  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Hagstumosse · Ishallen', 'Hagstumosse · Vikingavägen', 'Mölnbo · Stationen']);
-  assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo']);
+  // 0.23.0 (H545): Björnlunda efter Mölnbo (tests/bjornlunda.test.js)
+  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Hagstumosse · Ishallen', 'Hagstumosse · Vikingavägen', 'Mölnbo · Stationen', 'Björnlunda · Wattrangsborg']);
+  assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda']);
   // 0.22.0 (H539, kampanjbågen dag 7): Vikingavägen är en dag
   assert.equal(MAPS['gnesta-norr'].days.length, 1);
   for (const d of MAPS['gnesta-norr'].days) {

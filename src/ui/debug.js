@@ -8,7 +8,7 @@ import { money } from './format.js';
 
 const CLICKS = 5, CLICK_WINDOW = 1600;   // fem klick inom 1,6 s
 // 0.17.2: Quick jump, korta namn på knapparna
-const QUICK_NAME = { riksvagen: 'E4', gnesta: 'Ishallen', 'gnesta-norr': 'Vikingav.', molnbo: 'Mölnbo' };
+const QUICK_NAME = { riksvagen: 'E4', gnesta: 'Ishallen', 'gnesta-norr': 'Vikingav.', molnbo: 'Mölnbo', bjornlunda: 'Björnl.' };
 const RULES = [
   ['hp', 'Zombie hp ×'], ['speed', 'Zombie speed ×'], ['count', 'Spawn count ×'],
   ['cash', 'Supplies income ×'], ['intel', 'RP income ×'],

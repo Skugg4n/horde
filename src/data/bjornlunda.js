@@ -8,6 +8,7 @@
 //
 // Krockar vid konverteringen: 176 hus flyttade, 22 krympta, 9 strukna (barn 354962936, industrial 255752777, row 255752801, villa 354962941, farm 354962641, villa 255752803, shed 354962713, shed 354962777, shed 354962813).
 import { osmGrid } from './osm-map.js';
+import { lazy } from './lazy.js';
 
 export const BJORNLUNDA_VERSION = "0.2.0";
 export const SOURCE = {"place":"bjornlunda","name":"Björnlunda","version":"0.2.0","scale":0.5,"buildingScale":0.72,"crop":{"x0":-310,"x1":250,"y0":-330,"y1":345},"osm_base":"2026-10-18T11:07:36Z","license":"(c) OpenStreetMap contributors, ODbL","planOrigin":[-30,7.5]};
@@ -645,4 +646,4 @@ export const bjornlunda = {
   roads: ROADS, joins: JOINS, streams: STREAMS, rail: RAIL, ground: { ...GROUND, bounds: { x0: CRISP.x0 - 24, x1: CRISP.x1 + 24, z0: CRISP.z0 - 24, z1: CRISP.z1 + 24 }, ppm: 8 },
   buildings: BUILDINGS, parts: PARTS, streets: STREETS, gardens: GARDENS, props: PROPS, labels: LABELS, pois: POIS, sketch: SKETCH, surroundings: BJORNLUNDA_SURROUNDINGS,
 };
-bjornlunda.grid = osmGrid(bjornlunda, GRID_BOUNDS);
+lazy(bjornlunda, 'grid', () => osmGrid(bjornlunda, GRID_BOUNDS));

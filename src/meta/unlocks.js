@@ -68,6 +68,10 @@ export const STAGES = [
   { id: 'mb-1', map: 'molnbo', day: 1, adds: ['rout', 'unitSupplies', 'garrison'] },
   { id: 'mb-2', map: 'molnbo', day: 2, adds: ['holdFire', 'target'] },
   { id: 'mb-3', map: 'molnbo', day: 3, adds: ['train', 'overrun'] },
+  // 0.23.0 (H545): Björnlunda är en befästning av det man kan (kampanjplanen avsnitt 10): inget nytt begrepp. Dag 2 är
+  // Hagstumosses evakuering igen, nu med horden från två håll.
+  { id: 'bl-1', map: 'bjornlunda', day: 1, adds: [] },
+  { id: 'bl-2', map: 'bjornlunda', day: 2, adds: [] },
 ];
 export const ALL_FEATURES = [...new Set(STAGES.flatMap(s => s.adds))];
 export const stageIndex = id => STAGES.findIndex(s => s.id === id);

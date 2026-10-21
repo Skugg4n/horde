@@ -526,7 +526,7 @@ export function debugDepot(p, preset, list = []) {
 // Hoppa till en sektor och dag (debugmenyn): banorna före räknas som klara och sektorns dagar före
 // som vunna, så att leveranserna och trupperna är där en spelare som kommit dit har dem.
 export function debugReach(p, mapId, day, fresh = false) {
-  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo'];
+  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'bjornlunda'];
   const maps = { ...p.maps };
   for (const id of order) {
     if (id === mapId) break;

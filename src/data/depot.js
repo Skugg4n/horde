@@ -30,6 +30,8 @@ export const SECTORS = [
   { id: 'centrum', name: 'Gnesta Centrum', short: 'Centrum', x: 0.49, y: 0.21, placeholder: true },
   // 0.17.0-molnbo: Mölnbo är en riktig sektor (src/data/molnbo.js), öppnar efter Hagstumosse · Vikingavägen (0.22.0: en dag)
   { id: 'molnbo', name: 'Mölnbo', full: 'Mölnbo · Stationen', short: 'Mölnbo', x: 0.62, y: 0.15, maps: ['molnbo'] },
+  // 0.23.0 (H545): Björnlunda (src/data/bjornlunda-play.js), öppnar efter Mölnbo dag 3
+  { id: 'bjornlunda', name: 'Björnlunda', full: 'Björnlunda · Wattrangsborg', short: 'Björnlunda', x: 0.30, y: 0.22, maps: ['bjornlunda'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
@@ -143,6 +145,16 @@ export const RELEASES = [
     text: 'We cannot hold Mölnbo. Hold it as long as the clock says, then pull back to Gnesta.',
     grant: [{ type: 'inf' }], stock: { psg90: 1, m2: 1, inf: 1 },
     ups: { budget: 3, ak5: 3, hvRifles: 3, hvSquad: 2, hvVeterans: 2 } },
+  // ---------- Björnlunda (0.23.0, H545) ----------
+  // Kampanjbågen dag 11 och 12. Mölnbo är släppt; horden går runt Gnesta västerut. Truppen som kom ut ur Mölnbo följer
+  // med (adopt). Ledningen har inga bra trupper att skicka hit: byns jägare (två frivilliga grupper) och inget mer.
+  // Laxne-valet (kampanjplanen, beslut 2026-10-20) ska ligga före den här leveransen; inte byggt (src/data/bjornlunda-play.js).
+  { id: 'bl-1', map: 'bjornlunda', day: 1, from: 'FM', adopt: true,
+    text: 'They are turning west round Gnesta, at Björnlunda. No good troops to send. Hunters from the village join you.',
+    grant: [{ type: 'civ', count: 2, level: 2 }], unlock: [...NORTH_ALL, 'inf'], stock: { civ: 1, m249: 1 } },
+  { id: 'bl-2', map: 'bjornlunda', day: 2, from: 'MCF',
+    text: 'People are still in their houses west of Wattrangsborg. Get them out before the south side falls.',
+    stock: { ksp58: 1, inf: 1 } },
 ];
 export const releaseOf = id => RELEASES.find(r => r.id === id) ?? null;
 export const FROM_NAME = { FM: 'Försvarsmakten', MCF: 'Myndigheten för civilt försvar' };
