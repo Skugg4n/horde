@@ -17,6 +17,15 @@ export function campaignDayOf(mapId, day) {
   return null;
 }
 
+// 0.22.1 (speltestet av 0.22.0, fynd 1: resultatrutan sa "Day 1 held." under HUD:ens DAY 04): dagnumret spelaren
+// ser, överallt (HUD, intro, resultat, bordets blad, menyn). Dagens eget campaignDay går före (kroken), sedan
+// kampanjens räkning, och utanför kampanjen banans egen dag.
+export function shownDay(mapId, day) {
+  const own = MAPS[mapId]?.days?.[day - 1]?.campaignDay;
+  if (Number.isInteger(own) && own > 0) return own;
+  return campaignDayOf(mapId, day) ?? day;
+}
+
 // Kampanjens dag för framsteget: banan som spelas (progress.mapId) och dess nästa dag (den första som inte är vunnen,
 // högst banans sista), eller day om den anges.
 export function campaignDay(progress, mapId = progress?.mapId, day = null) {

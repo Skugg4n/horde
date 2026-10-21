@@ -1,7 +1,7 @@
 // HUD: dag, våg, kvar, pengar, basen, knappen som startar vågen och raden under vågen
 // (kvar och Snabbare). Plus det som visas när något händer: basen tar skada, horden kommer,
 // vad vågen består av.
-import { campaignDayOf } from '../meta/campaign-day.js';
+import { campaignDayOf, shownDay } from '../meta/campaign-day.js';
 import { placeShort } from '../meta/table.js';
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
@@ -214,7 +214,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const c = waveCounts(sim);
     // 0.21.3 (H539): kampanjens dag stort, banan och dess dag smått under ("Mölnbo · 2")
     const cd = campaignDayOf(sim.map.id, sim.day);
-    set(el.day, String(cd ?? sim.day).padStart(2, '0'));
+    set(el.day, String(shownDay(sim.map.id, sim.day)).padStart(2, '0'));
     set(el.where, cd != null ? `${placeShort(sim.map.id)} · ${sim.day}` : '');
     set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.

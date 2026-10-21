@@ -95,7 +95,10 @@ export const LESSONS = {
   // grupperna (kampanjplanen: "betongfundament och bilar för att styra om grupperna"); de vilande husen (förut Ishallen
   // dag 4) och pingen (förut dag 2) kommer när de syns.
   'gnn-1': [
-    { id: 'gnn-1.cars', kind: 'step', when: 'start', done: 'obstacle:car|obstacle:block', target: { ui: '#buildbar .card[data-id="car"]' }, text: 'Three roads. Concrete and junk cars turn them toward your guns.', manual: 'cars' },
+    // 0.22.1 (speltestet av 0.22.0, fynd 4: bilen gav ingen synlig ruttändring): steget pekar på gatan där bilarna vänder
+    // första vågen (dayCfg.carSpot), och pilarna visar den nya vägen när bilarna står
+    { id: 'gnn-1.cars', kind: 'step', when: 'start', done: 'obstacle:car|obstacle:block', target: { world: 'carSpot' }, text: 'Three roads. Junk cars here turn the south group around.', manual: 'cars' },
+    { id: 'gnn-1.reroute', kind: 'show', when: 'obstacle:car', wait: false, target: { world: 'route' }, text: 'New route. They walk around the cars.' },
     { id: 'gn-3.door', kind: 'show', when: 'start', target: { world: 'dormant' }, text: 'Red door: infected inside. They burst out with the wave.', manual: 'dormant' },
     { id: 'gnn-2.ping', kind: 'show', when: 'ping', target: { ui: '#minimap' }, text: 'A ping means trouble. Click it to look.', manual: 'pings' },
     { id: 'gn-4.via', kind: 'caption', when: 'moving', target: { world: 'pointer' }, text: 'Shift-click: waypoints' },

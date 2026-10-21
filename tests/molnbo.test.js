@@ -543,7 +543,8 @@ test('hoppet till Mölnbo dag 2 och 3 har kartläsarens trupp den dagen', () => 
 // med flera), dag 2 hp 20 till 15 och dag 3 27 till 25. docs/balance-log.md 0.22.0.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'bd69454f', 'molnbo 2': 'e33f91c4', 'molnbo 3': 'd496490c' });
+  // 0.22.1: mbSmart nytt avsiktligt (dag 1 halva förnödenheterna per dödad, bounty 0,5); utfallen som förut
+  assert.deepEqual(pr(smart), { 'molnbo 1': '5dfecc8d', 'molnbo 2': 'd825f47f', 'molnbo 3': '6b02e86f' });
   assert.deepEqual(pr(naive), { 'molnbo 1': '8bae3ad7', 'molnbo 2': '6d627559', 'molnbo 3': '429ae660' });
 });
 

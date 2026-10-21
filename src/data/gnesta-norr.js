@@ -555,7 +555,11 @@ export const DAYS = [
   // Sigtunavägen), syd (skogsvägen) och nord (Vikingavägen); större än någon av de fem gamla dagarna. Dagens begrepp är
   // betongen och skrotbilarna som styr om dem (src/data/lessons.js gnn-1). Vågorna efter gamla dag 5 utan kryparna
   // (de kommer på Mölnbo dag 2) och med en fjärde grupp västerifrån; hp efter den mindre truppen (docs/balance-log.md 0.22.0).
-  { n: 1, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 3.75, overlap: 60, intro: { title: 'Day 1: Three roads', text: 'West, south and north at once. Turn them with concrete and cars.' },
+  // 0.22.1 (speltestet av 0.22.0, fynd 4: kameran började i skogen vid södra infarten utan bas i bild): dagen börjar
+  // utzoomad med basen och de tre infarterna (norr på Vikingavägen, söder på skogsvägen, väster på Sigtunavägen) i bild
+  // carSpot: där lektionens skrotbilar vänder första vågen (skogsvägen söderifrån går runt kvarteret, 48 rutor längre)
+  // 0.22.1 (speltestet av 0.22.0, fynd 5: 2 400 till 2 500 $ över): en fjärdedel av förnödenheterna per dödad (bounty 0,25)
+  { n: 1, view: { pts: [[-74, 8], [27, -57], [33, 37], [-113, 11]] }, carSpot: [39, 37], bounty: 0.25, supplies: 600, arsenal: NORR_ARSENAL, startCash: 2350, hp: 3.75, overlap: 60, intro: { title: 'Day 1: Three roads', text: 'West, south and north at once. Turn them with concrete and cars.' },
     dormant: [{ house: 'B2-01', street: 'Sigtunavägen', count: 5, type: 'walker', wave: 0 }, { house: 'N-12', street: 'Vikingavägen', count: 5, type: 'walker', wave: 1 },
       { house: 'B3-02', count: 4, type: 'walker', wave: 3, delay: 45, intel: false }, { house: 'B3-02', count: 2, type: 'brute', wave: 3, delay: 48, intel: false }],
     waves: [ say('Up the forest road from the south.', { groups: [g('walker', 10, 0.7, 0, 'forest', 30), g('runner', 4, 0.9, 6, 'forest')] }),
@@ -588,7 +592,8 @@ export const gnestaNorr = {
   // Hemma: Vikingavägens nedre del och radhusen, där horden kommer in dag 1. Rinken ligger i
   // sydväst och nås med panorering.
   // intro (0.10.1): sekunder för svepet från ingången i norr till basen när dagen börjar (main.js).
-  camera: { target: [8, -62], view: 58, zoom: [24, 84], pan: { x0: -100, x1: 96, z0: -176, z1: 66 }, intro: 4.5 },
+  // 0.22.1: längst ut 96 m (var 84), så att Vikingavägens tre infarter och basen ryms i en bild
+  camera: { target: [8, -62], view: 58, zoom: [24, 96], pan: { x0: -100, x1: 96, z0: -176, z1: 66 }, intro: 4.5 },
   shadowBounds: { x0: -118, x1: 98, z0: -180, z1: 82 },
   roads: ROADS, roundabout: ROUNDABOUT, iceRink: ICE_RINK, parking: PARKING, sporthall: SPORTHALL, ground: GROUND,
   lots: LOTS, cars: CARS, playground: PLAYGROUND, labels: LABELS, spawns: SPAWNS, base: BASE, surroundings: SURROUNDINGS,

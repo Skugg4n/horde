@@ -1503,3 +1503,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #ui .hub .tb-dog { position: absolute; right: 0; bottom: 0; width: 120px; height: 34px; border: 0; padding: 0; cursor: pointer; background: linear-gradient(135deg, transparent 48%, #b9ad94 50%, #cfc3a6 100%); }
 #ui .hub .tb-dog span { position: absolute; right: 26px; bottom: 6px; font: italic 600 14px Oswald, sans-serif; color: #5a5040; }
 .hub .tb-roster .pg > *, .hub .tb-stores .pg > * { flex: none; }
+
+/* 0.22.1 (speltestet av 0.22.0, fynd 5): osparade RP när Deploy trycks; klämbrädan lyfts en gång */
+.hub .tb-roster.lifted { --z: 70 !important; filter: drop-shadow(0 18px 22px rgba(0,0,0,.45)); }
+.hub .tb-roster .pg > .tb-nudge { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 5; padding: 10px; border: 1px dashed #8a3a20; background: #efe4c8; box-shadow: 0 -6px 14px rgba(34,29,22,.25); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hub .tb-roster .tb-nudge p { flex: 1 1 100%; margin: 0; font: 600 16px Oswald, sans-serif; color: #8a3a20; }
+.hub .tb-roster .tb-nudge .tb-btn { margin: 0; }

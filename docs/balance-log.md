@@ -1324,3 +1324,12 @@ Fingeravtrycken:
 - skilled: gnesta 3 c772668d, gnesta-norr 1 795bf800 (övriga oförändrade)
 - mbSmart bd69454f, e33f91c4, d496490c; mbNaive 8bae3ad7, 6d627559, 429ae660
 - simuleringens kvitto: Gnesta South day 3 63fd5a37 (bjässarna; den fasta styrkan vinner med full bas), Gnesta North day 1 4393a798 (förut day 2 dabfdccd; förlorar i första vågen som förut)
+
+## 0.22.1: förnödenheterna dag 7 och 8 (speltestet av 0.22.0, fynd 5)
+
+Testaren hade 2 412 och 2 537 $ över på Vikingavägen. Förnödenheterna per dödad: Vikingavägen bounty 0,25 (var 1), Mölnbo dag 1 bounty 0,5 (var 1).
+
+    Vikingavägen  skilled 374 till 382 $ över (var 2 102), normal 537 till 622 (var 2 367); utfallen oförändrade (seed 0 till 2)
+    Mölnbo dag 1  mbSmart 99 $ över (var 107), mbNaive 469 (var 717); utfallen oförändrade
+
+Fingeravtrycken: Hagstumosse oförändrade (överskottet räknas inte in). mbSmart nya avsiktligt: 5dfecc8d, d825f47f, 6b02e86f (samma baser och försök, sekunder skiljer). mbNaive oförändrade.

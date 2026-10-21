@@ -789,7 +789,8 @@ const TROLL_HOUSE = (() => {
 // och en vy, eller punkter (pts) som ska vara i bild.
 const VIEW = (u, v, view) => { const [x, z] = R(u, v); return { x, z, view }; };
 export const DAYS = [
-  { n: 1, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16,
+  // 0.22.1 (speltestet av 0.22.0, fynd 5: pengar i överflöd från dag 7): halva förnödenheterna per dödad
+  { n: 1, bounty: 0.5, supplies: 600, arsenal: ALL, startCash: 2200, hp: 16,
     // 0.20.1 (speltestet av 0.20.0: "Hold the bridge" fick testaren att ställa allt vid bron; de civila dog uppe vid husen)
     intro: { title: 'Day 1: Cover the north side', text: 'From Järna. Cover the north side. Civilians cross the bridge behind you.' },
     objective: 'Get the north side over the bridge.',

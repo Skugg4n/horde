@@ -13,7 +13,7 @@
 //
 // Sparfilen: progress.table = { layout: { [objekt-id]: { x, y } }, log: { 'bana:dag': { kills, waves, lost, saved } } }.
 // Fältet är valfritt (äldre v4-filer saknar det) och tvättas av normalizeTable; inget annat i sparfilen rörs.
-import { campaignDayOf } from './campaign-day.js';
+import { campaignDayOf, shownDay } from './campaign-day.js';
 import { MAPS } from '../data/maps.js';
 import { SECTORS, RELEASES, poolOf } from '../data/depot.js';
 import { ENEMIES } from '../data/lessons.js';
@@ -22,7 +22,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE, TABLE_W, TABLE_H } from '../data/table.js';
 import { mapState, mapUnlocked } from './progress.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList } from './operation.js';
+import { openSectors, currentMap, sectorStatus, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -83,10 +83,7 @@ export function recordLoss(p, { mapId, day, kills = 0, cleared = 0, waves = 0, l
 // dag, samma nummer som överallt. Kroken för kampanjbågens numrering: day.campaignDay går före när en bana har det.
 export const CAMPAIGN = STAGES.filter(s => s.map).map(s => ({ map: s.map, day: s.day }));
 // 0.21.3 (H539): kampanjens dag (src/meta/campaign-day.js), som HUD:en och introt; utanför kampanjen banans egen dag.
-export function campaignDay(mapId, day) {
-  const own = MAPS[mapId]?.days?.[day - 1]?.campaignDay;
-  return Number.isInteger(own) && own > 0 ? own : campaignDayOf(mapId, day) ?? day;
-}
+export const campaignDay = (mapId, day) => shownDay(mapId, day);
 // Index i kampanjens ordning (för att sortera), -1 utanför schemat
 export const campaignIndex = (mapId, day) => CAMPAIGN.findIndex(c => c.map === mapId && c.day === day);
 // Dagen före i kampanjen (den senast vunna när (map, day) är nästa strid), eller null
@@ -416,6 +413,18 @@ export function storeList(p) {
     return { id: st.id, name: st.id === 'budget' ? 'Supply budget' : st.node.name, tier, cost: st.cost, ok: !!st.ok, bought, need: st.need ?? null,
       effect: st.id === 'budget' ? 'More supplies every day.' : (t.effect ?? '') };
   });
+}
+
+// 0.22.1 (speltestet av 0.22.0, fynd 5: dag 6 spelades med 1 043 RP osparade): RP som räcker till det billigaste
+// spelaren kan köpa mellan dagarna i sektorn (förrådets uppgraderingar och en nivå på en egen enhet). null = inget att
+// påminna om (förrådet inte öppet, eller RP räcker inte till något).
+export function spendNudge(p, sector) {
+  if (!metaFeatures(p).has('levels')) return null;
+  const costs = storeList(p).filter(u => u.ok).map(u => u.cost);
+  for (const u of unitsIn(p, sector)) if (levelUp(p, u.uid).ok) costs.push(p.rp - levelUp(p, u.uid).progress.rp);
+  if (!costs.length) return null;
+  const cheapest = Math.min(...costs);
+  return p.rp >= cheapest ? { rp: p.rp, cheapest } : null;
 }
 
 // ---------- bordet som helhet ----------

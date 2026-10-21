@@ -308,6 +308,54 @@ async function tableChecks(page, label) {
   }
   await ev(seen);
   await run('table-lessons');
+  // 0.22.1 (speltestet av 0.22.0, fynd 2 och 3): förrådets lapp över Stores. Ett klick mitt på lappen stänger den och
+  // inget annat (RP och nivåerna står kvar); Enter stänger lappen men startar inte dagen; Esc lägger undan den osedd.
+  const noteSetup = `const L = await import('/src/data/lessons.js'); p = { ...p, rp: 2000, lessons: { seen: Object.values(L.LESSONS).flat().map(l => l.id).filter(id => id !== 'after-gn-4.up'), mode: 'on', read: [] } };`;
+  const waitNote = async () => { for (let i = 0; i < 20 && await ev('window.__horde.lesson') !== 'after-gn-4.up'; i++) await page.waitForTimeout(200); return ev('window.__horde.lesson'); };
+  await show(reach('gnesta-norr', 1, noteSetup), 'table-note', { lessons: true, audit: false });
+  if (await waitNote() !== 'after-gn-4.up') errors.push(`table-note @${label}: lappen om Stores kom inte`);
+  else {
+    const before = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
+    const c = await ev(`(() => { const r = document.querySelector('#coach .cplate').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    const under = await ev(`(() => { document.querySelector('#coach').style.visibility = 'hidden'; const n = document.elementFromPoint(${c[0]}, ${c[1]}); document.querySelector('#coach').style.visibility = ''; return n?.closest('[data-up], [data-req], [data-a], [data-box], [data-pm]') ? n.outerHTML.slice(0, 60) : null; })()`);
+    await page.mouse.click(c[0], c[1]);
+    await page.waitForTimeout(500);
+    const after = await ev(`(() => { const p = window.__horde.progress; return JSON.stringify([p.rp, p.research, p.op.units.map(u => u.level)]); })()`);
+    if (after !== before) errors.push(`table-note @${label}: klicket på lappen gick igenom till ${under ?? 'bordet'}`);
+    if (await ev('window.__horde.lesson')) errors.push(`table-note @${label}: klicket stängde inte lappen`);
+    if (!under) errors.push(`table-note @${label}: inget klickbart under lappen (provet prövar inget)`);
+  }
+  await show(reach('gnesta-norr', 1, noteSetup), 'table-note-enter', { lessons: true, audit: false });
+  if (await waitNote() === 'after-gn-4.up') {
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    if (await ev(`window.__horde.lesson || window.__horde.progress.lessons.seen.includes('after-gn-4.up')`)) errors.push(`table-note-esc @${label}: Esc räknade lappen som sedd`);
+    await ev(`window.__horde.showTable()`);
+    if (await waitNote() !== 'after-gn-4.up') errors.push(`table-note-esc @${label}: lappen kom inte tillbaka`);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(400);
+    if (await ev('window.__horde.mode') !== 'opmap') errors.push(`table-note-enter @${label}: Enter på lappen startade dagen`);
+    if (await ev('window.__horde.lesson')) errors.push(`table-note-enter @${label}: Enter stängde inte lappen`);
+    // 0.22.1 (fynd 5): RP kvar när Deploy trycks: klämbrädan lyfts en gång med raden och två val
+    await page.keyboard.press('Enter'); await page.waitForTimeout(400);
+    const nudge = await ev(`document.querySelector('#hub .tb-nudge')?.textContent ?? ''`);
+    if (!/You have \d+ RP\. Spend it\?/.test(nudge) || await ev('window.__horde.mode') !== 'opmap') errors.push(`table-nudge @${label}: ingen påminnelse om RP ("${nudge}")`);
+    else {
+      // lappen ligger över rullans rader med avsikt; dess egna knappar ska gå att träffa
+      const hit = await ev(`[...document.querySelectorAll('#hub .tb-nudge button')].every(b => { const r = b.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('button') === b; })`);
+      if (!hit) errors.push(`table-nudge @${label}: knapparna på påminnelsen går inte att träffa`);
+    }
+    await page.keyboard.press('Enter');
+    // banan laddas innan dagen börjar (i stora fönster kan det ta några sekunder)
+    await page.waitForFunction(() => window.__horde.mode === 'intro' || window.__horde.mode === 'play', null, { timeout: 20000 }).catch(() => {});
+    if (await ev('window.__horde.mode') === 'opmap') errors.push(`table-nudge @${label}: Deploy anyway startade inte dagen`);
+    await page.waitForTimeout(500);
+  } else errors.push(`table-note-enter @${label}: lappen om Stores kom inte`);
+  // 0.22.1: rullans andra blad med 24 enheter (fyra på blad 2)
+  await show(reach('molnbo', 1, `const n = 24 - O.unitsIn(p, 'molnbo').length; p = { ...p, op: { ...p.op, units: [...p.op.units, ...Array.from({ length: Math.max(0, n) }, (_, i) => ({ uid: 970 + i, type: i % 2 ? 'm249' : 'hv', level: 1, sector: 'molnbo', wins: 0, spent: 0, granted: true, ...(i % 2 ? {} : { men: 4 }) }))] } };`), 'table-roster-24');
+  const tab2 = await ev(`(() => { const b = [...document.querySelectorAll('#hub .tb-roster [data-page]')].find(x => /sheet 2/.test(x.textContent)); if (b) b.click(); return !!b; })()`);
+  await page.waitForTimeout(400);
+  const rows2 = await ev(`document.querySelectorAll('#hub .tb-roster .tb-row[data-uid]').length`);
+  if (!tab2 || rows2 !== 4) errors.push(`table-roster-24 @${label}: blad 2 ${tab2 ? `har ${rows2} rader` : 'saknas'}`);
+  else await run('table-roster-24-sheet2');
   // 0.21.2: fönstret ändras med bordet öppet: ny layout, klämbrädan ryms (speltestet av 0.21.1, fynd 1)
   await show(reach('gnesta', 3), 'table-resize-base');
   const vp = page.viewportSize();
@@ -466,6 +514,26 @@ async function run() {
       if (!r.texts) errors.push(`${scope} @${W}: ingen text i HUD:en`);
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${scope}-${W}.png` });
     };
+    // 0.22.1 (speltestet av 0.22.0, fynd 4): Vikingavägen börjar utzoomad med basen och de tre infarterna i bild, skylten
+    // står vid sin ingång (inte vid skärmkanten när ingången syns), och bilarna på lektionens plats ger en ny väg
+    await ev(`(async () => { const H = window.__horde, L = await import('/src/data/lessons.js'); H.setProgress({ ...H.progress, lessons: { ...H.progress.lessons, seen: Object.values(L.LESSONS).flat().map(l => l.id).filter(id => id !== 'gnn-1.cars') } }); await H.jump('gnesta-norr', 1); })()`);
+    await page.waitForTimeout(2500);
+    const v7 = await ev(`(() => { const H = window.__horde, pr = ([x, z]) => { const v = H.camera.position.clone().set(x, 0, z).project(H.camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
+      const pts = H.sim.dayCfg.view.pts.map(pr), car = pr(H.sim.dayCfg.carSpot);
+      return { out: pts.filter(([x, y]) => x < 0 || y < 0 || x > innerWidth || y > innerHeight).length, lesson: H.lesson, car, coach: !!document.querySelector('#coach:not([hidden]) .marks:not([hidden])') }; })()`);
+    if (v7.out) errors.push(`hud-vik-camera @${W}: ${v7.out} av basen och infarterna utanför bild`);
+    if (v7.lesson !== 'gnn-1.cars' || !v7.coach) errors.push(`hud-vik-cars @${W}: lektionen pekar inte på bilarnas plats (${v7.lesson})`);
+    await checkHud('hud-vik-1-lesson');
+    const route = await ev(`(async () => { const H = window.__horde, S = await import('/src/sim/sim.js'), sim = H.sim, [x, z] = sim.dayCfg.carSpot;
+      const len = () => (H.nowPaths ?? []).map(q => q.cells.length).join(',');
+      const before = len(), r = S.placeAcross(sim, sim.route.cellAt(x, z), 'car');
+      await new Promise(f => setTimeout(f, 600));
+      return { ok: r.ok, reason: r.reason ?? null, before, after: len(), lesson: H.lesson, shown: !!H.scene.getObjectByName('route-now')?.visible || [...H.scene.children].some(o => /^route-/.test(o.name) && o.visible) }; })()`);
+    if (!route.ok || route.before === route.after || !route.shown) errors.push(`hud-vik-route @${W}: bilarna gav ingen synlig ny väg (${JSON.stringify(route)})`);
+    for (let i = 0; i < 8 && await ev('!!window.__horde.lesson'); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); }
+    await ev(`(() => { const b = document.querySelector('.pausesheet [data-item="resume"] button'); if (b) b.click(); })()`);
+    const entry = await ev(`[...document.querySelectorAll('.entry')].filter(e => !e.hidden).map(e => e.classList.contains('edge') ? 'edge' : 'world').join(',')`);
+    if (W >= 1440 && /edge/.test(entry)) errors.push(`hud-vik-entry @${W}: skylten står vid skärmkanten fast ingången syns (${entry})`);
     await ev(`window.__horde.setProgress({ ...window.__horde.progress, lessons: undefined })`);
     await ev(`(async () => { const H = window.__horde; await H.jump('molnbo', 1); })()`);
     await checkHud('hud-molnbo-1-lesson');

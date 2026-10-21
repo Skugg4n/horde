@@ -11,6 +11,7 @@ import { WEAPONS } from '../data/weapons.js';
 import { SECTORS, UNIT_RP, FROM_NAME, SUPPLY_BUDGET, poolOf } from '../data/depot.js';
 import { ROMAN } from '../data/research.js';
 import { mapState } from '../meta/progress.js';
+import { shownDay } from '../meta/campaign-day.js';
 import { barsHtml } from './statbars.js';
 import { FATIGUE } from '../sim/sanity.js';
 import { sectorStatus, pressureOf, PRESSURE_MAX, PRESSURE_HP, unitsIn, maxMen, vetOf, levelCost, refillCost, returnValue,
@@ -123,7 +124,7 @@ function sectorCard(p, id, meta) {
   const units = map ? unitsIn(p, id) : [];
   const lines = [];
   if (st === 'placeholder') lines.push('No reports yet.');
-  else if (st === 'locked') lines.push(`Opens when ${MAPS[map.unlock.map].name} day ${map.unlock.day} is held.`);
+  else if (st === 'locked') lines.push(`Opens when day ${shownDay(map.unlock.map, map.unlock.day)} is held.`);
   else if (st === 'silent') lines.push('Secure. The army holds the roadblock.');
   else if (st === 'held') lines.push('Every day here is held.');
   else {

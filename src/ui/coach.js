@@ -26,6 +26,9 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
   const hole = el.querySelector('.hole'), marks = el.querySelector('.marks'), lead = el.querySelector('.lead');
   const plate = el.querySelector('.cplate'), text = el.querySelector('.ct'), fewer = el.querySelector('.fewer'), edge = el.querySelector('.edge'), pausedEl = el.querySelector('.paused');
   plate.addEventListener('pointerdown', e => e.preventDefault());
+  // 0.22.1 (speltestet av 0.22.0, fynd 3): mellan dagarna (inte striden, där main.js skickar klicket vidare) släpper
+  // lappen inga pekarhändelser till det som ligger under
+  for (const t of ['pointerdown', 'pointerup', 'mousedown', 'mouseup']) plate.addEventListener(t, e => { if (!el.classList.contains('pausing') && !document.querySelector('#ui[data-mode="play"]')) e.stopPropagation(); });
   fewer.addEventListener('click', e => { e.stopPropagation(); onFewer?.(); fewer.hidden = true; });
   // Ett 'show'-steg släpps med ett klick var som helst (hålet fångar inte klicket: det dämpade lagret gör det)
   const clicked = e => {
