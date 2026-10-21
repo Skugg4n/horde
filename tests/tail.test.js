@@ -38,3 +38,19 @@ test('svansen: tre bjässar sist skyndar också', () => {
   // 0.20.0: kartan efter satellitbilden, vägen från Järna till Folkets hus är längre (cirka 180 s med svansen)
   assert.ok(a.t < 200, `klar efter ${a.t.toFixed(0)} s`);
 });
+
+// 0.23.3 (H550, speltestet av 0.23.2: "4 left: brutes" i 60 till 70 s på Björnlunda): med tail.brutes skyndar högst så
+// många bjässar genast och hela vägen; utan (standard) som förut
+test('svansen: fyra bjässar sist med tail.brutes skyndar genast och kommer fram tidigare', () => {
+  const run = tail => {
+    const sim = createSim({ map: { ...MAPS.molnbo, baseHp: 999, days: [{ ...day(4, 'brute'), tail }] }, day: 1, cash: 0, seed: 1 });
+    startWave(sim);
+    let hurried = null;
+    while (sim.phase === 'wave' && sim.time < 900) { step(sim, 0.1); if (hurried == null && sim.zombies.some(z => z.hurry)) hurried = sim.time; }
+    return { t: sim.time, hurried };
+  };
+  const off = run(undefined), on = run({ brutes: 4 });
+  assert.ok(on.hurried != null && on.hurried < TAIL.after, `skyndar vid ${on.hurried}`);
+  assert.ok(on.t < off.t - 20, `med ${on.t.toFixed(0)} s, utan ${off.t.toFixed(0)} s`);
+  assert.equal(TAIL.brutes, 0);
+});

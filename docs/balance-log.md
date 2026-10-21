@@ -1394,3 +1394,20 @@ Omtestet (docs/playtests/2026-10-21-0.23.1-bjornlunda.md): dag 11 vanns på för
     toppen     143 levande, högst två vågor ute
 
 Evakueringen är nu lätt (24 av 24 för alla tre spelarna); det svåra är basen. Fingeravtrycken: blSkilled 46f80682, 45f6baee; blNormal 5a093df8, 378e1969. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad med förstärkningen.
+
+## Björnlunda 0.23.3: tredje testet (pengarna och bjässarnas svans, H550)
+
+Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md): 805 $ kvar efter dag 11 och 1 258 $ efter dag 12 fast testaren köpte taggtråd, och 60 till 70 s i slutet med 2 till 4 bjässar och inget att göra.
+
+**Förnödenheter per dödad:** dag 11 bounty 0,9 till 0,75, dag 12 1 till 0,7. Prövat 0,5 och 0,55: blNear (står vid basen och köper inget, närmast testarens sätt) landade på 435 och 399 $, men blNormal fastnade på dag 11 i fyra seeds av fem (den köper taggtråd hela dagen och behöver inkomsten). 0,7 dag 11 gav blNormal fem försök i seed 3. 0,75 och 0,7 är det lägsta där blNormal håller målet (inom 1 till 3 försök).
+
+**Bjässarnas svans:** ny regel tail.brutes (src/sim/sim.js TAIL, 0 = av, standard). Lever bara bjässar och högst så många skyndar de genast och hela vägen, också de nära basen (förut bara de som hade mer än 40 % av vägen kvar, efter tail.after). Björnlunda båda dagarna brutes 4. Dagarna blev cirka 50 s kortare för den som står vid basen (dag 11 408 till 355 s, dag 12 411 till 365 till 379 s). Andra banor oförändrade.
+
+    blSkilled  båda dagarna första försöket; dag 11 bas 18, 351 till 355 s, kvar 82 till 532 $; dag 12 bas 11 till 17, kvar 90 till 229 $
+    blNormal   första försöket utom seed 3 dag 11 (två); dag 11 bas 1 till 5, kvar 83 till 228 $; dag 12 bas 11 till 17, kvar 92 till 229 $
+    blNear     båda dagarna första försöket; dag 11 bas 18, kvar 682 $; dag 12 bas 11 till 17, kvar 465 till 599 $
+    toppen     143 levande
+
+Målet 300 till 600 $ kvar: blNear dag 12 inom, dag 11 något över (682 $); blNormal och blSkilled under, som förut (de lägger pengarna på tråd och lådor). En människa som köper tråd som testaren hamnar mellan blNear och blNormal. Lägre inkomst dag 11 går inte utan att blNormal fastnar; nästa steg vore dyrare tråd eller lägre startkassa, inte prövat.
+
+Fingeravtrycken: blSkilled 963024c8, 9121edbc; blNormal 94c66df2, c1e6d164. Quick jump dag 12 (ARRIVAL_TROOP.bjornlunda.days[2]) omräknad: kartläsaren köper inte längre en Ksp 58 före dag 12.

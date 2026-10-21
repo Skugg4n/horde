@@ -683,16 +683,20 @@ const manned = g => !!g.house && !(g.house.broken && (g.squad ? g.soldiers.every
 // gånger sin fart. Deterministiskt (bara läget och klockan). sim.tail: sekunder som svansen pågått.
 // 0.19.1 (speltestet av 0.19.0, fynd 2: nu blev bjässarna svansen, tre bjässar sist gav 90 till 150 s väntan med inget i
 // bild): regeln gäller alla typer, också bjässar och pansrade. Spelaren ser dessutom var de är (main.js, tailArrow).
-export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5 };
+// 0.23.3 (H550, speltestet av 0.23.2: "4 left: brutes" i 60 till 70 s på Björnlunda): brutes, när bara bjässar lever
+// och högst så många, skyndar de genast (ingen väntan på after) och alla, också de nära basen. 0 = av (standard).
+export const TAIL = { n: 5, after: 15, far: 0.4, mul: 2.5, brutes: 0 };
 // 0.20.1 (speltestet av 0.20.0, Mölnbo dag 2: en ensam bjässe i nästan två minuter): en dag kan skärpa svansen
 // (dayCfg.tail, samma fält som TAIL) och ha en egen takt (dayCfg.pace, annars banans map.pace).
 export const tailOf = sim => (sim.dayCfg.tail ? { ...TAIL, ...sim.dayCfg.tail } : TAIL);
 export const paceOf = sim => sim.dayCfg.pace ?? sim.map.pace ?? 1;
+// Svar: { on, all } (all: bjässarnas svans, alla skyndar oavsett hur långt de har kvar)
 function tailHurry(sim, dt) {
   const alive = sim.spawnQueue.length ? Infinity : sim.zombies.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
   const T = tailOf(sim);
   sim.tail = alive > 0 && alive <= T.n ? (sim.tail ?? 0) + dt : 0;
-  return sim.tail >= T.after;
+  const all = alive > 0 && alive <= (T.brutes ?? 0) && sim.zombies.every(z => z.dead || z.type === 'brute');
+  return { on: all || sim.tail >= T.after, all };
 }
 function moveZombies(sim, dt) {
   const hitCells = new Set(), hurry = tailHurry(sim, dt);
@@ -754,7 +758,7 @@ function moveZombies(sim, dt) {
     const fog = sim.route.kind === 'grid' ? fogFactor(sim.map, z.x, z.z) : 1;
     if (def.stumble && mul > 0) mul *= stumble(sim, z, def.stumble, dt, fog);
     // vågens svans: eftersläntrarna går fortare (krypare och de långt bort)
-    if (hurry && mul > 0 && (z.type === 'crawler' || sim.route.fraction(z) < 1 - tailOf(sim).far)) { mul *= tailOf(sim).mul; z.hurry = true; }
+    if (hurry.on && mul > 0 && (hurry.all || z.type === 'crawler' || sim.route.fraction(z) < 1 - tailOf(sim).far)) { mul *= tailOf(sim).mul; z.hurry = true; }
     const speed = def.speed * mul * paceOf(sim) * (sim.tweaks?.speed ?? 1) * fog;
     z.v = speed;
     z.run = (z.run ?? 0) + speed * dt;

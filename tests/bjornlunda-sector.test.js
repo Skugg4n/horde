@@ -266,10 +266,12 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // hp 6, bounty 0,9 och 1, overlap 12, bjässarna mitt i sista vågen, söderifrån senare dag 2. docs/balance-log.md 0.23.1.
 // 0.23.2 (omtestet av 0.23.1): dag 12 nytt, avsiktligt: husen nära basen, leveransen bl-2 (två Hemvärnsgrupper och en
 // Ksp 90). docs/balance-log.md 0.23.2.
+// 0.23.3 (H550, speltestet av 0.23.2: 805 och 1 258 $ över): båda dagarna nya, avsiktligt: bounty 0,75 och 0,7 (förut 0,9
+// och 1), bjässarnas svans (tail.brutes 4). docs/balance-log.md 0.23.3.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '46f80682', 'bjornlunda 2': '45f6baee' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '5a093df8', 'bjornlunda 2': '378e1969' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '963024c8', 'bjornlunda 2': '9121edbc' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '94c66df2', 'bjornlunda 2': 'c1e6d164' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
