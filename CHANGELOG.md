@@ -1,5 +1,16 @@
 # Ändringslogg
 
+## 0.23.3 (tredje testet av Björnlunda, bordets småfel) (2026-10-21)
+
+Speltestet (docs/playtests/2026-10-21-0.23.2-bjornlunda.md) sa ja; det här är friktionen det hittade.
+
+- **Lapparna på bordet äter inga klick:** mellan dagarna stängs en lapp bara av ett klick på lappen eller Enter. Andra klick går till det man klickade på (flikar, rutor, Deploy), och lappen står kvar. Lappen ställs aldrig över fiendekortet eller klämbrädans knappar och flikar.
+- **Förstärkningen syns på rullan:** Hemvärnets två grupper och Ksp 90 före dag 12 står överst under rubriken "Reinforcement · Hemvärnet" ("sent, no RP"), märkta NEW tills dagen spelats. Fliken med det som går att köpa heter "Released by command · N to buy".
+- **Kartbladet:** "held, 4 days" och "held, 3 days" står inte längre ihop vid Gnesta (pennraderna ställs där de inte krockar).
+- **Omvägen ritas:** med ett hinder i handen visas den nya vägen bredare och bara för vägarna som ändras, så att "This sends them down Smedjevägen." syns på kartan.
+- **Inget tyst nej:** ett klick som rördes lite med något i handen säger "Moved while clicking. Click again to place." vid pekaren.
+- **Balansen:** mindre förnödenheter per dödad på Björnlunda (0,75 dag 11, 0,7 dag 12), och när bara bjässar lever och högst fyra skyndar de genast mot basen. Dagarna cirka 50 s kortare. docs/balance-log.md, Björnlunda 0.23.3.
+
 ## 0.23.2 (omtestet av 0.23.1, Björnlunda dag 12) (2026-10-21)
 
 Omtestet (docs/playtests/2026-10-21-0.23.1-bjornlunda.md): dag 11 vanns på första försöket, dag 12 föll tre gånger av tre med truppen man har efter dag 11.
