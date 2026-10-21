@@ -3,10 +3,7 @@
 // Spelets banor laddas via ?debug&jump (sparfilen pekar på banan), sedan en ny laddning som börjar på banan.
 // Kräver en server som serverar repot. Rapporten: docs/reports/2026-10-19-laddtid.md.
 //   PORT=8201 RUNS=3 [ONLY=E4,laxne.html] [JSON=ut.json] node scripts/load-time.mjs
-import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PW_PATH ?? homedir() + '/Projects/zombie-high-rise/node_modules/playwright');
+import { launch } from './headless.mjs';
 const PORT = process.env.PORT ?? 8146, RUNS = +(process.env.RUNS ?? 3);
 const B = `http://localhost:${PORT}/`;
 const PAGES = [
@@ -74,7 +71,8 @@ async function once(b, P, cold) {
   await ctx.close();
   return { ...r, cat, other: Object.entries(other).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => k + ' ' + Math.round(v)), busy: total - idle };
 }
-const b = await chromium.launch({ headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio', '--autoplay-policy=user-gesture-required'] });
+// laddtiden mäts med riktig GPU och varje bildruta ritad (fps 0), som i en vanlig webbläsare
+const b = await launch({ gpu: true, fps: 0, args: ['--autoplay-policy=user-gesture-required'] });
 const out = [];
 for (const P of PAGES) {
   const runs = [];

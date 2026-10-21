@@ -13,6 +13,15 @@ Björnlunda är en spelbar sektor: kampanjens dag 11 och 12 (kampanjplanen avsni
 - **Kopplingen:** bordets markör och order ("Commander, Björnlunda"), operationskartan, kampanjens dag (Day 11 och 12), Quick jump till dag 1 och 2 i debugmenyn med truppen en spelare har där, och balansens policyer. Laxne-valet (beslutat att ligga mellan Mölnbo dag 3 och Björnlunda dag 1) är inte byggt; kroken står i src/data/bjornlunda-play.js. Inga nya lektioner (Björnlunda befäster det man kan), Field manual orörd.
 - **Balansen:** kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre. Dag 1 hp 10, dag 2 hp 7, horden går fortare än i Mölnbo (byn är stor). docs/balance-log.md, Björnlunda 0.23.0.
 - Förhandsvisningen (bjornlunda.html) delar landmärkena med spelet, och kartans rutnät räknas först när det behövs.
+## 0.22.2 (huvudlösa kontroller utan att äta datorn) (2026-10-21)
+
+Verktyg, inget i spelet ändras (H547). Kontrollerna drog 550 till 900 % CPU i snitt (toppar över 1 100 %) eftersom 3D-scenen ritades i mjukvara (SwiftShader).
+
+- **scripts/headless.mjs** startar Chromium för alla kontroller (layout, placement, slice1, laddtid): låg prioritet (macOS bakgrundsläge och nice 19, som webbläsarens alla processer ärver), riktig GPU via Metal, `--mute-audio`, `?mute` på varje adress och deviceScaleFactor 1. Reserv: `HORDE_GPU=0`, `HORDE_FPS=0`, `HORDE_PRIO=normal`.
+- **Gles ritning:** med ?test eller ?debug ritar `?fps=N` scenen högst N gånger per sekund (kontrollerna: 2); simuleringen och HUD:en går som vanligt. `__horde.setFps(n)` och `__horde.renderNow()`; skärmbilderna tas alltid på en färsk bild.
+- **`npm run check:all`** kör testerna, layout, placement och slice1 en i taget mot en egen server (port från 8281).
+- Mätt (CPU-sekunder för hela kontrollen): slice1 976 till 48, placement 2 411 till 46, layout över 3 400 (kraschade efter 9,5 min) till 114. Samma utfall; skärmbilderna skiljer sig inte mer än två mjukvarukörningar gör sinsemellan.
+
 ## 0.22.1 (speltestet av 0.22.0) (2026-10-21)
 
 Speltestet av 0.22.0 sa NEJ (nära): bågen håller och dag 4 känns som "med nöd och näppe", men fem saker (docs/playtests/2026-10-21-0.22.0.md).

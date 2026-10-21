@@ -27,6 +27,15 @@ npm run balance   # simulerar dagarna och skriver ut kurvan
 
 Simuleringen körs utan grafik, så både tester och balanssimulering går i Node.
 
+### Huvudlösa kontroller: låg prioritet, GPU, en i taget
+
+```
+npm run check:all              # tester, layout, placement och slice1 i följd, egen server från port 8281
+npm run check:all -- layout    # bara de namngivna
+```
+
+Kontrollerna kör spelet i Chromium utan fönster och startar det via `scripts/headless.mjs`: låg prioritet (macOS bakgrundsläge och nice 19, så att datorn går före), riktig GPU via Metal i stället för mjukvaruritning, ljudet av och scenen ritad högst två gånger per sekund medan kontrollen bara väntar. Med det tar slice1 omkring 50 CPU-sekunder i stället för 1 000, och datorn märker knappt körningen. Kör en kontroll i taget, aldrig flera parallellt. Reserv om GPU:n krånglar: `HORDE_GPU=0`; varje bildruta ritad: `HORDE_FPS=0`; vanlig prioritet: `HORDE_PRIO=normal`. Mer för agenter i docs/huvudlosa-kontroller.md.
+
 ## Filkarta
 
 | Sökväg | Innehåll |
