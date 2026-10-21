@@ -267,7 +267,7 @@ export const DAYS = [
              say('Along the tracks!', { groups: [g('walker', 22, 0.5, 0, 'w2'), g('walker', 12, 0.6, 4, 'w1'), g('runner', 6, 0.6, 10, 'w2')] }),
              { groups: [g('walker', 26, 0.45, 0, 'w1'), g('walker', 18, 0.5, 4, 'w2'), tell('Into the houses from Lokalvägen!', g('walker', 14, 0.6, 6, 'w3')), tell('Brutes on väg 57/223!', g('brute', 2, 3, 8, 'w1'))] },
              { groups: [g('walker', 28, 0.4, 0, 'w3'), g('walker', 24, 0.4, 2, 'w2'), g('runner', 14, 0.4, 8, 'w1'), tell('Armoured ones along the tracks!', g('armored', 3, 2.4, 6, 'w2')), g('brute', 2, 3, 4, 'w3')] } ] },
-  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 7, overlap: 12, overlapMin: 0.3, bounty: 0.9,
+  { n: 2, supplies: 600, arsenal: ALL, startCash: 2200, hp: 6, overlap: 12, overlapMin: 0.3, bounty: 1,
     intro: { title: 'Day 2: Get them out', text: 'Väg 57/223 and the tracks again, and Ekvägen over the level crossing.' },
     order: { text: 'Cover the yellow lines to Wattrangsborg. Ekvägen comes over the crossing.' },
     objective: 'Get the marked houses to Wattrangsborg.',

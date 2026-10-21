@@ -836,7 +836,8 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   sim.policy = isTown ? (P.plan === 'smart' ? 'smart' : 'naive') : 'greedy';
   // 0.16.0: barrikaderna är upplåsta från South dag 2 (src/meta/unlocks.js); före det spärrar ingen
   const canBlock = !cfg.allow || cfg.allow.includes('block');
-  let plan = P.nearBase ? nearBasePlan(map, day, P.nearBase) : !isTown ? (P.e4FirstOnly ? (() => { const sp = e4SpawnPlan(daySpawns(map, day)[0]).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; })() : opPlan(map, day, null)) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
+  const near = P.nearBase && (!P.nearDays || P.nearDays.includes(day));
+  let plan = near ? nearBasePlan(map, day, P.nearBase) : !isTown ? (P.e4FirstOnly ? (() => { const sp = e4SpawnPlan(daySpawns(map, day)[0]).spots; return { guns: sp, squads: sp, roofs: [], lines: [] }; })() : opPlan(map, day, null)) : gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, P.plan), blocks: P.blocks && canBlock ? T.blocks(day) : [] });
   // spärrarna utan planens platser: pjäserna ställs där de ser sin egen väg (naive), spärren läggs ändå
   if (isTown && P.blocks && canBlock && P.plan !== 'smart' && !P.followRoute) {
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
@@ -1056,6 +1057,8 @@ POLICIES.blSkilled = { plan: 'smart', blocks: true, early: false, supplies: fals
 // från basen), med taggtråden och köpen som förut. Spridd längs vägarna (planen ovan) var svagare än samlad vid basen
 // när ingångarna kom närmare.
 POLICIES.blSkilled.nearBase = 40;
+// dag 2 täcker kartläsaren de gula linjerna (evakueringen), som ordern säger
+POLICIES.blSkilled.nearDays = [1];
 POLICIES.blNormal = { ...POLICIES.normal, evacMap: true };
 // 0.23.1 (speltestet av 0.23.0: den vanliga spelaren ställde allt vid basen och förlorade dag 11 fyra gånger): spelaren
 // som inte läser kartan utan ställer allt inom r meter från basen, där dagens order säger. Pjäserna där de ser mest av
@@ -1069,9 +1072,19 @@ export function nearBasePlan(map, day, r) {
   const sq = coveragePlan(map, cells, { range: WEAPONS.hv.range, count: 10, decay: GN_DECAY, cacheKey: 'nearSq' + r + ':' + day, within });
   const near = i => { const sh = p.buildings[i]?.[0]; return sh && Math.hypot(sh.x - bx, sh.z - bz) <= r + 10; };
   const roofs = roofPlan(map, cells, { count: 3, filter: near });
-  return { lines: [], wire: [], guns: cp.spots, squads: sq.spots, roofs: roofs.spots, roofFacing: roofs.facings, len: ps.map(q => q.cells.length), cov: cp.cover };
+  // taggtråd på varje väg 20 till 36 m före basen, inom skotthåll från platserna (en per gata, spännen som inte rör varandra)
+  const wire = [], taken = new Set();
+  for (const q of ps) for (const back of [10, 18]) {
+    const c = q.cells[q.cells.length - 1 - back];
+    if (c == null || !route.validCell(c)) continue;
+    const span = route.span(c);
+    if (span.some(k => taken.has(k))) continue;
+    wire.push(c); for (const k of span) for (const d of [0, 1, -1, route.grid.w, -route.grid.w]) taken.add(k + d);
+  }
+  return { lines: [], wire, guns: cp.spots, squads: sq.spots, roofs: roofs.spots, roofFacing: roofs.facings, len: ps.map(q => q.cells.length), cov: cp.cover };
 }
 POLICIES.blNear = { ...POLICIES.naive, nearBase: 40 };
+// (blNear prövas bara dag 1: dag 2 står den vid basen och de civila dör uppe i byn, som avsett)
 // Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed).
 const blArrival = new Map();
 export function bjornlundaArrival(seedOffset = 0) {
@@ -1079,7 +1092,9 @@ export function bjornlundaArrival(seedOffset = 0) {
   return blArrival.get(seedOffset);
 }
 export function bjornlundaCampaign(policy = 'blSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null } = {}) {
-  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond });
+  // blNear prövas bara dag 1 (dagens order: stå vid basen); dag 2 är evakueringen
+  const until = policy === 'blNear' ? { mapId: 'bjornlunda', day: 2 } : null;
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['bjornlunda'], start: bjornlundaArrival(seedOffset), onSecond, until });
 }
 // Truppen kartläsaren går in i Björnlunda dag 2 med (src/data/arrival.js ARRIVAL_TROOP.bjornlunda.days, Quick jump)
 export function bjornlundaDayTroop(day, policy = 'blSkilled', seedOffset = 0) {

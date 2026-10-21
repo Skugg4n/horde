@@ -66,7 +66,7 @@ test('dag 1 bara västerifrån (väg 57/223, spåret, Lokalvägen), dag 2 väste
   const at = id => SPAWNS.find(s => s.id === id).at;
   for (const id of ['w2', 'w3']) assert.ok(at(id)[0] < CRISP.x0, id);
   assert.ok(at('w1')[1] < CRISP.z0, 'väg 57/223 kommer in i nordväst');
-  for (const id of ['s1', 's2']) assert.ok(at(id)[1] > 140 && distPolyline(...at(id), RAIL.pts) > 30, id);
+  for (const id of ['s1', 's2']) assert.ok(at(id)[1] > 120 && distPolyline(...at(id), RAIL.pts) > 30, id);
   // och i dimkanten, utanför den skarpa ytan
   for (const s of SPAWNS) assert.ok(s.at[0] < CRISP.x0 || s.at[0] > CRISP.x1 || s.at[1] < CRISP.z0 || s.at[1] > CRISP.z1, s.id);
 });
@@ -79,7 +79,8 @@ test('basen: Wattrangsborg på östra sidan, som horden västerifrån måste nå
   assert.ok(Math.hypot(WATT.x - wing.x, WATT.z - wing.z) < 0.01);
   // öster om byns mitt och öster om alla ingångar i väster, med entrén mot planen och basrutan
   assert.ok(WATT.x > 60);
-  for (const s of SPAWNS) assert.ok(WATT.x - s.at[0] > 100, s.id);
+  for (const s of SPAWNS.filter(q => q.id !== 'w1')) assert.ok(WATT.x - s.at[0] > 100, s.id);
+  assert.ok(WATT.x - SPAWNS.find(q => q.id === 'w1').at[0] > 50, 'w1');
   assert.ok(Math.hypot(WATT.entrance[0] - bl.base.at[0], WATT.entrance[1] - bl.base.at[1]) < 10);
   const [bx, bz] = g.center(g.base[0]);
   assert.ok(Math.hypot(bx - bl.base.at[0], bz - bl.base.at[1]) < 4, 'basrutan vid planen');
@@ -223,13 +224,17 @@ test('inlärningen: Björnlunda lägger inget nytt begrepp, och Field manual är
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 const skilled = SEEDS.map(s => bjornlundaCampaign('blSkilled', { seedOffset: s, maxAttempts: 6 }));
 const normal = SEEDS.map(s => bjornlundaCampaign('blNormal', { seedOffset: s, maxAttempts: 6 }));
+// 0.23.1 (speltestet av 0.23.0): spelaren som ställer allt inom 40 m från basen (dag 1:s order), utan att läsa kartan
+const nearBase = SEEDS.map(s => bjornlundaCampaign('blNear', { seedOffset: s, maxAttempts: 6 }));
 
 test('balans: kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre', () => {
   for (const [i, r] of skilled.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); assert.deepEqual(a, [1, 1], `blSkilled seed ${i}`); }
   for (const [i, r] of normal.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blNormal seed ${i}: ${a}`); }
+  // dag 11 går att vinna genom att stå vid basen, där ordern säger, inom 1 till 3 försök
+  for (const [i, r] of nearBase.entries()) { const a = blAttempts(r.log)[0]; assert.ok(a >= 1 && a <= 3, `blNear seed ${i}: ${a}`); }
 });
 
-test('balans: dag 2 får de civila in, högst cirka 250 levande och högst två vågor ute, dagarna under tio minuter', () => {
+test('balans: dag 2 får de civila in, högst cirka 250 levande och högst två vågor ute, dagarna sex till sju minuter', () => {
   for (const r of [...skilled, ...normal]) {
     const w = r.log.find(x => x.day === 2 && x.won);
     assert.ok(w.evac.safe >= bl.days[1].evac.need, `${w.evac.safe}`);
@@ -237,7 +242,8 @@ test('balans: dag 2 får de civila in, högst cirka 250 levande och högst två 
   const all = [...skilled, ...normal].flatMap(r => r.log);
   assert.ok(Math.max(...all.map(x => x.peak)) <= 250, `${Math.max(...all.map(x => x.peak))}`);
   for (const x of all) assert.ok(x.peakWaves <= 2, `dag ${x.day} försök ${x.attempt}: ${x.peakWaves}`);
-  for (const x of all.filter(q => q.won)) assert.ok(x.time <= 600, `dag ${x.day}: ${x.time} s`);
+  // 0.23.1 (speltestet: åtta minuter): fem till sju minuter
+  for (const x of all.filter(q => q.won)) assert.ok(x.time >= 300 && x.time <= 430, `dag ${x.day}: ${x.time} s`);
 });
 
 test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen räknar med, dag 1 och 2', () => {
@@ -253,10 +259,12 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 
 // Kvittot per dag. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Björnlunda).
 // 0.23.0 (H545): första kvittot, dag 1 hp 10 och dag 2 hp 7 (docs/balance-log.md Björnlunda 0.23.0).
+// 0.23.1 (speltestet av 0.23.0): alla nya, avsiktligt: mindre spelyta, kartläsaren vid basen dag 1, dag 1 hp 8 och dag 2
+// hp 6, bounty 0,9 och 1, overlap 12, bjässarna mitt i sista vågen, söderifrån senare dag 2. docs/balance-log.md 0.23.1.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '151020d9', 'bjornlunda 2': 'd990cfa1' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '18aa277c', 'bjornlunda 2': '8efae5bd' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '46f80682', 'bjornlunda 2': 'e962a0ba' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '5a093df8', 'bjornlunda 2': '3e97901a' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
@@ -266,8 +274,8 @@ test('kameran: Björnlunda vrids så att väster är till vänster, de andra ban
   try {
     setCameraYaw(0);
     const { right, down } = screenAxes();
-    assert.deepEqual(right.map(v => Math.round(v * 1e6) / 1e6), [1, 0, 0]);
-    assert.deepEqual(down.map(v => Math.round(v * 1e6) / 1e6), [0, 0, 1]);
+    assert.deepEqual(right.map(v => Math.round(v * 1e6) / 1e6 + 0), [1, 0, 0]);
+    assert.deepEqual(down.map(v => Math.round(v * 1e6) / 1e6 + 0), [0, 0, 1]);
     assert.ok(Math.abs(OFFSET[0]) < 1e-9 && OFFSET[2] > 50, 'kameran söder om blickpunkten');
     // ingångarna i väster hamnar till vänster om basen på skärmen
     for (const id of ['w2', 'w3', 's2']) { const s = SPAWNS.find(q => q.id === id); assert.ok(s.at[0] * right[0] + s.at[1] * right[2] < bl.base.at[0] * right[0] + bl.base.at[1] * right[2] - 100, id); }
