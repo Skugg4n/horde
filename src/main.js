@@ -1548,6 +1548,8 @@ function updateBaseLabel() {
   for (let i = 0; i < 4 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
     baseLabel.style.marginTop = (-(i + 1) * 22) + 'px'; r = baseLabel.getBoundingClientRect();
   }
+  // och visas inte där den skulle ligga på rutorna (minikartan, raderna, PAUSED)
+  if (labelBlockers().some(u => u.x0 < r.right && r.left < u.x1 && u.y0 < r.bottom && r.top < u.y1)) baseLabel.hidden = true;
 }
 const platLabel = document.createElement('div');
 platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'The train stops here. Hold the platform.';
@@ -2524,9 +2526,10 @@ function updateEvacMarks() {
   // en lapp som hamnar på gränssnittet visas inte (huset ligger vid skärmkanten); en som hamnar på en enhets lapp lyfts
   // ovanför den
   if (evacEls.size) {
-    const hud = hudRects(), tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
+    const hud = labelBlockers(), tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
     for (const el of evacEls.values()) {
-      el.style.marginTop = '0px';
+      // mäts synlig (en dold lapp har ingen ruta och kom annars tillbaka varannan bildruta)
+      el.style.marginTop = '0px'; el.hidden = false;
       let r = el.getBoundingClientRect();
       for (let i = 0; i < 3 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
         el.style.marginTop = (-(i + 1) * 24) + 'px'; r = el.getBoundingClientRect();
@@ -2535,6 +2538,16 @@ function updateEvacMarks() {
       if (el.hidden !== hide) el.hidden = hide;
     }
   }
+}
+// 0.23.1: det en lapp i världen (evakueringens hus, basens skylt) inte får ligga på: rutorna (hudRects), ingångarnas
+// skyltar, raderna och lektionens plåtar
+function labelBlockers() {
+  const out = hudRects();
+  for (const sel of ['.entry:not([hidden])', '#notes .note', '#coach:not([hidden]) .paused:not([hidden])', '#coach:not([hidden]) .cplate']) for (const n of uiRoot.querySelectorAll(sel)) {
+    const r = n.getBoundingClientRect();
+    if (r.width) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 });
+  }
+  return out;
 }
 
 // ---------- dagcykeln ----------

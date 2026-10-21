@@ -1358,3 +1358,24 @@ Fingeravtrycken: Hagstumosse oförändrade (överskottet räknas inte in). mbSma
 Master 0.22.1 (Hagstumosse fyra dagar och speltestets rättelser, mindre pengar dag 7 och 8) är inslagen. Ankomsttruppen till Björnlunda är densamma (20 enheter, samma nivåer och forskning; provet för Quick jump-truppen är grönt utan ändring), men RP vid ankomsten ändrades (294), och RP ingår i fingeravtrycket. Utfallen: blSkilled alla dagar första försöket (dag 1 bas 15 till 16, dag 2 14 till 19), blNormal alla dagar första försöket (dag 1 bas 6 till 15, dag 2 1 till 19), toppen 119. Målen står (normal inom 1 till 3, skilled första försöket). Nya fingeravtryck, avsiktligt: blSkilled 151020d9, d990cfa1; blNormal 18aa277c, 8efae5bd.
 
 Ingången från Stjärnhov: OSM har ref "57;223" på förbifarten där den kommer in i nordväst (väg 223 för sig först söder om korsningen), så introt säger "väg 57/223 from Stjärnhov" som kartan.
+
+## Björnlunda 0.23.1: speltestet av 0.23.0
+
+Speltestet (docs/playtests/2026-10-21-0.23.0-bjornlunda.md): en vanlig spelare som ställde truppen vid basen förlorade dag 11 fyra gånger; balanspolicyn vann genom att möta horden långt fram i nordost, vilket inget på kartan pekade ut. Dag 12 föll på första försöket. Dagarna tog åtta minuter med en halv minut promenad före första skottet och en ensam bjässe sist, och 1 400 till 1 665 $ blev över.
+
+**Ny spelare blNear** (scripts/balance.mjs `nearBasePlan`): ställer hela truppen inom 40 m från basen, pjäserna där de ser mest av vägarnas sista bit, Psg 90 på taken nära basen, ingen spärr. Det är vad dag 11:s order nu säger. Den prövas bara dag 11 (dag 12 står den kvar vid basen och de civila dör uppe i byn, som avsett).
+
+**Kartläsaren (blSkilled)** gör dag 11 som ordern säger: står vid korsningen (inom 40 m), med taggtråd 20 och 36 m före basen på varje väg. Dag 12 täcker den de gula linjerna som förut. Mätt med den mindre spelytan: spridd längs vägarna (0.23.0:s plan) vann dag 11 först på andra eller tredje försöket, samlad vid basen alla seeds direkt med hel bas.
+
+**Banan:** spelytan x -112..140, z -112..160 (förut -140..140, -169..169), ingångarna 16 m utanför den, Lokalvägen i stället för Korsbacksvägen. Vägarna in 169 till 220 rutor (förut 191 till 262). Overlap 20 till 12 s. Bjässarna mitt i sista vågen (delay 4 till 8, förut 16 till 20). Första vågen från väg 57/223 och spåret samtidigt. Dag 12: andra vågens hus går ut vid 0 och 3 s, gruppen söderifrån kommer 20 till 30 s in i vågen.
+
+**hp och förnödenheter:** dag 11 prövat hp 7, 8, 8,5, 10 med bounty 0,6, 0,8 och 0,9; med 0,6 blev 100 till 200 $ över och den vanliga spelaren fastnade (sex förluster i rad i fyra seeds). Dag 11 hp 8, bounty 0,9. Dag 12 prövat hp 6, 6,5, 7; på 7 och 6,5 behövde den vanliga spelaren fem försök i seed 3. Dag 12 hp 6, bounty 1.
+
+    blSkilled  båda dagarna första försöket, bas 20; dag 11 397 till 403 s (kvar 134 till 884 $), dag 12 369 till 384 s (kvar 238 $), civila 24
+    blNormal   dag 11 första försöket utom seed 3 (tre), bas 2 till 7; dag 12 första utom seed 3 (två); 346 till 390 s, kvar 113 till 256 $
+    blNear     dag 11 första försöket i alla seeds, bas 20, 408 till 412 s
+    toppen     132 levande, högst två vågor ute
+
+Första skottet: den vanliga spelaren efter 6 s, den som står vid basen efter 55 s (horden går fram till korsningen). Pengarna över ligger under målet 300 till 600 $ för den vanliga spelaren och över för kartläsaren dag 11 (den köper bara taggtråden och lådorna när truppen står); en människa som köper mer tråd hamnar däremellan.
+
+Fingeravtrycken: blSkilled 46f80682, e962a0ba; blNormal 5a093df8, 3e97901a. Quick jump-truppen oförändrad.

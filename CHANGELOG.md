@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.23.1 (speltestet av 0.23.0, Björnlunda) (2026-10-21)
+
+Speltestet (docs/playtests/2026-10-21-0.23.0-bjornlunda.md) sa nej: en vanlig spelare vann inte dag 11 på fyra försök, och dag 12 föll på första.
+
+- **Var man ska stå:** ordern dag 11 säger "Stand at Wattrangsborg where Stationsvägen and Villavägen meet. Face both." och målet "Hold the crossing in front of Wattrangsborg." Den som ställer hela truppen inom 40 m från basen vinner nu dag 11 (balansens nya spelare blNear, med full bas). Dag 12:s order: "Cover the yellow lines to Wattrangsborg. Ekvägen comes over the crossing."
+- **Väster är till vänster:** kameran står i söder på Björnlunda (map.camera.yaw), norr upp. Introna säger gatorna i stället för väderstrecken: "Down väg 57/223 from Stjärnhov, along the tracks and Lokalvägen." och "Väg 57/223 and the tracks again, and Ekvägen over the level crossing." (OSM: ref 57;223 där vägen från Stjärnhov kommer in.) De andra banorna står som förut.
+- **Kortare dagar:** spelytan är mindre (norra villorna och de västligaste gårdarna ligger i diset), ingångarna närmare byn, Lokalvägen i stället för Korsbacksvägen, första vågen från väg 57/223 och spåret samtidigt, kortare väntan mellan vågorna (12 s), bjässarna mitt i sista vågen i stället för sist ensamma. Dagarna tar 6 till 7 minuter (förut 8 till 9). Mindre förnödenheter per dödad (0,9 dag 11, 1 dag 12; förut 1).
+- **Dag 12:** andra vågens hus går ut direkt när vågen börjar, och gruppen söderifrån kommer 20 s senare, efter dem. Dagen börjar med plankorsningen och vägarna söderifrån i bild.
+- **Lapparna:** "Evacuates · wave N" visas inte där den skulle ligga på rutorna och lyfts över enheternas lappar, basens skylt lyfts över enheternas lappar, och ingångarnas skyltar står där vägen kommer in i bild (inte på Stationsvägen där vägarna går ihop). Layoutprovet läser evakueringens lappar och basens skylt, och provar Björnlunda mitt i en våg.
+- **Bordet:** "Day N · Lost" tas bort när dagen är vunnen. Efter ett köp ligger bladet med släppta enheter kvar överst (förut hoppade det till rullans blad 2). Förrådets lappar ställs bredvid klämbrädan, inte över tillstånd och priser. "DAY 11" står under Björnlundas markör (förut på LAXNE). Rubriken på bladet med släppta enheter klipps inte.
+- **Tysta pjäser:** raden säger "Recrew: select it, press N."
+- **Balansen:** kartläsaren står vid korsningen dag 11 och täcker de gula linjerna dag 12. Dag 11 hp 10 till 8, dag 12 7 till 6. docs/balance-log.md, Björnlunda 0.23.1.
+
 ## 0.23.0 (Björnlunda) (2026-10-21)
 
 Björnlunda är en spelbar sektor: kampanjens dag 11 och 12 (kampanjplanen avsnitt 10, H545). Den öppnar när Mölnbo dag 3 (uttåget) är vunnen.

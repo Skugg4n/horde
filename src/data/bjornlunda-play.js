@@ -272,7 +272,8 @@ export const DAYS = [
     order: { text: 'Cover the yellow lines to Wattrangsborg. Ekvägen comes over the crossing.' },
     objective: 'Get the marked houses to Wattrangsborg.',
     // basen, Stationsvägen och plankorsningen (där horden söderifrån kommer in) i bild
-    view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-25, 62], [-80, 70]] },
+    // 0.23.1 (speltestet av 0.23.0: plankorsningen och vägarna söderifrån syntes inte före vågen): också södra sidan
+    view: { pts: [WATT.entrance, [WATT.x + 12, WATT.z + 30], [-100, 55], [-100, 140]] },
     tail: { n: 8, after: 6, mul: 4 },
     // all: dagen vinns först när vågorna är hållna OCH de civila är framme (src/sim/sim.js checkEvac)
     // 0.23.1: andra vågens hus går direkt när vågen börjar (förut 4 och 14 s), och gruppen söderifrån kommer 20 s senare
