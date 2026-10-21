@@ -179,8 +179,10 @@ export function convert(plan, cfg) {
   // cfg.extraBuildings: hus som OSM saknar (läge och storlek avlästa ur en referensbild, aldrig bilden själv), i
   // plan.json-meter; de får added: true i modulen så att det syns vilka som inte kommer från OSM.
   // cfg.roadNames: namn på namnlösa OSM-vägar (närmast punkten), t.ex. ur en hållplats med vägens namn.
-  if (cfg.extraBuildings?.length || cfg.roadNames?.length) {
-    const roadsN = plan.roads.map(rd => ({ ...rd }));
+  // cfg.extraRoads: stigar och spår som OSM saknar (läge avläst ur en referensbild), i plan.json-meter:
+  // { name, type, cls, width, surface, pts }. De behandlas som OSM-vägar (landsbygdsreglerna, korsningar, rutnät).
+  if (cfg.extraBuildings?.length || cfg.roadNames?.length || cfg.extraRoads?.length) {
+    const roadsN = [...plan.roads, ...(cfg.extraRoads ?? []).map(e => ({ name: null, ref: null, type: 'track', cls: 'D', width: 3, surface: 'gravel', bridge: false, tunnel: false, oneway: false, roundabout: false, ...e }))].map(rd => ({ ...rd }));
     for (const { at, name } of cfg.roadNames ?? []) {
       let best = null;
       for (const rd of roadsN) if (!rd.name) { const q = nearestOn(at[0], at[1], rd.pts); if (!best || q.d < best.d) best = { d: q.d, rd }; }
@@ -658,7 +660,8 @@ export function convert(plan, cfg) {
     ground.shore = out;
   }
 
-  const pois = plan.pois.map(p => ({ name: p.name, kind: p.kind, at: P2(T([p.x, p.y])) })).filter(p => outD(...p.at) < 140);
+  // cfg.noPois: platsnamnen i OSM (en gårds namn) tas inte med när platsen ska vara anonym
+  const pois = cfg.noPois ? [] : plan.pois.map(p => ({ name: p.name, kind: p.kind, at: P2(T([p.x, p.y])) })).filter(p => outD(...p.at) < 140);
 
   // delarna: spelbara bitar av en stor karta (egna gränser och kamerahem). Hela kartan är summan.
   const parts = (cfg.parts ?? []).map(p => {
