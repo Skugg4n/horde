@@ -416,13 +416,16 @@ renderer.domElement.addEventListener('pointerdown', e => {
   }
   if (!placing) return;
   if (placing.move && e.shiftKey && e.button === BUTTON.left) return;   // Shift-klick: en waypoint (plockaren)
-  const here = hasCone() ? picker.pickAt(e.clientX, e.clientY) : null;
+  // 0.24.1 (H557, speltestet av 0.24.0: håll och dra på en ogiltig plats gjorde ingenting, utan skäl): platsen under trycket
+  // tas alltid, så att släppet efter en dragning därifrån kan säga varför, som ett klick gör
+  const here = picker.pickAt(e.clientX, e.clientY);
   const sp = here?.kind === 'spot' ? spotFor(here.id, here.x, here.z, here.roof, here.rt) : null;
   const kind = pressKind({ button: e.button, holding: true, cone: hasCone(), aimUnlocked: feat('aim'), validSpot: !!sp?.ok && sp.key >= 0, alt: e.altKey });
+  const bad = sp && !sp.ok ? sp : null;
   if (kind === 'aim' || kind === 'hold') spot = sp;
   // 0.24.0: tiden räknas på händelsernas egna tidsstämplar (e.timeStamp), så att en tung bildruta mellan trycket och första
   // rörelsen inte gör en snabb dragning till ett håll (placeringsprovets quick-drag på Laxne)
-  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), ts0: e.timeStamp, drag: false, moved: false };
+  aim = { kind, button: e.button, sp: kind === 'aim' || kind === 'hold' ? sp : null, bad, x: sp?.x, z: sp?.z, sx: e.clientX, sy: e.clientY, t0: performance.now(), ts0: e.timeStamp, drag: false, moved: false };
   rig.panLock = true;
 }, true);
 addEventListener('pointermove', e => {
@@ -452,8 +455,10 @@ addEventListener('pointerup', e => {
   // ett vanligt klick: plockaren sköter det (vänsterknappen); en dragning som inte siktade släpps utan att något händer
   if (act === 'click') return;
   if (a.moved && a.button === BUTTON.left) suppressClick = true;
+  // 0.24.1 (H557): en dragning från en plats där saken inte får stå säger samma skäl vid pekaren som ett klick där
+  if (a.moved && !a.drag && a.kind === 'hand' && a.bad && placing) { logPlace({ out: 'reason-aim', key: a.bad.key, reason: a.bad.reason }); flashTip(reasonText(a.bad.reason)); audio.ui('deny'); }
   // 0.23.3 (H551): ett klick som rördes lite med något i handen (inget sikte) lägger inget: säg det vid pekaren
-  if (a.moved && !a.drag && a.kind !== 'hold' && a.button === BUTTON.left && placing && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
+  else if (a.moved && !a.drag && a.kind !== 'hold' && a.button === BUTTON.left && placing && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < SLOPPY_PX) { flashTip(MOVED_CLICK); audio.ui('deny'); }
   if (act === 'place-aimed' && placing) { spot = a.sp; logPlace({ out: 'aimed', key: a.sp.key }); placeHere(a.sp.key); }
 });
 // 0.17.2 (Olas önskan): i uppställningen går en utställd enhet att dra till en ny plats (samma som Reposition).
