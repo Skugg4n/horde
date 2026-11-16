@@ -1,5 +1,14 @@
 # Ändringslogg
 
+## 0.26.2 (minne, kamera, tak) (2026-11-16)
+
+Helspeltestet av kampanjen (docs/playtests/2026-11-16-kampanjen-hela.md): krascher, en kamera som drogs bort medan basen föll, och Psg 90 som nästan aldrig fick ligga på ett tak.
+
+- **Minnet växer inte längre över dagarna (H606).** Förut sparades varje byggd bana hela sessionen och prickskyttarnas ghillie-tofsar fyllde en cache som aldrig släpps: 300 MB JS-minne och 2 072 geometrier efter 30 dagar, och geometrierna fortsatte växa. Nu sparas den aktuella och den förra banan; en äldre släpps helt. Efter 30 dagar: 107 MB och 229 geometrier, platt från varv 1 till varv 2. Ljudet läckte inte (28 till 65 levande noder). Att gå tillbaka till en bana två steg bort bygger den igen. Mätt: docs/reports/2026-11-16-minne.md, `node scripts/memory-days.mjs`.
+- **En sak i taget (H604).** Tågsignalen rör inte farten (spelarens 2X eller 3X står kvar). Kameran glider till perrongen en gång per signal, och bara när basen inte tagit skada på 5 s; annars väntar den, och banderollen går alltid att klicka. Tågets avgång flyttar inte heller kameran medan basen tar skada. Fiendekorten (som pausar) väntar tills basen haft lugn i 5 s och ingen stor röd banderoll står. Provat huvudlöst: `node scripts/one-thing-check.mjs`.
+- **Psg 90 på fler tak (H605, Psg-delen).** Nocken (takets övre halva) på flacka sadeltak, alla villor utom de branta 1,5-planshusen, och bodar och uthus är nu utsiktspunkter, utöver platta tak, nocken vid skorstenen, höga hus och tornen. Pekaren säger "ROOF · on the ridge". Skälen säger var det går: "Roof too steep. Roofs: try a lower roof's ridge, a shed or a flat roof". Bra platser (byggnader som ser huvudvägen): Laxne 2 till 28, Björnlunda 11 till 41, rondellen 1 till 10, Ishallen 16 till 21; Mölnbo oförändrat 6; Västerkärv 1 till 2 (gårdens hus står långt från hordens vägar). `node scripts/roof-spots.mjs`. Balansens fingeravtryck för Björnlunda, Laxne, rondellen och Västerkärv är nya (docs/balance-log.md 0.26.2), dagarnas siffror orörda.
+- **Kontrollerna kan köras samtidigt (H565).** scripts/headless.mjs ger varje körning en egen mapp (profil och temp-filer) med pids.json; att stänga eller städa rör bara den egna körningens processer. Övergivna körningar: `node scripts/headless.mjs cleanup`.
+
 ## 0.26.0 (Västerkärv, dag 14) (2026-11-16)
 
 Kampanjplanen avsnitt 10: "Dag 14 Västerkärv. Zombies har tagit sig via småvägar och anfaller. Civis och nån ksp. En Epa får försvara." Byggd efter utkastet i docs/superpowers/specs/2026-10-21-slutspelet-design.md (avsnittet Dag 14, "Hinna"), som Ola inte har godkänt än. Reglerna är data i dagen (src/data/vasterkarv-play.js), så att de är lätta att ändra.

@@ -9,7 +9,7 @@
 // Spelets meter: x öster, z söder (som de andra banorna). Kartdata © OpenStreetMap contributors (ODbL).
 import * as L from './laxne.js';
 import { osmGrid, distPolyline, inPoly } from './osm-map.js';
-import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
+import { buildPlace, rect, inRect, distRect, KIND, gablePerch, SHED_PERCH } from '../sim/placement.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 
@@ -109,7 +109,8 @@ function buildingShapes() {
       const top = h.h ?? 5;
       height = (x, z) => (inRect(body, x, z) ? top : 0);
     }
-    const perch = PERCH.has(h.kind) ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null;
+    // 0.26.2 (H605): också nocken på villornas flacka sadeltak (perch 4) och bodarnas låga platta tak
+    const perch = PERCH.has(h.kind) ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null ?? (h.kind === 'villa' && h.ridge ? gablePerch(h) : SHED_PERCH.has(h.kind) ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null);
     return { id: h.id, kind: h.kind, rects: [body], eave: h.eave ?? (h.h ?? 5) * 0.8, pad: h.kind === 'shed' ? 0.4 : HOUSE_PAD, height, perch, box: [h.x, h.z, Math.hypot(h.w, h.d) / 2 + HOUSE_PAD + 1] };
   });
 }
