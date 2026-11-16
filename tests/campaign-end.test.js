@@ -59,12 +59,10 @@ test('rullan natten efter en dag: de utvilade går in före de trötta från sla
   // de första cap enheterna stred och är trötta, resten vilade
   const fought = new Set(here.slice(0, cap).map(u => u.uid));
   p = { ...p, op: { ...p.op, units: p.op.units.map(u => (u.sector === ID ? { ...u, lane: fought.has(u.uid) ? 'battle' : 'rest', ...(fought.has(u.uid) ? { fatigue: 1 } : {}) } : u)) } };
-  const restedFit = here.filter(u => !fought.has(u.uid) && (u.men == null || u.men > 0)).length;
   const q = restedFirst(p, ID), L = lanes(q, ID);
   assert.equal(L.battle.length, cap);
-  // så många utvilade som finns står i striden, och ingen trött står där medan en utvilad vilar
-  assert.equal(L.battle.filter(u => !u.fatigue).length, Math.min(cap, restedFit));
-  if (L.rest.some(u => !u.fatigue && (u.men == null || u.men > 0))) assert.ok(L.battle.every(u => !u.fatigue));
+  // 0.26.1 (H603): ingen trött står i striden medan en utvilad av samma slag och minst samma nivå vilar
+  for (const t of L.battle.filter(u => u.fatigue)) assert.ok(!L.rest.some(r => !r.fatigue && r.type === t.type && r.level >= t.level && (r.men == null || r.men >= (t.men ?? 0))), `${t.type}`);
   // skälet står på raden
   const z = cardZones(q, ID);
   assert.ok(z.battle.some(c => c.moved?.long === 'Moved into battle: rested'));

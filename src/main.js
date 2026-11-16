@@ -2,6 +2,7 @@
 // Lägen: menu -> opmap -> (depot) -> intro -> play (uppställning, sedan vågorna) -> result -> opmap | intro (försök igen).
 // Simuleringen stegas bara i play; scenen ritas alltid (dammet rör sig bakom skyltarna).
 import { VERSION } from './version.js';
+import { money } from './ui/format.js';
 import { MAPS } from './data/maps.js';
 import { createRenderer, createScene } from './render/scene.js';
 import { buildWorld, updateWorld } from './render/world.js';
@@ -1356,7 +1357,7 @@ function handleEvents() {
     // 0.19.0 (speltestet av 0.18.1, fynd 5): banderollen är röd och överst bland raderna, inte grå bakom omvägen
     else if (ev.t === 'routed') { note(uiRoot, routBanner(ev.type), 'warn rout', { prio: true, top: true, ms: 3500, rank: 2 }); tip('tip.routed', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); unitFlash.set(ev.gunId, { kind: 'broke', until: time + 2.5 }); }
     else if (ev.t === 'unitBack') note(uiRoot, ev.kind === 'rout' ? `${unitName({ type: ev.type })} regrouping in reserve.` : `${unitName({ type: ev.type })} back in reserve.`);
-    else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn', { sub: 'Recrew: select it, press N.' }); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
+    else if (ev.t === 'gunSilent') { note(uiRoot, `${unitName({ type: ev.type })} ${ev.why === 'routed' ? 'crew ran' : 'overrun'}. The gun is silent.`, 'warn', { sub: `Recrew ${money(RECREW.cost)}: select it, press N.` }); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'recrewed') note(uiRoot, 'The gun is manned again.');
     else if (ev.t === 'enteredHouse') note(uiRoot, 'In the house. Firing from the windows.');
     else if (ev.t === 'houseBreached') { note(uiRoot, 'They broke into the house!', 'warn'); tip('tip.breach', [ev.x, ev.z]); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'house' }); }

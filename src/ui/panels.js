@@ -337,7 +337,7 @@ function wireOrders(ui, actions, gunId) {
 // Läget i en rad: sanity, trötthet, hus, tyst, på väg bakåt.
 export function unitStateText(s, g) {
   if (g.retreat) return g.retreat.kind === 'rout' ? 'Broken. Running for the base.' : 'Falling back to the base.';
-  if (g.silent) return g.recrew ? `Manning the gun · ${Math.ceil(g.recrew.t)} s` : g.silent === 'routed' ? 'Silent: the crew ran.' : 'Silent: the crew is down.';
+  if (g.silent) return g.recrew ? `Manning the gun · ${Math.ceil(g.recrew.t)} s` : g.silent === 'routed' ? `Silent: the crew ran. Recrew ${money(RECREW.cost)}.` : `Silent: the crew is down. Recrew ${money(RECREW.cost)}.`;
   const parts = [];
   // 0.18.1 (speltestet av 0.18.0): "Sanity 62 / Holds above 18" när enheten kan brytas, annars läget i ord
   if (allowed(s, 'sanity') && hasSanity(g) && g.sanity != null) parts.push(allowed(s, 'rout') ? `Sanity ${Math.round(g.sanity)} / Holds above ${SANITY.rout}` : `Sanity ${Math.round(g.sanity)} · ${sanityState(g.sanity)}`);

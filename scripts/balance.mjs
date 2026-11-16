@@ -15,9 +15,10 @@ import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacin
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
 import { OBSTACLES } from '../src/data/obstacles.js';
 import { selectMap, mapState } from '../src/meta/progress.js';
-import { newCampaign, opStartConfig, finishDay, makeChoice, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
+import { newCampaign, opStartConfig, nightAfter, suggestRoster, nextSector, makeChoice, requisition, levelUp, refill, refillCost, reassign, canReassign, buyUpgrade, upgradeState, unitsIn, releasedTypes, pressureOf } from '../src/meta/operation.js';
 import { UPGRADES, UNIT_RP } from '../src/data/depot.js';
 import { MAPS } from '../src/data/maps.js';
+import { campaignDayOf } from '../src/meta/campaign-day.js';
 import { gnesta } from '../src/data/gnesta.js';
 import { gnestaNorr, K as normK } from '../src/data/gnesta-norr.js';
 import { planSquad, hordeWeight } from '../src/sim/squad.js';
@@ -272,7 +273,7 @@ function runDay(sim, think0, early, onSecond = null, maxTicks = MAX_TICKS, track
     ...(sim.evac ? { evac: { ...sim.evac } } : {}),
     waveLog: waves, bonus, grenades: thrown, blastKills, firstHit, firstShot, fallTime: sim.phase === 'lost' && firstHit != null ? sim.time - firstHit : null, time: sim.time,
     // 0.18.1: flest vågor ute på vägen samtidigt (src/sim/sim.js wavesOnRoad); inte i fingeravtrycket
-    peak, peakWaves, trainBase, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash,
+    peak, peakWaves, trainBase, earlyCalls: sim.earlyCalls, sim, report: dayReport(sim), cashEnd: sim.cash, earned: sim.earned ?? 0,
     ...(trackSquads ? { squads, squadHits, squadDown } : {}),
   };
 }
@@ -885,7 +886,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const r = runDay(sim, think, P.early, onSecond, T?.maxTicks ?? MAX_TICKS, isTown);
   const { sim: _s, ...rest } = r;
   void _s;
-  return { ...rest, plan };
+  return { ...rest, plan, cashStart: cfg.cash };
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
@@ -975,14 +976,15 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
         p = requisitionPolicy(gatherUnits(p, mapId), mapId);
         const force = forceOf(p, mapId), rpBefore = p.rp, pressure = pressureOf(p, mapId);
         const r = playOpDay(p, mapId, day, policy, { seedOffset, onSecond: onSecond && (sim => onSecond(sim, mapId, day, attempt)) });
-        const f = finishDay(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
+        // 0.26.1 (H602): mellan dagarna samma funktion som spelet (resultatet, tröttheten, rullan för nästa strid)
+        const f = nightAfter(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
         log.push({ mapId, day, attempt, won: r.won, ...(r.lostBy === 'extract' ? { lostBy: r.lostBy } : {}), baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
           lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
           ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime),
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
           waveBase: r.waveLog.map(w => w.baseHp),
           // 0.14.2: förnödenheterna kvar när dagen tar slut (överskottet); inte heller i fingeravtrycket
-          cashEnd: r.cashEnd, peakWaves: r.peakWaves, earlyCalls: r.earlyCalls, trainBase: r.trainBase });
+          cashEnd: r.cashEnd, why: r.lostBy, spent: Math.round(r.cashStart + r.earned - r.cashEnd), peakWaves: r.peakWaves, earlyCalls: r.earlyCalls, trainBase: r.trainBase });
         p = f.progress;
         if (r.won) { won = true; break; }
       }
@@ -1000,7 +1002,7 @@ export function attemptsPerStep(log) {
 // ett prov kan peka ut vilket steg som ändrades.
 export function stepPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(STEPS.map(s => { const [m, d] = s.split(' '); return [s, h(JSON.stringify(log.filter(r => r.mapId === m && r.day === Number(d)).map(strip)))]; }));
 }
 
@@ -1047,7 +1049,7 @@ export const MB_STEPS = MAPS.molnbo.days.map(d => `molnbo ${d.n}`);
 export const mbAttempts = log => MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'molnbo' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function mbPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(MB_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'molnbo' && r.day === d).map(strip)))]; }));
 }
 
@@ -1126,7 +1128,7 @@ export const LX_STEPS = MAPS.laxne.days.map(d => `laxne ${d.n}`);
 export const lxAttempts = log => LX_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'laxne' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function lxPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(LX_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'laxne' && r.day === d).map(strip)))]; }));
 }
 // Framsteget kartläsaren har när Björnlunda öppnar (sparas per seed och gren). choice 'fallback' (standard): direkt från
@@ -1165,7 +1167,7 @@ export const BL_STEPS = MAPS.bjornlunda.days.map(d => `bjornlunda ${d.n}`);
 export const blAttempts = log => BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'bjornlunda' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function blPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(BL_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'bjornlunda' && r.day === d).map(strip)))]; }));
 }
 
@@ -1202,7 +1204,7 @@ export const VR_STEPS = MAPS['gnesta-vastra-rondell'].days.map(d => `gnesta-vast
 export const vrAttempts = log => VR_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'gnesta-vastra-rondell' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function vrPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(VR_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'gnesta-vastra-rondell' && r.day === d).map(strip)))]; }));
 }
 
@@ -1238,8 +1240,52 @@ export const VK_STEPS = MAPS.vasterkarv.days.map(d => `vasterkarv ${d.n}`);
 export const vkAttempts = log => VK_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'vasterkarv' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
 export function vkPrints(log) {
   const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
-  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  const strip = ({ waveBase, cashEnd, why, spent, cday, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void why, void spent, void cday, void peakWaves, void earlyCalls, void trainBase, r);
   return Object.fromEntries(VK_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'vasterkarv' && r.day === d).map(strip)))]; }));
+}
+
+// ---------- Hela kampanjen i följd (0.26.1, H602) ----------
+// Helspeltestet 2026-11-16: väggar dag 7, 9 och 13, lätta dagar emellan. Varje bana räknades förut från kartläsarens
+// ankomst; här spelar EN spelare hela kampanjen med det han själv har: truppen, nivåerna, RP, förrådets köp och
+// tröttheten, och samma regler mellan dagarna som spelet (nightAfter, rullan efter varje vunnen dag, Laxne-valet).
+//   normal  den vanliga spelaren (normal och bananas varianter: lektionernas spärrar, sin egen väg, gula linjerna)
+//   near    spelaren som står vid basen (som normal på E4 och i Hagstumosse, sedan allt inom 40 m från basen)
+export const FULL_ORDER = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell', 'vasterkarv'];
+export const FAMILIES = {
+  normal: { molnbo: { ...POLICIES.normal, evacMap: true, blocks: false }, laxne: 'lxNormal', bjornlunda: 'blNormal', 'gnesta-vastra-rondell': 'vrNormal', vasterkarv: 'vkNormal', default: 'normal' },
+  near: { molnbo: { ...POLICIES.normal, evacMap: true, blocks: false, nearBase: 40, nearDays: [2, 3] }, laxne: { ...POLICIES.blNear, rest: true, depth: 'recrew' }, bjornlunda: { ...POLICIES.blNear, rest: true, depth: 'recrew' },
+    'gnesta-vastra-rondell': { ...POLICIES.blNear, rest: true, depth: 'recrew' }, vasterkarv: { ...POLICIES.vkNear, rest: true, depth: 'recrew' }, default: 'normal' },
+};
+const fullCache = new Map();
+export function fullCampaign(family = 'normal', { seedOffset = 0, choice = 'defend', maxAttempts = 6, onSecond = null, until = null } = {}) {
+  const key = [family, seedOffset, choice, maxAttempts].join(':');
+  if (!onSecond && !until && fullCache.has(key)) return fullCache.get(key);
+  const F = FAMILIES[family];
+  let p = newCampaign();
+  const log = [];
+  let out = null;
+  for (const mapId of FULL_ORDER) {
+    if (mapId === 'laxne' && choice !== 'defend') continue;
+    // Laxne-valet på bordet efter Mölnbo, och rullan för nästa strid (main.js gör restedFirst efter valet)
+    if ((mapId === 'laxne' || mapId === 'bjornlunda') && !p.choices?.laxne) { p = choose(p, choice); p = suggestRoster(p, nextSector(p, mapId)); }
+    const r = opCampaign(F[mapId] ?? F.default, { seedOffset, maxAttempts, sectors: [mapId], start: p, onSecond, until: until?.mapId === mapId ? until : null });
+    if (until?.mapId === mapId) return { log, progress: r.progress, stuck: null };
+    log.push(...r.log);
+    p = r.progress;
+    if (r.stuck) { out = { log, progress: p, stuck: r.stuck }; break; }
+  }
+  out ??= { log, progress: p, stuck: null };
+  for (const x of out.log) x.cday = campaignDayOf(x.mapId, x.day, { laxne: choice });
+  if (!onSecond && !until) fullCache.set(key, out);
+  return out;
+}
+// En rad per kampanjdag: försök till vinst, basen och kassan kvar vid vinsten, RP före och efter.
+export function fullCurve(log) {
+  const days = [...new Set(log.map(x => x.cday))].sort((a, b) => a - b);
+  return days.map(n => {
+    const t = log.filter(x => x.cday === n), w = t.find(x => x.won);
+    return { day: n, map: t[0].mapId, mapDay: t[0].day, tries: w ? w.attempt : 'x', base: w?.baseHp ?? null, cash: w ? Math.round(w.cashEnd) : null, rpBefore: t[0].rpBefore, rpAfter: t[t.length - 1].rpAfter, time: w?.time ?? null, waveBase: w?.waveBase ?? null };
+  });
 }
 
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
@@ -1283,6 +1329,22 @@ if (IS_MAIN && process.argv[2] === 'laxne') {
     const runs = SEEDS.map(seedOffset => vasterkarvCampaign(policy, { seedOffset, maxAttempts: 6, choice }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${vkAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}   ${vasterkarvArrival(SEEDS[i], choice).rp}${r.stuck ? '  fast' : ''}`));
     for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} ${x.lostBy ?? ''} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} kvar ${x.cashEnd} topp ${x.peak} civ ${x.evac?.safe}/${x.evac?.lost} -${x.lostMen}/${x.lostUnits} rp ${x.rp}  ${x.force}`);
+  }
+} else if (IS_MAIN && process.argv[2] === 'full') {
+  // 0.26.1 (H602): node scripts/balance.mjs full [normal|near|-] [defend|fallback] [seeds]: hela kampanjen i följd
+  const choice = process.argv[4] ?? 'defend', seeds = SEEDS.slice(0, Number(process.argv[5] ?? 5));
+  for (const family of process.argv[3] && process.argv[3] !== '-' ? [process.argv[3]] : ['normal', 'near']) {
+    console.log(`\n=== Hela kampanjen (${choice}), ${family} ===`);
+    const runs = seeds.map(seedOffset => fullCampaign(family, { seedOffset, choice }));
+    const curves = runs.map(r => fullCurve(r.log));
+    const days = curves[0].map(c => c.day);
+    console.log('dag  bana                     ' + seeds.map((_, i) => `s${i}: försök bas  kvar$   rp`.padEnd(30)).join(''));
+    for (const n of days) {
+      const c0 = curves[0].find(c => c.day === n);
+      console.log(`${String(n).padStart(3)}  ${(c0.map + ' ' + c0.mapDay).padEnd(24)} ` + curves.map(cs => { const c = cs.find(q => q.day === n); return c ? `${String(c.tries).padStart(2)} ${String(c.base ?? '-').padStart(6)} ${String(c.cash ?? '-').padStart(6)} ${String(c.rpBefore).padStart(5)}`.padEnd(30) : ''.padEnd(30); }).join(''));
+    }
+    runs.forEach((r, i) => { if (r.stuck) console.log(`  s${i} fast: ${r.stuck.mapId} dag ${r.stuck.day}`); });
+    if (process.env.FULL_LOG) for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} d${x.cday} ${x.mapId} ${x.day} f${x.attempt} ${x.won ? 'ja ' : 'nej ' + (x.why ?? '')} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} vågbas ${x.waveBase.join(',')} tid ${x.time} kvar ${Math.round(x.cashEnd)} köpt ${x.spent} rp ${x.rpBefore}→${x.rpAfter}  ${x.force}`);
   }
 } else if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {

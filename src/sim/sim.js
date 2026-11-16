@@ -1979,7 +1979,7 @@ function damage(sim, z, amount, p, cls = 'small', src = null) {
     const def = ZOMBIES[z.type];
     z.dead = true; z.deadT = 0;
     const bounty = def.bounty * (sim.bountyMul ?? 1) * (sim.tweaks?.cash ?? 1), intel = def.intel * (sim.tweaks?.intel ?? 1);
-    sim.cash += bounty; sim.intelEarned += intel; sim.kills++;
+    sim.cash += bounty; sim.earned = (sim.earned ?? 0) + bounty; sim.intelEarned += intel; sim.kills++;
     sim.events.push({ t: 'kill', id: z.id, type: z.type, bounty, intel, x: p.x, z: p.z });
   }
 }

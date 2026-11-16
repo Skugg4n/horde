@@ -15,6 +15,7 @@ import { vastraRondellPlay } from './gnesta-vastra-rondell-play.js';
 import { vasterkarvPlay } from './vasterkarv-play.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
+import { applyTune } from './campaign-tune.js';
 
 export const MAPS = {
   riksvagen: {
@@ -65,3 +66,5 @@ export const MAPS = {
 // 0.20.0 (H502): rutnätet och placeringen räknas när banan behöver dem (src/data/lazy.js)
 lazy(MAPS.riksvagen, 'grid', () => timed('riksvagen:rutnät', () => E4.e4Grid()));
 lazy(MAPS.riksvagen, 'place', () => timed('riksvagen:placering', () => E4.e4Placement(MAPS.riksvagen.grid)));
+// 0.26.1 (H602): kampanjens kurva, dagarnas hp, budget och vågornas ramp (src/data/campaign-tune.js)
+applyTune(MAPS);

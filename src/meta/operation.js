@@ -13,6 +13,7 @@
 //                snabb seger, få förluster och oskadad bas. Inget svårighetsval (Olas beslut).
 import { MAPS } from '../data/maps.js';
 import { WEAPONS } from '../data/weapons.js';
+import { ZOMBIES } from '../data/zombies.js';
 import { GARRISON, poolOf, RELEASES, UNIT_RP, LEVEL_RP, REFILL_RP, RETURN_RATE, VET_WINS, UPGRADES, SUPPLY_BUDGET, SECTORS, RETIRED_NODES, UNLOCK_TIERS } from '../data/depot.js';
 import { researchNode } from '../data/research.js';
 import { ARRIVAL_TROOP } from '../data/arrival.js';
@@ -35,6 +36,7 @@ export const OBJECTIVE_RP = 25;       // ett uppdrag som klaras (dagens vinst), 
 export const EVAC_RP = 2;
 // Förnödenheter per dödad zombie jämfört med 0.13:s pengar: trupperna köps inte längre i striden.
 export const SUPPLY_BOUNTY = 0.5;
+export const RP_CAP_CLOSED = 400;
 
 const isSquadType = type => !!WEAPONS[type]?.squad;
 // 0.16.0: en sparfil från före knappheten får sitt lager, och en med Gnesta North som egen sektor får sina
@@ -129,20 +131,19 @@ export const SUGGEST_FATIGUE = [1, 0.9, 0.4];
 const suggestWorth = u => unitWorth({ ...u, fatigue: 0 }) * SUGGEST_FATIGUE[u.fatigue ?? 0];
 // 0.26.1 (H603, helspeltestet 2026-11-16: inför dag 13 lade rullan alla kulsprutor i reserven, förstärkningen Ksp 88
 // hamnade i reserven dag 14; H607: Hemvärnet med 2 av 5 man gick in medan MCF:s förstärkning satt i reserv): förslaget går
-// i trappsteg. Först förstärkningen (en leverans som inte stridit än), sedan de utvilade med minst SUGGEST_FULL av sina
-// man, sedan övriga utvilade, sedan de trötta; de utmattade aldrig av sig själva (bara om ingen annan finns alls). Inom
-// steget de mest värda först.
-export const SUGGEST_FULL = 0.75;
+// i trappsteg. Först förstärkningen (en leverans som inte stridit än), sedan alla som inte är utmattade efter värde, där
+// tröttheten drar av (SUGGEST_FATIGUE) och en grupp räknas efter hur många man den har kvar (andelen i kvadrat: en halv grupp är värd en fjärdedel); de utmattade aldrig av sig
+// själva (bara om ingen annan finns alls). Prövat: "de trötta bara om taket inte är fyllt" gav samma svaga trupp som
+// speltestet klagade på (inför dag 13 Hemvärn och frivilliga i striden, alla Ksp 58 och Ksp 88 i reserv), så de trötta
+// tävlar om platserna med sitt värde: en utvilad går före en trött av samma slag, en trött Ksp 58 före utvilade frivilliga.
 export const isReinforcement = u => !!u.rel && !(u.wins > 0);
-export function suggestTier(u, research = []) {
-  const f = u.fatigue ?? 0;
-  if (f >= 2) return 4;
-  if (isReinforcement(u)) return 0;
-  if (f === 1) return 3;
-  const max = maxMen(u, research);
-  return max && u.men != null && u.men < max * SUGGEST_FULL ? 2 : 1;
+export function suggestTier(u) {
+  if ((u.fatigue ?? 0) >= 2) return 2;
+  return isReinforcement(u) ? 0 : 1;
 }
-const suggestOrder = research => (a, b) => suggestTier(a, research) - suggestTier(b, research) || suggestWorth(b) - suggestWorth(a) || b.level - a.level || a.uid - b.uid;
+const strength = (u, research) => { const max = maxMen(u, research); return max && u.men != null ? Math.min(1, u.men / max) : 1; };
+const suggestValue = (u, research) => suggestWorth(u) * strength(u, research) ** 2;
+const suggestOrder = research => (a, b) => suggestTier(a) - suggestTier(b) || suggestValue(b, research) - suggestValue(a, research) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
 export function lanes(p, sector) {
   const here = unitsIn(p, sector), cap = deployCap(p, sector);
   const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);
@@ -490,9 +491,21 @@ export function opStartConfig(p, day, mapId = p.mapId) {
   // 0.16.0: det som är upplåst i dag (src/meta/unlocks.js). Utan förnödenheter (E4 dag 1) är kassan tom och
   // de dödade ger inget.
   const allow = [...featuresFor(mapId, day)], supplies = allow.includes('supplies');
-  return { ...base, cash: supplies ? (d.supplies ?? d.startCash) + supplyBonus(p.research) : 0, core, hpMul: hpFromPressure(pressureOf(p, mapId)),
-    bountyMul: supplies ? SUPPLY_BOUNTY * (d.bounty ?? 1) : 0, allow };
+  const cash = supplies ? (d.supplies ?? d.startCash) + supplyBonus(p.research) : 0;
+  return { ...base, cash, core, hpMul: hpFromPressure(pressureOf(p, mapId)),
+    bountyMul: supplies ? bountyFor(d, cash) : 0, allow };
 }
+// 0.26.1 (H605, helspeltestet 2026-11-16: 700 till 1 100 $ oanvända varje dag från dag 8): dagens förnödenheter har en
+// budget (d.budget, dollar): startkassan plus allt de dödade ger när hela dagen är dödad. Förnödenheterna per dödad räknas
+// ur budgeten och dagens alla zombier (vågorna och de vilande, med valets större första våg), så att inkomsten följer
+// dagen och inte hur många som råkar komma. Utan budget gäller SUPPLY_BOUNTY gånger d.bounty som förut.
+export function dayBounty(d) {
+  let sum = 0;
+  for (const w of d.waves ?? []) for (const g of w.groups) sum += g.count * (ZOMBIES[g.type]?.bounty ?? 0);
+  for (const m of d.dormant ?? []) sum += (m.count ?? 0) * (ZOMBIES[m.type ?? 'walker']?.bounty ?? 0);
+  return sum;
+}
+export const bountyFor = (d, cash) => (d.budget != null ? Math.max(0, d.budget - cash) / Math.max(1, dayBounty(d)) : SUPPLY_BOUNTY * (d.bounty ?? 1));
 // ---------- kampanjens val (0.24.0, H552, src/data/choices.js) ----------
 // Dagen som den spelas: banans dag, eller en kopia som ett val ändrat. day.choiceMod = { choice: [id, opt], firstWave }:
 // när valet är gjort blir varje grupp i första vågen firstWave gånger större (avrundat uppåt). 0.24.1 (H556): choiceMod.intro
@@ -546,6 +559,9 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
   const attempt = lossesOf(p, mapId, day) + 1;
   const rp = rpForAttempt({ base: intelEarned, attempt, won, report, evac });
   let q = dayResult(withOp(p), { day, won, rpEarned: rp.total, mapId });
+  // 0.26.1 (H605, helspeltestet: 859 RP innan förrådet fanns, utan att spelaren såg dem): innan förrådet öppnar sparas
+  // högst RP_CAP_CLOSED. Valt framför att öppna rekvisitionen tidigare: lagret att rekvirera ur kommer först natt 6.
+  if (!hasMeta(syncOperation(q), 'depot') && q.rp > RP_CAP_CLOSED) q = { ...q, rp: RP_CAP_CLOSED };
   if (!won) {
     const st = mapState(q, mapId);
     q = { ...q, maps: { ...q.maps, [mapId]: { ...st, losses: { ...(st.losses ?? {}), [day]: lossesOf(p, mapId, day) + 1 } } } };
