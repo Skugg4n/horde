@@ -15,7 +15,8 @@ export function createLeakWatch() {
   function reset() { st.clear(); told.clear(); acc = 0; sim = null; }
   // covered(z, p): är zombien i p under eld just nu; ahead(z): täcker någon enhet resten av zombiens väg (true/false,
   // eller null när vägen inte är känd); base: { x, z }; streetOf(x, z): gatans namn eller null.
-  // Returnerar de nya läckorna: [{ x, z, street, n }].
+  // Returnerar de nya läckorna: [{ x, z, street, n, passed }]. 0.26.1 (H607): passed = någon tog sig förbi en enhet (bara
+  // då säger spelet "They got past"; en tom väg nära basen märks bara med ringen).
   function update(s, dt, { covered, ahead = null, base, streetOf, time = 0 }) {
     if (s !== sim) { reset(); sim = s; }
     acc += dt;
@@ -36,8 +37,8 @@ export function createLeakWatch() {
       if (covered(z, p)) { q.ever = true; q.last = { x: p.x, z: p.z }; q.out = 0; continue; }
       if (q.ever) {
         q.out += step;
-        if (q.out >= LEAK.hold && d < dBase(q.last) - 2 && ahead?.(z) !== true) { q.told = true; q.leak = q.last; fresh.push(q.last); }
-      } else if (d < LEAK.near) { q.told = true; q.leak = { x: p.x, z: p.z }; fresh.push(q.leak); }
+        if (q.out >= LEAK.hold && d < dBase(q.last) - 2 && ahead?.(z) !== true) { q.told = true; q.leak = q.last; fresh.push({ ...q.last, passed: true }); }
+      } else if (d < LEAK.near) { q.told = true; q.leak = { x: p.x, z: p.z }; fresh.push({ ...q.leak, passed: false }); }
     }
     // de som dött eller nått basen sedan förra provet (where läses i handleEvents, före nästa prov)
     for (const id of [...st.keys()]) if (!alive.has(id)) st.delete(id);
@@ -47,10 +48,10 @@ export function createLeakWatch() {
       const street = streetOf(p.x, p.z);
       const key = street ?? `${Math.round(p.x / 20)},${Math.round(p.z / 20)}`;
       const same = out.find(o => o.key === key);
-      if (same) { same.n++; continue; }
+      if (same) { same.n++; same.passed ||= p.passed; continue; }
       if (time - (told.get(key) ?? -Infinity) < LEAK.gap) continue;
       told.set(key, time);
-      out.push({ key, x: p.x, z: p.z, street, n: 1 });
+      out.push({ key, x: p.x, z: p.z, street, n: 1, passed: !!p.passed });
     }
     return out;
   }

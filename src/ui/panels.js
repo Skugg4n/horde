@@ -97,6 +97,8 @@ const REASONS = {
   'bemannas': 'A crew is on the way',
   // 0.26.0 (Västerkärv): EPA:n kör bara på vägarna
   'spår': 'Only on roads and tracks',
+  // 0.26.1 (H607): på hordens väg står fordonet i vägen; bredvid går bra
+  'hordväg': "Not on the horde's path. Pick the verge beside it",
   'spår väg': 'No way there by road',
 };
 // Så många enheter som kan stå ute i dag: frontbredden, eller de utställda plus reserven med folk kvar om de är färre.
@@ -639,11 +641,12 @@ export function dayIntro(root, dayCfg, cash, onGo, { n = null, where = null } = 
 // ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
 // 0.25.1 (H561, speltestet av 0.25.0: segerkortet efter kampanjens sista dag sa "Refill at Requisition" och "RP to spend"
 // fast inget följer): final = den sista byggda dagen är vunnen. Då står förlusterna utan påfyllnad, och RP att lägga står inte.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false, cashLeft = 0, groundLost = null }, { onRetry, onOpMap, onMenu, onManual }) {
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false, cashLeft = 0, groundLost = null, exitDay = false }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
-  const head = sectorDone ? 'Victory' : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : lostBy === 'extract' ? 'The EPA was lost.' : 'The line broke.';
+  // 0.26.1 (H607): en dag som går ut på att lämna (dayCfg.extract) hölls inte, alla kom ut
+  const head = sectorDone ? 'Victory' : won && exitDay ? `Day ${day}. Everyone got out.` : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : lostBy === 'extract' ? 'The EPA was lost.' : 'The line broke.';
   const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians ${evac.place ?? 'reached the ice rink'}${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   const rows = [];
   if (rp) {

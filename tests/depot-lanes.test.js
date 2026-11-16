@@ -123,27 +123,26 @@ function rig(units) {
   const p = mb();
   return { ...p, op: { ...p.op, units: [...p.op.units.filter(u => u.sector !== 'molnbo'), ...units] } };
 }
-test('H603: förstärkningen först, de trötta tävlar med sitt värde, de utmattade aldrig', () => {
+test('H603: förstärkningen först, sedan värdet med tröttheten avdragen: en utvilad före en trött av samma slag', () => {
   const cap = deployCap(mb(), 'molnbo');
   let uid = 500;
-  // en ny Ksp 88 (förstärkning), två trötta Ksp 58 på nivå 3, utvilade frivilliga, och utmattade tunga
-  const reinf = unit(uid++, 'm2', { wins: 0, rel: 'vr-1' });
+  const reinf = unit(uid++, 'civ', { wins: 0, rel: 'vr-1', men: 4 });
   const tired = [unit(uid++, 'ksp58', { fatigue: 1, level: 3 }), unit(uid++, 'ksp58', { fatigue: 1, level: 3 })];
-  const civs = Array.from({ length: cap }, () => unit(uid++, 'civ', { men: 4 }));
-  const worn = [unit(uid++, 'm2', { fatigue: 2, level: 3 }), unit(uid++, 'ksp58', { fatigue: 2, level: 3 })];
-  const p = rig([reinf, ...tired, ...civs, ...worn]);
+  const civs = Array.from({ length: cap }, () => unit(uid++, 'civ', { men: 4, level: 2 }));
+  const hvs = Array.from({ length: cap - 4 }, () => unit(uid++, 'hv', { men: 5, level: 2 }));
+  const worn = unit(uid++, 'ksp58', { fatigue: 2, level: 3 });
+  const p = rig([reinf, ...tired, ...civs, ...hvs, worn]);
   const L = lanes(p, 'molnbo'), inB = new Set(L.battle.map(u => u.uid));
   assert.equal(L.battle.length, cap);
-  assert.ok(inB.has(reinf.uid), 'förstärkningen går in');
+  assert.ok(inB.has(reinf.uid), 'förstärkningen går in, fast den är värd minst');
   for (const u of tired) assert.ok(inB.has(u.uid), 'trötta kulsprutor före utvilade frivilliga (speltestet dag 13)');
-  for (const u of worn) assert.ok(!inB.has(u.uid), 'de utmattade vilar');
-  // en utvilad går före en trött av samma slag
-  const twin = [unit(uid++, 'ksp58', { level: 3 }), unit(uid++, 'ksp58', { level: 3, fatigue: 1 })];
+  for (const u of hvs) assert.ok(inB.has(u.uid), 'utvilade Hemvärnsgrupper');
+  assert.ok(inB.has(worn.uid), 'en utmattad Ksp 58 på nivå 3 före utvilade frivilliga');
+  // en utvilad går före en trött och en utmattad av samma slag
+  const twin = [unit(uid++, 'ksp58', { level: 3, fatigue: 2 }), unit(uid++, 'ksp58', { level: 3, fatigue: 1 }), unit(uid++, 'ksp58', { level: 3 })];
   const q = rig([...twin, ...Array.from({ length: cap - 1 }, () => unit(uid++, 'm2', { level: 3 }))]);
   const L2 = new Set(lanes(q, 'molnbo').battle.map(u => u.uid));
-  assert.ok(L2.has(twin[0].uid) && !L2.has(twin[1].uid));
-  // bara utmattade: de går in hellre än en tom linje
-  assert.equal(lanes(rig(worn), 'molnbo').battle.length, 2);
+  assert.ok(L2.has(twin[2].uid) && !L2.has(twin[1].uid) && !L2.has(twin[0].uid));
 });
 
 test('H607: en grupp med 2 av 5 man går inte in före förstärkningen och fulla utvilade grupper', () => {

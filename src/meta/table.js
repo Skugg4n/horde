@@ -158,7 +158,9 @@ export function lostNext(map, day) {
 export function synthReport(p, map, day) {
   const e = tableOf(p).log[`${map}:${day}`];
   const gone = lostNext(map, day);
-  const lead = `${placeName(map)} held.${gone ? ` ${gone}.` : ''}`;
+  // 0.26.1 (H607): en dag som gick ut på att lämna platsen hölls inte
+  const left = !!MAPS[map]?.days?.[day - 1]?.extract;
+  const lead = left ? `${placeName(map)}: everyone got out.` : `${placeName(map)} held.${gone ? ` ${gone}.` : ''}`;
   if (!e) return { lead, text: `The line stood through day ${campaignDay(map, day, p)}.` };
   const parts = [];
   if (e.kills) parts.push(`${e.kills} infected down${e.waves ? ` in ${e.waves} waves` : ''}.`);

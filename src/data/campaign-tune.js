@@ -2,7 +2,8 @@
 // räknar nu hela kampanjen i följd med samma spelare (scripts/balance.mjs full), och dagarnas svårighet och förnödenheter
 // sätts här, på ett ställe, ovanpå banornas data (src/data/maps.js applyTune). Banornas filer beskriver dagen (vågornas
 // sammansättning, ingångarna, texterna); här står det som balansen vrider på:
-//   hp      zombiernas hp-faktor för dagen
+//   hp      zombiernas hp-faktor för dagen (hpDefend: i grenen DEFEND LAXNE, dagens choiceMod.hp;
+//           hpBy { defend, fallback }: hp i Laxne-valets gren, src/meta/operation.js dayFor)
 //   budget  dagens förnödenheter i dollar: startkassan plus allt de dödade ger (src/meta/operation.js bountyFor, H605)
 //   ramp    högsta kvoten mellan en vågs antal och föregående vågs (vågorna jämnas ut, summan står kvar)
 //   count   faktor på alla gruppers antal
@@ -11,11 +12,14 @@
 export const RAMP_MAX = 1.6;
 export const TUNE = {
   // Ishallen dag 1 (kampanjens dag 4): evakueringen är klar i våg 2; en större första våg dödade de civila vid dörrarna
-  gnesta: { 1: { cap: true }, 2: { hp: 2.3 } },
+  riksvagen: { 2: { hp: 3.6 } },
+  gnesta: { 1: { cap: true }, 2: { hp: 2.3, budget: 740 }, 3: { budget: 1076 } },
   'gnesta-norr': { 1: { hp: 2.8, budget: 1050 } },
-  molnbo: { 1: { hp: 24, budget: 790 }, 2: { hp: 15, budget: 990 }, 3: { hp: 6.5 } },
-  laxne: { 1: { hp: 8.5 } },
-  bjornlunda: { 1: { hp: 4 } },
+  molnbo: { 1: { hp: 24, budget: 790 }, 2: { hp: 15, budget: 990 }, 3: { hp: 24 } },
+  laxne: { 1: { hp: 8, budget: 1490 } },
+  bjornlunda: { 1: { hp: 8.5, hpBy: { fallback: 6.5 }, budget: 1320 }, 2: { hp: 6.3, hpBy: { fallback: 8 }, budget: 1630 } },
+  'gnesta-vastra-rondell': { 1: { hp: 14, budget: 1340 } },
+  vasterkarv: { 1: { hp: 8.5, hpDefend: 8.5 } },
 };
 
 // Vågornas antal jämnas ut bakifrån: varje våg minst nästa delat med r, sedan skalas allt så att summan står kvar (avrundat
@@ -42,6 +46,8 @@ export function applyTune(maps) {
       const d = map.days[Number(n) - 1];
       if (!d) continue;
       if (t.hp != null) d.hp = t.hp;
+      if (t.hpDefend != null && d.choiceMod) d.choiceMod = { ...d.choiceMod, hp: t.hpDefend };
+      if (t.hpBy) d.hpBy = { ...t.hpBy };
       if (t.budget != null) d.budget = t.budget;
       if (t.count != null) d.waves = d.waves.map(w => ({ ...w, groups: w.groups.map(g => ({ ...g, count: Math.max(1, Math.round(g.count * t.count)) })) }));
     }

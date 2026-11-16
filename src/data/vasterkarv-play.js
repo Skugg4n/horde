@@ -226,7 +226,8 @@ export const DAYS = [
   { n: 1, supplies: 500, arsenal: ALL, startCash: 2000, hp: 15.5, overlap: 10, overlapMin: 0.3, bounty: 0.7,
     choiceMod: { choice: ['laxne', 'defend'], hp: 12 },
     intro: { title: 'Day 1: Get out in time', text: 'Up Skogsvägen and across the field on Traktorspåret.' },
-    order: { text: 'Hold the farm. Get everyone out east, then the EPA.' },
+    // 0.26.1 (H607, speltestet av dag 14: horden kom runt huset till gårdsplanen där ingen såg dem): ordern säger var
+    order: { text: 'Stand in the yard and on Skogsvägen. Out east, then the EPA.' },
     objective: 'Get the farm out east. Then drive the EPA out.',
     // gårdsplanen, de två småvägarna in och östra grusvägen ut i bild
     view: { pts: [FARMHOUSE.entrance, [12, -22], [-90, -55], [-90, 50], EXTRACT.at] },

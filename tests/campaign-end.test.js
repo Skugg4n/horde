@@ -96,8 +96,9 @@ test('kartbladet efter rondellen: varje pennrad ligger närmast sin egen markör
   }
 });
 
-test('DAY n hamnar bredvid det som ligger över kartan (klämbrädan)', () => {
-  const nb = nextBattle(debugReach(newCampaign(), ID, 1));
+test('DAY n hamnar bredvid det som ligger över kartan (klämbrädan), också Västerkärvs (H607)', () => {
+  for (const id of [ID, 'vasterkarv']) {
+  const nb = nextBattle(debugReach(newCampaign(), id, 1));
   assert.equal(dayLabelSpot(nb).far, false);
   const [x, y] = sectorXY(nb.sector);
   // klämbrädan i 1440 x 900 och i 1024 x 614 (kartans bildpunkter)
@@ -106,5 +107,6 @@ test('DAY n hamnar bredvid det som ligger över kartan (klämbrädan)', () => {
     assert.ok(s.far);
     const b = { x0: x + s.dx - 4, y0: y + s.dy - 20, x1: x + s.dx + 132, y1: y + s.dy + 28 };
     assert.ok(!(b.x0 < av.x1 && av.x0 < b.x1 && b.y0 < av.y1 && av.y0 < b.y1), JSON.stringify(s));
+  }
   }
 });

@@ -574,7 +574,7 @@ function moveRoute() {
   if (!g) return null;
   const via = placing.via ?? [];
   const k = `${g.id}|${g.cell}|${via.join(',')}|${spot.key}`;
-  if (routeCache.key !== k) { routeCache.key = k; routeCache.route = crewPathTo(sim, { x: g.x, z: g.z }, spot.key, via); }
+  if (routeCache.key !== k) { routeCache.key = k; routeCache.route = crewPathTo(sim, { x: g.x, z: g.z }, spot.key, via, g.weapon.type); }  // 0.26.1 (H607): fordonet på vägarna
   const r = routeCache.route, viaPts = via.map(q => { const c = sim.place.center(q); return [c.x, c.z]; });
   if (!r) return { pts: [[g.x, g.z], ...viaPts, [spot.x, spot.z]], ok: false, via: viaPts };
   return { pts: r.pts, ok: !!spot.ok, via: viaPts };
@@ -990,14 +990,18 @@ function updatePips() {
 const squadTags = new Map();
 const SQUAD_TAG = { civ: { t: 'VOL', cls: 'civ' }, hv: { t: 'HV', cls: 'hv' }, inf: { t: 'INF', cls: 'inf' } };
 const shotAt = new Map();
+// 0.26.1 (H607, speltestet av dag 14: EPA:n var svår att hitta och klicka): fordonet som ska ut (dayCfg.extract) får ett
+// märke som grupperna; klick väljer det
+const isRide = g => !g.squad && !!sim.extract?.types.includes(g.weapon.type);
+const tagOf = g => (isRide(g) ? { t: (WEAPONS[g.weapon.type]?.short ?? g.weapon.type).toUpperCase(), cls: 'ride' } : SQUAD_TAG[g.weapon.type]);
 function updateSquadTags() {
-  const want = mode === 'play' && !placing ? sim.guns.filter(g => g.squad && SQUAD_TAG[g.weapon.type] && g.soldiers.length) : [];
+  const want = mode === 'play' && !placing ? sim.guns.filter(g => isRide(g) || (g.squad && SQUAD_TAG[g.weapon.type] && g.soldiers.length)) : [];
   const ids = new Set(want.map(g => g.id));
   for (const [id, el] of squadTags) if (!ids.has(id)) { el.remove(); squadTags.delete(id); }
   for (const g of want) {
     let el = squadTags.get(g.id);
     if (!el) {
-      const d = SQUAD_TAG[g.weapon.type], id = g.id;
+      const d = tagOf(g), id = g.id;
       el = document.createElement('button'); el.type = 'button'; el.className = 'sqtag ' + d.cls;
       el.innerHTML = `<b>${d.t}</b><i></i>`;
       // 0.16.4 (speltestet av 0.16.2: ett klick på "VOL 3" med en enhet i handen gav ingenting): med något i handen går
@@ -1011,14 +1015,15 @@ function updateSquadTags() {
       pips.appendChild(el); squadTags.set(id, el);
     }
     // 0.18.0: de som springer (flytt, vik, flykt) räknas där de är just nu
-    const up = g.soldiers.filter(q => !q.down).map(q => (q.run > 0 ? soldierAt(q) : q));
+    const up = g.squad ? g.soldiers.filter(q => !q.down).map(q => (q.run > 0 ? soldierAt(q) : q)) : [];
+    const gp = g.squad ? null : gunPos(g);
     const cx = up.reduce((a, q) => a + q.x, 0) / (up.length || 1), cz = up.reduce((a, q) => a + q.z, 0) / (up.length || 1);
     // 0.19.0 (H459): en grupp i ett hus har lappen på taket
     const ht = houseTop(g);
     if (ht) tmpV.set(ht.x, ht.y + 1.7, ht.z).project(camera);
-    else tmpV.set(up.length ? cx : g.x, 2.4, up.length ? cz : g.z).project(camera);
+    else tmpV.set(up.length ? cx : gp?.x ?? g.x, 2.4, up.length ? cz : gp?.z ?? g.z).project(camera);
     el.style.left = ((tmpV.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - tmpV.y) / 2 * innerHeight) + 'px';
-    const n = String(up.length) + (g.house ? ' \u2302' : '');
+    const n = g.squad ? String(up.length) + (g.house ? ' \u2302' : '') : '';
     const ni = el.querySelector('i'); if (ni.textContent !== n) ni.textContent = n;
     el.classList.toggle('fire', time - (shotAt.get(g.id) ?? -Infinity) < 0.35);
     el.classList.toggle('sel', selected?.kind === 'gun' && selected.id === g.id);
@@ -1761,7 +1766,7 @@ function updateLeaks(paused) {
     if (at) fireList.push({ x: at.x, z: at.z, mask: g.sight.mask, r: gunStats(sim, g).range });
   }
   const streetOf = (x, z) => (sim.route.kind === 'grid' ? streetAt(sim.map, x, z) : null);
-  for (const l of leakWatch.update(sim, dt, { covered: underFire, ahead: aheadOf(sim, coversAt), base: baseCenter(), streetOf, time: sim.time })) leakSpot(l.x, l.z, l.street);
+  for (const l of leakWatch.update(sim, dt, { covered: underFire, ahead: aheadOf(sim, coversAt), base: baseCenter(), streetOf, time: sim.time })) leakSpot(l.x, l.z, l.street, { quiet: !l.passed });
   updateLeakArrow();
 }
 function updateLeakArrow() {
@@ -2036,7 +2041,11 @@ function updateRoutes() {
   // 0.23.2 (omtestet av 0.23.1: skrotbilarna skickade horden ner Smedjevägen bakom linjen utan förvarning): med ett hinder
   // i handen syns vägarna alltid, också när V slagit av dem
   const forceRoute = placing?.kind === 'obstacle';
-  routeLines.set('now', showRoute || forceRoute ? nowPaths.map(p => p.cells.map(cellWorld)) : null, nowKey + (forceRoute && !showRoute ? '|f' : ''));
+  // 0.26.1 (H607, speltestet av dag 14: linjen slutade vid husets hörn och horden kom till dörren bakvägen): på en bana med
+  // dörr (map.door) går linjen ända fram till dörren
+  const door = sim.map.door && sim.map.iceRink?.entrance;
+  const toDoor = pts => (door && pts.length && Math.hypot(pts[pts.length - 1][0] - door[0], pts[pts.length - 1][1] - door[1]) > 1 ? [...pts, [door[0], door[1]]] : pts);
+  routeLines.set('now', showRoute || forceRoute ? nowPaths.map(p => toDoor(p.cells.map(cellWorld))) : null, nowKey + (forceRoute && !showRoute ? '|f' : ''));
   // 0.11.0 (H090): före vågen är vägarna förhandsvisningen spelaren bygger efter, så de lyser starkare
   // 0.12.0 (H114): när en barrikad går sönder blinkar den nya vägen några sekunder
   const flash = routeFlash > 0 ? 0.5 + 0.5 * Math.abs(Math.sin(routeFlash * 6)) : 0;
@@ -3006,7 +3015,7 @@ function showResult() {
   // föreslås dagens uppslag i Field manual (designen avsnitt 5.3)
   const i = dayStage(map.id, day), entry = !lastResult.won && meta('manual') ? (LESSONS[STAGES[i]?.id] ?? []).map(l => manualEntry(l.manual)).find(Boolean) : null;
   // 0.22.1 (speltestet av 0.22.0, fynd 1): kampanjens dag, som HUD:en
-  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, day: shownDay(map.id, lastResult.day ?? day), totalRp: progress.rp, outro, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
+  setMode('result', () => dayResultPanel(uiRoot, { ...lastResult, day: shownDay(map.id, lastResult.day ?? day), totalRp: progress.rp, outro, exitDay: !!map.days?.[(lastResult.day ?? day) - 1]?.extract, showRp: meta('rp'), depot: meta('depot'), next: hubTable() ? 'Map table' : meta('opmap') ? 'Operations map' : 'Next day',
     manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
     onRetry: () => (hubTable() ? showTable() : meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),

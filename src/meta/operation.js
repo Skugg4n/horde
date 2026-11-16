@@ -130,17 +130,15 @@ const fit = u => u.men == null || u.men > 0;
 export const SUGGEST_FATIGUE = [1, 0.9, 0.4];
 const suggestWorth = u => unitWorth({ ...u, fatigue: 0 }) * SUGGEST_FATIGUE[u.fatigue ?? 0];
 // 0.26.1 (H603, helspeltestet 2026-11-16: inför dag 13 lade rullan alla kulsprutor i reserven, förstärkningen Ksp 88
-// hamnade i reserven dag 14; H607: Hemvärnet med 2 av 5 man gick in medan MCF:s förstärkning satt i reserv): förslaget går
-// i trappsteg. Först förstärkningen (en leverans som inte stridit än), sedan alla som inte är utmattade efter värde, där
-// tröttheten drar av (SUGGEST_FATIGUE) och en grupp räknas efter hur många man den har kvar (andelen i kvadrat: en halv grupp är värd en fjärdedel); de utmattade aldrig av sig
-// själva (bara om ingen annan finns alls). Prövat: "de trötta bara om taket inte är fyllt" gav samma svaga trupp som
-// speltestet klagade på (inför dag 13 Hemvärn och frivilliga i striden, alla Ksp 58 och Ksp 88 i reserv), så de trötta
-// tävlar om platserna med sitt värde: en utvilad går före en trött av samma slag, en trött Ksp 58 före utvilade frivilliga.
+// hamnade i reserven dag 14; H607: Hemvärnet med 2 av 5 man gick in medan MCF:s förstärkning satt i reserv): först
+// förstärkningen (en leverans som inte stridit än), sedan alla efter värde, där tröttheten drar av (SUGGEST_FATIGUE: en
+// utvilad före en trött av samma slag, en utmattad sist av sitt slag) och en grupp räknas efter hur många man den har kvar
+// (andelen i kvadrat: en halv grupp är värd en fjärdedel). Prövat i balansen (docs/balance-log.md 0.26.1): "de trötta bara
+// när taket inte är fyllt" och "de utmattade aldrig" gav samma svaga trupp som speltestet klagade på; efter två stridsdagar
+// i rad var alla tunga pjäser utmattade och dagen efter gick inte att vinna ens med hp 2 (Björnlunda dag 2 efter FALL BACK).
+// En utmattad Ksp 58 på nivå 3 går därför före utvilade frivilliga, men efter utvilade och trötta Hemvärnsgrupper.
 export const isReinforcement = u => !!u.rel && !(u.wins > 0);
-export function suggestTier(u) {
-  if ((u.fatigue ?? 0) >= 2) return 2;
-  return isReinforcement(u) ? 0 : 1;
-}
+export const suggestTier = u => (isReinforcement(u) && (u.fatigue ?? 0) < 2 ? 0 : 1);
 const strength = (u, research) => { const max = maxMen(u, research); return max && u.men != null ? Math.min(1, u.men / max) : 1; };
 const suggestValue = (u, research) => suggestWorth(u) * strength(u, research) ** 2;
 const suggestOrder = research => (a, b) => suggestTier(a) - suggestTier(b) || suggestValue(b, research) - suggestValue(a, research) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
@@ -148,10 +146,7 @@ export function lanes(p, sector) {
   const here = unitsIn(p, sector), cap = deployCap(p, sector);
   const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);
   const open = here.filter(u => !u.lane && fit(u)).sort(suggestOrder(p.research ?? []));
-  const willing = open.filter(u => (u.fatigue ?? 0) < 2), worn = open.filter(u => (u.fatigue ?? 0) >= 2);
-  while (battle.length < cap && willing.length) battle.push(willing.shift());
-  // de utmattade bara när stridsbanan annars stod tom
-  if (!battle.length) while (battle.length < cap && worn.length) battle.push(worn.shift());
+  while (battle.length < cap && open.length) battle.push(open.shift());
   const inBattle = new Set(battle.map(u => u.uid));
   return { battle, rest: here.filter(u => !inBattle.has(u.uid)), cap };
 }
@@ -511,7 +506,10 @@ export const bountyFor = (d, cash) => (d.budget != null ? Math.max(0, d.budget -
 // när valet är gjort blir varje grupp i första vågen firstWave gånger större (avrundat uppåt). 0.24.1 (H556): choiceMod.intro
 // ersätter dagens intro i den grenen.
 export function dayFor(p, mapId, day) {
-  const d = MAPS[mapId]?.days?.[day - 1];
+  const d0 = MAPS[mapId]?.days?.[day - 1];
+  // 0.26.1 (H602): d.hpBy = { defend, fallback }: dagens hp i Laxne-valets gren (src/data/campaign-tune.js)
+  const hb = d0?.hpBy?.[choiceOf(p, 'laxne')];
+  const d = hb != null ? { ...d0, hp: hb } : d0;
   const m = d?.choiceMod;
   if (!m || choiceOf(p, m.choice[0]) !== m.choice[1]) return d;
   const k = m.firstWave ?? 1;

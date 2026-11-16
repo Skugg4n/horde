@@ -995,6 +995,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sqtag i { font-style: normal; opacity: 0.85; }
 .sqtag.civ { color: #ffd23a; border-color: #ffd23a; }
 .sqtag.hv { color: #9fd38a; border-color: #9fd38a; }
+.sqtag.ride { color: #f2e6c9; border-color: #f2e6c9; }
 .sqtag.fire { box-shadow: 0 0 10px 2px currentColor; background: rgba(60, 50, 20, 0.9); }
 .sqtag.sel, .sqtag:hover { background: rgba(60, 54, 40, 0.95); }
 

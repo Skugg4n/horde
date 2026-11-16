@@ -1246,6 +1246,9 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   if (kind === KIND.house && type && !onRoof(sim, key, type)) { const gc = garrisonCheck(sim, key, type, moved); if (gc) return gc; }
   // 0.19.1 (speltestet av 0.19.0: bodar och garage sa "Something in the way"): en byggnad som inte går att gå in i säger det
   if (kind === KIND.thing && type && p.bldg?.[key] && !onRoof(sim, key, type)) return { ok: false, reason: 'byggnad' };
+  // 0.26.1 (H607, speltestet av dag 14: "On the road" på gårdsplanens stig lästes som att vägen var förbjuden): fordonet
+  // på vägarna får ett eget skäl när rutan är hordens väg
+  if (kind === KIND.road && trackOf(sim, type)) return { ok: false, reason: 'hordväg' };
   if (kind !== KIND.open && !onRoof(sim, key, type)) return { ok: false, reason: kind === KIND.house && WEAPONS[type]?.roof ? 'kant' : KIND_REASON[kind] || 'okänd' };
   const c = p.center(key);
   if (sim.guns.some(g => Math.hypot(g.x - c.x, g.z - c.z) < MIN_SPACING - 1e-9)) return { ok: false, reason: 'nära' };
