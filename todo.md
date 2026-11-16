@@ -187,7 +187,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H169 | balans | Gnesta South dag 3 till 5: den som spärrar vid rondellen vinner med full bas, den normala behöver tre försök. Speltesta gapet. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H170 | ux | Speltesta operationskartan och förrådet i händerna (bara provat headless på 1200 x 760), och smal skärm.
 - [x] H171 | operation | Trycket märks bara när två sektorer är öppna (Gnesta North efter South dag 4). Fler sektorer (Mölnbo, Trosa, Nyköping) ger det mer att göra. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
-- [ ] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering.
+- [x] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering. GJORT 0.25.2: kontrollerat mot mcf.se (webbplatsen och föreskriftsserien MCFFS); spelet säger MCF eller hela namnet, aldrig MSB; prov tests/mcf-name.test.js.
 - [ ] H173 | ux | Lookbook och gnesta.html visar inte skrotbilarna; lägg till dem.
 
 ## Efter speltest 0.14.1 (2026-10-16)

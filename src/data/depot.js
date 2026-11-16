@@ -7,8 +7,8 @@
 //
 // Ledningen bestämmer vad som är loss. RELEASES är leveranserna i kampanjens ordning: när en dag blir
 // spelbar (map, day) kommer ett meddelande från Försvarsmakten eller Myndigheten för civilt försvar (ersatte
-// MSB 2026-01-01, kontrollerat mot regeringen.se 0.14.1; förkortningen är inte kontrollerad, så spelet skriver
-// ut hela namnet), trupper ges till sektorn (grant) och typer blir möjliga att rekvirera där (unlock).
+// MSB 2026-01-01, kontrollerat mot regeringen.se 0.14.1; förkortningen MCF kontrollerad mot mcf.se 0.25.2, H172:
+// webbplatsen mcf.se och föreskriftsserien MCFFS 2026:x; lappen skriver ut hela namnet, bordet MCF), trupper ges till sektorn (grant) och typer blir möjliga att rekvirera där (unlock).
 // 0.14.1: texterna börjar inte med avsändaren, som redan står ovanför ("Försvarsmakten: Försvarsmakten ...").
 // tiers: forskningsnivåer som leveransen ger (barrikaden, granatlådorna och vapnens första nivå), så att
 // simuleringens siffror (src/sim/stats.js) fungerar som förut.
