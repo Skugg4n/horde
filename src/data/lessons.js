@@ -107,7 +107,7 @@ export const LESSONS = {
   // 0.18.0 (skiva 1): tröttheten i förrådet, när styrkan är större än frontbredden (0.22.0: före Mölnbo, förut efter
   // Vikingavägen dag 3)
   'after-gnn-1': [
-    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.roster [data-fat]' }, text: 'Units that fought are tired. Rest some in reserve.', manual: 'fatigue' },
+    { id: 'after-gnn-3.fatigue', kind: 'show', when: 'depot', target: { ui: '.depot [data-fat], .hub.roster [data-fat]' }, text: 'From now on, units that fight get tired. Rest some in reserve.', manual: 'fatigue' },
   ],
   // 0.17.0-molnbo: Mölnbo, en ny idé per dag (platsen: tornen, tåget, tågklockan, bron, spåret)
   'mb-1': [

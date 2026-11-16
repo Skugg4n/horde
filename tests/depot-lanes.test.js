@@ -1,7 +1,7 @@
 // 0.18.1 (Olas skärmbild av förrådet): banorna Into battle / Reserve · resting och INTEL-rutan.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newCampaign, debugReach, lanes, setLane, canSetLane, opStartConfig, unitsIn, deployCap, finishDay } from '../src/meta/operation.js';
+import { newCampaign, debugReach, lanes, setLane, canSetLane, opStartConfig, unitsIn, deployCap, nightAfter, suggestRoster, suggestTier } from '../src/meta/operation.js';
 import { intelFor, rangeOf } from '../src/meta/intel.js';
 import { MAPS } from '../src/data/maps.js';
 
@@ -29,7 +29,7 @@ test('banorna: stridsbanan håller taket, och över taket vägrar den med ett sk
   assert.equal(canSetLane(p, L2.rest[0].uid, 'battle').reason, 'laneFull');
 });
 
-test('förslaget: de utvilade först vid samma värde, och valet står kvar till nästa dag (0.21.2)', () => {
+test('förslaget: de utvilade först vid samma värde, och valet står kvar tills dagen är vunnen (0.21.2, 0.26.1)', () => {
   let p = mb();
   const L = lanes(p, 'molnbo');
   // trötta ned den bästa: den ska åka ut ur förslaget före en utvilad av samma typ och nivå
@@ -39,31 +39,30 @@ test('förslaget: de utvilade först vid samma värde, och valet står kvar till
     const L2 = lanes(p, 'molnbo');
     assert.ok(L2.battle.some(u => u.uid === twin.uid), 'den utvilade går in');
   }
+  // spelarens val står kvar mellan försöken (en förlust ändrar inget)
   p = setLane(p, lanes(p, 'molnbo').battle[0].uid, 'rest').progress;
   assert.ok(unitsIn(p, 'molnbo').every(u => u.lane));
   const before = Object.fromEntries(unitsIn(p, 'molnbo').map(u => [u.uid, u.lane]));
-  const won = finishDay(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;
-  // ingen gick ut (report.units tom), ingen blev utmattad: spelarens val står kvar
-  for (const u of unitsIn(won, 'molnbo')) assert.equal(u.lane, before[u.uid], `${u.uid}`);
-  assert.ok(unitsIn(won, 'molnbo').every(u => !u.moved));
+  const lost = nightAfter(p, { mapId: 'molnbo', day: 1, won: false, intelEarned: 10, report: { units: [] } }).progress;
+  for (const u of unitsIn(lost, 'molnbo')) assert.equal(u.lane, before[u.uid], `${u.uid}`);
 });
 
-test('tröttheten flyttar: en utmattad i striden byts mot en mindre trött i reserven, och kortet säger det (0.21.2)', () => {
+test('H603: natten efter en vunnen dag föreslås rullan om, och varje flyttad rad säger varför', () => {
   let p = mb();
   const L = lanes(p, 'molnbo');
   for (const u of L.battle) p = setLane(p, u.uid, 'battle').progress;
   const out = L.battle[0];
   // en vunnen dag ute gör den utmattad (fatigue 1 före, +1 = 2)
   p = { ...p, op: { ...p.op, units: p.op.units.map(u => (u.uid === out.uid ? { ...u, fatigue: 1 } : u)) } };
-  const won = finishDay(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [{ uid: out.uid }] } }).progress;
+  const won = nightAfter(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [{ uid: out.uid }] } }).progress;
   const u = unitsIn(won, 'molnbo').find(x => x.uid === out.uid);
   assert.equal(u.fatigue, 2);
-  assert.equal(u.lane, 'rest');
+  assert.ok(!lanes(won, 'molnbo').battle.some(x => x.uid === out.uid), 'den utmattade vilar');
   assert.equal(u.moved, 'rest:exhausted');
-  const sub = unitsIn(won, 'molnbo').find(x => x.moved === 'battle:rested');
-  assert.ok(sub && sub.lane === 'battle');
+  assert.ok(unitsIn(won, 'molnbo').some(x => x.moved?.startsWith('battle:')));
   assert.equal(lanes(won, 'molnbo').battle.length, L.cap, 'taket står');
   // spelaren flyttar själv: raden försvinner
+  const sub = lanes(won, 'molnbo').battle.find(x => x.moved);
   const again = setLane(won, sub.uid, 'rest').progress;
   assert.ok(!unitsIn(again, 'molnbo').find(x => x.uid === sub.uid).moved);
 });
@@ -116,4 +115,68 @@ test('förslaget: när halva truppen är utmattad går de vilade in, inte de utm
   const L2 = lanes(p, 'molnbo');
   const exhaustedIn = L2.battle.filter(u => u.fatigue === 2);
   assert.ok(exhaustedIn.length <= tired.size / 2, `${exhaustedIn.length} utmattade av ${tired.size} kvar i striden`);
+});
+
+// 0.26.1 (H603, helspeltestet 2026-11-16, och H607, speltestet av dag 14)
+const unit = (uid, type, extra = {}) => ({ uid, type, level: 1, sector: 'molnbo', wins: 1, spent: 0, granted: true, ...extra });
+function rig(units) {
+  const p = mb();
+  return { ...p, op: { ...p.op, units: [...p.op.units.filter(u => u.sector !== 'molnbo'), ...units] } };
+}
+test('H603: förstärkningen och de utvilade först, de trötta bara om taket inte är fyllt, de utmattade aldrig', () => {
+  const cap = deployCap(mb(), 'molnbo');
+  const units = [];
+  let uid = 500;
+  // cap - 2 utvilade frivilliga, två trötta kulsprutor, en ny Ksp 88 (förstärkning), och utmattade tunga
+  for (let i = 0; i < cap - 2; i++) units.push(unit(uid++, 'civ', { men: 4 }));
+  const tired = [unit(uid++, 'ksp58', { fatigue: 1 }), unit(uid++, 'ksp58', { fatigue: 1 })];
+  const reinf = unit(uid++, 'm2', { wins: 0, rel: 'vr-1' });
+  const worn = [unit(uid++, 'm2', { fatigue: 2, level: 3 }), unit(uid++, 'ksp58', { fatigue: 2, level: 3 })];
+  const p = rig([...units, ...tired, reinf, ...worn]);
+  const L = lanes(p, 'molnbo'), inB = new Set(L.battle.map(u => u.uid));
+  assert.equal(L.battle.length, cap);
+  assert.ok(inB.has(reinf.uid), 'förstärkningen går in');
+  for (const u of units) assert.ok(inB.has(u.uid), 'de utvilade går in');
+  assert.equal(tired.filter(u => inB.has(u.uid)).length, 1, 'en trött fyller sista platsen');
+  for (const u of worn) assert.ok(!inB.has(u.uid), 'de utmattade vilar');
+  // utan de utvilade: de trötta fyller, de utmattade fortfarande inte
+  const q = rig([...tired, reinf, ...worn]), L2 = lanes(q, 'molnbo');
+  assert.deepEqual(L2.battle.map(u => u.uid).sort(), [...tired, reinf].map(u => u.uid).sort());
+  // bara utmattade: de går in hellre än en tom linje
+  assert.equal(lanes(rig(worn), 'molnbo').battle.length, 2);
+});
+
+test('H607: en grupp med 2 av 5 man går inte in före förstärkningen och fulla utvilade grupper', () => {
+  const cap = deployCap(mb(), 'molnbo');
+  let uid = 600;
+  const full = Array.from({ length: cap - 3 }, () => unit(uid++, 'civ', { men: 4 }));
+  const thin = unit(uid++, 'hv', { men: 2, level: 3 });
+  const reinf = [unit(uid++, 'civ', { wins: 0, rel: 'vk-1', men: 4 }), unit(uid++, 'civ', { wins: 0, rel: 'vk-1', men: 4 }), unit(uid++, 'm249', { wins: 0, rel: 'vk-1' })];
+  const p = rig([...full, thin, ...reinf]);
+  assert.equal(suggestTier(thin, p.research), 2);
+  const inB = new Set(lanes(p, 'molnbo').battle.map(u => u.uid));
+  for (const u of reinf) assert.ok(inB.has(u.uid), `förstärkningen ${u.type} går in`);
+  assert.ok(!inB.has(thin.uid), 'den tunna gruppen vilar');
+});
+
+test('H603: förslaget efter en vunnen dag tar in den nya förstärkningen, också när spelaren låst banorna', () => {
+  const cap = deployCap(mb(), 'molnbo');
+  let uid = 700;
+  const old = Array.from({ length: cap }, () => unit(uid++, 'civ', { men: 4, lane: 'battle' }));
+  const reinf = unit(uid++, 'm2', { wins: 0, rel: 'vr-1' });
+  const p = rig([...old, reinf]);
+  assert.ok(!lanes(p, 'molnbo').battle.some(u => u.uid === reinf.uid), 'låst: utanför');
+  const q = suggestRoster(p, 'molnbo'), u = unitsIn(q, 'molnbo').find(x => x.uid === reinf.uid);
+  assert.ok(lanes(q, 'molnbo').battle.some(x => x.uid === reinf.uid));
+  assert.equal(u.moved, 'battle:reinforcement');
+});
+
+test('H603: natt 7 säger tipset inte att någon är trött när alla rader står Rested', async () => {
+  const { LESSONS } = await import('../src/data/lessons.js');
+  const tip = (LESSONS?.['after-gnn-1'] ?? []).find(l => l.id === 'after-gnn-3.fatigue');
+  assert.ok(tip, 'tipset finns');
+  // Vikingavägen räknar ingen trötthet (fatigue kommer efter dagen): raderna är alla Rested
+  const p = debugReach(newCampaign(), 'molnbo', 1);
+  assert.ok(unitsIn(p, 'molnbo').every(u => !u.fatigue));
+  assert.ok(!/\bare tired\b/i.test(tip.text), tip.text);
 });

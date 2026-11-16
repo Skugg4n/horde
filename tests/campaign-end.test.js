@@ -69,9 +69,9 @@ test('rullan natten efter en dag: de utvilade går in före de trötta från sla
   const z = cardZones(q, ID);
   assert.ok(z.battle.some(c => c.moved?.long === 'Moved into battle: rested'));
   assert.ok(z.rest.some(c => c.moved?.long === 'Moved to reserve: tired'));
-  // ingen utvilad i reserven: inget ändras
+  // 0.26.1 (H603): alla lika trötta: stridsbanan fylls ändå (de trötta när inga utvilade finns)
   const allTired = { ...p, op: { ...p.op, units: p.op.units.map(u => (u.sector === ID ? { ...u, fatigue: 1 } : u)) } };
-  assert.equal(restedFirst(allTired, ID), allTired);
+  assert.equal(lanes(restedFirst(allTired, ID), ID).battle.length, cap);
 });
 
 test('platsen i HUD:en och introt: endagsbanan med hela namnet och kampanjens dag, annars kortnamnet och banans dag', () => {

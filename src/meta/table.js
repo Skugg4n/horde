@@ -23,7 +23,7 @@ import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE
 import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
 import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
-import { dayFor, openSectors, currentMap, sectorStatus, sectorClosed, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, unitWorth, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
+import { suggestRoster, dayFor, openSectors, currentMap, sectorStatus, sectorClosed, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, unitWorth, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
 import { intelFor, TYPE_ORDER } from './intel.js';
 import { isSeen } from './lessons.js';
 import { FATIGUE } from '../sim/sanity.js';
@@ -349,6 +349,15 @@ export function reinforcementOf(p, u) {
   return st.unlockedDay <= r.day && !(st.attempts?.[r.day] > 0) ? { by: r.reinforce, release: r.id } : null;
 }
 const TAG = { hv: 'HV', inf: 'INF', civ: 'VOL', m249: 'KSP 90', m2: 'KSP 88', ksp58: 'KSP 58', ak5: 'AK 5', psg90: 'PSG 90', epa: 'EPA' };
+// 0.26.1 (H603): skälen på raderna när rullan föreslagit om (operation.js suggestRoster)
+const MOVED = {
+  'rest:exhausted': { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' },
+  'rest:tired': { long: 'Moved to reserve: tired', short: 'Moved: tired' },
+  'rest:fresher': { long: 'Moved to reserve: fresher units go first', short: 'Moved: others fresher' },
+  'battle:rested': { long: 'Moved into battle: rested', short: 'Moved in: rested' },
+  'battle:reinforcement': { long: 'Moved into battle: reinforcement', short: 'Moved in: new' },
+  'battle:room': { long: 'Moved into battle: room in the line', short: 'Moved in: room' },
+};
 export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
   const max = maxMen(u, p.research), f = u.fatigue ?? 0;
   return {
@@ -360,8 +369,7 @@ export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
     fatigue: fatigueOn ? f : null, state: fatigueOn ? FATIGUE.names[f] : (u.men === 0 ? 'No men' : 'Ready'),
     // 0.21.2: spelet flyttade enheten efter en vunnen dag (src/meta/operation.js finishDay)
     reinf: reinforcementOf(p, u),
-    moved: u.moved === 'rest:exhausted' ? { long: 'Moved to reserve: exhausted', short: 'Moved: exhausted' } : u.moved === 'rest:tired' ? { long: 'Moved to reserve: tired', short: 'Moved: tired' }
-      : u.moved === 'battle:rested' ? { long: 'Moved into battle: rested', short: 'Moved in: rested' } : null,
+    moved: MOVED[u.moved] ?? null,
   };
 }
 // Korten i sektorn: förrådets banor (lanes) som de är, ett kort per enhet.
@@ -374,33 +382,19 @@ export function cardZones(p, sector) {
   const TYPES = Object.keys(TAG), ord = (a, b) => (TYPES.indexOf(a.type) - TYPES.indexOf(b.type)) || a.uid - b.uid;
   return { sector: poolOf(sector), cap: L.cap, battle: [...L.battle].sort(ord).map(card), rest: [...L.rest].sort(ord).map(card) };
 }
-// 0.25.1 (H563, speltestet av 0.25.0: rullan föreslog 9 trötta från förra slaget medan 13 utvilade satt i reserven):
-// natten efter en vunnen dag går de utvilade in före de trötta. Varje trött i striden (den minst värda först) byts mot en
-// utvilad i reserven (den mest värda först) så länge det finns utvilade; båda får en rad om varför (u.moved). Spelaren
-// kan byta tillbaka; förslaget görs en gång, när dagen är vunnen (main.js finishDay), inte varje gång bordet ritas.
-const fitUnit = u => u.men == null || u.men > 0;
-export function restedFirst(p, sector) {
-  if (sector == null || !metaFeatures(p).has('fatigue')) return p;
-  const L = lanes(p, sector);
-  const rested = L.rest.filter(u => !(u.fatigue ?? 0) && fitUnit(u)).sort((a, b) => unitWorth(b) - unitWorth(a) || a.uid - b.uid);
-  const tired = L.battle.filter(u => (u.fatigue ?? 0) >= 1).sort((a, b) => (b.fatigue ?? 0) - (a.fatigue ?? 0) || unitWorth(a) - unitWorth(b) || a.uid - b.uid);
-  const n = Math.min(rested.length, tired.length);
-  if (!n) return p;
-  const inB = new Set(L.battle.map(u => u.uid)), out = new Set(tired.slice(0, n).map(u => u.uid)), inn = new Set(rested.slice(0, n).map(u => u.uid));
-  const units = p.op.units.map(u => {
-    if (u.sector !== poolOf(sector)) return u;
-    if (out.has(u.uid)) return { ...u, lane: 'rest', moved: 'rest:tired' };
-    if (inn.has(u.uid)) return { ...u, lane: 'battle', moved: 'battle:rested' };
-    return { ...u, lane: inB.has(u.uid) ? 'battle' : 'rest' };
-  });
-  // den som går in tar platsen på rullan som den trötta lämnar
-  let q = { ...p, op: { ...p.op, units } };
-  const S = cardSlots(p, sector), t = tableOf(q), lay = { ...t.layout };
-  const outs = tired.slice(0, n).map(u => u.uid), ins = rested.slice(0, n).map(u => u.uid);
-  outs.forEach((uid, k) => { const i = S.battle.indexOf(uid), j = S.rest.indexOf(ins[k]); if (i >= 0) lay[slotKey(ins[k])] = { x: i, y: 0 }; if (j >= 0) lay[slotKey(uid)] = { x: j, y: 1 }; });
-  q = { ...q, table: { ...t, layout: lay } };
-  return q;
+// 0.25.1 (H563): natten efter en vunnen dag föreslår rullan om. 0.26.1 (H603): förslaget är operation.js suggestRoster
+// (förstärkningen, de utvilade, de trötta; de utmattade aldrig av sig själva), som nightAfter gör efter varje vunnen dag.
+// rosterSlots ger korten som bytte bana nya platser: de som går in tar de platser i striden som de som gick ut lämnade.
+export function rosterSlots(p, sector) {
+  if (sector == null) return p;
+  const moved = unitsIn(p, sector).filter(u => u.moved);
+  if (!moved.length) return p;
+  const t = tableOf(p), lay = { ...t.layout };
+  for (const u of moved) delete lay[slotKey(u.uid)];
+  return { ...p, table: { ...t, layout: lay } };
 }
+// Förslaget räknas om (efter Laxne-valet: nästa strid är en ny sektor) och korten får sina platser.
+export const restedFirst = (p, sector) => (sector == null ? p : rosterSlots(suggestRoster(p, sector), sector));
 // Byt plats på två kort i var sin bana: den i striden vilar, den i reserven går in. Samma regler som förrådets banor
 // (setLane): nekas något står framsteget orört.
 export function swapCards(p, uidA, uidB) {

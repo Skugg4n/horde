@@ -25,7 +25,7 @@ import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { tableSheet } from './ui/table.js';
 // 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
 import { choiceOverlay } from './ui/choice.js';
-import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, lostNext } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, rosterSlots, lostNext } from './meta/table.js';
 import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -39,7 +39,7 @@ import { LESSONS, TIPS, ENEMIES, REVEALS, REPEAT_GAP, manualEntry } from './data
 import { createCoach, enemyCard, manualSheet } from './ui/coach.js';
 import { portraitOf } from './render/portrait.js';
 import { VET_WINS } from './data/depot.js';
-import { newCampaign, opStartConfig, finishDay as finishOpDay, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap, setLane, makeChoice } from './meta/operation.js';
+import { newCampaign, opStartConfig, nightAfter, markRead, requisition, levelUp, refill, returnUnit, reassign, buyUpgrade, debugDepot, debugReach, unitName, sendUnit, bringBack, currentMap, setLane, makeChoice } from './meta/operation.js';
 import { FROM_NAME, sectorOf } from './data/depot.js';
 import { loadProgress, saveProgress, resetSave } from './meta/save.js';
 import { loadDebug, saveDebug } from './meta/debug-store.js';
@@ -2915,14 +2915,15 @@ function finishDay() {
   const won = sim.phase === 'won';
   const report = dayReport(sim);
   const before = progress;
-  const f = finishOpDay(progress, { mapId: map.id, day, won, intelEarned: sim.intelEarned, report, evac: sim.evac });
+  // 0.26.1 (H602, H603): mellan dagarna samma funktion som balansen (resultatet och rullan för nästa strid)
+  const f = nightAfter(progress, { mapId: map.id, day, won, intelEarned: sim.intelEarned, report, evac: sim.evac });
   progress = f.progress;
   // 0.21.0: kartbordets lägesrapport skrivs ur dagens siffror när banan saknar egen text (src/meta/table.js)
   if (won) {
     const lost = (report?.units ?? []).reduce((a, u) => { const unit = before.op.units.find(x => x.uid === u.uid); return a + (unit?.men != null && u.alive != null ? Math.max(0, unit.men - u.alive) : 0); }, 0);
     progress = recordDay(progress, { mapId: map.id, day, kills: sim.kills, waves: sim.dayCfg.waves.length, lost, saved: sim.evac?.safe ?? null, total: sim.evac?.total ?? null });
-    // 0.25.1 (H563, speltestet av 0.25.0): natten efter dagen föreslår rullan de utvilade före de trötta från slaget
-    progress = restedFirst(progress, tableNext(progress)?.sector);
+    // 0.25.1 (H563), 0.26.1 (H603): rullan är omföreslagen (nightAfter); korten som bytte bana får sina platser
+    progress = rosterSlots(progress, tableNext(progress)?.sector);
   } else progress = recordLoss(progress, { mapId: map.id, day, kills: sim.kills, cleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lostBy: sim.lostBy ?? null });
   save();
   // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)

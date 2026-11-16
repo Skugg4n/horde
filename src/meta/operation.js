@@ -127,14 +127,61 @@ const fit = u => u.men == null || u.men > 0;
 // ungefär samma värde går före en utmattad. En utmattad Ksp 58 på nivå 3 går fortfarande före utvilade frivilliga.
 export const SUGGEST_FATIGUE = [1, 0.9, 0.4];
 const suggestWorth = u => unitWorth({ ...u, fatigue: 0 }) * SUGGEST_FATIGUE[u.fatigue ?? 0];
-const suggestOrder = (a, b) => suggestWorth(b) - suggestWorth(a) || (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid;
+// 0.26.1 (H603, helspeltestet 2026-11-16: inför dag 13 lade rullan alla kulsprutor i reserven, förstärkningen Ksp 88
+// hamnade i reserven dag 14; H607: Hemvärnet med 2 av 5 man gick in medan MCF:s förstärkning satt i reserv): förslaget går
+// i trappsteg. Först förstärkningen (en leverans som inte stridit än), sedan de utvilade med minst SUGGEST_FULL av sina
+// man, sedan övriga utvilade, sedan de trötta; de utmattade aldrig av sig själva (bara om ingen annan finns alls). Inom
+// steget de mest värda först.
+export const SUGGEST_FULL = 0.75;
+export const isReinforcement = u => !!u.rel && !(u.wins > 0);
+export function suggestTier(u, research = []) {
+  const f = u.fatigue ?? 0;
+  if (f >= 2) return 4;
+  if (isReinforcement(u)) return 0;
+  if (f === 1) return 3;
+  const max = maxMen(u, research);
+  return max && u.men != null && u.men < max * SUGGEST_FULL ? 2 : 1;
+}
+const suggestOrder = research => (a, b) => suggestTier(a, research) - suggestTier(b, research) || suggestWorth(b) - suggestWorth(a) || b.level - a.level || a.uid - b.uid;
 export function lanes(p, sector) {
   const here = unitsIn(p, sector), cap = deployCap(p, sector);
   const battle = here.filter(u => u.lane === 'battle' && fit(u)).slice(0, cap);
-  const open = here.filter(u => !u.lane && fit(u)).sort(suggestOrder);
-  while (battle.length < cap && open.length) battle.push(open.shift());
+  const open = here.filter(u => !u.lane && fit(u)).sort(suggestOrder(p.research ?? []));
+  const willing = open.filter(u => (u.fatigue ?? 0) < 2), worn = open.filter(u => (u.fatigue ?? 0) >= 2);
+  while (battle.length < cap && willing.length) battle.push(willing.shift());
+  // de utmattade bara när stridsbanan annars stod tom
+  if (!battle.length) while (battle.length < cap && worn.length) battle.push(worn.shift());
   const inBattle = new Set(battle.map(u => u.uid));
   return { battle, rest: here.filter(u => !inBattle.has(u.uid)), cap };
+}
+// 0.26.1 (H603): rullan natten efter en vunnen dag. Spelarens val i sektorn släpps och förslaget (lanes) räknas om med
+// den nya tröttheten och förstärkningen; varje enhet som byter bana får en rad om varför (u.moved). Spelaren kan flytta
+// om; valet står till nästa vunna dag. Samma funktion för spelet och balansen (nightAfter).
+export function suggestRoster(p, sector) {
+  if (sector == null || !p.op) return p;
+  const pool = poolOf(sector), before = new Set(lanes(p, sector).battle.map(u => u.uid));
+  const op = copyOp(p);
+  for (const u of op.units) if (u.sector === pool) { delete u.lane; delete u.moved; }
+  const q = { ...p, op };
+  const after = new Set(lanes(q, sector).battle.map(u => u.uid));
+  for (const u of op.units) {
+    if (u.sector !== pool) continue;
+    const was = before.has(u.uid), now = after.has(u.uid), f = u.fatigue ?? 0;
+    if (was && !now) u.moved = f >= 2 ? 'rest:exhausted' : f === 1 ? 'rest:tired' : 'rest:fresher';
+    else if (!was && now) u.moved = isReinforcement(u) ? 'battle:reinforcement' : f === 0 ? 'battle:rested' : 'battle:room';
+  }
+  return q;
+}
+// Sektorn som strider härnäst (bordets nästa strid): den man just stred i om den är öppen, annars den första öppna.
+export function nextSector(p, mapId = p.mapId) {
+  const open = openSectors(p).filter(id => currentMap(p, id));
+  return open.includes(poolOf(mapId)) ? poolOf(mapId) : open[0] ?? null;
+}
+// 0.26.1 (H602, H603): mellan dagarna, en funktion för spelet (main.js) och balansen (scripts/balance.mjs): dagens
+// resultat (finishDay), sedan rullan för nästa strid när dagen är vunnen (suggestRoster).
+export function nightAfter(p, result) {
+  const f = finishDay(p, result);
+  return result.won ? { ...f, progress: suggestRoster(f.progress, nextSector(f.progress, result.mapId ?? p.mapId)) } : f;
 }
 export function canSetLane(p, uid, lane) {
   const u = unitOf(p, uid);
@@ -529,20 +576,7 @@ export function finishDay(p, { mapId = p.mapId, day, won, intelEarned, report = 
       else op.pressure[s] = Math.min(PRESSURE_MAX, (op.pressure[s] ?? 0) + pressureGain(q, s));
     }
     for (const s of Object.keys(op.pressure)) if (!op.pressure[s]) delete op.pressure[s];
-    // 0.21.2 (speltestet av 0.21.1, fynd 2: valet nollställdes efter en vunnen dag utan besked): spelarens val står kvar
-    // mellan dagarna. Bara tröttheten flyttar: en utmattad i striden byts mot en mindre trött i reserven, och båda får en
-    // rad om varför (u.moved, visas på kortet tills spelaren flyttar enheten eller nästa dag vinns).
-    const pool = poolOf(mapId), here = op.units.filter(u => u.sector === pool);
-    for (const u of here) delete u.moved;
-    if (featuresFor(mapId, day).has('fatigue')) {
-      const spare = here.filter(u => u.lane === 'rest' && (u.fatigue ?? 0) < 2 && fit(u)).sort((a, b) => (a.fatigue ?? 0) - (b.fatigue ?? 0) || b.level - a.level || a.uid - b.uid);
-      for (const u of here.filter(x => x.lane === 'battle' && (x.fatigue ?? 0) >= 2)) {
-        const sub = spare.shift();
-        if (!sub) break;
-        u.lane = 'rest'; u.moved = 'rest:exhausted';
-        sub.lane = 'battle'; sub.moved = 'battle:rested';
-      }
-    }
+    // 0.21.2: tröttheten flyttar enheter mellan banorna; 0.26.1 (H603) räknas hela rullan om i nightAfter (suggestRoster)
     q = { ...q, op };
   }
   return { progress: syncOperation(q), rp, attempt };
