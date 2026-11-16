@@ -42,7 +42,8 @@ export const LESSONS = {
   // korsningarna; spelaren väljer själv var de frivilliga står (inga föreslagna platser längre).
   'gn-1': [
     { id: 'gn-1.line', kind: 'show', when: 'start', target: { world: 'evac' }, text: 'Marked houses evacuate along the yellow lines to the ice rink.', manual: 'evac' },
-    { id: 'gn-1.goal', kind: 'show', when: 'start', target: { ui: '#evac' }, text: 'Get {need} of {total} inside. That wins the day.' },
+    // 0.25.2 (H407): "Get 18 of 24" bredvid plåtens "18 needed" var två sätt att räkna; tipset säger plåtens tal
+    { id: 'gn-1.goal', kind: 'show', when: 'start', target: { ui: '#evac' }, text: 'Get {need} inside. That wins the day.' },
     { id: 'gn-1.cross', kind: 'show', when: 'start', target: { world: 'danger' }, text: 'Red: their lines cross the horde. East first, then west.', manual: 'evac' },
     { id: 'gn-1.vol', kind: 'step', when: 'start', done: 'placed:civ', target: { world: 'danger' }, text: 'Protect the routes. Place your volunteers.', manual: 'squads' },
     { id: 'gn-1.map', kind: 'caption', when: 'waveStarted', target: { ui: '#minimap' }, text: 'Map:', keys: ['Tab'], manual: 'minimap' },
@@ -175,10 +176,12 @@ export const REPEAT_GAP = 300;   // sekunder mellan två likadana tips som får 
 
 // Fienderna (Olas beslut 4): första gången en typ syns stannar allt och en presentationsruta visar porträttet,
 // en kort rapport och Continue. stage: där typen först kommer i kampanjen (sparfilens migrering).
+// 0.25.2 (H225, H527): korten började alla med "We have reports of", och vandrarnas sa "on the E4" även när
+// de först sågs på Mölnbo; en egen första mening per typ, ingen plats
 export const ENEMIES = {
-  walker: { stage: 'e4-1', title: 'Walkers', report: 'We have reports of infected on the E4. Slow, but they keep coming.' },
-  runner: { stage: 'e4-2', title: 'Runners', report: 'We have reports of a new type of enemy. It moves faster.' },
-  brute: { stage: 'e4-3', title: 'Brutes', report: 'We have reports of a new type of enemy. Big, and very hard to stop.' },
+  walker: { stage: 'e4-1', title: 'Walkers', report: 'Infected on the roads. Slow, but they keep coming.' },
+  runner: { stage: 'e4-2', title: 'Runners', report: 'These ones run. They close the distance fast.' },
+  brute: { stage: 'e4-3', title: 'Brutes', report: 'Huge and slow to fall. Very hard to stop.' },
   // 0.18.0 (skiva 1): kampanjplanens ordning, kryparna med mål-läget och de pansrade med Strongest
   // 0.22.0 (H539): kryparna först på Mölnbo dag 2 (förut Vikingavägen dag 4)
   crawler: { stage: 'mb-2', title: 'Crawlers', report: 'Something moves low in the grass. Wire does not stop it. Squads see them; guns on the roofs hardly do.' },

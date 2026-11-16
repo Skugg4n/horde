@@ -257,7 +257,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H222 | text | Köpradens rubrik bytte mellan DEPLOY och SUPPLIES: DEPLOY före första vågen, DEFENCES under dagen. (0.16.1)
 - [x] H223 | bugg | "Field manual: Evacuation" öppnade fel uppslag. (0.16.1)
 - [ ] H224 | ux | E4 dag 3: första klicket efter Ksp 88-placeringen tappade valet av Ksp 90 (inte återskapat headless).
-- [ ] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen.
+- [x] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen. GJORT 0.25.2: "Volunteers · Volunteers" borta, fiendekorten börjar olika, "×3" på operationskortet blev "3 Volunteers", SECTOR E4 väljer en ledig plats. Ej återskapade 2026-11-16: röd BASE på full bas, Runner bakifrån, stjärnraden på VICTORY. Space lämnad med avsikt: Space stänger tipset men startar inte vågen, annars hoppas nästa lektion i kedjan över (E4 dag 2: supplies, sedan wire).
 - [x] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## E4-omgivningen och menyn (2026-10-17, Olas önskemål)
@@ -297,8 +297,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H273 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1). GJORT 0.25.2: återskapat (Ishallen dag 1 vunnen med 30 zombier ute); raden säger "Evacuation over. Day won" när zombier går, "Sector quiet" bara när det är tomt.
 - [ ] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6".
 - [ ] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen.
-- [ ] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6.
-- [ ] H277 | ux | Pengar som blir över försvinner tyst; säg det.
+- [x] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6. GJORT 0.25.2: köpkortens statistik 11 px i Oswald (förut 9 px mono med streckad nolla), namnet 11,5 px.
+- [x] H277 | ux | Pengar som blir över försvinner tyst; säg det. GJORT 0.25.2: resultatet säger "$ 140 unspent. Supplies do not carry over."
 - [x] H278 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## Mölnbo (0.17.0)
@@ -392,7 +392,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7).
 - [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
 - [x] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
-- [ ] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10).
+- [x] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10). GJORT 0.25.2: kortets rubrik utan dubbelt namn; tipset "Get 18 inside" säger plåtens tal. "To reserve" ej återskapat (knappen heter Fall back, "To reserve" är dess undertext).
 - [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
 - [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12). (0.19.1: kortet säger "3 in reserve" och varför, inte "All out"; själva insättningen kvar.)
 - [x] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
@@ -411,7 +411,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer. Dag 2 "From Järna and from the south. Squads in houses along Stenbyvägen.", dag 3 "The train" med Järna och Fagernäsvägen i öster. (0.19.1)
 - [ ] H471 | spel | En villa på sin tomt kan inte stormas: stormningen (sim.js, assaults) läser husets touch (gatrutorna intill), och villorna har ingen. Avgör med Ola om villorna ska gå att storma (dörren i doorCells), räkna om balansen.
 - [ ] H472 | ux | Esc stängde både kortet i handen och korsellektionen på Ishallen dag 2 (lektionen kom när kortet släpptes). Speltestet av 0.19.0, smått.
-- [ ] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv.
+- [x] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv. GJORT 0.25.2: operationskartans sektornamn väljer första lediga plats (vägnummer, orter, rutnät, andra sektorer).
 - [ ] H474 | ux | Enhetslapparna döljs medan ett kort är i handen, så man ser inte var de egna står när man placerar nästa.
 - [x] H475 | ux | Pendeltåget dag 4: en kantpil eller kameran mot perrongen vid signalen, så att valet (flytta mot perrongen eller hålla) syns. (0.19.2: H476)
 

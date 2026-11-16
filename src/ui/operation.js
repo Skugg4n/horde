@@ -70,6 +70,12 @@ function drawMap(cv, p, sel, t, meta = metaFeatures(p)) {
   g.strokeStyle = 'rgba(160,170,130,0.08)'; g.lineWidth = 1; g.font = '9px "IBM Plex Mono", monospace'; g.fillStyle = 'rgba(200,205,170,0.35)';
   for (let i = 0; i <= 8; i++) { const x = X(i / 8); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); if (i < 8) g.fillText(String.fromCharCode(65 + i), x + 3, 10); }
   for (let i = 0; i <= 6; i++) { const y = Y(i / 6); g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); if (i < 6) g.fillText(String(i + 1), 3, y + 11); }
+  // 0.25.2 (H225, H473, H527): "SECTOR E4" låg över Järna, vägnumret och ett rutnätsnummer, och Västra rondellen över
+  // Hagstumosse. Varje text som ritas lägger sin ruta här; sektorernas namn väljer den första lediga platsen runt ringen.
+  const taken = [[0, 0, W, 14], [0, 0, 14, H]];
+  const box = (x, y, w, h) => [x - 2, y - h, x + w + 2, y + 3];
+  const free = r => !taken.some(q => r[0] < q[2] && q[0] < r[2] && r[1] < q[3] && q[1] < r[3]);
+  const text = (str, x, y) => { g.fillText(str, x, y); taken.push(box(x, y, g.measureText(str).width, 10)); };
   const poly = (pts, fill, stroke) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.closePath(); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.stroke(); } };
   poly(SEA, 'rgba(70,90,95,0.35)', 'rgba(143,196,232,0.25)');
   for (const l of LAKES) poly(l, 'rgba(70,90,95,0.45)', 'rgba(143,196,232,0.2)');
@@ -77,10 +83,12 @@ function drawMap(cv, p, sel, t, meta = metaFeatures(p)) {
   line(RAIL, 'rgba(205,200,175,0.25)', 1, [5, 4]);
   for (const r of ROADS) {
     line(r.pts, r.label === 'E4' ? 'rgba(217,164,65,0.55)' : 'rgba(205,200,175,0.4)', r.label === 'E4' ? 2.2 : 1.3);
-    g.fillStyle = 'rgba(217,164,65,0.8)'; g.font = '600 10px "IBM Plex Mono", monospace'; g.fillText(r.label, X(r.at[0]) + 4, Y(r.at[1]));
+    g.fillStyle = 'rgba(217,164,65,0.8)'; g.font = '600 10px "IBM Plex Mono", monospace'; text(r.label, X(r.at[0]) + 4, Y(r.at[1]));
   }
   g.font = '10px Oswald, sans-serif'; g.fillStyle = 'rgba(200,205,170,0.45)';
-  for (const tw of TOWNS) { g.fillRect(X(tw.x) - 1.5, Y(tw.y) - 1.5, 3, 3); g.fillText(tw.n.toUpperCase(), X(tw.x) + 5, Y(tw.y) + 3); }
+  for (const tw of TOWNS) { g.fillRect(X(tw.x) - 1.5, Y(tw.y) - 1.5, 3, 3); text(tw.n.toUpperCase(), X(tw.x) + 5, Y(tw.y) + 3); }
+  // sektorernas ringar först (de valda platserna får inte ligga på en annan sektors ring)
+  for (const s of SECTORS) taken.push([X(s.x) - 12, Y(s.y) - 12, X(s.x) + 12, Y(s.y) + 12]);
   // sektorerna
   for (const s of SECTORS) {
     const st = sectorStatus(p, s.id), c = STATUS[st].color, x = X(s.x), y = Y(s.y), on = s.id === sel;
@@ -90,7 +98,10 @@ function drawMap(cv, p, sel, t, meta = metaFeatures(p)) {
     g.fillStyle = st === 'placeholder' || st === 'locked' ? 'rgba(20,22,15,0.9)' : c + '55'; g.fill();
     g.strokeStyle = c; g.lineWidth = on ? 2.5 : 1.5; g.setLineDash(st === 'placeholder' ? [3, 3] : []); g.stroke(); g.setLineDash([]);
     g.font = `${on ? 600 : 500} 12px Oswald, sans-serif`; g.fillStyle = st === 'placeholder' ? 'rgba(200,205,170,0.35)' : st === 'silent' ? 'rgba(233,223,201,0.5)' : '#e9dfc9';
-    g.fillText(s.name.toUpperCase(), x + 15, y - 2);
+    const name = s.name.toUpperCase(), w = g.measureText(name).width;
+    const spots = [[x + 15, y - 2], [x + 15, y + 12], [x - 15 - w, y - 2], [x - w / 2, y - 16], [x - w / 2, y + 26], [x + 15, y - 14], [x - 15 - w, y + 12]];
+    const at = spots.find(([sx, sy]) => sx >= 14 && sx + w <= W - 4 && free(box(sx, sy, w, 12))) ?? spots[0];
+    g.fillText(name, at[0], at[1]); taken.push(box(at[0], at[1], w, 12));
     // trycket: fem romber, fyllda per tryckpunkt
     // 0.16.0: trycket syns när två sektorer är öppna (inlärningen, efter South dag 4)
     if ((st === 'holding' || st === 'threatened') && reassignActive(p)) for (let i = 0; i < PRESSURE_MAX; i++) {
@@ -114,7 +125,8 @@ const hitSector = (cv, ex, ey) => {
 function unitIcons(units) {
   const n = {};
   for (const u of units) n[u.type] = (n[u.type] ?? 0) + 1;
-  return Object.entries(n).map(([t, k]) => `<span class="uic" title="${esc(name(t))}">${ICONS[t] ?? ''}<b>${k > 1 ? '×' + k : ''}</b><i>${esc(name(t))}</i></span>`).join('');
+  // 0.25.2 (H225): "×3" bredvid ikonen förklarades inte; nu "3 Volunteers"
+  return Object.entries(n).map(([t, k]) => `<span class="uic" title="${esc(name(t))}">${ICONS[t] ?? ''}<b>${k}</b><i>${esc(name(t))}</i></span>`).join('');
 }
 function sectorCard(p, id, meta) {
   // 0.16.0 (Olas beslut, "Gnesta = en sektor"): Hagstumosse är en sektor med två faser; kortet visar fasen

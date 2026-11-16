@@ -2908,6 +2908,8 @@ function finishDay() {
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, wave: waveCounts(sim).wave, lastDay: day >= map.days.length, losses,
     // 0.25.1 (H561): den sista byggda dagen är vunnen, kampanjen tar slut tills vidare (inget att fylla på eller köpa)
     final: won && !!campaignEnd(progress),
+    // 0.25.2 (H277): förnödenheterna följer inte med till nästa dag; resultatet säger vad som blev över
+    cashLeft: won && feat('supplies') ? Math.floor(sim.cash) : 0,
   };
   showResult();
   // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången
