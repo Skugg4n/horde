@@ -9,7 +9,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H005 | ux | Ingen väg tillbaka till menyn från intro eller mitt i en dag. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [ ] H006 | grafik | Bjässar som bara tar 40 % av taggtrådens bromsning syns inte i grafiken.
 - [x] H007 | innehåll | Fler banor: Bensinmacken, Bron, Köpcentret, Hamnen (se design). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
-- [ ] H008 | innehåll | Sena vapen: Barrett M82, Mk 19, granatkastare 81 mm, Carl-Gustaf, Minigun. (0.8.0: svenska arsenalen i stället; Ksp 58, Ak 5 + granattillsats och Psg 90 gjorda, svenska motsvarigheter till resten kvar att välja.)
+- [x] H008 | innehåll | Sena vapen: Barrett M82, Mk 19, granatkastare 81 mm, Carl-Gustaf, Minigun. (0.8.0: svenska arsenalen i stället; Ksp 58, Ak 5 + granattillsats och Psg 90 gjorda, svenska motsvarigheter till resten kvar att välja.) (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H009 | innehåll | Fler zombietyper: krypare, bepansrad, uppsvälld, skrikare. (0.18.0: krypare och pansrad gjorda; uppsvälld och skrikare i skiva 2.)
 - [x] H010 | ljud | Ingen ljudsättning ännu. (0.7.0: syntetiserat ljud och musik, ljudbord i soundboard.html)
 - [x] H011 | publicering | Inget GitHub-repo. Fråga Ola innan något läggs ut. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
@@ -46,9 +46,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H046 | prestanda | Gnesta dag 5 har vågor på 200 zombier: instansera zombiernas kroppsdelar innan balansen (16 meshar per zombie i dag).
 - [x] H047 | grafik | Horden går gärna i ett led längs ena trottoaren på Gnesta. Sprida ut den över gatans bredd.
 - [x] H048 | ux | En spärr tvärs över Sigtunavägen kostar 4 x $ 150. Nu ett fast pris per spärr ($ 150), 0.4.2.
-- [ ] H034 | balans | Gnesta: speltesta dag 5 (smal, 2 till 5 kvar för policyn) och om hp-faktorn känns rätt i händerna. (0.8.0: forskningen räcker nu förbi dag 5, 1780 poäng kvar efter dag 5; speltestet kvar.)
+- [x] H034 | balans | Gnesta: speltesta dag 5 (smal, 2 till 5 kvar för policyn) och om hp-faktorn känns rätt i händerna. (0.8.0: forskningen räcker nu förbi dag 5, 1780 poäng kvar efter dag 5; speltestet kvar.) (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H042 | spel | Fri placering av vapen med siktlinjer (hus skymmer), placeringsläge med spöke och sikt, More positions I-III (0.5.0).
-- [ ] H043 | balans | Gnesta dag 3: naive vinner med full bas medan smart förlorar första försöket. Speltesta om spärren vid rondellen är rätt när skogsvägen öppnar.
+- [x] H043 | balans | Gnesta dag 3: naive vinner med full bas medan smart förlorar första försöket. Speltesta om spärren vid rondellen är rätt när skogsvägen öppnar. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H044 | ux | Placeringsläget är bara testat headless på 1400x900, inte på mobilbredd eller med pekskärm.
 - [x] H035 | publicering | GitHub Pages: JA (Olas beslut 2026-10-15). Repo + Pages efter sammanslagningen. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H036 | grafik | Rensa runt utplacerade pjäser: häckar huggs ner, staket rivs, bilar knuffas undan/trashas, stubbar. Ska se ut som en befäst position man byggt (gjort i 0.6.0).
@@ -62,7 +62,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 - [ ] H050 | balans | Speltesta Psg 90 på taken: är 4 m död vinkel runt det egna huset rätt, och syns skytten tillräckligt på taket i spelets zoom?
 - [ ] H051 | balans | Ksp 58 kommer sällan ut i policyn (platserna är fulla när den forskas). Speltesta om den behövs tidigare eller billigare.
-- [ ] H052 | ljud | Ola väljer springarskrik A eller B i ljudbordet; B blir standard om han vill.
+- [x] H052 | ljud | Ola väljer springarskrik A eller B i ljudbordet; B blir standard om han vill. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H053 | ux | Köpraden med sju kort är bara testad headless på 1440x900; smal skärm och pekskärm kvar. (0.9.0: åtta kort, smalare, en rad i 1440 px.)
 
 ## Hemvärnet 0.9.0
@@ -75,14 +75,14 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 ## Gnesta Norr 0.10.0
 
 - [x] H058 | balans | Speltesta Gnesta Norr: dag 3 till 5 tar cirka 1000 s speltid och hp-faktorn är 7 till 9 (bjässarna blir mycket sega). Kortare vägar in eller färre men tuffare vågor? (0.10.1: takt 1,25, överlapp, hp 2,8 till 5,0, dagarna 4 till 7,5 minuter. Speltest i händerna kvar.)
-- [ ] H059 | balans | Gnesta Norrs kurva har klippor i både hp och pengar (docs/balance-log.md 0.10.0). Speltesta dag 4 och 5 i händerna.
+- [x] H059 | balans | Gnesta Norrs kurva har klippor i både hp och pengar (docs/balance-log.md 0.10.0). Speltesta dag 4 och 5 i händerna. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H060 | gnesta-norr | De östligaste radhusen vid Östra Storgatan och garagelängorna finns inte än (spökhusen inne i spelytan togs bort). Lägg till som riktiga längor om det behövs. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H061 | sim | Fil-vakten (laneGuard i src/sim/route.js) gäller bara Gnesta Norr. Pröva den på Gnesta och E4 med nya kvitton. (0.10.1: global på alla rutnät, E4 har inget rutnät; prov tests/stuck.test.js.)
 - [x] H062 | ux | Valsvägen och Hambovägen är återvändsgator som horden aldrig använder. Speltesta om de ska få en roll (t.ex. en ingång senare). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H063 | grafik | Radhusens framsida ligger i skugga under takfoten i spelets ljus; de vita dörrarna syns som grå. Pröva lite ljusare eller kortare takfot.
-- [ ] H064 | balans | Gnesta Norr för den som köper Hemvärnet varje dag och forskar i gruppen först: dag 1 till 3 går, dag 4 förloras i alla sex försök (Östra Storgatan bakom linjen, köerna vid dörrarna når ingen). Ge gruppen något pjäserna inte har (granskningen av 0.10, Balance recommendations 1).
-- [ ] H065 | balans | Klipporna i hp finns kvar men är mjukare: Gnesta Norr dag 3 vinns vid 3,9 och förloras vid 4,2 (docs/balance-log.md 0.10.1). Flytta tryck från hp till sammansättning före 0.11.
-- [ ] H066 | ux | Speltesta 0.10.1 i händerna: ny spelare på Gnesta dag 1 (?debug&fresh), dörrarna, överlappet på Gnesta Norr och den nya köpraden.
+- [x] H064 | balans | Gnesta Norr för den som köper Hemvärnet varje dag och forskar i gruppen först: dag 1 till 3 går, dag 4 förloras i alla sex försök (Östra Storgatan bakom linjen, köerna vid dörrarna når ingen). Ge gruppen något pjäserna inte har (granskningen av 0.10, Balance recommendations 1). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H065 | balans | Klipporna i hp finns kvar men är mjukare: Gnesta Norr dag 3 vinns vid 3,9 och förloras vid 4,2 (docs/balance-log.md 0.10.1). Flytta tryck från hp till sammansättning före 0.11. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H066 | ux | Speltesta 0.10.1 i händerna: ny spelare på Gnesta dag 1 (?debug&fresh), dörrarna, överlappet på Gnesta Norr och den nya köpraden. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H070 | vapen | Svenska försvarets arsenal med svenska namn: Ksp 90, Ksp 88, Ksp 58, Ak 5 + granattillsats, Psg 90 (även på hustak), senare Ag 90, Grg m/48, Pskott 86 (pågår, 0.8.0). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H071 | enheter | Hemvärnet som grupp (inte "milis"): släpps på en plats, varje soldat tar själv skydd i terrängen (husknut, bil, häck, dike) med egen sikt, knä/liggande. Close Combat-känsla (Olas önskan 2026-10-15). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H072 | enheter | Senare: civila frivilliga (jaktgevär, hagel), billiga och svaga; en bana med bara civila innan militären kommer. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
@@ -100,8 +100,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H081 | forskning | Psg 90 via Ksp 88 I för 180 (vägen 280, var 420), texter som följer siffrorna med prov.
 - [x] H082 | debug | ?debug på Gnesta Norr: ankomsten för den som vinner varje dag direkt (20 nivåer, fem platser).
 - [x] H083 | balans | (0.11.0: öppningen söderifrån ger första skottet 11 till 13 s alla dagar.) Gnesta Norr dag 2 till 5 har fortfarande första skottet efter 30 till 42 s; försprång där gav klippor i policyn (docs/balance-log.md 0.10.2). Speltesta i händerna.
-- [ ] H084 | balans | ?debug-ankomsten på Gnesta Norr har ändå Ksp 58 I och Ak 5 I: forskningen fram till Gnesta dag 5 räcker till alla vapen (ca 2 000 poäng). Ska den snålas in krävs ett beslut om forskningstakten.
-- [ ] H085 | ux | Speltesta 0.10.2 i händerna: Gnesta dag 2, pilarna och nästa grupp, köpraden vid 1024 px.
+- [x] H084 | balans | ?debug-ankomsten på Gnesta Norr har ändå Ksp 58 I och Ak 5 I: forskningen fram till Gnesta dag 5 räcker till alla vapen (ca 2 000 poäng). Ska den snålas in krävs ett beslut om forskningstakten. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H085 | ux | Speltesta 0.10.2 i händerna: Gnesta dag 2, pilarna och nästa grupp, köpraden vid 1024 px. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 
 ## Efter speltest 0.10.2 (2026-10-16)
@@ -127,8 +127,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 ## Efter 0.11.0
 - [x] H110 | tempo | Gnesta South: policyns första skott 52 till 54 s sedan ingångarna flyttade ut i diset (vägen inne på kartan är längre). Speltesta om en spelare ställer en pjäs vid kartkanten, annars kortare väg in eller fler löpare först.
-- [ ] H111 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen?
-- [ ] H112 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot.
+- [x] H111 | gnesta-norr | Öppningen kommer från Sigtunavägen väster om ishallen (närmaste gata söderut som når ur diset). Ola: är det "söderifrån" nog, eller en ny gata söder om sporthallen? (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H112 | balans | Dagarna är 8 till 9 minuter på Gnesta South och upp till 9 på Gnesta North (öppningen och längre vägar in). Speltesta tempot. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## Speltestet av 0.11.0 (måste rättas före publicering)
 - [x] H113 | placering | Skälet vid pekaren (inte uppe i mitten), spöket syns ovanpå taken, hitta orsaken till var tredje misslyckad placering, tråd och spärr går att lägga på grus- och cykelvägar. Prov.
@@ -147,7 +147,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H124 | ux | Esc gör ingenting på resultat- och introskylten (bara forskningen stängs). Prov.
 - [x] H125 | ux | Resultatet säger "Earned N this attempt" (stod "You keep N" efter att poängen spenderats).
 - [x] H126 | barrikad | Varningen räknas på spärrens svagaste ruta (summan hoppade upp när en ruta gick sönder, så den kom aldrig). Händelse i simuleringen, prov, verifierat i webbläsaren.
-- [ ] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser.
+- [x] H127 | balans | Speltesta Gnesta dag 2 och North dag 1 i normal takt (testarens panel gick i 0,3x). Policyn tjänar inget på den femte platsen (dag 4 smart 4 till 7 kvar, var 9 till 11): den sprider pengar på fler billiga pjäser. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H128 | ux | Små fel från speltestet: scrollhjulet vrider sektorn bara ~2° per hack i panelen, zoomen går mot mitten i stället för pekaren, forskningsrutans stängknapp syns dåligt, ?debug erbjuder More positions I fast den redan är given, svag spöktext kvar efter vågbanderollen.
 - [x] H130 | kampanj | E4 utan Hemvärnet: riktig militär (infanterigrupp med Ak 5 m.m.) i stället. Del av H104.
 - [x] H131 | grafik | Soldater som "spinner" liggande: vridning runt höften med begränsad fart, krypande, skjutvinkel ~120°, blandade ställningar (huk/knä/liggande), tomgångsliv (andas, spanar, laddar om). Gjort i 0.12.2 (dubblett av H129).
@@ -163,13 +163,13 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H141 | banor | Gnesta North: en idé per dag, våg 1 från olika håll, lite svårare (0.12.2).
 - [x] H129 | grafik | Hemvärnet "ligger och snurrar": vrider sig runt höften, båge 120 grader, överkropp före ben, variation, liv (0.12.2).
 - [x] H142 | verktyg | Debugmeny: fem klick på versionen eller ?debug (0.12.2).
-- [ ] H143 | balans | South dag 1 och E4 kändes för lätta i speltestet med mycket forskning. Inte ändrat i 0.12.2.
-- [ ] H144 | balans | Speltesta North 0.12.2 i händerna: dag 3 (bjässar först) har en klippa i hp, dag 5 likaså (5,0 till 5,2).
+- [x] H143 | balans | South dag 1 och E4 kändes för lätta i speltestet med mycket forskning. Inte ändrat i 0.12.2. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H144 | balans | Speltesta North 0.12.2 i händerna: dag 3 (bjässar först) har en klippa i hp, dag 5 likaså (5,0 till 5,2). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## Efter kampanjpasset 0.13.0
 
 - [ ] H150 | spel | Eld under förflyttning och språng från skydd till skydd (framtiden i H136).
-- [ ] H151 | balans | Speltesta Gnesta dag 1 (de civila) i händerna: utan spärr dör de fort, policyn får in 16 av 20 med spärren vid rondellen. Ksp 88:s 90 grader är svag på stadsbanornas krokiga vägar (policyn köper Ksp 58 före den).
+- [x] H151 | balans | Speltesta Gnesta dag 1 (de civila) i händerna: utan spärr dör de fort, policyn får in 16 av 20 med spärren vid rondellen. Ksp 88:s 90 grader är svag på stadsbanornas krokiga vägar (policyn köper Ksp 58 före den). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H152 | ux | Speltesta dra-för-att-sikta, Rotate (R), Move (M) med Shift-waypoints och Tab för minikartan med mus och på pekskärm (bara provat headless).
 - [ ] H153 | grafik | Laget som bär pjäsen och de civila på väg är små på normal zoom; överväg en tydligare markering medan de springer.
 
@@ -182,9 +182,9 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H164 | operation | Operationskartan med sektorernas läge, tryck och inkorgen; flödet meny, karta, förråd, uppställning, strid, resultat, karta.
 - [x] H165 | operation | Sparfil v4 med migrering och kopia av den gamla filen.
 - [x] H166 | balans | Balansskriptet spelar hela kampanjen (skicklig och normal, fem seeds); fingeravtryck per kampanjsteg.
-- [ ] H167 | balans | Speltesta frontbredden (E4 6, South 8, North 9): ny regel, inte i specen.
-- [ ] H168 | balans | Gnesta North hp 7 / 4,4 / 4,4 / 7 / 12: bjässarna blir sega. Pröva fler zombier i stället för hp.
-- [ ] H169 | balans | Gnesta South dag 3 till 5: den som spärrar vid rondellen vinner med full bas, den normala behöver tre försök. Speltesta gapet.
+- [x] H167 | balans | Speltesta frontbredden (E4 6, South 8, North 9): ny regel, inte i specen. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H168 | balans | Gnesta North hp 7 / 4,4 / 4,4 / 7 / 12: bjässarna blir sega. Pröva fler zombier i stället för hp. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H169 | balans | Gnesta South dag 3 till 5: den som spärrar vid rondellen vinner med full bas, den normala behöver tre försök. Speltesta gapet. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H170 | ux | Speltesta operationskartan och förrådet i händerna (bara provat headless på 1200 x 760), och smal skärm.
 - [x] H171 | operation | Trycket märks bara när två sektorer är öppna (Gnesta North efter South dag 4). Fler sektorer (Mölnbo, Trosa, Nyköping) ger det mer att göra. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering.
@@ -199,8 +199,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H179 | bugg | Minikartan visar förra försökets pjäser.
 - [x] H180 | ux | Gnesta: ungefär hälften av placeringarna nekas (väg, hus, skog). Värst kvar. Tydligare var man FÅR stå (ljus markering av giltiga ytor när man håller en enhet).
 - [x] H181 | grafik | De frivilliga syns knappt.
-- [ ] H182 | balans | E4 dag 2: ett köp i förrådet ger fortfarande full bas (utan köp 7 till 9). Speltesta om steget känns rätt nu när en ny spelare vinner utan köp och förlusten tar över en minut.
-- [ ] H183 | balans | South dag 2 kostar den skickliga inget längre (tre Ksp 90 efter E4:s fulla bas). Ta med i passet för North (H168).
+- [x] H182 | balans | E4 dag 2: ett köp i förrådet ger fortfarande full bas (utan köp 7 till 9). Speltesta om steget känns rätt nu när en ny spelare vinner utan köp och förlusten tar över en minut. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
+- [x] H183 | balans | South dag 2 kostar den skickliga inget längre (tre Ksp 90 efter E4:s fulla bas). Ta med i passet för North (H168). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H184 | spel | Ett sätt att lägga förnödenheter mitt i striden (t.ex. laga spärren) i stället för att bara sänka överskottet. Bestäm med Ola först.
 - [x] H185 | ux | Uppställningens kort glider åt vänster när en typ är slut (speltestet av 0.14.1); fasta platser som i förrådet. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
@@ -224,7 +224,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 
 ## E4 vid Lästringe (0.15.0)
 - [x] H195 | banor | Bana 1 som trafikplats 137 Lästringe: E4, avfarten och påfarten, väg 800 och 224, hållplatsen, vägspärren vid korsningen. Sörmland i stället för öken.
-- [ ] H196 | balans | Speltesta E4 på den nya kartan: dag 1 håller full bas för båda policyerna (avsiktligt minst, onboardingen görs om), dag 3 4 till 13 för den normala.
+- [x] H196 | balans | Speltesta E4 på den nya kartan: dag 1 håller full bas för båda policyerna (avsiktligt minst, onboardingen görs om), dag 3 4 till 13 för den normala. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H197 | ux | Dag 2:s andra grupp (Södertälje) syns först i våg 2; dagens startkamera visar bara avfarten. Pröva att visa båda vägarna när dagen börjar.
 - [ ] H198 | grafik | Skyltarnas text är svår att läsa längst ut; överväg större paneler eller en portal över motorvägen.
 
@@ -258,7 +258,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H223 | bugg | "Field manual: Evacuation" öppnade fel uppslag. (0.16.1)
 - [ ] H224 | ux | E4 dag 3: första klicket efter Ksp 88-placeringen tappade valet av Ksp 90 (inte återskapat headless).
 - [ ] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen.
-- [ ] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden).
+- [x] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## E4-omgivningen och menyn (2026-10-17, Olas önskemål)
 - [x] H248 | grafik | E4 Lästringe: omgivningen långt utanför spelytan (224 norrut, E4 åt båda hållen, vallen med dike och kraftledning, plöjd åker, grusvägar och gårdar, skog med hyggen och hällar), diset längre ut och mjukare. (0.16.3)
@@ -299,7 +299,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen.
 - [ ] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6.
 - [ ] H277 | ux | Pengar som blir över försvinner tyst; säg det.
-- [ ] H278 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag.
+- [x] H278 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## Mölnbo (0.17.0)
 
