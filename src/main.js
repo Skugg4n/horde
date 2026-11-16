@@ -1321,7 +1321,8 @@ function handleEvents() {
       scene.userData.molnbo?.depart();
       const t = sim.map.x60;
       if (t && rig) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
-      note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with everyone on board.', '', { prio: true, ms: 6000 });
+      // 0.25.2 (H489): "with everyone on board" med 30 zombier kvar; raden säger vilka och varför dagen är slut
+      note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with the evacuees. Day won.', '', { prio: true, ms: 6000 });
     }
     // 0.19.0 (H452): pendeltåget rullar in. Signalen och raden, en ping på perrongen, och kameran glider dit en stund
     // (spelaren väljer: flytta trupper mot perrongen eller hålla)
@@ -3202,7 +3203,10 @@ function tick(now) {
     if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
     if (!paused) victoryWait.t += frameDt * playSpeed();
     const trainBeat = !!sim.train?.gone, pause = trainBeat ? TRAIN_PAUSE : VICTORY_PAUSE, lineAt = trainBeat ? TRAIN_LINE_AT : VICTORY_LINE_AT;
-    if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : 'Sector quiet', pause - lineAt + 0.4); }
+    // 0.25.2 (H273): en evakueringsdag vinns när de sista är ute, fast zombier fortfarande går; då säger raden det
+    // och inte "Sector quiet"
+    const alive = sim.zombies.some(z => !z.dead);
+    if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : !alive ? 'Sector quiet' : sim.evac ? 'Evacuation over. Day won' : 'Day held', pause - lineAt + 0.4); }
     if (victoryWait.t >= pause) { victoryWait = null; finishDay(); }
   } else if (mode === 'play' && sim.phase === 'lost') finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();
