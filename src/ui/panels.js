@@ -784,5 +784,7 @@ export function dropNotes(root, prefix) {
   for (let i = noteQueue.length - 1; i >= 0; i--) if (noteQueue[i].key.startsWith(prefix)) noteQueue.splice(i, 1);
   for (const el of [...noteStack(root).querySelectorAll('.note')]) if (el._key?.startsWith(prefix)) { clearTimeout(el._t); dropNote(root, el); }
 }
+// 0.26.2 (H604): en stor röd banderoll står just nu (fiendekorten väntar tills den gått)
+export function bannerShowing(root) { return !!bigNote(noteStack(root)); }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

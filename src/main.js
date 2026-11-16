@@ -19,7 +19,7 @@ import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
 import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue, dropNotes } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue, dropNotes, bannerShowing } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
@@ -1368,7 +1368,8 @@ function handleEvents() {
     else if (ev.t === 'trainGone') {
       scene.userData.molnbo?.depart();
       const t = sim.map.x60;
-      if (t && rig) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
+      // 0.26.2 (H604): inte medan basen tar skada
+      if (t && rig && baseQuiet()) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
       // 0.25.2 (H489): "with everyone on board" med 30 zombier kvar; raden säger vilka och varför dagen är slut
       note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with the evacuees. Day won.', '', { prio: true, ms: 6000 });
     }
@@ -1474,13 +1475,10 @@ function setSpeed(n) {
   if (settings.speed !== n) { settings = normalizeSettings({ ...settings, speed: n }); saveSettings(settings); }
 }
 let speedShown = true;
-// 0.19.2 (speltestet av 0.19.1, fynd 1): pendeltågets signal saktar spelet till 1x en stund (SLOW_S sekunder i verklig
-// tid), så att spelaren hinner se perrongen och välja; ingen paus. Spelarens val (speed) står kvar och gäller igen
-// efteråt, och ett tryck på F under tiden gäller direkt.
-const SLOW_S = 6;
+// 0.19.2 saktade pendeltågets signal spelet till 1x en stund. 0.26.2 (H604, helspeltestet: farten gick till 1X mitt i
+// en bas som föll): borta, spelarens fart gäller alltid. slowUntil finns kvar för en framtida kort inbromsning.
 let slowUntil = -Infinity, shownSpeed = null;
 const playSpeed = () => (performance.now() < slowUntil ? 1 : speed);
-function slowDown(secs = SLOW_S) { if (speed > 1) slowUntil = performance.now() + secs * 1000; }
 function toggleSpeed() {
   if (menu.isOpen() || !speedShown) return;
   setSpeed(SPEEDS[(SPEEDS.indexOf(playSpeed()) + 1) % SPEEDS.length]);
@@ -1605,8 +1603,8 @@ function goToTail() {
 // ---------- pendeltåget som val (0.19.2, speltestet av 0.19.1, fynd 1) ----------
 // "Inget i spelet säger att man kan eller bör flytta mot perrongen." När tåget signalerar lyser perrongen och
 // trapptornen (en pulserande kontur), en etikett står där de kliver ur, och pilar på marken går från de två närmaste
-// enheterna dit. Banderollen säger valet på två rader och ett klick flyttar kameran till perrongen. Spelet saktar till
-// 1x en stund (slowDown), ingen paus; första gången pekar en bildtext på perrongen (lessons.js mb-2.platform).
+// enheterna dit. Banderollen säger valet på två rader och ett klick flyttar kameran till perrongen. Ingen paus och
+// (0.26.2) ingen inbromsning; första gången pekar en bildtext på perrongen (lessons.js mb-2.platform).
 // Allt står tills en stund efter att dörrarna öppnats (simuleringens tid).
 const PLATFORM_AFTER = 14, PLATFORM_ARROWS = 2, ARROW_MAX = 26;
 let platform = null;           // { untilSim, arrowsAt }
@@ -1638,10 +1636,16 @@ function updateBaseLabel() {
 const platLabel = document.createElement('div');
 platLabel.className = 'platlabel'; platLabel.hidden = true; platLabel.textContent = 'The train stops here. Hold the platform.';
 uiRoot.appendChild(platLabel);
+// 0.26.2 (H604, helspeltestet: tåget drog kameran till perrongen medan basen föll, och farten gick till 1X): en sak i
+// taget. Farten rörs inte av tåget (spelarens val står kvar). Kameran glider till perrongen en gång per signal, och
+// bara när basen inte tagit skada på BASE_QUIET s; annars väntar glidningen (pendingPan) tills det varit lugnt så
+// länge, så länge tåget inte redan är inne. Banderollen går alltid att klicka för att se perrongen direkt.
+const BASE_QUIET = 5;
+let pendingPan = null;         // { until } (sim-tid): perrongens glidning som väntar på att basen ska få lugn
+const baseQuiet = () => time - lastBreach >= BASE_QUIET;
 function trainWarned(ev) {
   const tm = sim.map.trainMark;
   note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 11000, rank: 3, sub: 'Move units to the platform, or hold the line.', onClick: tm ? () => goToPlatform() : null });
-  slowDown();
   if (!tm) {
     const ib = sim.map.inbound;
     if (ib) { const [x, z] = ib.doors[Math.floor(ib.doors.length / 2)]; alerts.push({ x, z, until: time + 14, kind: 'barricade' }); }
@@ -1650,16 +1654,29 @@ function trainWarned(ev) {
   platform = { untilSim: sim.time + (ev.in ?? 12) + PLATFORM_AFTER, arrowsAt: -Infinity };
   // 0.20.1 (speltestet av 0.20.0, fynd 7: banderollen kom medan kameran stod vid basen): kameran glider till perrongen,
   // en mjuk rörelse, när banderollen kommer
-  if (rig?.canPan && mode === 'play') { if (placing) stopPlacing(); const f = rig.fit(tm.viewPts ?? tm.pts, 10); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: f.x, z: f.z, view: Math.max(rig.view, f.view) }, 1.4); }
+  pendingPan = { until: sim.time + (ev.in ?? 12) };
+  panToPlatform();
   marks?.set('platform', { kind: 'outline', polys: tm.polys, y: tm.ys, color: '#ffbf3a' }, time);
   const [x, z] = tm.target;
   alerts.push({ x, z, until: time + (ev.in ?? 12) + PLATFORM_AFTER, kind: 'barricade' });
 }
+// glidningen till perrongen, en gång per signal, när basen haft lugn (anropas varje bildruta medan den väntar)
+function panToPlatform() {
+  if (!pendingPan) return;
+  const tm = sim.map.trainMark;
+  if (!tm || mode !== 'play' || sim.time > pendingPan.until || sim.phase === 'won' || sim.phase === 'lost') { pendingPan = null; return; }
+  if (!rig?.canPan || !baseQuiet() || rig.touring) return;
+  pendingPan = null;
+  if (placing) stopPlacing();
+  const f = rig.fit(tm.viewPts ?? tm.pts, 10);
+  rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: f.x, z: f.z, view: Math.max(rig.view, f.view) }, 1.4);
+}
 function endPlatform() {
-  platform = null; platLabel.hidden = true;
+  platform = null; platLabel.hidden = true; pendingPan = null;
   if (marks) { marks.clear('platform'); for (let i = 0; i < PLATFORM_ARROWS; i++) marks.clear('parrow' + i); }
 }
 function updatePlatform() {
+  panToPlatform();
   if (!platform) return;
   const tm = sim.map.trainMark;
   if (mode !== 'play' || !tm || sim.time > platform.untilSim || sim.phase === 'won' || sim.phase === 'lost') { endPlatform(); return; }
@@ -2491,8 +2508,10 @@ function updateLessons() {
   }
 }
 // Fiendernas presentationsruta: hård paus första gången en typ syns (eller 8 s efter att den kom in).
+// 0.26.2 (H604): en ruta som pausar väntar tills basen haft lugn i BASE_QUIET s och ingen stor banderoll står
 function updateEnemies() {
   if (mode !== 'play' || card || manual || sim.phase !== 'wave') return;
+  if (!baseQuiet() || bannerShowing(uiRoot) || rig?.touring) return;
   for (const z of sim.zombies) {
     if (z.dead || !ENEMIES[z.type]) continue;
     const id = 'enemy:' + z.type;
