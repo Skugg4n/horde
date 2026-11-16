@@ -341,7 +341,7 @@ async function tableChecks(page, label) {
   // och bara fem platser i striden (BATTLE n of 5)
   await show(reach('vasterkarv', 1), 'table-vasterkarv-1');
   if (!/ORDER 14\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:vasterkarv:1"]')?.textContent ?? ''`))) errors.push(`table-vasterkarv-1 @${label}: Västerkärv är inte dag 14`);
-  if (!/of 5\b/.test(await ev(`document.querySelector('#hub .tb-roster .ft')?.textContent ?? document.querySelector('#hub')?.textContent ?? ''`))) errors.push(`table-vasterkarv-1 @${label}: bordet säger inte att fem får plats`);
+  if (!/Five units fit/.test(await ev(`document.querySelector('#hub')?.textContent ?? ''`))) errors.push(`table-vasterkarv-1 @${label}: bordet säger inte att fem får plats`);
   // och kampanjens slut efter dag 14 (0.25.1: efter rondellen): Västerkärv hållen, inget nästa slag, "To be continued."
   await show(reach('vasterkarv', 1, `p = O.finishDay(p, { mapId: 'vasterkarv', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-campaign-end');
   if (!/To be continued\./.test(await ev(`document.querySelector('#hub [data-sheet="closed:vasterkarv"]')?.textContent ?? ''`))) errors.push(`table-campaign-end @${label}: slutbladet säger inte "To be continued."`);

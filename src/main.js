@@ -2600,11 +2600,18 @@ function updateSpotMarks() {
 
 // 0.16.4: husen som utryms märks med vågen de går i ("Evacuates · wave 2") tills den vågen startar.
 const evacEls = new Map();
+const EVAC_NEAR = 30;
 function updateEvacMarks() {
   const ev = mode === 'play' && sim.dayCfg.evac && sim.evac && !evacOutcome(sim.evac) ? sim.dayCfg.evac : null;
   const want = new Map();
   if (ev) for (const g of ev.groups) {
     if (sim.wavesStarted <= g.wave) want.set(g.house, g.wave);
+  }
+  // 0.26.0 (Västerkärv: ladan, uthuset och boningshuset på samma gårdsplan, lapparna låg på varandra): hus inom
+  // EVAC_NEAR m från ett som går tidigare märks först när det huset har gått
+  if (want.size > 1) {
+    const at = new Map([...want.keys()].map(h => [h, houseDoor(sim.map, h, sim.route)]));
+    for (const [h, w] of [...want]) if ([...want].some(([o, ow]) => o !== h && ow < w && Math.hypot(at.get(o).x - at.get(h).x, at.get(o).z - at.get(h).z) < EVAC_NEAR)) want.delete(h);
   }
   for (const [h, el] of evacEls) if (!want.has(h)) { el.remove(); evacEls.delete(h); }
   for (const [h, w] of want) {
@@ -2619,7 +2626,8 @@ function updateEvacMarks() {
   // en lapp som hamnar på gränssnittet visas inte (huset ligger vid skärmkanten); en som hamnar på en enhets lapp lyfts
   // ovanför den
   if (evacEls.size) {
-    const hud = labelBlockers(), tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
+    // 0.26.0: också basens skylt (Västerkärv: huset som går sist är basen)
+    const hud = labelBlockers(), tags = [...pips.querySelectorAll('.sqtag, .ustat'), ...uiRoot.querySelectorAll('.baselabel')].map(n => n.getBoundingClientRect()).filter(r => r.width);
     for (const el of evacEls.values()) {
       // mäts synlig (en dold lapp har ingen ruta och kom annars tillbaka varannan bildruta)
       el.style.marginTop = '0px'; el.hidden = false;
