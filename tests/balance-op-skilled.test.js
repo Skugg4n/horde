@@ -93,7 +93,8 @@ test('skilled: bonusarna belönar skicklighet (snabb seger, få förluster, oska
 // Vikingavägen en dag från väst, syd och nord (gamla dag 5 utan kryparna, en grupp till västerifrån, hp 3,75) med
 // leveransen Ksp 58, Ksp 88 och pillboxen. Ishallen dag 4 och 5 och Vikingavägen dag 2 till 5 finns inte längre. E4 och
 // Ishallen dag 1 och 2 orörda. docs/balance-log.md 0.22.0.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"d96cbf0f","gnesta 2":"5f4a1c00","gnesta 3":"c772668d","gnesta-norr 1":"795bf800"};
+// 0.26.1: omräknad (H601, H603, H602; docs/balance-log.md Hela kampanjen 0.26.1)
+const BEFORE = {"riksvagen 1":"57adc31a","riksvagen 2":"ff3d79d8","riksvagen 3":"81456663","gnesta 1":"810ebc60","gnesta 2":"c8339f10","gnesta 3":"6c6e826d","gnesta-norr 1":"c38796c8"};
 test('skilled: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

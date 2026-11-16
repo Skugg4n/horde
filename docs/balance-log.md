@@ -1544,3 +1544,75 @@ Takplatser per bana (`node scripts/roof-spots.mjs`; bra = byggnader med en takru
 Västerkärv når inte sex: gårdens hus står långt från hordens vägar (fälten), bara tre byggnader ser vägen alls.
 
 Balansens takplan hittar bättre platser, så fingeravtrycken för Björnlunda, Laxne, rondellen och Västerkärv är nya (proven i tests/*-sector.test.js), och ankomsttruppen till Björnlunda dag 2, rondellen och Västerkärv är omräknad (src/data/arrival.js; små skillnader i män, nivåer och vinster). Alla krav i proven (försök, tider, bas kvar) håller som förut.
+
+## Hela kampanjen 0.26.1 (0.26.3 efter sammanslagningen): en spelare dag 1 till 15 (H601, H602, H603, H605, H607)
+
+Helspeltestet 2026-11-16 (docs/playtests/2026-11-16-kampanjen-hela.md): väggar dag 7, 9 och 13 (två lugna vågor, sedan basen 20 till 0 på 50 till 70 s), lätta dagar emellan, 700 till 1 100 $ oanvända per dag från dag 8, och en mjuklåsning dag 13. Varje bana var förut balanserad från kartläsarens ankomst; ingen räknade kampanjen som en spelare spelar den.
+
+**Verktyget.** `node scripts/balance.mjs full [normal|near|-] [defend|fallback] [seeds]` spelar hela kampanjen i följd med EN spelare: samma trupp, nivåer, RP, förråd och trötthet, Laxne-valet på bordet, och samma regler mellan dagarna som spelet (`nightAfter` i src/meta/operation.js: dagens resultat och rullan för nästa strid; main.js anropar samma). `FULL_LOG=1` skriver varje försök (vågornas bas, köpt, kvar, RP). `node scripts/balance-try.mjs <bana> <dag> <värden> [normal,near] [fält]` provar en dag med truppen hela kampanjen ger fram till den. Två spelare: `normal` (sin egen väg, lektionernas spärrar, de gula linjerna; i Mölnbo utan spärren vid kyrkan, som ingen lektion föreslår) och `near` (som normal till och med Vikingavägen, sedan allt inom 40 m från basen, de gula linjerna på evakueringsdagarna). Proven: tests/full-campaign.test.js.
+
+**Dagarnas siffror bor i src/data/campaign-tune.js** (ovanpå banornas data, `applyTune` i src/data/maps.js): hp, `hpBy` (hp i Laxne-valets gren), `hpDefend` (Västerkärvs choiceMod), `budget` och vågornas ramp.
+
+**Ramp (H602).** Ingen våg är mer än 1,6 gånger den förra (provet). Vågorna jämnas ut bakifrån med samma summa (varje våg minst nästa delat med 1,5), utom Ishallen dag 1 där de senare vågorna kapas i stället: en större första våg dödade de civila vid dörrarna innan evakueringen var klar (sex försök). Störst ändring: Vikingavägen 14 102 117 195 till 59 89 113 170, Mölnbo dag 2 16 57 59 73 till 33 52 53 66, Björnlunda dag 2 22 68 65 78 till 40 62 59 72.
+
+**Budget (H605).** `d.budget`: startkassan plus allt de dödade ger när hela dagen är dödad; förnödenheterna per dödad räknas ur den (src/meta/operation.js `bountyFor`). Satt till ungefär det den vanliga spelaren köper plus 350 $. Inte på Mölnbo dag 3 (klockan: dagen slutar med de flesta levande, inkomsten blev för låg) och Västerkärv (dagen slutar när de civila är ute).
+
+**RP före förrådet (H605).** Valt: tak, inte tidigare rekvisition (lagret att rekvirera ur kommer först natt 6, så en tidigare öppning hade inget att köpa). Innan förrådet öppnar (efter Ishallen dag 2) sparas högst 400 RP (`RP_CAP_CLOSED`); förut 643 till 760 efter dag 4, 859 i speltestet.
+
+**Rullan (H603).** Prövat i tre steg. (1) "Förstärkningen och de utvilade först, de trötta bara om taket inte är fyllt, de utmattade aldrig": inför Björnlunda dag 1 efter Laxne stod alla tunga pjäser i reserven (trötta eller utmattade) och linjen var Hemvärn och frivilliga, samma svaga trupp som speltestet klagade på; Björnlunda dag 2 efter FALL BACK gick inte att vinna ens med hp 2. (2) Värde med tröttheten avdragen men de utmattade aldrig: samma vägg varannan dag, när de bästa blivit utmattade samtidigt. (3) Valt: förstärkningen först, sedan alla efter värde gånger SUGGEST_FATIGUE (1, 0,9, 0,4) och gruppens andel man i kvadrat. Med (3) klarar den vanliga spelaren Mölnbo dag 3 med hp 25 (förut föll den vid hp 9 till 14).
+
+**Ändringarna per dag** (kampanjens dag efter DEFEND LAXNE; förut inom parentes):
+
+    E4 2            hp 3,6 (3,2)
+    Ishallen 1      ramp med kap (19 32 60 till 19 28 42)
+    Ishallen 2      hp 2,3 (1,8), budget 740
+    Ishallen 3      budget 1 076
+    Vikingavägen    hp 2,8 (3,75), budget 1 050
+    Mölnbo 1        hp 24 (16), budget 790
+    Mölnbo 2        hp 15 (15), budget 990
+    Mölnbo 3        hp 24 (25)
+    Laxne           hp 8 (7), budget 1 490
+    Björnlunda 1    hp 8,5 efter DEFEND, 6,5 efter FALL BACK (7,25), budget 1 320
+    Björnlunda 2    hp 6,3 efter DEFEND, 8 efter FALL BACK (6), budget 1 630
+    rondellen       hp 14 (17), budget 1 340
+    Västerkärv      hp 8,5 i båda grenarna (15,5 och 12)
+
+Kanterna är branta: en halv till en hp-enhet mer fällde den vanliga spelaren flera gånger på Västerkärv (9 vinner, 10 fäller fyra seeds av fem), Mölnbo dag 2 (14,5 vinner, 16 fäller två) och Laxne.
+
+**Kurvan före** (efter H601 och H603 men innan dagarnas siffror ändrades; den vanliga spelaren, DEFEND, fem seeds: försök, basen kvar vid vinsten, $ kvar):
+
+     1 E4 1          1 1 1 1 1   bas 20 20 20 20 20   kvar 0
+     2 E4 2          1 1 1 1 1   bas 17 18 18 20 18   kvar 123-131
+     3 E4 3          1 1 1 1 1   bas 12 13 13 13 14   kvar 205-223
+     4 Ishallen 1    1 1 1 1 1   bas 14 12 13 14 13   kvar 165-175
+     5 Ishallen 2    1 1 1 1 1   bas 20 20 19 20 20   kvar 635-640
+     6 Ishallen 3    1 1 1 1 1   bas 9 11 10 10 10    kvar 92-174
+     7 Vikingavägen  1 1 1 1 1   bas 10 9 1 6 7       kvar 363-621
+     8 Mölnbo 1      1 1 1 1 1   bas 20 20 20 20 20   kvar 319
+     9 Mölnbo 2      fast efter sex försök på alla seeds (basen 0 i våg 1 eller 2)
+    spelaren vid basen: fast på Mölnbo dag 1 (de civila)
+
+**Kurvan efter** (samma spelare):
+
+     1 E4 1          1 1 1 1 1   bas 20 20 20 20 20   kvar 0
+     2 E4 2          1 1 1 1 1   bas 16 15 15 15 16   kvar 41-121
+     3 E4 3          1 1 1 1 1   bas 13 14 11 10 11   kvar 189-225
+     4 Ishallen 1    1 1 1 1 1   bas 14 12 13 14 13   kvar 162-172
+     5 Ishallen 2    1 1 1 1 1   bas 9 12 8 13 11     kvar 320-333
+     6 Ishallen 3    1 1 1 1 1   bas 9 11 10 10 10    kvar 219-303
+     7 Vikingavägen  1 1 1 1 1   bas 9 10 8 10 8      kvar 174-341
+     8 Mölnbo 1      1 1 1 1 1   bas 20 20 20 20 20   kvar 350 (evakueringen: basen nås aldrig, de civila är provet)
+     9 Mölnbo 2      1 1 1 1 1   bas 18 19 16 13 18   kvar 259-273
+    10 Mölnbo 3      1 1 1 1 1   bas 5 10 10 8 9      kvar 85-132
+    11 Laxne         1 1 1 1 1   bas 20 16 5 17 18    kvar 113-178
+    12 Björnlunda 1  1 1 1 1 1   bas 9 11 10 9 9      kvar 126-155
+    13 Björnlunda 2  1 1 1 2 2   bas 3 3 8 9 7        kvar 91-146
+    14 rondellen     1 1 1 1 1   bas 3 5 7 7 7        kvar 93-238
+    15 Västerkärv    1 1 1 1 1   bas 0 (huset får falla när de civila gått)   kvar 383-388
+
+    FALL BACK (dag 11 till 14): Björnlunda 1 bas 6-9, Björnlunda 2 1-2 försök bas 1-12, rondellen bas 4-18, Västerkärv första försöket
+    spelaren vid basen (DEFEND): hela kampanjen på första försöket; från Mölnbo dag 2 basen 17 till 20
+
+Kvar att göra: spelaren vid basen är mycket starkare än den som sprider sig längs vägarna från Mölnbo dag 2 (hp som fäller den vanliga spelaren lämnar honom med 17 till 20); hp kan inte ställa båda, det är en fråga om banorna och ordern. Mölnbo dag 1 och 2 och Laxne är fortfarande lättare än dagarna runt. Den vanliga spelaren köper så länge pengarna räcker, så kvar-kolumnen ligger ofta under 200 $; en människa som köper som han har budgetens 350 $ över.
+
+Fingeravtrycken och Quick jump-truppen (src/data/arrival.js, `node scripts/arrival-regen.mjs`) är omräknade; banornas egna prov från kartläsarens ankomst står kvar som fingeravtryck, och kurvan ovan är den som gäller.

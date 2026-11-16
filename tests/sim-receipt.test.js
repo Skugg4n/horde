@@ -81,9 +81,9 @@ export const hashOf = r => { const s = JSON.stringify(r); let x = 0x811c9dc5; fo
 // väst, syd och nord, hp 3,75; den fasta styrkan med North dag 2:s rutor förlorar i första vågen som förut.
 // docs/balance-log.md 0.22.0.
 const RECEIPTS = {
-  'E4 day 2': '5d0128c1',
-  'Gnesta South day 3': '63fd5a37',
-  'Gnesta North day 1': '4393a798',
+  'E4 day 2': '475c9fca',
+  'Gnesta South day 3': 'd8841508',
+  'Gnesta North day 1': 'f05b4fa8',
 };
 
 for (const name of Object.keys(RECEIPT_DAYS)) {

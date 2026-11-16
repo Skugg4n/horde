@@ -105,7 +105,7 @@ export function penSpots(state) {
 // sektorns plats (src/data/table.js SECTOR_TABLE day), annars en plats runt markören som inte ligger under det som
 // täcker kartan (avoid: rutor i kartans bildpunkter, klämbrädan) och inte på ortnamnen. Svar: { dx, dy, far }.
 const DAY_W = 132, DAY_SPOTS = [[24, -38], [-40, 30], [30, -64], [-40, -110], [20, -110], [-150, -40], [-160, 10], [40, 40], [-90, -70], [-200, -10], [-150, 60], [-240, 30], [-260, -50], [-320, -40], [-320, 10], [-330, -90],
-  // 0.26.1 (H607, speltestet av dag 14: DAY 14 under klämbrädan): längre upp, för Västerkärv söder om rondellen
+  // 0.26.1 (H607, speltestet av dag 14: DAY 14 under klämbrädan): längre upp, för Västerkärv
   [-40, -160], [-120, -160], [-240, -150], [-330, -150]];
 export function dayLabelSpot(nb, avoid = []) {
   const xy = sectorXY(nb.sector);

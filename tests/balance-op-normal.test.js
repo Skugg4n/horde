@@ -103,7 +103,8 @@ test('normal: vakterna, gradvis fall, toppen, första skottet och dagens längd'
 // Vikingavägen en dag från väst, syd och nord (gamla dag 5 utan kryparna, en grupp till västerifrån, hp 3,75) med
 // leveransen Ksp 58, Ksp 88 och pillboxen. Ishallen dag 4 och 5 och Vikingavägen dag 2 till 5 finns inte längre. E4 och
 // Ishallen dag 1 och 2 orörda. docs/balance-log.md 0.22.0.
-const BEFORE = {"riksvagen 1":"37ca880a","riksvagen 2":"d8e825ab","riksvagen 3":"68ec2156","gnesta 1":"fd3928f0","gnesta 2":"e241945c","gnesta 3":"7a23499b","gnesta-norr 1":"986341cb"};
+// 0.26.1: omräknad (H601 filvakten, H603 rullan, H602 dagarnas siffror; docs/balance-log.md Hela kampanjen 0.26.1)
+const BEFORE = {"riksvagen 1":"57adc31a","riksvagen 2":"ff3d79d8","riksvagen 3":"81456663","gnesta 1":"c95be870","gnesta 2":"6f04763c","gnesta 3":"460e449a","gnesta-norr 1":"3a8c2a89"};
 test('normal: kvittot per kampanjsteg är oförändrat', () => {
   const now = prints(rs);
   assert.deepEqual(changed(now, BEFORE), [], JSON.stringify(now));

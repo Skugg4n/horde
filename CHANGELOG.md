@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.26.3 (kampanjen som helhet) (2026-11-16)
+
+Helspeltestet av kampanjen dag 1 till 14 (docs/playtests/2026-11-16-kampanjen-hela.md) och speltestet av dag 14 (docs/playtests/2026-11-16-0.26.0-vasterkarv.md), båda NEJ. Ovanpå 0.26.2 (minne, kamera, tak).
+
+- **Ingen zombie står still (H601).** Dag 13 stod fem zombier bakom skrotbilar i över tre minuter och vågen tog aldrig slut. Orsaken: två rutor med samma avstånd till basen, där filen pekade zombien fram och tillbaka mellan dem; filvakten godtar nu bara en siktpunkt som ligger närmare basen. Och som skydd: den som inte kommit framåt på 8 s (och inte slår på något) slår på närmaste spärr eller skrotbilar, och efter 30 s går den igenom mot nästa ruta. Prov: speltestets skrotbilar på Björnlunda dag 2, och slumpade spärrar på varje bana och dag (`node scripts/stuck-fuzz.mjs`).
+- **En jämn kurva (H602).** Balansen spelar nu hela kampanjen i följd med en spelare, med samma trupp, RP, förråd och trötthet som du har (`node scripts/balance.mjs full`), och spelet och balansen använder samma regler mellan dagarna. Dagarnas svårighet står på ett ställe (src/data/campaign-tune.js). Ingen våg är längre mer än 1,6 gånger den förra (Vikingavägens första våg var 14 och nästa 102). Den vanliga spelaren vinner nu varje dag på första eller andra försöket, med basen 15 till 8 kvar på de första dagarna och 3 till 9 på de sista; väggarna dag 7, 9 och 13 är borta. docs/balance-log.md, Hela kampanjen 0.26.1.
+- **Rullan föreslår rätt trupp (H603, H607).** Natten efter en vunnen dag föreslås hela rullan om: förstärkningen går in först (Ksp 88 dag 14, MCF:s frivilliga och Ksp 90 på Västerkärv), sedan de som är värda mest, där tröttheten drar av och en grupp med få man kvar räknas lägre (Hemvärnet med 2 av 5 går inte före en full grupp). En utvilad går före en trött av samma slag, men en trött Ksp 58 före utvilade frivilliga. Varje rad som flyttats säger varför. Tipset natt 7 säger "From now on, units that fight get tired." i stället för att påstå att någon är trött.
+- **Pengarna (H605).** Varje dag har en budget: inkomsten per dödad räknas så att du har ungefär 350 $ över om du köper det en vanlig spelare köper. RP sparas till högst 400 innan förrådet öppnar (förut 859 som inte gick att använda). Den tysta pjäsens ruta och varningen säger priset för ny besättning (150 $).
+- **Västerkärv (H607).** Den röda linjen går ända fram till dörren. Ordern säger var man ska stå: "Stand in the yard and on Skogsvägen. Out east, then the EPA." EPA:n har ett märke som går att klicka, flyttpilen följer vägen, och på hordens väg säger den "Not on the horde's path. Pick the verge beside it". "They got past on ..." kommer bara när någon tagit sig förbi en enhet. DAY 14 hamnar inte under klämbrädan. Segerraden för en dag som går ut på att lämna: "Day 14. Everyone got out." Den vanliga spelaren vinner dagen på första försöket i båda grenarna (hp 8,5).
+
 ## 0.26.2 (minne, kamera, tak) (2026-11-16)
 
 Helspeltestet av kampanjen (docs/playtests/2026-11-16-kampanjen-hela.md): krascher, en kamera som drogs bort medan basen föll, och Psg 90 som nästan aldrig fick ligga på ett tak.

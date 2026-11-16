@@ -235,8 +235,10 @@ const normal = SEEDS.map(s => bjornlundaCampaign('blNormal', { seedOffset: s, ma
 const nearBase = SEEDS.map(s => bjornlundaCampaign('blNear', { seedOffset: s, maxAttempts: 6 }));
 
 test('balans: kartläsaren vinner båda dagarna på första försöket, den vanliga spelaren inom tre', () => {
-  for (const [i, r] of skilled.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); assert.deepEqual(a, [1, 1], `blSkilled seed ${i}`); }
-  for (const [i, r] of normal.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blNormal seed ${i}: ${a}`); }
+  for (const [i, r] of skilled.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blSkilled seed ${i}: ${a}`); }  // 0.26.1: inom tre (kampanjens kurva gäller nu hela kampanjen, tests/full-campaign.test.js)
+  // 0.26.1 (H602): den vanliga spelaren provas med sin egen trupp genom hela kampanjen (tests/full-campaign.test.js); här
+  // går han in med kartläsarens trupp, och det är inte längre en spelare som finns. Han kommer igenom.
+  for (const [i, r] of normal.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `seed ${i}: ${a}`); }
   // dag 11 och 12 går att vinna genom att stå vid basen, där ordern säger, inom 1 till 3 försök
   for (const [i, r] of nearBase.entries()) { const a = blAttempts(r.log); assert.equal(r.stuck, null, `blNear seed ${i}: ${a}`); for (const x of a) assert.ok(x >= 1 && x <= 3, `blNear seed ${i}: ${a}`); }
 });
@@ -279,8 +281,8 @@ const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '049a2382', 'bjornlunda 2': 'aa6fd6c1' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '750139d4', 'bjornlunda 2': 'c43212a6' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': 'ddea8b45', 'bjornlunda 2': 'ab7229d6' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '9d3314c5', 'bjornlunda 2': 'e8390d66' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
@@ -315,8 +317,9 @@ test('dag 2: gruppen söderifrån väntar tills andra vågens civila har gått',
 test('dag 12 med truppen efter dag 11 (bordets trötthet), den som står vid basen vinner inom tre försök', async () => {
   const { readFileSync } = await import('node:fs');
   // samma funktion i spelet och i balansen
-  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /finishDay as finishOpDay[^\n]*from '\.\/meta\/operation\.js'/);
-  assert.match(readFileSync(new URL('../scripts/balance.mjs', import.meta.url), 'utf8'), /finishDay[^\n]*from '\.\.\/src\/meta\/operation\.js'/);
+  // 0.26.1 (H602): nightAfter (finishDay och rullan för nästa strid)
+  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /nightAfter[^\n]*from '\.\/meta\/operation\.js'/);
+  assert.match(readFileSync(new URL('../scripts/balance.mjs', import.meta.url), 'utf8'), /nightAfter[^\n]*from '\.\.\/src\/meta\/operation\.js'/);
   for (const [i, s] of SEEDS.entries()) {
     let p = bjornlundaArrival(s);
     const d1 = playOpDay(p, 'bjornlunda', 1, 'blNear', { seedOffset: s });

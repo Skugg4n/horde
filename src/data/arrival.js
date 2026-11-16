@@ -21,7 +21,7 @@ export const ARRIVAL = {
 // om tabellen inte längre stämmer med balansen.
 export const ARRIVAL_TROOP = {
   molnbo: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2'],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2'],
     // 0.18.0: omräknad efter skiva 1 (tröttheten, sanity och korselden på Hagstumosse; docs/balance-log.md 0.18.0)
     // 0.18.1: omräknad efter vågornas grind, förrådets banor och Vikingavägen dag 2 och 3 (docs/balance-log.md 0.18.1)
     // 0.19.0: omräknad efter snubblet, stormningens tärning, vågens svans och löparnas fart (docs/balance-log.md 0.19.0)
@@ -32,23 +32,18 @@ export const ARRIVAL_TROOP = {
     // för 20, färre veteraner; ledningens förstärkning till Mölnbo dag 1 (två Psg 90, två Ksp 58 på nivå III, infanteriet och nivåerna
     // Psg 90 II, Ksp 90 rate I, granater II och Hemvärnets gevär II) ingår.
     // docs/balance-log.md 0.22.0.
-    units: [['civ', 2, 2, 4], ['civ', 2, 3, 4], ['civ', 2, 4, 3], ['m249', 2, null, 3], ['m249', 2, null, 3], ['hv', 2, 5, 2], ['ksp58', 2, null, 1],
-      ['m2', 1, null, 1], ['epa', 1, null, 1], ['ksp58', 2, null, 1], ['psg90', 2, null, 0], ['psg90', 2, null, 0], ['inf', 2, 5, 0], ['ksp58', 3, null, 0], ['ksp58', 3, null, 0]],
+    units: [['civ', 2, 2, 4], ['civ', 2, 2, 4], ['civ', 2, 3, 4], ['m249', 2, null, 3], ['m249', 2, null, 3], ['hv', 2, 5, 2], ['ksp58', 2, null, 1], ['m2', 1, null, 1], ['psg90', 2, null, 0], ['psg90', 2, null, 0], ['inf', 2, 5, 0], ['ksp58', 3, null, 0], ['ksp58', 3, null, 0]],
     // 0.22.0 (H539): Quick jump till dag 2 och 3 får truppen kartläsaren går in med där (scripts/balance.mjs molnboDayTroop,
     // seed 0: förrådets köp och vinsterna dagarna före; tröttheten tas inte med, hoppet börjar utvilat). Med dag 1:s ankomst
     // förlorades dag 3 i skiva 1:s prov (scripts/slice1-check.mjs molnbo). units: [typ, nivå, män, vinster].
     days: {
       2: {
-        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 3], ['m249', 2, null, 3], ['hv', 2, 5, 2], ['ksp58', 2, null, 2],
-          ['m2', 1, null, 2], ['epa', 1, null, 2], ['ksp58', 2, null, 2], ['psg90', 2, null, 1], ['psg90', 2, null, 1], ['inf', 2, 5, 1], ['ksp58', 3, null, 1],
-          ['ksp58', 3, null, 1], ['psg90', 1, null, 1], ['hv', 1, 4, 0], ['m249', 2, null, 0]],
+        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 4], ['m249', 2, null, 4], ['hv', 2, 5, 2], ['ksp58', 3, null, 2], ['m2', 1, null, 2], ['psg90', 2, null, 1], ['psg90', 2, null, 1], ['ksp58', 3, null, 1], ['ksp58', 3, null, 1], ['psg90', 1, null, 1], ['hv', 1, 4, 0], ['m249', 2, null, 0]],
       },
       3: {
-        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 3], ['m249', 2, null, 3], ['hv', 2, 5, 2], ['ksp58', 2, null, 3],
-          ['m2', 1, null, 3], ['ksp58', 2, null, 3], ['psg90', 2, null, 2], ['psg90', 2, null, 2], ['inf', 2, 5, 2], ['ksp58', 3, null, 2], ['ksp58', 3, null, 2],
-          ['psg90', 2, null, 2], ['hv', 1, 4, 0], ['m249', 2, null, 0], ['inf', 1, 4, 0]],
+        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 5], ['m249', 2, null, 4], ['ksp58', 3, null, 3], ['m2', 1, null, 3], ['psg90', 2, null, 2], ['psg90', 2, null, 2], ['ksp58', 3, null, 2], ['ksp58', 3, null, 2], ['psg90', 2, null, 2], ['hv', 1, 4, 0], ['m249', 2, null, 1], ['inf', 1, 4, 0]],
       },
     },
   },
@@ -57,18 +52,16 @@ export const ARRIVAL_TROOP = {
   // truppen kartläsaren går in med efter dag 1 (bjornlundaDayTroop). Provet i tests/bjornlunda.test.js säger till när
   // tabellen inte längre stämmer med balansen. docs/balance-log.md, Björnlunda 0.23.0.
   bjornlunda: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 4], ['m249', 2, null, 4], ['hv', 2, 3, 3], ['ksp58', 2, null, 3], ['m2', 1, null, 3],
-      ['ksp58', 2, null, 3], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['inf', 2, 5, 2], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3],
-      ['hv', 1, 4, 0], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 5], ['m249', 2, null, 5], ['ksp58', 3, null, 4], ['m2', 1, null, 4], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3], ['hv', 1, 4, 0], ['m249', 2, null, 2], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
     days: {
       2: {
         // 0.23.2: med leveransen bl-2 (Hemvärnets två grupper och en Ksp 90)
         // 0.23.3 (H550): mindre förnödenheter per dödad; kartläsaren köper inte längre en Ksp 58 före dag 2
         // 0.24.0 (H552): grenen FALL BACK (150 RP dras): Ksp 90 från bl-2 utan nivå II
-        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+        research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
         // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
-        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 2, null, 4], ['m2', 1, null, 4], ['ksp58', 2, null, 4], ['psg90', 2, null, 4], ['psg90', 2, null, 4], ['inf', 2, 5, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 4], ['hv', 2, 5, 1], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0]],
+        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 6], ['m249', 2, null, 6], ['ksp58', 3, null, 5], ['m2', 1, null, 4], ['psg90', 2, null, 4], ['psg90', 2, null, 4], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 4], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['inf', 1, 4, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0]],
       },
     },
   },
@@ -76,26 +69,24 @@ export const ARRIVAL_TROOP = {
   // (leveransen lx-1): scripts/balance.mjs laxneArrival, seed 0. Björnlunda ovan är grenen FALL BACK (bjornlundaArrival);
   // dag 2 utan Mölnbos sista Ksp 58 (valets kostnad, 150 RP, räckte inte till den). docs/balance-log.md, Laxne 0.24.0.
   laxne: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 4], ['m249', 2, null, 4], ['hv', 2, 3, 3], ['ksp58', 2, null, 3], ['m2', 1, null, 3],
-      ['ksp58', 2, null, 3], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['inf', 2, 5, 2], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3],
-      ['hv', 1, 4, 0], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 5], ['m249', 2, null, 5], ['ksp58', 3, null, 4], ['m2', 1, null, 4], ['psg90', 2, null, 3], ['psg90', 2, null, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 3], ['hv', 1, 4, 0], ['m249', 2, null, 2], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0]],
   },
   // 0.25.0 (H559): Gnesta västra rondell (kampanjens dag 13). Truppen kartläsaren har efter Björnlunda dag 12 i grenen
   // FALL BACK, med ledningens Ksp 88 (leveransen vr-1): scripts/balance.mjs vastraRondellArrival, seed 0. Provet i
   // tests/vastra-rondell-sector.test.js säger till när tabellen inte längre stämmer med balansen.
   'gnesta-vastra-rondell': {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
     // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 1, 4], ['ksp58', 2, null, 4], ['m2', 1, null, 4], ['ksp58', 2, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 0]],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 6], ['m249', 2, null, 6], ['ksp58', 3, null, 6], ['m2', 1, null, 5], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['ksp58', 3, null, 5], ['ksp58', 3, null, 4], ['psg90', 2, null, 5], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['inf', 1, 4, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 2, 1], ['hv', 2, 5, 0], ['m249', 2, null, 1], ['ksp58', 2, null, 1], ['m2', 1, null, 0]],
   },
   // 0.26.0: Västerkärv (kampanjens dag 14). Truppen kartläsaren har efter västra rondellen i grenen FALL BACK, med gårdens
   // frivilliga och en Ksp 90 (leveransen vk-1): scripts/balance.mjs vasterkarvArrival, seed 0. Gårdens EPA är dagens egen
   // (src/data/vasterkarv-play.js preset own), inte truppens. Provet i tests/vasterkarv-sector.test.js säger till när
   // tabellen inte längre stämmer med balansen.
   vasterkarv: {
-    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
     // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 4], ['ksp58', 2, null, 5], ['m2', 1, null, 5], ['ksp58', 2, null, 5], ['psg90', 2, null, 6], ['psg90', 2, null, 6], ['inf', 2, 2, 4], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 6], ['hv', 2, 4, 2], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 1], ['ksp58', 2, null, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['m249', 1, null, 0]],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 7], ['m249', 2, null, 6], ['ksp58', 3, null, 6], ['m2', 1, null, 5], ['psg90', 2, null, 6], ['psg90', 2, null, 6], ['ksp58', 3, null, 5], ['ksp58', 3, null, 5], ['psg90', 2, null, 6], ['hv', 2, 2, 2], ['m249', 2, null, 3], ['inf', 1, 4, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 1], ['hv', 2, 4, 1], ['m249', 2, null, 1], ['ksp58', 2, null, 2], ['m2', 1, null, 1], ['ksp58', 1, null, 0], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['m249', 1, null, 0]],
   },
 };

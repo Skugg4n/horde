@@ -1,7 +1,7 @@
 // 0.18.1 (Olas skärmbild av förrådet): banorna Into battle / Reserve · resting och INTEL-rutan.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newCampaign, debugReach, lanes, setLane, canSetLane, opStartConfig, unitsIn, deployCap, nightAfter, suggestRoster, suggestTier } from '../src/meta/operation.js';
+import { newCampaign, debugReach, lanes, setLane, canSetLane, opStartConfig, unitsIn, deployCap, nightAfter, suggestRoster, suggestTier, unitWorth } from '../src/meta/operation.js';
 import { intelFor, rangeOf } from '../src/meta/intel.js';
 import { MAPS } from '../src/data/maps.js';
 
@@ -51,7 +51,8 @@ test('H603: natten efter en vunnen dag föreslås rullan om, och varje flyttad r
   let p = mb();
   const L = lanes(p, 'molnbo');
   for (const u of L.battle) p = setLane(p, u.uid, 'battle').progress;
-  const out = L.battle[0];
+  // den minst värda i striden (en utmattad tung pjäs kan stå kvar: värdet räknas, src/meta/operation.js)
+  const out = [...L.battle].sort((a, b) => unitWorth(a) - unitWorth(b))[0];
   // en vunnen dag ute gör den utmattad (fatigue 1 före, +1 = 2)
   p = { ...p, op: { ...p.op, units: p.op.units.map(u => (u.uid === out.uid ? { ...u, fatigue: 1 } : u)) } };
   const won = nightAfter(p, { mapId: 'molnbo', day: 1, won: true, intelEarned: 10, report: { units: [{ uid: out.uid }] } }).progress;
