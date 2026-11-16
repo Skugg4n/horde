@@ -1,8 +1,9 @@
 // Gnesta västra rondell som bana (0.25.0, H559): kampanjens dag 13, "Försvar mot förtrupper" (kampanjplanen avsnitt 10),
 // efter Björnlunda dag 11 och 12 (12 och 13 efter DEFEND LAXNE). Kartan ur OSM (src/data/gnesta-vastra-rondell.js,
 // tests/gnesta-vastra-rondell.test.js), det spelbara i src/data/gnesta-vastra-rondell-play.js. Basen är villan på
-// Barrstigen öster om rondellen, förtrupperna kommer längs väg 57 från Björnlunda och D 830 ur skogen. Västerkärv (dag 14)
-// är inte byggd: kampanjen slutar här med "To be continued.". Balansen: docs/balance-log.md, Västra rondellen.
+// Barrstigen öster om rondellen, förtrupperna kommer längs väg 57 från Björnlunda och D 830 ur skogen. Efter rondellen
+// kommer Västerkärv (dag 14, 0.26.0, tests/vasterkarv-sector.test.js); till dess slutade kampanjen här. Balansen:
+// docs/balance-log.md, Västra rondellen.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -61,7 +62,9 @@ test('västra rondellen är en bana efter Björnlunda: en dag, kort intro som s�
   // slutet läses som en vinst och pekar mot Västerkärv; kampanjen fortsätter senare
   assert.match(vr.outro.text, /held/);
   assert.match(vr.outro.text, /Västerkärv/);
-  assert.match(vr.outro.text, /To be continued\.$/);
+  // 0.26.0: Västerkärv är byggd, så kampanjens slut ("To be continued.") ligger där
+  assert.doesNotMatch(vr.outro.text, /To be continued/);
+  assert.ok(!vr.outro.end);
   assert.ok(!vr.outro.withdraw);
   for (const s of [JSON.stringify(d), JSON.stringify(vr.outro)]) assert.doesNotMatch(s, /—/);
 });
@@ -202,17 +205,19 @@ test('kampanjens dag i båda grenarna av Laxne-valet: 13 efter FALL BACK, 14 eft
   assert.equal(sectorStatus(early, ID), 'locked');
 });
 
-test('kampanjens slut tills Västerkärv finns: rondellen hållen, inget nästa slag, slutbladet säger "To be continued."', () => {
+// 0.26.0: förut slutade kampanjen här ("To be continued."); nu tar Västerkärv vid
+test('efter rondellen: rondellen hållen, nästa slag är Västerkärv (dag 14), inget slutblad här', () => {
   const q = win(afterBjornlunda('fallback'), ID, 1);
   assert.equal(sectorStatus(q, ID), 'held');
-  assert.equal(nextBattle(q), null);
-  assert.ok(!MAPS[vr.outro.next], 'Västerkärv är inte byggd');
   assert.equal(vr.outro.next, 'vasterkarv');
+  assert.ok(MAPS[vr.outro.next], 'Västerkärv är byggd');
+  const nb = nextBattle(q);
+  assert.deepEqual([nb.map, nb.day, nb.n], ['vasterkarv', 1, 14]);
   const pile = missionPiles(q).find(x => x.sector === ID);
   assert.ok(pile.closed);
   const end = pile.sheets.at(-1);
   assert.equal(end.kind, 'closed');
-  assert.match(end.text, /To be continued\./);
+  assert.doesNotMatch(end.text, /To be continued/);
   // ledningens meddelande när sektorn stängs är outrot
   assert.ok(q.op.inbox.some(m => m.id === 'closed-' + ID && /Västerkärv/.test(m.text)));
 });

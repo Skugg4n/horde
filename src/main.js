@@ -46,7 +46,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, evacPath, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, evacPath, extractState, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -879,17 +879,28 @@ let evacKey = '';
 const trainUi = mountTrain(uiRoot);
 // 0.20.0 (Mölnbo dag 3, H495): uttåget, HUD:en tonar ut och bilden till svart (src/ui/exodus.js)
 const exodusUi = mountExodus(uiRoot);
+// 0.26.0 (Västerkärv): utgången för EPA:n (dayCfg.extract) som en gul ring på vägen, tills dagen är avgjord
+function updateExtractMark() {
+  const x = mode === 'play' && (sim.phase === 'build' || sim.phase === 'wave') ? sim.extract : null;
+  if (!x) { if (marks?.has('extract')) marks.clear('extract'); return; }
+  if (marks?.has('extract')) return;
+  const poly = Array.from({ length: 32 }, (_, i) => [x.at[0] + Math.cos(i / 32 * Math.PI * 2) * x.r, x.at[1] + Math.sin(i / 32 * Math.PI * 2) * x.r]);
+  marks?.set('extract', { kind: 'outline', polys: [poly], y: 0.2, color: '#ffbf3a' }, time);
+}
 function updateEvac() {
   trainUi.update(sim, mode);
+  updateExtractMark();
   const ev = mode === 'play' ? sim.evac : null;
   evacEl.hidden = !ev;
   if (!ev) return;
-  const k = `${ev.safe}|${ev.lost}|${ev.out}`;
+  const xs = sim.extract ? extractState(sim) : null;
+  const k = `${ev.safe}|${ev.lost}|${ev.out}|${ev.done ? 1 : 0}|${xs?.out ?? ''}`;
   if (k === evacKey) return;
   evacKey = k;
   // 0.14.1 (speltestet av 0.14.0: "0 of 13 safe · 20 on the way" sa inte vem som var 20): en stapel med
   // de framme (gula), strecket vid så många som behövs, och de förlorade av så många som får falla.
-  evacEl.querySelector('.t').textContent = sim.dayCfg.objective ?? 'Hold until the civilians reach the ice rink.';
+  // 0.26.0 (Västerkärv): när alla är ute säger rutan att EPA:n ska ut
+  evacEl.querySelector('.t').textContent = ev.done && xs && !xs.done ? 'Everyone is out. Drive the EPA into the ring.' : sim.dayCfg.objective ?? 'Hold until the civilians reach the ice rink.';
   const maxLost = ev.total - ev.need;
   // 0.23.2 (omtestet av 0.23.1: "needed · Lost" bröts mitt i): två hela rader
   evacEl.querySelector('.n').innerHTML = `<span class="ln">Evacuated <b>${ev.safe}</b> / ${ev.need} needed</span> <span class="ln ${ev.lost ? 'lost' : ''}">Lost ${ev.lost} / ${maxLost}</span>`;
@@ -1304,6 +1315,9 @@ function handleEvents() {
     else if (ev.t === 'civilianSafe' && ev.safe === 1) note(uiRoot, sim.map.evacPlace ? `The first civilians ${sim.map.evacPlace}.` : 'The first civilians are inside the ice rink.');
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, sim.map.evacPlace ? `The civilians ${sim.map.evacPlace}.` : 'The civilians are inside the ice rink.');
+    // 0.26.0 (Västerkärv): huset får falla när sista gruppen gått, och EPA:n ska ut
+    else if (ev.t === 'baseFallen') note(uiRoot, 'The farmhouse has fallen. Everyone left it in time.', 'warn');
+    else if (ev.t === 'extractOut') note(uiRoot, 'The EPA is out.');
     // 0.20.0 (Mölnbo dag 3, H495): uttåget. Menyerna tonar ut, kameran ser mot bron där flodvågen kommer, och när den
     // går ut på bron tonar bilden till svart (src/ui/exodus.js)
     else if (ev.t === 'exodusStart') {
@@ -3041,7 +3055,7 @@ if (DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescript
 // utställd av balanspolicyn när Auto-deploy är på, och striden startar direkt.
 // 0.22.0 (H539): Hagstumosse har kampanjbågens fyra dagar (Ishallen 1 till 3, Vikingavägen 1)
 const QUICK_JUMPS = [['riksvagen', 1], ['riksvagen', 2], ['riksvagen', 3], ['gnesta', 1], ['gnesta', 2], ['gnesta', 3],
-  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['laxne', 1], ['bjornlunda', 1], ['bjornlunda', 2], ['gnesta-vastra-rondell', 1]];
+  ['gnesta-norr', 1], ['molnbo', 1], ['molnbo', 2], ['molnbo', 3], ['laxne', 1], ['bjornlunda', 1], ['bjornlunda', 2], ['gnesta-vastra-rondell', 1], ['vasterkarv', 1]];
 async function quickJump(mapId, d) {
   await debugJump(mapId, d);
   if (lesson) { coach.hide(); lesson = null; }

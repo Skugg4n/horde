@@ -16,8 +16,9 @@ test('menyn har banorna i ordning: E4, Gnesta, Gnesta Norr med en dag (0.22.0)',
   // 0.23.0 (H545): Björnlunda efter Mölnbo (tests/bjornlunda-sector.test.js)
   // 0.24.0 (H552): Laxne, den valfria dagen, före Björnlunda (tests/laxne-sector.test.js)
   // 0.25.0 (H559): Gnesta västra rondell efter Björnlunda (tests/vastra-rondell-sector.test.js)
-  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Hagstumosse · Ishallen', 'Hagstumosse · Vikingavägen', 'Mölnbo · Stationen', 'Laxne · Laxne skola', 'Björnlunda · Wattrangsborg', 'Gnesta · Västra rondellen']);
-  assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell']);
+  // 0.26.0: Västerkärv efter rondellen (tests/vasterkarv-sector.test.js)
+  assert.deepEqual(Object.values(MAPS).map(m => m.name), ['Sector E4', 'Hagstumosse · Ishallen', 'Hagstumosse · Vikingavägen', 'Mölnbo · Stationen', 'Laxne · Laxne skola', 'Björnlunda · Wattrangsborg', 'Gnesta · Västra rondellen', 'Västerkärv']);
+  assert.deepEqual(Object.keys(MAPS), ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell', 'vasterkarv']);
   // 0.22.0 (H539, kampanjbågen dag 7): Vikingavägen är en dag
   assert.equal(MAPS['gnesta-norr'].days.length, 1);
   for (const d of MAPS['gnesta-norr'].days) {

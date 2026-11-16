@@ -92,4 +92,15 @@ export const ARRIVAL_TROOP = {
       ['ksp58', 2, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5],
       ['hv', 2, 5, 1], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 1, null, 0], ['m2', 1, null, 0]],
   },
+  // 0.26.0: Västerkärv (kampanjens dag 14). Truppen kartläsaren har efter västra rondellen i grenen FALL BACK, med gårdens
+  // frivilliga och en Ksp 90 (leveransen vk-1): scripts/balance.mjs vasterkarvArrival, seed 0. Gårdens EPA är dagens egen
+  // (src/data/vasterkarv-play.js preset own), inte truppens. Provet i tests/vasterkarv-sector.test.js säger till när
+  // tabellen inte längre stämmer med balansen.
+  vasterkarv: {
+    research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 4], ['ksp58', 2, null, 5], ['m2', 1, null, 5],
+      ['ksp58', 2, null, 5], ['psg90', 2, null, 6], ['psg90', 2, null, 6], ['inf', 2, 5, 4], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 6],
+      ['hv', 2, 4, 2], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 1], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 1],
+      ['ksp58', 1, null, 0], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['m249', 1, null, 0]],
+  },
 };

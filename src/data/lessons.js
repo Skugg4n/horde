@@ -139,6 +139,10 @@ export const LESSONS = {
   'bl-2': [
     { id: 'bl-2.base', kind: 'show', when: 'start', target: { world: 'route' }, text: 'Hold the base. They come down Villavägen and Stationsvägen.' },
   ],
+  // 0.26.0 (Västerkärv dag 14): gårdens folk går ut ur kartan, sedan ska EPA:n ut samma väg
+  'vk-1': [
+    { id: 'vk-1.epa', kind: 'show', when: 'start', target: { world: 'gun:epa' }, text: 'Move the EPA out east on the roads. Fields stop it.', keys: ['M'], manual: 'move' },
+  ],
   'mb-3': [
     { id: 'mb-3.clock', kind: 'show', when: 'start', target: { ui: '#train' }, text: 'Hold until the clock runs out. Then we pull out.', manual: 'train' },
     // 0.18.0 (skiva 1, kampanjplanens centrum dag 16): överrända pjäser

@@ -1,6 +1,7 @@
 // 0.25.1 (speltestet av 0.25.0, H561 och H563): kampanjens slut tills vidare (slutbladet, datadrivet av den sista byggda
 // dagen), rullans förslag natten efter en dag (de utvilade före de trötta), platsens namn i HUD:en och introt, och
 // kartbladets etiketter vid Gnesta (pennraderna och DAY n).
+// 0.26.0: Västerkärv (dag 14) är byggd, så slutbladet ligger efter den i stället för efter rondellen (av sig självt).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/data/maps.js';
@@ -10,20 +11,23 @@ import { campaignEnd, lastBuiltMap, tableState, restedFirst, whereOf, nextBattle
 import { penSpots, sectorXY, dayLabelSpot } from '../src/ui/table.js';
 import { SECTORS } from '../src/data/depot.js';
 
-const ID = 'gnesta-vastra-rondell';
+const ID = 'gnesta-vastra-rondell', LAST = 'vasterkarv';
 const won = (p, mapId, day) => finishDay(p, { mapId, day, won: true, intelEarned: 10, report: { units: [] } }).progress;
 const words = s => s.trim().split(/\s+/).length;
 
 test('kampanjens slut: efter den sista byggda dagen ligger slutbladet på bordet, med en knapp', () => {
-  const before = debugReach(newCampaign(), ID, 1);
+  // 0.26.0: efter rondellen kommer Västerkärv, inget slut där
+  assert.equal(campaignEnd(won(debugReach(newCampaign(), ID, 1), ID, 1)), null);
+  const before = debugReach(newCampaign(), LAST, 1);
   assert.equal(campaignEnd(before), null);
   assert.ok(!tableState(before).end);
-  const q = won(before, ID, 1);
+  const q = won(before, LAST, 1);
   assert.equal(nextBattle(q), null);
   const e = campaignEnd(q);
   assert.ok(e);
   assert.equal(e.text, 'Campaign continues in a later version. Thank you for holding Gnesta.');
   assert.equal(e.button, 'To menu');
+  assert.equal(e.days, 14);
   assert.ok(words(e.text) <= 12);
   assert.doesNotMatch(e.text + e.head, /—/);
   const st = tableState(q);
@@ -32,19 +36,19 @@ test('kampanjens slut: efter den sista byggda dagen ligger slutbladet på bordet
   assert.ok(!st.clipboard?.next);
 });
 
-test('kampanjens slut är datadrivet: en byggd dag efter rondellen tar bort det', () => {
-  const q = won(debugReach(newCampaign(), ID, 1), ID, 1);
-  assert.equal(lastBuiltMap(), ID);
-  CAMPAIGN_MAPS.push('vasterkarv');
+test('kampanjens slut är datadrivet: en byggd dag efter Västerkärv tar bort det', () => {
+  const q = won(debugReach(newCampaign(), LAST, 1), LAST, 1);
+  assert.equal(lastBuiltMap(), LAST);
+  CAMPAIGN_MAPS.push('dag15-prov');
   try {
     // i kampanjens ordning men inte byggd: slutet står kvar
-    assert.equal(lastBuiltMap(), ID);
+    assert.equal(lastBuiltMap(), LAST);
     assert.ok(campaignEnd(q));
-    MAPS.vasterkarv = { id: 'vasterkarv', name: 'Västerkärv', days: [{ n: 1 }] };
-    // byggd: rondellen är inte längre sista dagen, slutet försvinner
-    assert.equal(lastBuiltMap(), 'vasterkarv');
+    MAPS['dag15-prov'] = { id: 'dag15-prov', name: 'Prov', days: [{ n: 1 }] };
+    // byggd: Västerkärv är inte längre sista dagen, slutet försvinner
+    assert.equal(lastBuiltMap(), 'dag15-prov');
     assert.equal(campaignEnd(q), null);
-  } finally { CAMPAIGN_MAPS.pop(); delete MAPS.vasterkarv; }
+  } finally { CAMPAIGN_MAPS.pop(); delete MAPS['dag15-prov']; }
   assert.ok(campaignEnd(q));
 });
 

@@ -455,7 +455,8 @@ export function dayFor(p, mapId, day) {
   const m = d?.choiceMod;
   if (!m || choiceOf(p, m.choice[0]) !== m.choice[1]) return d;
   const k = m.firstWave ?? 1;
-  return { ...d, ...(m.intro ? { intro: m.intro } : {}), waves: d.waves.map((w, i) => (i ? w : { ...w, groups: w.groups.map(q => ({ ...q, count: Math.ceil(q.count * k) })) })) };
+  // 0.26.0 (Västerkärv): choiceMod.hp ersätter dagens hp-faktor i den grenen
+  return { ...d, ...(m.intro ? { intro: m.intro } : {}), ...(m.hp != null ? { hp: m.hp } : {}), waves: d.waves.map((w, i) => (i ? w : { ...w, groups: w.groups.map(q => ({ ...q, count: Math.ceil(q.count * k) })) })) };
 }
 // Spelaren väljer på bordet. Kostnaden (option.rp) dras direkt, högst det som finns; leveranserna och sektorerna följer
 // (syncOperation: defend öppnar Laxne, fallback Björnlunda). Ett val går inte att ändra.
@@ -565,10 +566,11 @@ export function debugDepot(p, preset, list = []) {
 // 0.24.0 (H552): ett hopp till Laxne gör valet DEFEND LAXNE, ett hopp till Björnlunda utan val FALL BACK (balansens
 // ankomst, utan kostnaden); ett gjort val står kvar.
 export function debugReach(p, mapId, day, fresh = false) {
-  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell'];
+  const order = ['riksvagen', 'gnesta', 'gnesta-norr', 'molnbo', 'laxne', 'bjornlunda', 'gnesta-vastra-rondell', 'vasterkarv'];
   if (mapId === 'laxne' && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'defend');
   // 0.25.0 (H559): också ett hopp till västra rondellen (efter Björnlunda) utan val gör FALL BACK
-  if ((mapId === 'bjornlunda' || mapId === 'gnesta-vastra-rondell') && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'fallback');
+  // 0.26.0: och till Västerkärv
+  if ((mapId === 'bjornlunda' || mapId === 'gnesta-vastra-rondell' || mapId === 'vasterkarv') && !choiceOf(p, 'laxne')) p = withChoice(p, 'laxne', 'fallback');
   const maps = { ...p.maps };
   for (const id of order) {
     if (id === mapId) break;
