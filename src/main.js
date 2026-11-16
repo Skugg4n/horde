@@ -1631,7 +1631,8 @@ function updateBaseLabel() {
   baseLabel.style.left = sx + 'px'; baseLabel.style.top = sy + 'px';
   // 0.23.1 (speltestet av 0.23.0: "INF 5" över basskylten): skylten lyfts ovanför enheternas lappar vid basen
   baseLabel.style.marginTop = '0px';
-  const tags = [...pips.querySelectorAll('.sqtag')].map(n => n.getBoundingClientRect()).filter(r => r.width);
+  // 0.26.3 (layoutprovet, Västerkärv: skylten över EPA:ns lägeslapp): också enheternas lägeslappar
+  const tags = [...pips.querySelectorAll('.sqtag, .ustat')].map(n => n.getBoundingClientRect()).filter(r => r.width);
   let r = baseLabel.getBoundingClientRect();
   for (let i = 0; i < 4 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
     baseLabel.style.marginTop = (-(i + 1) * 22) + 'px'; r = baseLabel.getBoundingClientRect();
@@ -2697,12 +2698,18 @@ function updateEvacMarks() {
     for (const el of evacEls.values()) {
       // mäts synlig (en dold lapp har ingen ruta och kom annars tillbaka varannan bildruta)
       el.style.marginTop = '0px'; el.hidden = false;
-      let r = el.getBoundingClientRect();
-      for (let i = 0; i < 3 && tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom); i++) {
-        el.style.marginTop = (-(i + 1) * 24) + 'px'; r = el.getBoundingClientRect();
+      // 0.26.3 (layoutprovet, Laxne och Västerkärv: lappen låg på basens skylt och ingångens namn): uppåt först, sedan
+      // nedåt; ligger den på något i alla lägen visas den inte
+      const onTag = r => tags.some(t => t.left < r.right && r.left < t.right && t.top < r.bottom && r.top < t.bottom);
+      const onHud = r => hud.some(u => u.x0 < r.right && r.left < u.x1 && u.y0 < r.bottom && r.top < u.y1);
+      let ok = false;
+      for (const dy of [0, -24, -48, -72, 24, 48]) {
+        el.style.marginTop = dy + 'px';
+        const r = el.getBoundingClientRect();
+        if (!onTag(r) && !onHud(r)) { ok = true; break; }
       }
-      const hide = hud.some(u => u.x0 < r.right && r.left < u.x1 && u.y0 < r.bottom && r.top < u.y1);
-      if (el.hidden !== hide) el.hidden = hide;
+      if (!ok) el.style.marginTop = '0px';
+      if (el.hidden !== !ok) el.hidden = !ok;
     }
   }
 }
