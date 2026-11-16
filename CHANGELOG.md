@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.26.0 (Västerkärv, dag 14) (2026-11-16)
+
+Kampanjplanen avsnitt 10: "Dag 14 Västerkärv. Zombies har tagit sig via småvägar och anfaller. Civis och nån ksp. En Epa får försvara." Byggd efter utkastet i docs/superpowers/specs/2026-10-21-slutspelet-design.md (avsnittet Dag 14, "Hinna"), som Ola inte har godkänt än. Reglerna är data i dagen (src/data/vasterkarv-play.js), så att de är lätta att ändra.
+
+- **Västerkärv är spelbar** som kampanjens dag 14 (dag 15 efter DEFEND LAXNE), efter västra rondellen. En dag med fyra vågor: horden kommer på småvägarna, Skogsvägen ur skogen i väster och Traktorspåret över åkern i sydväst. Introt: "Up Skogsvägen and across the field on Traktorspåret." Ordern: "Hold the farm. Get everyone out east, then the EPA."
+- **Ut ur kartan:** gårdens folk går i tre grupper (ladan, uthuset och sist boningshuset) längs gula linjer UT ur kartan på östra grusvägen mot väg 57, inte till en bas. Tolv civila, minst tio ska ut.
+- **Huset får falla:** basen är boningshuset. När sista gruppen har gått (och ingen är närmare huset än 40 m) får det falla: "The farmhouse has fallen. Everyone left it in time." Faller det före är dagen förlorad.
+- **EPA:n ut:** gårdens EPA står på gårdsplanen från början (gårdens egen, inte truppens: den tar ingen plats i fronten och följer inte med till förrådet). Den kör bara på grusvägarna och stigarna, aldrig över åkern ("Only on roads and tracks"), och fortare där (2,6 m/s mot krypfartens 1,1). Dagen är vunnen när alla civila är ute OCH EPA:n står i den gula ringen vid utgången. Förstörs den är dagen förlorad ("The EPA was lost."). En lektion: "Move the EPA out east on the roads. Fields stop it."
+- **Truppen:** det som kom ut ur rondellen följer med, men bara fem enheter får plats på gårdens vägar (bordet: BATTLE n of 5). Myndigheten för civilt försvar skickar gårdens frivilliga (två grupper) och en Ksp 90.
+- **Slutet är en vinst:** "The farm is empty. Everyone got out. The EPA is on its way to Gnesta. To be continued." Kampanjens slutblad ligger nu efter dag 14 (av sig själv, som byggt i 0.25.1); rondellen säger "Next: Västerkärv." utan "To be continued."
+- **Bordet:** markören söder om rondellen, ordern till "Commander, Västerkärv". Quick jump: Västerk. 1.
+- **Balansen:** hp 15,5 (12 efter DEFEND LAXNE), basen 16. Kartläsaren vinner på första försöket på 4,6 minuter, den vanliga spelaren inom två försök. docs/balance-log.md, Västerkärv 0.26.0.
+
 ## 0.25.1 (speltestet av 0.25.0) (2026-10-21)
 
 Speltestet av 0.25.0 (docs/playtests/2026-10-21-0.25.0.md) sa ja med reservationer; det här är friktionen det hittade.

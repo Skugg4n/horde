@@ -260,7 +260,8 @@ export function buildBar(root, actions) {
     const nEl = el.querySelector('[data-n]');
     // 0.20.1 (speltestet av 0.20.0, fynd 6: "UNITS 6 / 9" när alla kort sa "All out"): talet efter snedstrecket är så många
     // som går att ha ute, frontbredden eller dagens trupp om den är mindre (de utställda plus de som väntar i reserven)
-    if (nEl) set(nEl, sim.core ? `${sim.guns.length} / ${unitCap(sim)}` : `${gunCount(sim)} / ${sim.maxGuns}`);
+    // 0.26.0: platsens egna enheter (gårdens EPA) räknas inte, som i frontbredden
+    if (nEl) set(nEl, sim.core ? `${sim.guns.filter(g => !g.own).length} / ${unitCap(sim)}` : `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
       const sk = st.state + ':' + st.need + ':' + (holding === id) + ':' + (st.count ?? '');

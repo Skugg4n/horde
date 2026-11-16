@@ -46,7 +46,7 @@ import { loadDebug, saveDebug } from './meta/debug-store.js';
 import { mountDebug, versionClicks } from './ui/debug.js';
 import { createDebugOverlay } from './render/debug-overlay.js';
 import { ARRIVAL } from './data/arrival.js';
-import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, evacPath, extractState, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
+import { allowed, canDeploy, readyCount, barricadeId, BARRICADE_FAILING, gunCount, createSim, dayReport, buySupply, deployPhase, frontage, startWave, step, build, upgrade, sell, placeAcross, removeObstacle, acrossCells, zombiePos, buyKit, callNextWave, checkSpot, sightFor, checkObstacle, onRoof, reinforce, squadPreview, squadRoom, moveGun, checkMove, movePreview, normalizeTweaks, debugSpawn, debugBurst, debugJumpWave, rotateGun, checkRotate, crewPathTo, canMoveType, houseDoor, evacOutcome, evacPath, extractState, frontCount, canReposition, checkReposition, repositionGun, holdFire, cycleTarget, fallBack, recrew, crossfirePreview, crossfireZones, CROSSFIRE, TAIL, housesFor, garrisonHouseAt, TARGET_NAME, RECREW, unitPos, soldierAt, gunPos, gunStats } from './sim/sim.js';
 import { SANITY, hasSanity, sanityState, FATIGUE } from './sim/sanity.js';
 import { SQUAD, isSquad } from './sim/squad.js';
 import { snapGun, snapObstacle, snapRoof } from './sim/snap.js';
@@ -299,7 +299,7 @@ function startPlacing(type) {
   if (placing?.type === type && !placing.move) { flashTip(reasonText('i handen')); return; }
   const bs = buyState(sim, type), st = bs.state;
   // 0.16.4 (Olas: taket ska synas): vid taket säger klicket varför, med siffrorna
-  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText(bs.held ? 'reservHeld' : 'ute')); else if (st === 'full' && sim.core) flashTip(`Sector full: ${sim.guns.length} / ${frontage(sim)} deployed. The rest wait in reserve.`); return; }
+  if (st !== 'ok') { bar.shake(type); audio.ui('deny'); if (st === 'out') flashTip(reasonText(bs.held ? 'reservHeld' : 'ute')); else if (st === 'full' && sim.core) flashTip(`Sector full: ${frontCount(sim)} / ${frontage(sim)} deployed. The rest wait in reserve.`); return; }
   closePanel();
   audio.ui('pick');
   placing = { type, kind: shopItem(type).kind };
@@ -1383,7 +1383,7 @@ function go({ stack = false } = {}) {
   if (lesson?.pause && lesson.step.target?.ui !== '#go') return;
   if (sim.phase === 'build' && sim.nextWaveIn == null) {
     const left = sim.reserve?.filter(u => canDeploy(sim, u)).length ?? 0;
-    if (deployPhase(sim) && left && sim.guns.length < frontage(sim) && !reserveWarned) {
+    if (deployPhase(sim) && left && frontCount(sim) < frontage(sim) && !reserveWarned) {
       reserveWarned = true;
       // 0.16.0 (textgenomgången): reserven och frontbredden finns från North dag 3
       note(uiRoot, feat('frontage') ? 'Units left in reserve. Start anyway?' : 'Units not placed yet. Start anyway?', 'warn');
@@ -1457,6 +1457,8 @@ let lastBaseToast = -Infinity, lastBreach = -Infinity, shakeT = 0, shakeLen = SH
 // senast var långt från basen; den får också en röd ring.
 function onBreach(evs = []) {
   hud.baseHit();
+  // 0.26.0 (Västerkärv): huset är övergivet och fick falla; inga larm om basen efter det
+  if (sim.baseFallen) return;
   lastBreach = time;
   shake(SHAKE_TIME, SHAKE_AMP);
   const from = evs.map(e => leakWatch.where(e.id)).find(Boolean) ?? null;
