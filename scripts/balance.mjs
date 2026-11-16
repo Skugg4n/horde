@@ -9,7 +9,7 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, canReposition, repositionGun, deployPhase, reserveCount, dayReport, buySupply, frontage, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
+import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, canReposition, repositionGun, deployPhase, reserveCount, dayReport, buySupply, frontage, frontCount, extractState, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
@@ -647,7 +647,7 @@ function deployAll(sim, plan, rest = false) {
   if (plan.openerGun != null && reserveCount(sim, 'm249')) tryAt([plan.openerGun], 'm249');
   // frontbredden: de tyngsta först (DEPLOY_ORDER), högst nivå först inom typen (build tar den)
   for (const t of DEPLOY_ORDER) {
-    while (reserveCount(sim, t) && sim.guns.length < frontage(sim)) {
+    while (reserveCount(sim, t) && frontCount(sim) < frontage(sim)) {
       const ok = t === 'psg90' ? tryAt(plan.roofs ?? [], t, k => ({ facing: plan.roofFacing?.[plan.roofs.indexOf(k)] })) || tryAt(guns, t)
         : tryAt(SQUAD_ORDER.includes(t) ? squads : guns, t);
       if (!ok) break;
@@ -672,11 +672,11 @@ function deployRested(sim, plan) {
   const pick = (t, ok) => sim.reserve.filter(u => u.type === t && canDeploy(sim, u) && ok(u))
     .sort((a, b) => b.level - a.level || (a.fatigue ?? 0) - (b.fatigue ?? 0) || (b.vet ?? 0) - (a.vet ?? 0) || (b.men ?? 0) - (a.men ?? 0) || a.uid - b.uid)[0];
   if (plan.openerGun != null) { const u = pick('m249', () => true); if (u) tryAt([plan.openerGun], 'm249', () => ({ uid: u.uid })); }
-  const room = frontage(sim) - sim.guns.length;
+  const room = frontage(sim) - frontCount(sim);
   const chosen = new Set(sim.reserve.filter(u => canDeploy(sim, u)).sort((a, b) => unitWorth(b) - unitWorth(a) || a.uid - b.uid).slice(0, room).map(u => u.uid));
   for (const ok of [u => chosen.has(u.uid), () => true]) {
     for (const t of DEPLOY_ORDER) {
-      while (sim.guns.length < frontage(sim)) {
+      while (frontCount(sim) < frontage(sim)) {
         const u = pick(t, ok);
         if (!u) break;
         const done = t === 'psg90' ? tryAt(plan.roofs ?? [], t, k => ({ facing: plan.roofFacing?.[plan.roofs.indexOf(k)], uid: u.uid })) || tryAt(guns, t, () => ({ uid: u.uid }))
@@ -715,7 +715,7 @@ function garrisonSquads(sim, P) {
   if (P.depth !== true || !allowed(sim, 'garrison') || !deployPhase(sim) || sim._garrisoned) return;
   sim._garrisoned = true;
   for (const t of SQUAD_ORDER) {
-    if (!reserveCount(sim, t) || sim.guns.length >= frontage(sim)) continue;
+    if (!reserveCount(sim, t) || frontCount(sim) >= frontage(sim)) continue;
     const best = housePlan(sim, t)[0];
     if (best && best.score >= (P.houseMin ?? 30)) { build(sim, best.key, t); return; }
   }
@@ -824,6 +824,28 @@ function reactToForetold(sim) {
   if (!gun) return;
   for (const k of e4SpawnPlan(ids[0]).spots) if (relocate(sim, gun.id, k).ok) return;
 }
+// 0.26.0 (Västerkärv): EPA:n ut till utgångens ring (dayCfg.extract). P.extractAt säger när spelaren kör: 'left' när
+// sista gruppen gått ut ur huset (kartläsaren), annars 'done' när alla civila är ute (den som väntar tills det är lugnt).
+// Rutorna i ringen närmast mitten först; går flytten inte (zombier i vägen, ingen väg) provas det igen nästa sekund.
+export function extractKeys(sim) {
+  const x = sim.extract, p = sim.place, out = [];
+  for (let k = 0; k < p.n; k++) {
+    if (p.kind[k] !== KIND.open) continue;
+    const c = p.center(k), d = Math.hypot(c.x - x.at[0], c.z - x.at[1]);
+    if (d <= x.r - 1) out.push([d, k]);
+  }
+  return out.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(q => q[1]);
+}
+function driveOut(sim, P) {
+  const ev = sim.evac, when = P.extractAt ?? 'done';
+  const go = when === 'left' ? ev.out >= ev.total && !sim.civQueue?.length : !!ev.done;
+  if (!go || sim.phase === 'won' || sim.phase === 'lost') return;
+  const x = sim.extract;
+  for (const g of sim.guns) {
+    if (!x.types.includes(g.weapon.type) || g.move || g.out) continue;
+    for (const k of extractKeys(sim).slice(0, 12)) if (checkMove(sim, g.id, k).ok && moveGun(sim, g.id, k).ok) break;
+  }
+}
 // En dag i operationen. policy: namnet i POLICIES. Returnerar runDay:s resultat med dagens rapport.
 export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset = 0, onSecond = null } = {}) {
   const P0 = typeof policy === 'string' ? POLICIES[policy] : policy;
@@ -858,6 +880,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
     if (P.react && !isTown) reactToForetold(sim);
     if (P.trainReact && sim.dayCfg.arrival) reactToTrain(sim);
     if (P.supplies) spendSupplies(sim);
+    if (sim.extract) driveOut(sim, P);
   };
   const r = runDay(sim, think, P.early, onSecond, T?.maxTicks ?? MAX_TICKS, isTown);
   const { sim: _s, ...rest } = r;
@@ -866,7 +889,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
-const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled', laxne: 'lxSkilled', 'gnesta-vastra-rondell': 'vrSkilled' };
+const AUTO_POLICY = { molnbo: 'mbSmart', bjornlunda: 'blSkilled', laxne: 'lxSkilled', 'gnesta-vastra-rondell': 'vrSkilled', vasterkarv: 'vkSkilled' };
 // 0.17.2 (debugmenyns Quick jump, Olas önskan): balanspolicyns uppställning på en dag som just startats, så att striden
 // kan börja direkt. Samma plan som playOpDay (skilled, på Mölnbo mbSmart): spärrarna, pjäserna, taken och lådorna.
 export function autoDeploy(sim, policy = AUTO_POLICY[sim.map.id] ?? 'skilled') {
@@ -953,7 +976,7 @@ export function opCampaign(policy = 'skilled', { seedOffset = 0, maxAttempts = 8
         const force = forceOf(p, mapId), rpBefore = p.rp, pressure = pressureOf(p, mapId);
         const r = playOpDay(p, mapId, day, policy, { seedOffset, onSecond: onSecond && (sim => onSecond(sim, mapId, day, attempt)) });
         const f = finishDay(p, { mapId, day, won: r.won, intelEarned: r.intelEarned, report: r.report, evac: r.evac });
-        log.push({ mapId, day, attempt, won: r.won, baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
+        log.push({ mapId, day, attempt, won: r.won, ...(r.lostBy === 'extract' ? { lostBy: r.lostBy } : {}), baseHp: r.baseHp, waves: r.waves, rp: f.rp.total, rpBefore, rpAfter: f.progress.rp, pressure, force,
           lostMen: r.report?.lostMen ?? 0, lostUnits: r.report?.lostUnits ?? 0, bonuses: f.rp.bonuses.map(b => b.id), time: Math.round(r.time), firstShot: r.firstShot, peak: r.peak,
           ...(r.evac ? { evac: { safe: r.evac.safe, lost: r.evac.lost, need: r.evac.need } } : {}), fallTime: r.fallTime == null ? null : Math.round(r.fallTime),
           // 0.14.1: basen efter varje våg (tempot inom dagen); räknas inte in i fingeravtrycket (stepPrints)
@@ -1183,6 +1206,42 @@ export function vrPrints(log) {
   return Object.fromEntries(VR_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'gnesta-vastra-rondell' && r.day === d).map(strip)))]; }));
 }
 
+// ---------- Västerkärv (0.26.0) ----------
+// Kampanjens dag 14 (15 efter DEFEND LAXNE): "Hinna". Spelaren kommer från rondellen med det kartläsaren har efter dag 13
+// (vastraRondellCampaign('vrSkilled') i valets gren), plus leveransen vk-1 (gårdens frivilliga och en Ksp 90). Bara fem
+// enheter får plats (frontage), plus gårdens EPA. Tre spelare:
+//   vkSkilled : håller gården (allt inom 40 m från boningshuset, som ordern säger), de frivilliga vid de gula linjerna
+//               (evacMap), och kör ut EPA:n så fort sista gruppen gått (extractAt 'left').
+//   vkNormal  : den vanliga spelaren (normal: sin egen väg), kör ut EPA:n först när alla civila är ute.
+//   vkNear    : ställer allt inom 40 m från basen, kör ut EPA:n när alla civila är ute.
+// Målet: vkNormal och vkNear vinner inom 1 till 3 försök, vkSkilled på första. docs/balance-log.md, Västerkärv 0.26.0.
+TOWN.vasterkarv = {
+  blocks: () => [],
+  planOpts: (day, policy) => (policy !== 'smart' ? { roofs: 1, near: 0 } : { roofs: 1, near: 0.3 }),
+  kits: [0, 1], roofsDay: [0, 1], maxTicks: 30 * 900,
+};
+HV_POLICY.vasterkarv = { days: [], gap: [] };
+REQUISITION.vasterkarv = ['lvl:civ:2', 'lvl:m249:2', 'lvl:ksp58:3', 'lvl:inf:2', 'lvl:m2:3', 'lvl:psg90:3'];
+POLICIES.vkSkilled = { ...POLICIES.blSkilled, nearDays: [1], extractAt: 'left' };
+POLICIES.vkNormal = { ...POLICIES.blNormal, extractAt: 'done' };
+POLICIES.vkNear = { ...POLICIES.blNear, extractAt: 'done' };
+const vkArrivalMap = new Map();
+export function vasterkarvArrival(seedOffset = 0, choice = 'fallback') {
+  const key = choice + ':' + seedOffset;
+  if (!vkArrivalMap.has(key)) vkArrivalMap.set(key, vastraRondellCampaign('vrSkilled', { seedOffset, maxAttempts: 6, choice }).progress);
+  return vkArrivalMap.get(key);
+}
+export function vasterkarvCampaign(policy = 'vkSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null, choice = 'fallback' } = {}) {
+  return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['vasterkarv'], start: vasterkarvArrival(seedOffset, choice), onSecond });
+}
+export const VK_STEPS = MAPS.vasterkarv.days.map(d => `vasterkarv ${d.n}`);
+export const vkAttempts = log => VK_STEPS.map(s => { const d = Number(s.split(' ')[1]); const t = log.filter(r => r.mapId === 'vasterkarv' && r.day === d); const w = t.find(r => r.won); return w ? w.attempt : t.length ? 'x' : '-'; });
+export function vkPrints(log) {
+  const h = str => { let x = 0x811c9dc5; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+  const strip = ({ waveBase, cashEnd, peakWaves, earlyCalls, trainBase, ...r }) => (void waveBase, void cashEnd, void peakWaves, void earlyCalls, void trainBase, r);
+  return Object.fromEntries(VK_STEPS.map(s => { const d = Number(s.split(' ')[1]); return [s, h(JSON.stringify(log.filter(r => r.mapId === 'vasterkarv' && r.day === d).map(strip)))]; }));
+}
+
 const SEEDS = [0, 1, 2, 3, 4].map(o => o * 7919);
 // 0.17.2: utan node:url, så att debugmenyns Quick jump kan ladda filen i webbläsaren (autoDeploy)
 const IS_MAIN = typeof process !== 'undefined' && !!process.argv?.[1] && decodeURIComponent(new URL(import.meta.url).pathname) === process.argv[1];
@@ -1214,6 +1273,16 @@ if (IS_MAIN && process.argv[2] === 'laxne') {
     const runs = SEEDS.map(seedOffset => vastraRondellCampaign(policy, { seedOffset, maxAttempts: 6, choice }));
     runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${vrAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}   ${vastraRondellArrival(SEEDS[i], choice).rp}${r.stuck ? '  fast' : ''}`));
     for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} skott ${x.firstShot} kvar ${x.cashEnd} topp ${x.peak} -${x.lostMen}/${x.lostUnits} rp ${x.rp}  ${x.force}`);
+  }
+} else if (IS_MAIN && process.argv[2] === 'vasterkarv') {
+  // 0.26.0: npm run balance -- vasterkarv [policy|-] [fallback|defend]: Västerkärv i valets gren
+  const choice = process.argv[4] ?? 'fallback';
+  for (const policy of process.argv[3] && process.argv[3] !== '-' ? [process.argv[3]] : ['vkSkilled', 'vkNormal', 'vkNear']) {
+    console.log(`\n=== Västerkärv (${choice}), ${policy} ===`);
+    console.log('seed  V1   peak  rp vid ankomsten');
+    const runs = SEEDS.map(seedOffset => vasterkarvCampaign(policy, { seedOffset, maxAttempts: 6, choice }));
+    runs.forEach((r, i) => console.log(`${String(i).padEnd(5)} ${vkAttempts(r.log).map(x => String(x).padStart(2)).join(' ')}   ${Math.max(...r.log.map(x => x.peak))}   ${vasterkarvArrival(SEEDS[i], choice).rp}${r.stuck ? '  fast' : ''}`));
+    for (const [i, r] of runs.entries()) for (const x of r.log) console.log(`  s${i} försök ${x.attempt} ${x.won ? 'ja ' : 'nej'} ${x.lostBy ?? ''} bas ${String(x.baseHp).padStart(2)} vågor ${x.waves} ute ${x.peakWaves} tid ${x.time} kvar ${x.cashEnd} topp ${x.peak} civ ${x.evac?.safe}/${x.evac?.lost} -${x.lostMen}/${x.lostUnits} rp ${x.rp}  ${x.force}`);
   }
 } else if (IS_MAIN && process.argv[2] === 'molnbo') {
   for (const policy of process.argv[3] ? [process.argv[3]] : ['mbSmart', 'mbNaive']) {
