@@ -53,6 +53,7 @@ export function pathRoute(map) {
     ahead: (z, dist) => posAt(z.d + dist, z.off),
     progress: z => z.d,
     fraction: z => z.d / len,
+    togo: z => len - z.d,
     validCell: key => Number.isInteger(key) && key >= 0 && key < map.cells.length,
     obstacleKeys: () => cells,
     inCell(z, key) { const cd = map.cells[key]; return z.d >= cd && z.d < cd + CELL_LEN; },
@@ -178,7 +179,7 @@ export function gridRoute(map) {
         // siktpunkt i en ruta längre från basen än den zombien står i godtas aldrig. Gäller alla
         // rutnät (Gnesta valde också siktpunkter uppströms, granskningen av 0.10); E4 har inget
         // rutnät. Provet i tests/stuck.test.js.
-        { const tk = grid.keyAt(tx, tz); if (tk < 0 || !(flow.dist[tk] <= flow.dist[z.cell])) continue; }
+        { const tk = grid.keyAt(tx, tz); if (tk < 0 || !(flow.dist[tk] < flow.dist[z.cell])) continue; }
       } else {
         if (i === 0) continue;
         const [ax, az] = grid.center(chain[i - 1]), [bx, bz] = grid.center(c);
@@ -300,6 +301,19 @@ export function gridRoute(map) {
     advance(z, dist) {
       const flow = flowOf(z);
       let rest = dist;
+      // 0.26.1 (H601): den som fastnat går igenom (z.ghost): rakt mot nästa rutas mitt i flödet, också genom ett block
+      if (z.ghost) {
+        for (let guard = 0; rest > 1e-9 && guard < 64; guard++) {
+          if (flow.isBase(z.cell)) return;
+          const n = flow.next[z.cell];
+          if (n < 0) return;
+          const [tx, tz] = grid.center(n), dx = tx - z.x, dz = tz - z.z, L = Math.hypot(dx, dz), k = Math.min(rest, L);
+          if (L > 1e-9) { z.x += dx / L * k; z.z += dz / L * k; }
+          rest -= k;
+          if (L <= k + 1e-9) { z.cell = n; z.aimX = null; }
+        }
+        return;
+      }
       for (let guard = 0; rest > 1e-9 && guard < 4096; guard++) {
         if (flow.isBase(z.cell)) return;
         if (!aimOf(z)) return;
@@ -344,6 +358,8 @@ export function gridRoute(map) {
     // som slår sig igenom en barrikad nära basen prioriteras som den närmaste den är.
     progress: z => -left(z),
     fraction: z => Math.max(0, Math.min(1, 1 - left(z) / total)),
+    // 0.26.1 (H601): flödets kostnad kvar från zombiens ruta, i dess eget flöde (minskar för varje ruta framåt)
+    togo: z => flowOf(z).dist[z.cell],
     left,
     walkLeft: k => walk[k],
     // 0.11.0: inte i dimkanten utanför den skarpa ytan (där ingångarna ligger)

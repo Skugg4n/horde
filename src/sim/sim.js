@@ -185,6 +185,7 @@ export function civRouteOf(sim) {
   return sim.civRoute;
 }
 function rebuildRoutes(sim) {
+  sim.routeV = (sim.routeV ?? 0) + 1;
   sim.route.rebuild(sim.obstacles);
   if (sim.civRoute) sim.civRoute.rebuild(sim.obstacles);
 }
@@ -799,6 +800,11 @@ function moveZombies(sim, dt) {
     if (z.dead) continue;
     const def = ZOMBIES[z.type];
     let mul = obstacleEffect(sim, z, dt, hitCells);
+    // 0.26.1 (H601): den som fastnat slår på närmaste hinder (se unstick)
+    if (z.bash != null && mul > 0) {
+      if (!sim.obstacles[z.bash]) z.bash = null;
+      else { mul = 0; z.attacking = true; z.foe = null; if (hitObstacle(sim, z, z.bash, dt, hitCells)) { z.bash = null; rebuildRoutes(sim); } }
+    }
     // Hemvärnet: en zombie i en ruta intill en soldats ruta (de åtta grannarna) stannar och slår
     // honom (bara soldaterna, pjäserna är som förut). Närmaste soldat, lika: först i listan.
     z.foe = null;
@@ -858,6 +864,7 @@ function moveZombies(sim, dt) {
     z.run = (z.run ?? 0) + speed * dt;
     sim.route.advance(z, speed * dt);
     z.wob += dt * speed;
+    unstick(sim, z, dt);
     if (sim.route.arrived(z)) {
       // Dörrarna (map.door, ishallens igenspikade entré): de som når fram slår på dörrarna och
       // tar sig in en i taget (doorBreak), och går att skjuta medan de står där.
@@ -866,6 +873,31 @@ function moveZombies(sim, dt) {
     }
   }
   if (sim.map.door) doorBreak(sim, dt);
+}
+// 0.26.1 (H601, helspeltestet 2026-11-16: dag 13 stod fem zombier still bakom skrotbilar i över tre minuter, vågen tog
+// aldrig slut): ingen zombie står länge utan framsteg. Framsteget är route.togo (flödets kostnad kvar från rutan, egen för bjässarna; nollställs när hindren ändras); den som slår
+// på något (en spärr, en soldat, ett hus, dörren) räknas inte som fast. Efter STUCK.bash sekunder utan framsteg slår den
+// på närmaste hinder (betong eller skrotbilar) inom STUCK.reach meter. Efter STUCK.ghost sekunder går den igenom: rakt
+// mot nästa ruta i flödet, förbi blocken (z.ghost), tills den kommit framåt. Deterministiskt (bara läget och klockan).
+export const STUCK = { bash: 8, ghost: 30, reach: 8, eps: 1e-4 };
+function unstick(sim, z, dt) {
+  const f = sim.route.togo(z), v = sim.routeV ?? 0;
+  if (z.routeV !== v) { z.routeV = v; z.bestF = f; return; }
+  if (z.bestF == null || f < z.bestF - STUCK.eps) { z.bestF = Math.min(f, z.bestF ?? Infinity); z.stuckT = 0; z.ghost = false; z.bash = null; return; }
+  if ((z.attacking && z.bash == null) || z.atDoor) return;
+  z.stuckT = (z.stuckT ?? 0) + dt;
+  if (z.stuckT >= STUCK.ghost) { if (!z.ghost) { z.ghost = true; z.bash = null; sim.events.push({ t: 'unstuck', id: z.id }); } return; }
+  if (z.stuckT >= STUCK.bash && z.bash == null && !z.ghost) {
+    const p = zombiePos(sim, z);
+    let best = null, bd = STUCK.reach;
+    for (const k of Object.keys(sim.obstacles)) {
+      const ob = sim.obstacles[k];
+      if (OBSTACLES[ob.type]?.kind !== 'block') continue;
+      const c = sim.route.cellCenter(Number(k)), d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < bd - 1e-9) { bd = d; best = Number(k); }
+    }
+    if (best != null) z.bash = best;
+  }
 }
 // 0.16.4 (Olas bonus): löparna snubblar ibland. Allt ur zombiens id och simuleringens frö, inte ur sim.rng, så att inget
 // annat slumpas om. Inte i diset, där ingen ser det, och inte när zombien står still (slår eller väntar).
@@ -1956,6 +1988,33 @@ function damage(sim, z, amount, p, cls = 'small', src = null) {
 // när dess svagaste ruta har mindre än BARRICADE_FAILING av sina slag kvar (förut räknades hela spärrens
 // summa, och när första rutan gick sönder hoppade summan upp igen, så varningen kom aldrig). Händelsen
 // barricadeFailing { line, cell } kommer från simuleringen, så att den går att pröva.
+// Zombien z slår på blocket i rutan i under dt. true när det gick sönder (rutten räknas om av den som anropar).
+function hitObstacle(sim, z, i, dt, hitCells) {
+  const def = ZOMBIES[z.type], ob = sim.obstacles[i];
+  if (!ob) return false;
+      // 0.19.0 (H456): bjässen knuffar undan skrotbilarna på def.shove sekunder (hela rutan, oavsett hur hel den är)
+      const shove = ob.type === 'car' && def.shove;
+      if (shove) { if (!ob.shove) sim.events.push({ t: 'carShove', cell: i }); ob.shove = Math.min(1, (ob.shove ?? 0) + dt / def.shove); ob.hp = Math.min(ob.hp, ob.maxHp * (1 - ob.shove)); if (ob.shove >= 1 - 1e-9) ob.hp = 0; }
+      else ob.hp -= def.hitDamage * dt;
+      if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
+      if (ob.hp > 0 && ob.hp < ob.maxHp * BARRICADE_FAILING) {
+        const id = barricadeId(ob, i);
+        sim.failing ??= [];
+        if (!sim.failing.includes(id)) { sim.failing.push(id); sim.events.push({ t: 'barricadeFailing', id, cell: i, ...(ob.line != null ? { line: ob.line } : {}) }); }
+      }
+      if (ob.hp <= 0) {
+        delete sim.obstacles[i];
+        // 0.17.1 (speltestet av 0.17.0, Mölnbo dag 4: basen tömdes medan resten av gångbrons spärr stod kvar): en
+        // lucka räcker för horden, så resten av spärren märks genombruten (bara bild och paneler; ändrar inget i
+        // simuleringen)
+        if (ob.line != null) for (const k of Object.keys(sim.obstacles)) if (sim.obstacles[k].line === ob.line) sim.obstacles[k].breached = true;
+        // en ny spärr i samma ruta (E4) ska kunna varna igen; en spärr tvärs över gatan får ett nytt id
+        if (ob.line == null && sim.failing) sim.failing = sim.failing.filter(x => x !== 'c' + i);
+        sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}), ...(shove ? { shoved: true } : {}) });
+        return true;
+      }
+  return false;
+}
 export const BARRICADE_FAILING = 0.25;
 // Spärrens id (samma för alla rutor i en spärr tvärs över gatan, annars rutan).
 export const barricadeId = (ob, cell) => (ob.line != null ? 'l' + ob.line : 'c' + cell);
@@ -1977,29 +2036,11 @@ function obstacleEffect(sim, z, dt, hitCells) {
       if (ob.durability <= 0) { delete sim.obstacles[i]; broke = true; sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type }); }
     }
     // Blocket stoppar även zombier som skulle passera det i ett enda steg (stort dt).
-    const c = o.kind === 'block' ? route.blockContact(z, i, def.speed * dt) : null;
+    // 0.26.1 (H601): en zombie som går igenom (z.ghost, se unstick) stannar inte vid blocken
+    const c = o.kind === 'block' && !z.ghost ? route.blockContact(z, i, def.speed * dt) : null;
     if (c) {
       mul = 0; if (c.crosses) route.stopAt(z, i); z.attacking = true;
-      // 0.19.0 (H456): bjässen knuffar undan skrotbilarna på def.shove sekunder (hela rutan, oavsett hur hel den är)
-      const shove = ob.type === 'car' && def.shove;
-      if (shove) { if (!ob.shove) sim.events.push({ t: 'carShove', cell: i }); ob.shove = Math.min(1, (ob.shove ?? 0) + dt / def.shove); ob.hp = Math.min(ob.hp, ob.maxHp * (1 - ob.shove)); if (ob.shove >= 1 - 1e-9) ob.hp = 0; }
-      else ob.hp -= def.hitDamage * dt;
-      if (!hitCells.has(i)) { hitCells.add(i); sim.events.push({ t: 'obstacleHit', cell: i }); }
-      if (ob.hp > 0 && ob.hp < ob.maxHp * BARRICADE_FAILING) {
-        const id = barricadeId(ob, i);
-        sim.failing ??= [];
-        if (!sim.failing.includes(id)) { sim.failing.push(id); sim.events.push({ t: 'barricadeFailing', id, cell: i, ...(ob.line != null ? { line: ob.line } : {}) }); }
-      }
-      if (ob.hp <= 0) {
-        delete sim.obstacles[i]; broke = true;
-        // 0.17.1 (speltestet av 0.17.0, Mölnbo dag 4: basen tömdes medan resten av gångbrons spärr stod kvar): en
-        // lucka räcker för horden, så resten av spärren märks genombruten (bara bild och paneler; ändrar inget i
-        // simuleringen)
-        if (ob.line != null) for (const k of Object.keys(sim.obstacles)) if (sim.obstacles[k].line === ob.line) sim.obstacles[k].breached = true;
-        // en ny spärr i samma ruta (E4) ska kunna varna igen; en spärr tvärs över gatan får ett nytt id
-        if (ob.line == null && sim.failing) sim.failing = sim.failing.filter(x => x !== 'c' + i);
-        sim.events.push({ t: 'obstacleBroken', cell: i, type: ob.type, ...(ob.line != null ? { line: ob.line } : {}), ...(shove ? { shoved: true } : {}) });
-      }
+      if (hitObstacle(sim, z, i, dt, hitCells)) broke = true;
     }
   }
   if (broke) rebuildRoutes(sim);
