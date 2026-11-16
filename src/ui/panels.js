@@ -774,5 +774,10 @@ export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = f
   if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
   showNote(root, text, cls, ms, top, rank, opts);
 }
+// 0.25.2 (H275, "Base under attack!" låg kvar efter vågen): raderna vars text börjar med prefix tas bort, också ur kön.
+export function dropNotes(root, prefix) {
+  for (let i = noteQueue.length - 1; i >= 0; i--) if (noteQueue[i].key.startsWith(prefix)) noteQueue.splice(i, 1);
+  for (const el of [...noteStack(root).querySelectorAll('.note')]) if (el._key?.startsWith(prefix)) { clearTimeout(el._t); dropNote(root, el); }
+}
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

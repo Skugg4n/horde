@@ -19,7 +19,7 @@ import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
 import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue, dropNotes } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
@@ -1273,6 +1273,8 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach(evs.filter(e => e.t === 'breach'));
+  // 0.25.2 (H275): när vågen är klarad (eller dagen vunnen) och ingen står kvar vid basen går banderollen bort
+  else if (evs.some(e => e.t === 'waveCleared' || e.t === 'won') && !sim.zombies.some(z => !z.dead)) dropNotes(uiRoot, 'Base under attack!');
   for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.

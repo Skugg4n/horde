@@ -296,7 +296,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H272 | balans | Ishallen dag 3: vågor 39/60/84, vann med bas 4, för liten marginal.
 - [x] H273 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1). GJORT 0.25.2: återskapat (Ishallen dag 1 vunnen med 30 zombier ute); raden säger "Evacuation over. Day won" när zombier går, "Sector quiet" bara när det är tomt.
 - [ ] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6".
-- [ ] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen.
+- [x] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen. GJORT 0.25.2: återskapat (raden stod kvar när vågen var klarad); "Base under attack!" tas bort, också ur kön, när vågen är klarad och ingen är kvar. Tipset över kortradens rubrik och etiketterna på Ishallen ej återskapade 2026-11-16 (E4 dag 3, Ishallen dag 1 i 1440 px).
 - [x] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6. GJORT 0.25.2: köpkortens statistik 11 px i Oswald (förut 9 px mono med streckad nolla), namnet 11,5 px.
 - [x] H277 | ux | Pengar som blir över försvinner tyst; säg det. GJORT 0.25.2: resultatet säger "$ 140 unspent. Supplies do not carry over."
 - [x] H278 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
@@ -313,8 +313,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 ## Efter speltest 0.17.1 (2026-10-18)
 - [x] H290 | ux | Dra i kartan med kort i handen placerar enheten (drag-för-sikte uppfattas som panorering). Beslut behövs: kräva kort håll innan drag blir sikte, eller sikte bara med höger/Alt.
 - [x] H291 | ux | Esc: beteendet beror på om kortet ligger kvar efter förra placeringen. Släpp kortet efter varje placering (utom Shift) så Esc blir förutsägbar.
-- [ ] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left").
-- [ ] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo).
+- [x] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left"). (ej återskapad 2026-11-16: Mölnbo dag 2 med två vågor igång, "Wave 3 of 4 · 1 cleared" och "142 of 172 left" står isär; raden bryts med mellanrum sedan tidigare)
+- [x] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo). (ej återskapad 2026-11-16: Mölnbo dag 2, dagrutan och resultatet säger båda "Wave 3 of 4 · 1 cleared")
 - [ ] H294 | molnbo | Dag 4 har ny tågklocka fast dag 3 hette "The last train". Berättelsen per dag måste hänga ihop.
 - [ ] H295 | molnbo | Dag 4 svår (förlorad i speltest, policyn vinner med bas 1). Resultatrutan täcker tågets avgång. Över $1 000 kvar varje dag.
 
