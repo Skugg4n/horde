@@ -2,7 +2,7 @@ import { ZOMBIES, takeOf } from '../data/zombies.js';
 import { WEAPONS, GRENADE_KIT, PIERCE_WIDTH, VEHICLE_REACH, SUPPLIES, VETERAN, dmgClassOf } from '../data/weapons.js';
 import { OBSTACLES } from '../data/obstacles.js';
 import { makeRng } from './rng.js';
-import { routeFor } from './route.js';
+import { routeFor, gridRoute } from './route.js';
 import { weaponStats, weaponUnlocked, upgradeCost, obstacleUnlocked, weaponRefund, lineRefund, grenadeStats, launcherStats, wireDurability, blockHp, maxGuns, maxSquads, MAX_LEVEL, inArsenal } from './stats.js';
 import { crewRoute, alongPath, crewPassable } from './crew-path.js';
 import { placementFor, sightFrom, roofSightFrom, roofAt, KIND, KIND_REASON, MIN_SPACING, coneSight, bestFacing } from './placement.js';
@@ -103,6 +103,8 @@ export function createSim({ map, day, cash, research = [], seed = 1, tweaks = nu
     train: dayCfg.train || dayCfg.hold ? clockOf(dayCfg) : null,
     // 0.20.0 (Mölnbo dag 3): förlorad mark, ingen placering där (dayCfg.lost.poly, en polygon i världen)
     lost: dayCfg.lost?.poly ?? null,
+    // 0.26.0 (Västerkärv dag 14): ut med fordonet (dayCfg.extract, se extractState) och fordonen på vägarna (dayCfg.track)
+    extract: dayCfg.extract ? { types: [...dayCfg.extract.types], at: [...dayCfg.extract.at], r: dayCfg.extract.r } : null,
   };
   if (coreMode) setupCore(sim);
   return sim;
@@ -119,11 +121,14 @@ function setupCore(sim) {
     if (u && cands.length > 1) u.arrive = l.wave;
   }
   for (const pr of d.preset ?? []) {
+    // 0.26.0 (Västerkärv): own = platsens egen enhet (gårdens EPA), inte truppens. Den står ute från början, tar ingen
+    // plats i frontbredden och följer inte med till förrådet efter dagen (dayReport ser den inte).
+    if (pr.own) sim.reserve.push({ uid: 'own:' + pr.type, type: pr.type, level: pr.level ?? 1, own: true });
     if (!sim.reserve.some(u => u.type === pr.type && !u.arrive)) continue;
     const key = sim.place.keyAt(pr.at[0], pr.at[1]);
-    const r = build(sim, key, pr.type, pr.facing != null ? { facing: pr.facing } : {});
+    const r = build(sim, key, pr.type, { ...(pr.facing != null ? { facing: pr.facing } : {}), ...(pr.own ? { uid: 'own:' + pr.type } : {}) });
     const g = r.ok && sim.guns.find(x => x.id === r.id);
-    if (g) { delete g.building; g.preset = true; }
+    if (g) { delete g.building; g.preset = true; if (pr.own) g.own = true; }
   }
   if (d.spots) sim.marked = new Set(d.spots.map(([x, z]) => sim.place.keyAt(x, z)).filter(k => k >= 0));
 }
@@ -158,12 +163,83 @@ export const CIV_HP = 10, CIV_GAP = 0.9, CIV_SPEED = 2.1, CIV_REACH = 1.5;
 // CLIMB_REACH m från spärrens mitt. Finns en öppen väg går flödet runt och ingen klättrar.
 export const CLIMB_TIME = 5, CLIMB_REACH = 2.2;
 export const evacTotal = ev => ev.groups.reduce((a, g) => a + g.count, 0);
+
+// ---------- utrymningen ut ur kartan, fordonen på vägarna och ut med fordonet (0.26.0, Västerkärv dag 14) ----------
+// dayCfg.evac.exit: utgångens id (map.exits, rutnätets exits). De civila går då inte till basen utan längs ett eget
+// flöde till utgången (en egen rutt med utgången som mål) och är i säkerhet där, ute ur kartan. De gula linjerna följer den.
+// dayCfg.evac.baseMayFall: { left } basen får falla när alla civila har kommit ut ur husen och ingen som går är närmare
+// basen än left meter; faller den före är dagen förlorad.
+// dayCfg.extract: { types, at, r } enheterna av typerna ska stå inom r meter från at (Move dit) när de civila är ute;
+// först då är dagen vunnen. Förstörs den sista av dem är dagen förlorad (lostBy 'extract').
+// dayCfg.track: { types, reach, speed } enheterna av typerna står och kör bara på vägar och stigar (och rutorna intill,
+// reach rutor ut), aldrig över åkern; på vägen kör de i speed m/s i stället för sin vanliga flyttfart.
+export function civRouteOf(sim) {
+  const ex = sim.dayCfg.evac?.exit;
+  if (!ex || sim.route.kind !== 'grid') return sim.route;
+  if (!sim.civRoute) {
+    const g = sim.map.grid, e = (g.exits ?? []).find(q => q.id === ex);
+    if (!e) throw new Error('okänd utgång ' + ex);
+    sim.civRoute = gridRoute({ grid: { ...g, base: e.cell, baseRadius: sim.dayCfg.evac.exitRadius ?? 4 }, surroundings: sim.map.surroundings });
+    sim.civRoute.rebuild(sim.obstacles);
+  }
+  return sim.civRoute;
+}
+function rebuildRoutes(sim) {
+  sim.route.rebuild(sim.obstacles);
+  if (sim.civRoute) sim.civRoute.rebuild(sim.obstacles);
+}
+export function baseMayFall(sim) {
+  const r = sim.dayCfg.evac?.baseMayFall, ev = sim.evac;
+  if (!r || !ev || ev.out < ev.total || sim.civQueue?.length) return false;
+  const b = sim.route.base;
+  return sim.civilians.every(c => c.state !== 'walk' || Math.hypot(c.x - b.x, c.z - b.z) > (r.left ?? 0));
+}
+// Fordonen som ska ut: { units, out (hur många står i zonen), done (alla, och minst ett) }, eller null utan dayCfg.extract.
+export function extractState(sim) {
+  const x = sim.extract;
+  if (!x) return null;
+  const units = sim.guns.filter(g => x.types.includes(g.weapon.type));
+  const inZone = g => !g.move && Math.hypot(g.x - x.at[0], g.z - x.at[1]) <= x.r + 1e-9;
+  const out = units.filter(inZone).length;
+  return { units: units.length, out, done: units.length > 0 && out === units.length };
+}
+function runExtract(sim) {
+  const x = sim.extract;
+  if (!x) return;
+  for (const g of sim.guns) {
+    if (!x.types.includes(g.weapon.type)) continue;
+    const inside = !g.move && Math.hypot(g.x - x.at[0], g.z - x.at[1]) <= x.r + 1e-9;
+    if (inside && !g.out) { g.out = true; sim.events.push({ t: 'extractOut', gunId: g.id, type: g.weapon.type }); }
+    else if (!inside && g.out) g.out = false;
+  }
+}
+// Rutorna där en enhet av typen får stå och köra (dayCfg.track), eller null om typen kör fritt.
+export function trackOf(sim, type) {
+  const t = sim.dayCfg.track;
+  if (!t || !type || !t.types.includes(type)) return null;
+  if (!sim._track) {
+    const p = sim.place, reach = t.reach ?? 1, m = new Uint8Array(p.n);
+    for (let k = 0; k < p.n; k++) {
+      if (!(p.walk[k] === 1 || p.kind[k] === KIND.road)) continue;
+      const i0 = k % p.w, j0 = (k - i0) / p.w;
+      for (let j = j0 - reach; j <= j0 + reach; j++) for (let i = i0 - reach; i <= i0 + reach; i++) {
+        if (i < 0 || j < 0 || i >= p.w || j >= p.h) continue;
+        const q = j * p.w + i;
+        if (crewPassable(p, q)) m[q] = 1;
+      }
+    }
+    sim._track = m;
+  }
+  return sim._track;
+}
+const trackSpeed = (sim, type) => (trackOf(sim, type) ? sim.dayCfg.track.speed ?? null : null);
 // De civilas väg från husets dörr ([x, z][], världen): flödet mot basen, men med en säker zon (dayCfg.evac.safeZone,
 // 0.20.0 Mölnbo dag 1: över bron) slutar den där de är i säkerhet. De gula linjerna och farozonerna följer den.
 export function evacPath(sim, house) {
-  const d = houseDoor(sim.map, house, sim.route), zone = sim.dayCfg.evac?.safeZone ?? null, out = [[d.x, d.z]];
-  for (const k of sim.route.pathFrom(d.cell)) {
-    const c = sim.route.cellCenter(k);
+  const route = civRouteOf(sim);
+  const d = houseDoor(sim.map, house, route), zone = sim.dayCfg.evac?.safeZone ?? null, out = [[d.x, d.z]];
+  for (const k of route.pathFrom(d.cell)) {
+    const c = route.cellCenter(k);
     out.push([c.x, c.z]);
     if (zone && inPolyS(c.x, c.z, zone)) break;
   }
@@ -181,13 +257,15 @@ function scheduleCivilians(sim, index) {
 function runCivilians(sim, dt) {
   const ev = sim.evac;
   if (!ev) return;
+  // 0.26.0 (Västerkärv): med dayCfg.evac.exit går de ut ur kartan (civRouteOf), inte till basen
+  const route = civRouteOf(sim);
   while (sim.civQueue?.length && sim.civQueue[0].at <= sim.time) {
-    const q = sim.civQueue.shift(), door = houseDoor(sim.map, q.house, sim.route), id = ev.out++;
-    const at = sim.route.spawnAt(sim.rng, door.cell, id);
+    const q = sim.civQueue.shift(), door = houseDoor(sim.map, q.house, route), id = ev.out++;
+    const at = route.spawnAt(sim.rng, door.cell, id);
     sim.civilians.push({ id, house: q.house, ...at, hp: CIV_HP, maxHp: CIV_HP, state: 'walk', door: { x: door.x, z: door.z }, wob: 0 });
     sim.events.push({ t: 'civilianOut', id, house: q.house, x: door.x, z: door.z });
   }
-  const speed = (sim.dayCfg.evac.speed ?? CIV_SPEED), route = sim.route, zone = sim.dayCfg.evac.safeZone ?? null;
+  const speed = (sim.dayCfg.evac.speed ?? CIV_SPEED), zone = sim.dayCfg.evac.safeZone ?? null;
   for (const c of sim.civilians) {
     if (c.state !== 'walk') continue;
     if (c.held) { c.held = false; continue; }
@@ -205,7 +283,7 @@ function runCivilians(sim, dt) {
     route.advance(c, speed * dt);
     c.wob += speed * dt;
     // 0.20.0 (Mölnbo dag 1): med en säker zon (dayCfg.evac.safeZone, över bron) är de i säkerhet där, inte först vid basen
-    if (sim.route.arrived(c) || (zone && inPolyS(c.x, c.z, zone))) { c.state = 'safe'; ev.safe++; sim.events.push({ t: 'civilianSafe', id: c.id, safe: ev.safe }); }
+    if (route.arrived(c) || (zone && inPolyS(c.x, c.z, zone))) { c.state = 'safe'; ev.safe++; sim.events.push({ t: 'civilianSafe', id: c.id, safe: ev.safe }); }
   }
 }
 function hitCivilian(sim, c, amount) {
@@ -225,6 +303,13 @@ export function evacOutcome(ev) {
 function checkEvac(sim) {
   const o = evacOutcome(sim.evac);
   if (!o || sim.phase === 'won' || sim.phase === 'lost') return;
+  // 0.26.0 (Västerkärv): med dayCfg.extract är dagen vunnen först när de civila är ute OCH fordonet är ute
+  if (o === 'won' && sim.extract) {
+    if (!sim.evac.done) { sim.evac.done = true; sim.events.push({ t: 'evacDone', safe: sim.evac.safe }); }
+    if (!extractState(sim).done) return;
+    sim.phase = 'won'; sim.events.push({ t: 'extracted' }); sim.events.push({ t: 'won' });
+    return;
+  }
   // 0.20.0 (Mölnbo dag 1, evac.all): dagen vinns först när också vågorna är hållna (checkCleared vinner den då)
   if (o === 'won' && sim.evac.all && sim.waveIndex < sim.dayCfg.waves.length) return;
   if (o === 'won') { sim.phase = 'won'; sim.events.push({ t: 'evacDone', safe: sim.evac.safe }); sim.events.push({ t: 'won' }); return; }
@@ -607,6 +692,7 @@ export function step(sim, dt) {
     runRetreats(sim);
     runRecrew(sim, dt, null);
     ageCorpses(sim, dt);
+    runExtract(sim);
     checkEvac(sim);
     runTrain(sim, dt);
     if (sim.phase !== 'build') return;
@@ -639,7 +725,13 @@ export function step(sim, dt) {
   runRetreats(sim);
   runRecrew(sim, dt, cells);
   ageCorpses(sim, dt);
-  if (sim.baseHp <= 0) { lose(sim, 'base'); return; }
+  // 0.26.0 (Västerkärv): basen får falla när de civila har lämnat den (dayCfg.evac.baseMayFall), annars är dagen förlorad
+  if (sim.baseHp <= 0 && sim.phase === 'wave') {
+    if (!baseMayFall(sim)) { lose(sim, 'base'); return; }
+    if (!sim.baseFallen) { sim.baseFallen = true; sim.events.push({ t: 'baseFallen' }); }
+  }
+  if (sim.phase === 'lost') return;
+  runExtract(sim);
   checkEvac(sim);
   runTrain(sim, dt);
   if (sim.phase !== 'wave') return;
@@ -647,6 +739,7 @@ export function step(sim, dt) {
 }
 // Dagen förlorad: basen föll eller (0.13.0) för många civila föll. lostBy säger vilket.
 function lose(sim, by) {
+  if (sim.phase === 'lost') return;
   sim.phase = 'lost'; sim.lostBy = by;
   const lesson = Math.max(0, LESSON_MIN - sim.intelEarned);
   if (lesson) { sim.intelEarned += lesson; sim.events.push({ t: 'lesson', intel: lesson }); }
@@ -955,6 +1048,9 @@ function hitUnit(sim, g, amount, hurt) {
     if (i >= 0) sim.guns.splice(i, 1);
     sim.squadPlan = null;
     sim.events.push({ t: veh ? 'vehicleDown' : 'crewLost', gunId: g.id, type: g.weapon.type, x: p.x, z: p.z });
+    // 0.26.0 (Västerkärv): fordonet som ska ut (dayCfg.extract) är förstört: dagen går inte att vinna
+    const x = sim.extract;
+    if (x && x.types.includes(g.weapon.type) && !sim.guns.some(o => x.types.includes(o.weapon.type))) lose(sim, 'extract');
   }
 }
 // Gruppens val av rutor för markeringen i key, sparat så att spöket, kollen och bygget inte räknar
@@ -1084,7 +1180,9 @@ export const squadCount = sim => sim.guns.filter(g => g.squad).length;
 // 0.14.0: med kärntrupperna gäller sektorns frontbredd (map.frontage): så många enheter, pjäser och grupper
 // tillsammans, får stå ute samtidigt. Resten väntar i reserven.
 export const frontage = sim => (sim.core ? sim.map.frontage ?? Infinity : Infinity);
-export const capFull = (sim, type) => (sim.core ? sim.guns.length >= frontage(sim) : isSquad(type) ? squadCount(sim) >= sim.maxSquads : gunCount(sim) >= sim.maxGuns);
+// 0.26.0: platsens egna enheter (preset own, gårdens EPA) räknas inte in i frontbredden
+export const frontCount = sim => sim.guns.reduce((n, g) => n + (g.own ? 0 : 1), 0);
+export const capFull = (sim, type) => (sim.core ? frontCount(sim) >= frontage(sim) : isSquad(type) ? squadCount(sim) >= sim.maxSquads : gunCount(sim) >= sim.maxGuns);
 export const onRoof = (sim, key, type) => !!WEAPONS[type]?.roof && sim.place.kind[key] === KIND.house && roofAt(sim.place, key) > 0;
 // ignore (0.12.0, Move): pjäsen som flyttas räknas inte (varken mot taket eller avståndet).
 // moved (intern): antalet man i gruppen som flyttas (pjäsen ignore är redan borttagen ur listan).
@@ -1105,6 +1203,8 @@ export function checkSpot(sim, key, type = null, { ignore = null, moved = null }
   }
   const p = sim.place;
   if (!p.valid(key)) return { ok: false, reason: 'utanför' };
+  // 0.26.0 (Västerkärv): fordonet står bara på vägarna och stigarna (dayCfg.track)
+  { const tr = trackOf(sim, type); if (tr && !tr[key]) return { ok: false, reason: 'spår' }; }
   // 0.20.0 (Mölnbo dag 3): norra sidan är förlorad
   if (sim.lost) { const c0 = p.center(key); if (lostAt(sim, c0.x, c0.z)) return { ok: false, reason: 'förlorad' }; }
   // 0.16.0: E4 dag 1, bara de markerade platserna
@@ -1171,7 +1271,7 @@ export function build(sim, key, type, opts = {}) {
   const core = unit ? { uid: unit.uid, ...(unit.vet ? { vet: unit.vet } : {}), ...(fat ? { fatigue: fat } : {}) } : {};
   if (unit) {
     sim.reserve.splice(sim.reserve.indexOf(unit), 1);
-    if (!sim.deployed.some(d => d.uid === unit.uid)) sim.deployed.push({ uid: unit.uid, type, men: unit.men ?? null });
+    if (!unit.own && !sim.deployed.some(d => d.uid === unit.uid)) sim.deployed.push({ uid: unit.uid, type, men: unit.men ?? null });
   }
   const c = sim.place.center(key);
   const id = 'g' + sim.nextGun++;
@@ -1298,7 +1398,11 @@ export function gunPos(g) {
   return { x: g.x, z: g.z, dir: alongPath(m.path, m.path.len).dir };
 }
 // Vägen för en pjäs eller en soldat från (x, z) genom via till rutan key, eller null.
-export const crewPathTo = (sim, from, key, via = []) => crewRoute(sim.place, from, key, via);
+// 0.26.0: type med dayCfg.track kör bara på vägarnas rutor (trackOf)
+export const crewPathTo = (sim, from, key, via = [], type = null) => {
+  const tr = trackOf(sim, type);
+  return tr ? crewRoute(sim.place, from, key, via, (p, k) => k >= 0 && k < p.n && tr[k] === 1) : crewRoute(sim.place, from, key, via);
+};
 // Kan pjäsen id flyttas till rutan key just nu (genom via)? Samma skäl som checkSpot, plus 'flyttar',
 // 'fast' (Ksp 88), 'bygger' (pillboxen svetsas ihop) och 'ingen väg'.
 // opts.path: false hoppar över vägsökningen (snäppningen provar många rutor; vägen provas en gång sist).
@@ -1319,7 +1423,7 @@ export function checkMove(sim, id, key, via = [], { path = true } = {}) {
     const d = doorRoute(sim, g, houseById(sim.map, sim.place, c.house));
     if (!d.ok) return d;
   }
-  if (path && c.house == null && !crewPathTo(sim, { x: g.x, z: g.z }, key, via)) return { ok: false, reason: 'ingen väg' };
+  if (path && c.house == null && !crewPathTo(sim, { x: g.x, z: g.z }, key, via, g.weapon.type)) return { ok: false, reason: trackOf(sim, g.weapon.type) ? 'spår väg' : 'ingen väg' };
   return c;
 }
 // 0.19.0: vägen in i huset h för enheten g mitt i en våg. Dörren är den gångbara ruta intill huset som alla i enheten
@@ -1440,7 +1544,7 @@ export function moveGun(sim, id, key, opts = {}) {
     sim.events.push({ t: 'move', gunId: id, cell: key });
     return { ok: true, id };
   }
-  const path = crewPathTo(sim, { x: g.x, z: g.z }, key, via);
+  const path = crewPathTo(sim, { x: g.x, z: g.z }, key, via, type);
   const roof = onRoof(sim, key, type);
   const from = { x: g.x, z: g.z, y: g.y, roof: g.roof, cell: g.cell };
   const base = baseSight(sim, key, type);
@@ -1452,8 +1556,8 @@ export function moveGun(sim, id, key, opts = {}) {
   delete g.turn;
   g.weapon.targetId = null;
   if (running) {
-    const mi = def.move, crew = mi.crew ?? 0;
-    g.move = { t: 0, pack: mi.pack, setup: mi.setup, speed: mi.speed, travel: path.len / mi.speed, path, from, crewHp: crew * CREW_HP, crewMax: crew * CREW_HP };
+    const mi = def.move, crew = mi.crew ?? 0, speed = trackSpeed(sim, type) ?? mi.speed;
+    g.move = { t: 0, pack: mi.pack, setup: mi.setup, speed, travel: path.len / speed, path, from, crewHp: crew * CREW_HP, crewMax: crew * CREW_HP };
     g.move.total = g.move.pack + g.move.travel + g.move.setup;
   } else delete g.move;
   sim.events.push({ t: 'move', gunId: id, cell: key });
@@ -1550,7 +1654,7 @@ export function placeObstacle(sim, cell, type) {
   if (!check.ok) return check;
   sim.cash -= OBSTACLES[type].cost;
   putObstacle(sim, cell, type);
-  sim.route.rebuild(sim.obstacles);
+  rebuildRoutes(sim);
   return { ok: true };
 }
 // keys: rutorna hindret tar (en spärr över gatan: alla lediga rutor över bredden).
@@ -1606,7 +1710,7 @@ export function placeAcross(sim, cell, type) {
   const line = sim.nextLine++, cost = OBSTACLES[type].cost;
   sim.cash -= cost;
   for (const k of keys) putObstacle(sim, k, type, line, cost / keys.length);
-  sim.route.rebuild(sim.obstacles);
+  rebuildRoutes(sim);
   return { ok: true, cells: keys, cost };
 }
 // Riva: hela spärren om hindret hör till en (line), annars bara rutan. Hel spärr ger halva priset.
@@ -1618,7 +1722,7 @@ export function removeObstacle(sim, cell) {
   const refund = lineRefund(keys.map(k => sim.obstacles[k]));
   for (const k of keys) delete sim.obstacles[k];
   sim.cash += refund;
-  sim.route.rebuild(sim.obstacles);
+  rebuildRoutes(sim);
   return { ok: true, refund };
 }
 
@@ -1898,7 +2002,7 @@ function obstacleEffect(sim, z, dt, hitCells) {
       }
     }
   }
-  if (broke) route.rebuild(sim.obstacles);
+  if (broke) rebuildRoutes(sim);
   if (mul > 0) z.attacking = false;
   return mul;
 }

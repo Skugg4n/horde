@@ -1496,3 +1496,32 @@ Speltestet av 0.24.0 (docs/playtests/2026-10-21-0.24.0-laxne.md, fynd 8): varje 
 Samtidigt fick Laxne `intel: 'known'` (byns folk har sett horden): lappen "What we face" nämner alla fyra typerna med antalen ur vågorna, också bjässarna och de pansrade i sista vågen. Påverkar inte simuleringen.
 
     lxSkilled 336fa851 (oförändrat), lxNormal daf435b4 (förut 1926d646)
+
+## Västerkärv 0.26.0: kampanjens dag 14, "Hinna"
+
+Kampanjplanen avsnitt 10 ("Dag 14 Västerkärv. Zombies har tagit sig via småvägar och anfaller. Civis och nån ksp. En Epa får försvara.") och slutspelets utkast (avsnittet Dag 14, "Hinna", inte godkänt av Ola). En dag efter västra rondellen (dag 14, eller 15 efter DEFEND LAXNE). `npm run balance -- vasterkarv [policy|-] [fallback|defend]`. Ankomsten är kartläsarens efter rondellen (vastraRondellCampaign('vrSkilled') i valets gren) med leveransen vk-1 (gårdens frivilliga och en Ksp 90). Bara fem enheter i fronten, plus gårdens EPA (dagens egen, preset own).
+
+**Dagens regler.** Tolv civila i tre grupper (ladan i våg 1, uthuset i våg 2, boningshuset i våg 4) går ut ur kartan på östra grusvägen (evac.exit), minst tio ska ut. Boningshuset är basen; det får falla när alla har gått ut ur husen och ingen civil är närmare än 40 m (evac.baseMayFall). Dagen är vunnen när de civila är ute och EPA:n står i ringen vid utgången (extract, 9 m); EPA:n kör bara på vägarna, 2,6 m/s (track). Förlusterna i balansen är alltid huset som föll innan sista gruppen gått.
+
+**Tre spelare.** vkSkilled (blSkilled: allt inom 40 m från huset, de frivilliga vid de gula linjerna, kör ut EPA:n när sista gruppen gått), vkNormal (blNormal: sin egen väg, kör ut EPA:n först när alla civila är ute) och vkNear (blNear, kör som vkNormal). EPA:n körs av balansen (driveOut, rutorna i ringen närmast mitten först).
+
+**Prövat** (basen = basens liv när sista gruppen gått ut, försök per seed):
+
+    basen 14, hp 9, sista gruppen 10 s in i våg 4   alla första försöket, basen 14 (orörd) när sista gruppen gått
+    basen 14, sista gruppen 45 s in i våg 4         alla förlorar varje gång: tre civila faller vid dörren när våg 4 når huset
+    basen 14, hp 15                                 vkNormal 1 till 2 försök (FALL BACK), basen 1 till 14; DEFEND: seed 2 vinner aldrig
+    basen 14, hp 12 och 13, DEFEND                  vkSkilled seed 2 fem försök eller fast; truppen efter Laxne är tröttare
+    basen 16, hp 16, FALL BACK                      vkNormal seed 3 fem försök
+    basen 16, hp 17 och 18, FALL BACK               vkNormal fast på tre till fyra seeds, vkSkilled två till fyra försök
+    basen 16, hp 12,5, DEFEND                       vkNormal seed 2 fyra försök
+    basen 16, hp 15,5 FALL BACK, hp 12 DEFEND (valt, choiceMod.hp):
+    FALL BACK  vkSkilled  första försöket, 274 till 280 s, basen 3 till 16 när sista gruppen gått, kvar 16 till 38 $
+               vkNormal   1, 2, 1, 1, 1 försök, 358 till 360 s, basen 2 till 6, kvar 21 till 108 $
+               vkNear     första försöket, 352 till 357 s, kvar 13 till 194 $
+    DEFEND     vkSkilled  första försöket, 272 till 279 s, kvar 36 till 181 $
+               vkNormal   första försöket, 350 till 358 s, basen 0 till 16 när sista gruppen gått
+    toppen     högst 85 levande, högst två vågor ute; huset faller 190 till 270 s, efter sista gruppen
+
+Kanten är brant: en halv hp-enhet mer fäller den vanliga spelaren flera gånger, eftersom huset är litet (16) och alla vågor går till samma dörr. Kartläsaren är ute på 4,6 minuter (målet 4 till 5); den vanliga spelaren väntar tills alla civila är ute och kör sedan, och dagen blir 5,8 till 6 minuter. choiceMod.hp är ny i 0.26.0 (src/meta/operation.js dayFor); Björnlunda har ingen, så dess grenar är oförändrade.
+
+Fingeravtrycken: FALL BACK vkSkilled 9b813826, vkNormal 5aca34a4 (vkNear 274ffe6e); DEFEND vkSkilled 981b943d, vkNormal 51129cbc. Övriga banors fingeravtryck är oförändrade (deployAll räknar frontCount, samma tal där ingen enhet är platsens egen).

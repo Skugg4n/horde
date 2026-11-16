@@ -45,7 +45,7 @@ export function normalizeTable(t) {
     if (!isObj(v)) continue;
     const e = {};
     for (const f of ['kills', 'waves', 'lost', 'saved', 'total', 'cleared']) if (num(v[f]) != null && v[f] >= 0) e[f] = Math.round(v[f]);
-    if (v.by === 'civilians' || v.by === 'base') e.by = v.by;
+    if (v.by === 'civilians' || v.by === 'base' || v.by === 'extract') e.by = v.by;
     out.log[k] = e;
   }
   return out;
@@ -74,7 +74,7 @@ export function recordDay(p, { mapId, day, kills = 0, waves = 0, lost = 0, saved
 // 0.21.1 (speltestet, fynd 5): en förlorad dag får ett blad i högen. Siffrorna från det senaste försöket.
 export function recordLoss(p, { mapId, day, kills = 0, cleared = 0, waves = 0, lostBy = null }) {
   const t = tableOf(p), e = normalizeTable({ log: { x: { kills, cleared, waves } } }).log.x;
-  if (lostBy === 'civilians' || lostBy === 'base') e.by = lostBy;
+  if (lostBy === 'civilians' || lostBy === 'base' || lostBy === 'extract') e.by = lostBy;
   return { ...p, table: { ...t, log: { ...t.log, [`lost:${mapId}:${day}`]: e } } };
 }
 
@@ -123,7 +123,7 @@ export function titleOf(map, day) {
 }
 const sender = k => SENDERS[k] ?? k ?? 'Försvarsmakten';
 // Platsens namn i rapporterna
-const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola', 'gnesta-vastra-rondell': 'Västra rondellen' };
+const PLACE = { riksvagen: 'The roadblock', gnesta: 'The ice rink', 'gnesta-norr': 'Vikingavägen', molnbo: 'Mölnbo station', bjornlunda: 'Wattrangsborg', laxne: 'Laxne skola', 'gnesta-vastra-rondell': 'Västra rondellen', vasterkarv: 'Västerkärv' };
 const placeName = map => PLACE[map] ?? MAPS[map]?.name ?? map;
 
 // ---------- bladen ----------
@@ -172,7 +172,7 @@ export function lostSheet(p, map, day) {
   const out = [];
   if (e?.waves) out.push(`${e.cleared ?? 0} of ${e.waves} waves held.`);
   if (e?.kills) out.push(`${e.kills} infected down.`);
-  out.push(e?.by === 'civilians' ? 'Too many civilians fell.' : 'The base fell.');
+  out.push(e?.by === 'civilians' ? 'Too many civilians fell.' : e?.by === 'extract' ? 'The EPA was lost.' : 'The base fell.');
   return { id: `lost:${map}:${day}`, kind: 'lost', map, day, n, lead: `Day ${n} lost.`, text: 'Try again at dawn.', outcome: out.join(' '), stamp: 'LOST' };
 }
 // Slutbladet på en klar sektor: första meningen ur banans outro (eller outro.summary), dagarna och stämpeln.

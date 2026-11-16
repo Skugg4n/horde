@@ -4,7 +4,7 @@
 // omvägar och dagen.
 // Kampanjbågen: docs/superpowers/specs/2026-10-18-kampanjplan.md avsnitt 10 ("Dag 13, Gnesta västra rondell. Försvar mot
 // förtrupper."). Före: Björnlunda dag 11 och 12 (12 och 13 om spelaren försvarade Laxne; src/meta/campaign-day.js räknar).
-// Efter: Västerkärv (dag 14, inte byggd: kampanjen slutar här med "To be continued.", se outro nedan). Dag 15 (vi blir
+// Efter: Västerkärv (dag 14, src/data/vasterkarv-play.js, 0.26.0; till dess slutade kampanjen här). Dag 15 (vi blir
 // överkörda) och dag 19 (spår av något konstigt) spelas på samma karta senare, med egna specar.
 //
 // Basen är förhandsvisningens förslag och står kvar: villan på Barrstigens norra sida, cirka 46 m öster om rondellen
@@ -253,12 +253,10 @@ for (const d of DAYS) {
 
 export const vastraRondellPlay = {
   id: 'gnesta-vastra-rondell', name: 'Gnesta · Västra rondellen', version: VASTRA_RONDELL_PLAY_VERSION, world: 'osm', source: V.SOURCE,
-  // Kampanjbågen: förtrupperna bröts vid rondellen; nästa är Västerkärv (dag 14), som inte är byggd. Kampanjen slutar här
-  // tills den finns. Kroken: outro.next är banan som tar vid (src/data/maps.js har den inte än, så inget öppnar), och
-  // outro.end är raden som säger att kampanjen fortsätter senare. När Västerkärv byggs: ta bort end och ge Västerkärv
-  // unlock { map: 'gnesta-vastra-rondell', day: 1 }.
-  outro: { text: 'The roundabout held. Their forward groups broke on väg 57. Next: Västerkärv. To be continued.',
-    summary: 'Västra rondellen held. To be continued.', next: 'vasterkarv', end: 'To be continued.' },
+  // Kampanjbågen: förtrupperna bröts vid rondellen; nästa är Västerkärv (dag 14). 0.26.0: Västerkärv är byggd (unlock
+  // { map: 'gnesta-vastra-rondell', day: 1 }), så raden "To be continued." och outro.end flyttade dit.
+  outro: { text: 'The roundabout held. Their forward groups broke on väg 57. Next: Västerkärv.',
+    summary: 'Västra rondellen held.', next: 'vasterkarv' },
   baseLabel: 'Barrstigen · Base',
   // ingångarnas skyltar där vägen kommer in i bild (main.js entryCells), inte i rondellen där vägarna går ihop
   entryAt: 1000,

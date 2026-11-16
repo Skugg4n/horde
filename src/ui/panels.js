@@ -94,10 +94,14 @@ const REASONS = {
   'nedkylning': 'Not yet. The men need a moment',
   'bemannad': 'The gun is manned',
   'bemannas': 'A crew is on the way',
+  // 0.26.0 (Västerkärv): EPA:n kör bara på vägarna
+  'spår': 'Only on roads and tracks',
+  'spår väg': 'No way there by road',
 };
 // Så många enheter som kan stå ute i dag: frontbredden, eller de utställda plus reserven med folk kvar om de är färre.
 export function unitCap(sim) {
-  const have = sim.guns.length + (sim.reserve ?? []).filter(u => u.men == null || u.men > 0).length;
+  // 0.26.0: platsens egna enheter (gårdens EPA) räknas inte
+  const have = sim.guns.filter(g => !g.own).length + (sim.reserve ?? []).filter(u => !u.own && (u.men == null || u.men > 0)).length;
   return Number.isFinite(frontage(sim)) ? Math.min(frontage(sim), have) : have;
 }
 export function reasonText(r) {
@@ -257,7 +261,8 @@ export function buildBar(root, actions) {
     const nEl = el.querySelector('[data-n]');
     // 0.20.1 (speltestet av 0.20.0, fynd 6: "UNITS 6 / 9" när alla kort sa "All out"): talet efter snedstrecket är så många
     // som går att ha ute, frontbredden eller dagens trupp om den är mindre (de utställda plus de som väntar i reserven)
-    if (nEl) set(nEl, sim.core ? `${sim.guns.length} / ${unitCap(sim)}` : `${gunCount(sim)} / ${sim.maxGuns}`);
+    // 0.26.0: platsens egna enheter (gårdens EPA) räknas inte, som i frontbredden
+    if (nEl) set(nEl, sim.core ? `${sim.guns.filter(g => !g.own).length} / ${unitCap(sim)}` : `${gunCount(sim)} / ${sim.maxGuns}`);
     for (const [id, c] of cards) {
       const st = buyState(sim, id);
       const sk = st.state + ':' + st.need + ':' + (holding === id) + ':' + (st.count ?? '');
@@ -637,7 +642,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
-  const head = sectorDone ? 'Victory' : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : 'The line broke.';
+  const head = sectorDone ? 'Victory' : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : lostBy === 'extract' ? 'The EPA was lost.' : 'The line broke.';
   const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians ${evac.place ?? 'reached the ice rink'}${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   const rows = [];
   if (rp) {

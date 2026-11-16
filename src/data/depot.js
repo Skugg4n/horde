@@ -36,6 +36,8 @@ export const SECTORS = [
   { id: 'laxne', name: 'Laxne', full: 'Laxne · Laxne skola', short: 'Laxne', x: 0.26, y: 0.10, maps: ['laxne'] },
   // 0.25.0 (H559): Gnesta västra rondell (src/data/gnesta-vastra-rondell-play.js), öppnar efter Björnlunda dag 2
   { id: 'gnesta-vastra-rondell', name: 'Västra rondellen', full: 'Gnesta · Västra rondellen', short: 'Västra rondellen', x: 0.41, y: 0.27, maps: ['gnesta-vastra-rondell'] },
+  // 0.26.0: Västerkärv (src/data/vasterkarv-play.js), öppnar efter västra rondellen
+  { id: 'vasterkarv', name: 'Västerkärv', full: 'Västerkärv · The farm', short: 'Västerkärv', x: 0.38, y: 0.31, maps: ['vasterkarv'] },
   { id: 'trosa', name: 'Trosa', short: 'Trosa', x: 0.78, y: 0.72, placeholder: true },
   { id: 'nykoping', name: 'Nyköping', short: 'Nyköping', x: 0.42, y: 0.80, placeholder: true },
 ];
@@ -182,6 +184,13 @@ export const RELEASES = [
   { id: 'vr-1', map: 'gnesta-vastra-rondell', day: 1, from: 'FM', adopt: true, reinforce: 'Försvarsmakten',
     text: 'Their forward groups are on väg 57 and D 830. Hold the western roundabout. A Ksp 88 joins you.',
     grant: [{ type: 'm2' }], unlock: [...NORTH_ALL, 'inf'], stock: { ksp58: 1, inf: 1 } },
+  // ---------- Västerkärv (0.26.0) ----------
+  // Kampanjens dag 14 (15 efter DEFEND LAXNE): få ut gårdens folk. Truppen från rondellen följer med (adopt), men gårdens
+  // vägar är smala: fem enheter får plats (vasterkarv-play.js frontage), plus gårdens EPA (dagens preset own). Ledningen
+  // skickar gårdens frivilliga och en Ksp 90 (bågen: "Civis och nån ksp. En Epa.").
+  { id: 'vk-1', map: 'vasterkarv', day: 1, from: 'MCF', adopt: true, reinforce: 'Västerkärv',
+    text: 'A farm at Västerkärv is cut off. Five units fit on its roads. Bring everyone out, and its EPA.',
+    grant: [{ type: 'civ', count: 2, level: 2 }, { type: 'm249' }], unlock: [...NORTH_ALL, 'inf'] },
 ];
 // Leveransens sort: 'reinforcement' (trupper ledningen skickar, märkta på rullan) eller 'release' (det som blir möjligt att
 // rekvirera, eller trupper som är sektorns startstyrka)

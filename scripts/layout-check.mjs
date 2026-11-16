@@ -337,9 +337,14 @@ async function tableChecks(page, label) {
     const hid = await ev(`(() => { const g = document.querySelector('#hub .tb-mapsvg .dayl'); if (!g) return 'saknas'; const r = g.getBoundingClientRect(); const pts = [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 3, r.top + 3], [r.right - 3, r.bottom - 3]]; return pts.filter(([x, y]) => !document.elementFromPoint(x, y)?.closest('.tb-map')).length ? 'täckt' : ''; })()`);
     if (hid) errors.push(`table-rondell-1 @${label}: DAY 13 på kartan ${hid}`);
   }
-  // och kampanjens slut tills Västerkärv finns: rondellen hållen, inget nästa slag, slutbladet säger "To be continued."
-  await show(reach('gnesta-vastra-rondell', 1, `p = O.finishDay(p, { mapId: 'gnesta-vastra-rondell', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-campaign-end');
-  if (!/To be continued\./.test(await ev(`document.querySelector('#hub [data-sheet="closed:gnesta-vastra-rondell"]')?.textContent ?? ''`))) errors.push(`table-campaign-end @${label}: slutbladet säger inte "To be continued."`);
+  // 0.26.0: Västerkärv efter rondellen: ordern för kampanjens dag 14, gårdens frivilliga och Ksp 90 som förstärkning,
+  // och bara fem platser i striden (BATTLE n of 5)
+  await show(reach('vasterkarv', 1), 'table-vasterkarv-1');
+  if (!/ORDER 14\b/.test(await ev(`document.querySelector('#hub .tb-pile.current [data-sheet="order:vasterkarv:1"]')?.textContent ?? ''`))) errors.push(`table-vasterkarv-1 @${label}: Västerkärv är inte dag 14`);
+  if (!/Five units fit/.test(await ev(`document.querySelector('#hub')?.textContent ?? ''`))) errors.push(`table-vasterkarv-1 @${label}: bordet säger inte att fem får plats`);
+  // och kampanjens slut efter dag 14 (0.25.1: efter rondellen): Västerkärv hållen, inget nästa slag, "To be continued."
+  await show(reach('vasterkarv', 1, `p = O.finishDay(p, { mapId: 'vasterkarv', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-campaign-end');
+  if (!/To be continued\./.test(await ev(`document.querySelector('#hub [data-sheet="closed:vasterkarv"]')?.textContent ?? ''`))) errors.push(`table-campaign-end @${label}: slutbladet säger inte "To be continued."`);
   // 0.25.1 (H561): kampanjens slutblad med en knapp, To menu; Enter går till menyn, och Continue i menyn visar bladet igen
   {
     const sc = `table-campaign-end @${label}`;
@@ -668,7 +673,19 @@ async function run() {
     await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(900);
     await check('rondell-1-result');
-    if (!/To be continued\./.test(await ev(`document.querySelector('.radio')?.textContent ?? ''`))) errors.push(`rondell-1-result @${W}: resultatet säger inte "To be continued."`);
+    if (/To be continued\./.test(await ev(`document.querySelector('.radio')?.textContent ?? ''`))) errors.push(`rondell-1-result @${W}: resultatet säger "To be continued." fast Västerkärv finns`);
+    // 0.26.0: Västerkärv (kampanjens dag 14): introt och resultatet med kampanjens slut ("To be continued.")
+    await ev(`(async () => { const H = window.__horde; await H.jump('vasterkarv', 1); H.startDay(1); })()`);
+    await check('vasterkarv-1-intro');
+    await ev(`window.__horde.sheetAction('go')`);
+    await page.waitForTimeout(400);
+    await skipLessons();
+    await dropLessons();
+    await ev(`(() => { window.__horde.sim.phase = 'won'; })()`);
+    await page.waitForFunction(() => window.__horde.mode === 'result', null, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(900);
+    await check('vasterkarv-1-result');
+    if (!/Everyone got out\..*To be continued\./.test(await ev(`document.querySelector('.radio')?.textContent ?? ''`))) errors.push(`vasterkarv-1-result @${W}: resultatet säger inte "Everyone got out. ... To be continued."`);
     // 0.17.1: gränssnittet i striden (auditHud): lektionsplåten med PAUSED över köpraden, raden vid pekaren nära
     // DAY-rutan, tågets ruta med ingångarnas etiketter, mitt i en våg, och E4 med lektionsplåten vid köpraden
     // lektionsplåtarna bort med Esc tills ingen står kvar; öppnade ett Esc pausmenyn stängs den (Resume)
@@ -851,6 +868,16 @@ async function run() {
     await ev(`window.__horde.advance(60)`);
     await clearLessons();
     await checkHud('hud-rondell-1-wave');
+    // 0.26.0: Västerkärv före första vågen och en minut in i den (gården, EPA:n, ringen vid utgången)
+    await ev(`(async () => { const H = window.__horde; await H.jump('vasterkarv', 1); })()`);
+    await clearLessons();
+    await ev(`window.__horde.rig?.skipTour?.()`);
+    await checkHud('hud-vasterkarv-1-build');
+    await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
+    for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
+    await ev(`window.__horde.advance(60)`);
+    await clearLessons();
+    await checkHud('hud-vasterkarv-1-wave');
     await ev(`(async () => { const H = window.__horde; await H.jump('riksvagen', 2); })()`);
     await checkHud('hud-e4-2-lesson');
     // 0.21.0: kartbordet (0.21.1: också i 1440x900 och 1920x1080, se nedan)
