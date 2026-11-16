@@ -1374,6 +1374,7 @@ function go({ stack = false } = {}) {
     const left = sim.reserve?.filter(u => canDeploy(sim, u)).length ?? 0;
     if (deployPhase(sim) && left && sim.guns.length < frontage(sim) && !reserveWarned) {
       reserveWarned = true;
+      hud.confirm(true);
       // 0.16.0 (textgenomgången): reserven och frontbredden finns från North dag 3
       note(uiRoot, feat('frontage') ? 'Units left in reserve. Start anyway?' : 'Units not placed yet. Start anyway?', 'warn');
       return;

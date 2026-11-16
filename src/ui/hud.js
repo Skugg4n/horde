@@ -207,9 +207,12 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   // 0.19.2 (speltestet av 0.19.1, smått: ett gammalt "−$ 120" stod under SUPPLIES när en ny dag började): en ny dag
   // (en ny simulering) tar bort raden, och den står aldrig längre än sin tid även om timern inte hann
   let lastSim = null, deltaUntil = 0;
+  // 0.25.2 (H437, speltestet: "Start wave kändes död"): efter frågan om reserven står den på knappen, "Start anyway?"
+  let confirmGo = false;
+  function confirm(on) { confirmGo = !!on; goBtn.classList.toggle('confirm', confirmGo); }
   function clearDelta() { clearTimeout(deltaTimer); el.delta.className = 'delta'; el.delta.textContent = ''; deltaUntil = 0; }
   function update(sim) {
-    if (sim !== lastSim) { lastSim = sim; clearDelta(); }
+    if (sim !== lastSim) { lastSim = sim; clearDelta(); confirm(false); }
     if (deltaUntil && performance.now() > deltaUntil) clearDelta();
     const c = waveCounts(sim);
     // 0.21.3 (H539): kampanjens dag stort, banan och dess dag smått under ("Mölnbo · 2")
@@ -240,7 +243,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     const counting = build && sim.nextWaveIn != null;
     // 0.16.0: före Next wave med bonus (South dag 3) är nedräkningen bara en nedräkning, ingen knapp
     const passive = counting && !feat.early;
-    set(el.go, counting ? (passive ? 'Next wave in' : 'Next wave') : 'Start wave');
+    set(el.go, counting ? (passive ? 'Next wave in' : 'Next wave') : confirmGo ? 'Start anyway?' : 'Start wave');
     el.cd.hidden = !counting;
     el.key.hidden = passive;
     speedBtn2.hidden = !(build || wave) || !feat.speed;
@@ -518,5 +521,5 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     banner(null); entry(null);
   }
 
-  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, flash, shift, features, reveal };
+  return { update, reset, hint, setSpeed, baseHit, banner, entry, routeKey, cashDelta, early, bounty, flash, shift, features, reveal, confirm };
 }

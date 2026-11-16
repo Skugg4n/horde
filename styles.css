@@ -153,6 +153,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .cd { font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: 0.02em; text-transform: none; color: #f2d18a; }
 #go .cd[hidden] { display: none; }
 #go.counting { font-size: 18px; padding: 11px 22px 12px; }
+/* 0.25.2 (H437): efter frågan om reserven säger knappen "Start anyway?" och lyser */
+#go.confirm { box-shadow: 0 0 0 2px #e9dfc9 inset; }
 #wavebar kbd {
   font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: none;
   padding: 2px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85;

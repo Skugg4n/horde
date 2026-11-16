@@ -388,8 +388,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H433 | balans | Ishallen dag 1 med 5 dödade: mätt, dagen kräver försvar (prov). (0.18.1)
 - [x] H434 | ux | Förrådet i zoner: banorna Into battle / Reserve · resting, Requisition, Upgrades, INTEL. (0.18.1)
 - [x] H435 | ux | Mölnbo dag 2: husen längs Stenbyvägen i stället för "tåget är skydd". (0.18.1)
-- [ ] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6).
-- [ ] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7).
+- [x] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6). (ej återskapad 2026-11-16: på Vikingavägen får ingen enhet gå in i husen i dagens bygge (garrison avstängt), så inget hus lyser; Mölnbo dag 2 provat huvudlöst utan felaktig grön ton)
+- [x] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7). GJORT 0.25.2: efter frågan om reserven säger knappen "Start anyway?" och lyser; nästa tryck startar.
 - [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
 - [x] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10). GJORT 0.25.2: kortets rubrik utan dubbelt namn; tipset "Get 18 inside" säger plåtens tal. "To reserve" ej återskapat (knappen heter Fall back, "To reserve" är dess undertext).
