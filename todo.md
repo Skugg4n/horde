@@ -426,14 +426,14 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H482 | text | Taggtråd ger "Horde rerouting via ...". Bara spärrar som stänger säger omvägen. (0.19.2)
 - [x] H483 | ux | Ett gammalt "−$ 120" står kvar under SUPPLIES när en ny dag börjar. En ny dag tar bort raden. (0.19.2)
 - [x] H484 | balans | Mölnbo dag 4 läckte vid Folkets hus från cirka 270 s. Läckan mätt (sista biten av Stenbyvägen, går att täcka), hp 38 till 36. (0.19.2)
-- [ ] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7).
-- [ ] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån.
+- [x] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7). GJORT 0.25.2: "Väg 57." fanns inte längre ("Down väg 57, from Järna."); "Väg 57 again." blev "Down väg 57 again, from Järna."
+- [x] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån. GJORT 0.25.2: namn som redan säger ett väderstreck får inget till ("Väg 57 north"); "No reports from the east, south or west" blev "Later waves: no reports yet."
 - [ ] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats.
 - [ ] H488 | balans | Varje dag slutar med $700 till $1 300 oanvänt (speltestet av 0.19.1). Något att köpa, eller mindre i kassan.
 - [x] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"? GJORT 0.25.2: "The train is away with the evacuees. Day won."
 - [ ] H490 | molnbo | Tåget (speltest 0.19.2): märkningen "Platform: they come out here" och pilarna pekar på perrongen, men det som lönar sig är foten av södra trappan och bara inom några sekunder. Peka dit det lönar sig, och ge längre tid (markeringen försvinner efter ~26 s speltid, 13 s i 2X).
 - [ ] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt.
-- [ ] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad).
+- [x] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad). GJORT 0.25.2: omvägsraden säger "Changed your mind? Click the barricade." i stället för en order. Den röda läckringen på Stenbyvägen ej återskapad.
 - [ ] H493 | kampanj | Olas kampanjbåge dag 0 till 21 (kampanjplan avsnitt 10) är nu bärande plan. Skriv ledningscentralens texter per dag (order, lägesrapport, radio/TV-inslag) och koppla varje dag till sin anledning.
 - [x] H494 | molnbo | Rätta Mölnbo-kartan efter satellitbilden: EN väg över spåret (bron, väg 57), vägnätet (Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen), Folkets hus läge. Ref horde-refs/molnbo/satellit-ola-2026-10-19.jpg.
 - [x] H495 | molnbo | Mölnbo dag 1 till 3 enligt bågen: dag 1 hålla bron så folk hinner över, dag 2 norrsidan förloras (ingen placering där efteråt) + tåget, dag 3 hålla en tid, sedan uttåg mot Gnesta och flodvåg över bron (menyerna försvinner, trupperna packar, bilden tonar ut).

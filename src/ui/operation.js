@@ -334,7 +334,9 @@ export function depotSheet(root, progress0, sector0, handlers, { deploy = null, 
     const types = it.types.map(t => `<div class="foe-row"><span class="fi">${FOE_ICONS[t.type] ?? FOE_ICONS.unknown}</span><b>${esc(/ed$/.test(t.name) ? t.name : t.name + 's')}</b><span class="fn">${num(t)}</span></div>`).join('');
     const unk = it.quality === 'unknown' ? `<div class="foe-row unk"><span class="fi">${FOE_ICONS.unknown}</span><b>Unknown</b><span class="fn">?</span></div>`
       : it.later ? `<div class="foe-row unk"><span class="fi">${FOE_ICONS.unknown}</span><b>Later waves</b><span class="fn">Unconfirmed</span></div>` : '';
-    const ents = it.entries.map(e => `<li><b>${esc(e.name)}</b>${e.dir ? ` <span>${esc(e.dir)}</span>` : ''}</li>`).join('');
+    // 0.25.2 (H486): "Väg 57 north north" och "Dansutvägen west north": ett namn som redan säger ett väderstreck står ensamt
+    const named = n => /(^|\s)(north|south|east|west|norr|söder|syd|öst|väst)(\s|$)/i.test(n);
+    const ents = it.entries.map(e => `<li><b>${esc(e.name)}</b>${e.dir && !named(e.name) ? ` <span>${esc(e.dir)}</span>` : ''}</li>`).join('');
     return `<div class="iq q-${it.quality}">${q} · ${it.waves} waves</div>${types}${unk}
       <div class="ient"><h5>Entries</h5><ul>${ents}</ul>${it.note ? `<p class="inote">${esc(it.note)}</p>` : ''}</div>`;
   }

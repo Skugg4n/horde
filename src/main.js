@@ -1955,7 +1955,8 @@ function updateRoutes() {
         const street = rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i].cells, nowPaths[i].cells);
         // 0.17.1 (speltestet: "barriären går inte att ångra"): efter en egen spärr säger raden hur den rivs
         const own = Object.keys(sim.obstacles).length > 0 && sim.phase === 'build' && !isSeen(progress, 'tip.removeBlock');
-        if (!(routeFlash > 0)) note(uiRoot, (street ? `Horde rerouting via ${street}.` : 'Horde rerouted.') + (own ? ' Click a barricade to remove it.' : ''), 'warn', own ? { ms: 6000 } : undefined);
+        // 0.25.2 (H492): "... Click a barricade to remove it." lästes som en order och sa emot "Every road shut"; nu ett val
+        if (!(routeFlash > 0)) note(uiRoot, (street ? `Horde rerouting via ${street}.` : 'Horde rerouted.') + (own ? ' Changed your mind? Click the barricade.' : ''), 'warn', own ? { ms: 6000 } : undefined);
         if (own) { progress = markSeen(progress, 'tip.removeBlock'); save(); }
         routeFlash = 4;
       }

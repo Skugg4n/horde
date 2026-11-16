@@ -28,3 +28,12 @@ test('H527: Mölnbo dag 2 säger att norra sidan är förlorad', async () => {
   assert.equal(lostNext('molnbo', 3), null);
   assert.match(synthReport(newCampaign(), 'molnbo', 2).lead, /The north side is lost\.$/);
 });
+
+test('H486: underrättelserna räknar inte upp väderstreck utan rapport', async () => {
+  const { MAPS } = await import('../src/data/maps.js');
+  const { intelFor } = await import('../src/meta/intel.js');
+  for (const m of Object.values(MAPS)) (m.days ?? []).forEach((d, i) => {
+    const it = intelFor(m, i + 1);
+    if (it) assert.doesNotMatch(it.note, /No reports from the/, `${m.id} dag ${i + 1}`);
+  });
+});
