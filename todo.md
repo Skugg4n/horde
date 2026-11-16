@@ -295,7 +295,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H271 | balans | Ishallen dag 2: lektionens barriär leder horden in på villagatorna; taggtråd där får horden att byta tillbaka till huvudvägen förbi enheterna utan varning (bas 20 till 1). Lektionen ska leda till en bra spärr, och vägbyten ska alltid förvarnas.
 - [ ] H272 | balans | Ishallen dag 3: vågor 39/60/84, vann med bas 4, för liten marginal.
 - [x] H273 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1). GJORT 0.25.2: återskapat (Ishallen dag 1 vunnen med 30 zombier ute); raden säger "Evacuation over. Day won" när zombier går, "Sector quiet" bara när det är tomt.
-- [ ] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6".
+- [x] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6". (ej återskapad 2026-11-16: texten "6 of 8 units deployed" finns inte; köpraden säger "UNITS 2 / 5", utställda mot taket, sedan 0.20.1)
 - [x] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen. GJORT 0.25.2: återskapat (raden stod kvar när vågen var klarad); "Base under attack!" tas bort, också ur kön, när vågen är klarad och ingen är kvar. Tipset över kortradens rubrik och etiketterna på Ishallen ej återskapade 2026-11-16 (E4 dag 3, Ishallen dag 1 i 1440 px).
 - [x] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6. GJORT 0.25.2: köpkortens statistik 11 px i Oswald (förut 9 px mono med streckad nolla), namnet 11,5 px.
 - [x] H277 | ux | Pengar som blir över försvinner tyst; säg det. GJORT 0.25.2: resultatet säger "$ 140 unspent. Supplies do not carry over."
