@@ -25,7 +25,7 @@ import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { tableSheet } from './ui/table.js';
 // 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
 import { choiceOverlay } from './ui/choice.js';
-import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, lostNext } from './meta/table.js';
 import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -2910,6 +2910,9 @@ function finishDay() {
     final: won && !!campaignEnd(progress),
     // 0.25.2 (H277): förnödenheterna följer inte med till nästa dag; resultatet säger vad som blev över
     cashLeft: won && feat('supplies') ? Math.floor(sim.cash) : 0,
+    // 0.25.2 (H527, speltestet av 0.20.0: Mölnbo dag 2:s resultat sa inte att norra sidan är förlorad): marken som nästa
+    // dag har förlorat (dayCfg.lost) står i resultatet
+    groundLost: won ? lostNext(map, day) : null,
   };
   showResult();
   // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången

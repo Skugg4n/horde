@@ -149,9 +149,16 @@ export function reportSheet(p, map, day) {
   const s = synthReport(p, map, day);
   return { ...base, from: releaseOf(map, day)?.from === 'MCF' ? 'MCF, Gnesta' : 'Staff, Gnesta', lead: s.lead, text: s.text, written: false };
 }
+// 0.25.2 (H527): marken som går förlorad efter dagen (nästa dags lost, som dagen själv inte har), "The north side is lost"
+export function lostNext(map, day) {
+  const days = (typeof map === 'string' ? MAPS[map] : map)?.days ?? [];
+  const now = days[day - 1], next = days[day];
+  return next?.lost?.name && !now?.lost ? next.lost.name : null;
+}
 export function synthReport(p, map, day) {
   const e = tableOf(p).log[`${map}:${day}`];
-  const lead = `${placeName(map)} held.`;
+  const gone = lostNext(map, day);
+  const lead = `${placeName(map)} held.${gone ? ` ${gone}.` : ''}`;
   if (!e) return { lead, text: `The line stood through day ${campaignDay(map, day, p)}.` };
   const parts = [];
   if (e.kills) parts.push(`${e.kills} infected down${e.waves ? ` in ${e.waves} waves` : ''}.`);

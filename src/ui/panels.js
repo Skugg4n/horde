@@ -633,7 +633,7 @@ export function dayIntro(root, dayCfg, cash, onGo, { n = null, where = null } = 
 // ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
 // 0.25.1 (H561, speltestet av 0.25.0: segerkortet efter kampanjens sista dag sa "Refill at Requisition" och "RP to spend"
 // fast inget följer): final = den sista byggda dagen är vunnen. Då står förlusterna utan påfyllnad, och RP att lägga står inte.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false, cashLeft = 0 }, { onRetry, onOpMap, onMenu, onManual }) {
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false, cashLeft = 0, groundLost = null }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
@@ -664,6 +664,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     : wave != null ? `<div><span>Reached</span><b>${waveLabel({ wave, of: waves }, wavesCleared)}</b></div>`
     : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
   // 0.25.2 (H277): pengar som blev över försvann tyst; en rad säger det
+  const groundLine = won && groundLost ? `<p class="note-line">${groundLost}.</p>` : '';
   const cashLine = won && cashLeft > 0 ? `<p class="note-line">${money(cashLeft)} unspent. Supplies do not carry over.</p>` : '';
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">${next}</span><kbd>Enter</kbd></button>`
@@ -673,6 +674,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     ${evacLine}
     ${done}
     ${rpTable}
+    ${groundLine}
     ${lossLine}
     ${cashLine}
     ${sectorDone && !showRp ? '' : `<div class="facts">

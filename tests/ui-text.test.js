@@ -19,3 +19,12 @@ test('H225/H527: fiendekorten börjar olika och nämner ingen plats', () => {
   assert.equal(new Set(first).size, first.length);
   for (const e of Object.values(ENEMIES)) assert.doesNotMatch(e.report, /\bE4\b/);
 });
+
+test('H527: Mölnbo dag 2 säger att norra sidan är förlorad', async () => {
+  const { lostNext, synthReport } = await import('../src/meta/table.js');
+  const { newCampaign } = await import('../src/meta/operation.js');
+  assert.equal(lostNext('molnbo', 2), 'The north side is lost');
+  assert.equal(lostNext('molnbo', 1), null);
+  assert.equal(lostNext('molnbo', 3), null);
+  assert.match(synthReport(newCampaign(), 'molnbo', 2).lead, /The north side is lost\.$/);
+});
