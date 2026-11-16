@@ -117,6 +117,37 @@ let deferred = { mode: null, ids: new Set() };
 let map = null, stage = null, scene = null, camera = null, rig = null, view = null, routeLines = null, marks = null;
 let day = 1, sim = null;
 const worlds = new Map();
+// 0.26.2 (H606, helspeltestet: webbläsaren kraschade tre gånger på tre timmar): förut sparades varje byggd bana hela
+// sessionen, så att minnet växte med varje ny sektor (åtta banor: 300 MB JS-minne, 1 300 geometrier på grafikkortet).
+// Nu sparas bara den aktuella och den förra (KEEP_WORLDS); en äldre bana släpps och dess geometrier, material,
+// texturer och skuggkartor lämnas tillbaka (det som en sparad bana också använder rörs inte). Att gå tillbaka till en
+// bana två steg bort bygger den igen. Mätt: docs/reports/2026-11-16-minne.md.
+const KEEP_WORLDS = 2;
+const matsOf = o => (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []);
+function trimWorlds(currentId) {
+  const cur = worlds.get(currentId);
+  if (cur) { worlds.delete(currentId); worlds.set(currentId, cur); }   // senast använd sist
+  while (worlds.size > KEEP_WORLDS) {
+    const [id, old] = worlds.entries().next().value;
+    worlds.delete(id);
+    disposeWorld(old);
+  }
+}
+function disposeWorld(w) {
+  const keep = new Set();
+  for (const k of worlds.values()) k.scene.traverse(o => {
+    if (o.geometry) keep.add(o.geometry);
+    for (const m of matsOf(o)) { keep.add(m); for (const v of Object.values(m)) if (v?.isTexture) keep.add(v); }
+  });
+  w.rig?.dispose?.(); w.stage?.dispose?.();
+  const done = new Set(), free = r => { if (r && !keep.has(r) && !done.has(r)) { done.add(r); r.dispose(); } };
+  w.scene.traverse(o => {
+    free(o.geometry);
+    for (const m of matsOf(o)) { for (const v of Object.values(m)) if (v?.isTexture) free(v); free(m); }
+    if (o.isLight && o.shadow?.map) o.shadow.dispose();
+  });
+  w.scene.clear();
+}
 // 0.20.0 (H502): skylten finns redan när sidan laddas (loadbar.js, filerna hämtas); spelet tar över den här.
 const loading = document.getElementById('loading') ?? document.createElement('div');
 if (!loading.parentNode) {
@@ -204,6 +235,7 @@ async function loadMap(id) {
     if (!w) { w = await buildMapWorld(m); worlds.set(m.id, w); }
     if (rig) rig.active = false;
     map = w.map; stage = w.stage; scene = w.scene; camera = w.camera; rig = w.rig; view = w.view; routeLines = w.routeLines; marks = w.marks;
+    trimWorlds(m.id);
     day = Math.min(mapState(progress, map.id).unlockedDay, map.days.length);
     sim = createSim(withTweaks(opStartConfig(progress, day, map.id) ?? opStartConfig(newCampaign(), 1, 'riksvagen')));
     view.setSim(sim);

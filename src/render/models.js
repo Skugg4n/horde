@@ -190,7 +190,8 @@ function ghillie(gunner) {
   const ms = GHILLIE.map(c => mat(c));
   const tuft = (parent, n, w, h, y0, y1, spread) => {
     for (let i = 0; i < n; i++) {
-      const t = box(rnd(0.05, 0.09), rnd(0.18, 0.32), rnd(0.03, 0.06), pick(ms), rnd(-w, w), rnd(y0, y1), -spread + rnd(-0.04, 0.04));
+      // 0.26.2 (H606): sbox (delad enhetskub, skalad); box med slumpade mått lade tre nya geometrier i cachen per tofs och skytt
+      const t = sbox(rnd(0.05, 0.09), rnd(0.18, 0.32), rnd(0.03, 0.06), pick(ms), rnd(-w, w), rnd(y0, y1), -spread + rnd(-0.04, 0.04));
       t.rotation.set(rnd(-0.9, 0.9), rnd(-1, 1), rnd(-0.9, 0.9));
       parent.add(t);
     }
@@ -441,14 +442,14 @@ function epaModel(level, R) {
   // flaket bakom hytten: kapad kaross, lågt flak med plåtsidor och bakluckan
   body.add(box(0.06, 0.95, 1.64, plate(), -0.52, 1.18, 0));
   body.add(box(1.75, 0.08, 1.66, plate(), -1.42, 0.98, 0));
-  for (const side of [-1, 1]) for (let i = 0; i < 2; i++) body.add(box(0.86, 0.5 + (R() - 0.5) * 0.06, 0.05, plate(), -0.98 - i * 0.88 + (R() - 0.5) * 0.04, 1.27, side * 0.83));
+  for (const side of [-1, 1]) for (let i = 0; i < 2; i++) body.add(sbox(0.86, 0.5 + (R() - 0.5) * 0.06, 0.05, plate(), -0.98 - i * 0.88 + (R() - 0.5) * 0.04, 1.27, side * 0.83));
   body.add(box(0.06, 0.55, 1.64, plate(), -2.3, 1.22, 0));
   body.add(box(0.12, 0.14, 1.7, dark, -2.36, 0.62, 0));
   // svetsfogar och rost
   for (let i = 0; i < 8; i++) { const f = sbox(0.03, 0.04, 0.4 + R() * 0.5, weld, -2.1 + R() * 2.6, 1.05 + R() * 0.4, (R() < 0.5 ? -1 : 1) * 0.86); f.rotation.x = (R() - 0.5) * 0.3; f.castShadow = false; body.add(f); }
   for (let i = 0; i < 8; i++) { const r0 = sbox(0.12 + R() * 0.25, 0.08 + R() * 0.15, 0.012, rust, -1.9 + R() * 3.6, 0.65 + R() * 0.5, (R() < 0.5 ? -1 : 1) * 0.845); r0.castShadow = false; body.add(r0); }
   // LGF-skylten bak: orangeröd triangel med röd kant, spetsen uppåt, på bakluckan
-  const tri = (r, m, x) => { const t = new THREE.Mesh(new THREE.CircleGeometry(r, 3), m); t.position.set(x, 1.2, 0); t.rotation.set(0, -Math.PI / 2, Math.PI / 2); body.add(t); };
+  const tri = (r, m, x) => { const t = new THREE.Mesh(geo('circle', r, 3), m); t.position.set(x, 1.2, 0); t.rotation.set(0, -Math.PI / 2, Math.PI / 2); body.add(t); };
   tri(0.3, mat(P.lgfRim), -2.34); tri(0.23, mat(P.lgf), -2.345);
   // kulsprutan på flaket, skytten står bakom skölden
   const pivot = new THREE.Group(); pivot.position.set(-1.25, 1.95, 0);

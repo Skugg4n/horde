@@ -68,7 +68,7 @@ const geoCache = new Map();
 const GEO = {
   box: THREE.BoxGeometry, sphere: THREE.SphereGeometry, torus: THREE.TorusGeometry,
   cylinder: THREE.CylinderGeometry, ring: THREE.RingGeometry, plane: THREE.PlaneGeometry,
-  dodeca: THREE.DodecahedronGeometry,
+  dodeca: THREE.DodecahedronGeometry, circle: THREE.CircleGeometry,
 };
 export function geo(kind, ...args) {
   const key = kind + ':' + args.join(',');
