@@ -67,10 +67,8 @@ export const ARRIVAL_TROOP = {
         // 0.23.3 (H550): mindre förnödenheter per dödad; kartläsaren köper inte längre en Ksp 58 före dag 2
         // 0.24.0 (H552): grenen FALL BACK (150 RP dras): Ksp 90 från bl-2 utan nivå II
         research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 2, null, 4],
-          ['m2', 1, null, 4], ['ksp58', 2, null, 4], ['psg90', 2, null, 4], ['psg90', 2, null, 4], ['inf', 2, 5, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3],
-          ['psg90', 2, null, 4], ['hv', 2, 5, 1], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0],
-          ['hv', 2, 5, 0], ['m249', 1, null, 0]],
+        // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
+        units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 3], ['ksp58', 2, null, 4], ['m2', 1, null, 4], ['ksp58', 2, null, 4], ['psg90', 2, null, 4], ['psg90', 2, null, 4], ['inf', 2, 5, 3], ['ksp58', 3, null, 3], ['ksp58', 3, null, 3], ['psg90', 2, null, 4], ['hv', 2, 5, 1], ['m249', 2, null, 1], ['inf', 1, 4, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0]],
       },
     },
   },
@@ -88,9 +86,8 @@ export const ARRIVAL_TROOP = {
   // tests/vastra-rondell-sector.test.js säger till när tabellen inte längre stämmer med balansen.
   'gnesta-vastra-rondell': {
     research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 2, 4], ['ksp58', 2, null, 4], ['m2', 1, null, 4],
-      ['ksp58', 2, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5],
-      ['hv', 2, 5, 1], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 1, null, 0], ['m2', 1, null, 0]],
+    // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 1, 4], ['ksp58', 2, null, 4], ['m2', 1, null, 4], ['ksp58', 2, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 0]],
   },
   // 0.26.0: Västerkärv (kampanjens dag 14). Truppen kartläsaren har efter västra rondellen i grenen FALL BACK, med gårdens
   // frivilliga och en Ksp 90 (leveransen vk-1): scripts/balance.mjs vasterkarvArrival, seed 0. Gårdens EPA är dagens egen
@@ -98,9 +95,7 @@ export const ARRIVAL_TROOP = {
   // tabellen inte längre stämmer med balansen.
   vasterkarv: {
     research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'ksp58.2', 'budget.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 4], ['ksp58', 2, null, 5], ['m2', 1, null, 5],
-      ['ksp58', 2, null, 5], ['psg90', 2, null, 6], ['psg90', 2, null, 6], ['inf', 2, 5, 4], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 6],
-      ['hv', 2, 4, 2], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 1], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 1],
-      ['ksp58', 1, null, 0], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['m249', 1, null, 0]],
+    // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 3], ['m249', 2, null, 5], ['m249', 2, null, 5], ['hv', 2, 5, 4], ['ksp58', 2, null, 5], ['m2', 1, null, 5], ['ksp58', 2, null, 5], ['psg90', 2, null, 6], ['psg90', 2, null, 6], ['inf', 2, 2, 4], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 6], ['hv', 2, 4, 2], ['m249', 2, null, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 0], ['hv', 2, 5, 0], ['m249', 2, null, 0], ['m2', 1, null, 1], ['ksp58', 2, null, 1], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['m249', 1, null, 0]],
   },
 };

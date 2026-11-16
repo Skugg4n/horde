@@ -4,7 +4,7 @@
 // i väster, horden kommer från öster.
 // Husen är generiska villor på tomternas platser, inte kopior av riktiga hem.
 import { makeRng } from '../sim/rng.js';
-import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
+import { buildPlace, rect, inRect, distRect, KIND, ridgeBand } from '../sim/placement.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
 import { eachRoadCell, nearLine, nearEdge } from './road-field.js';
@@ -738,7 +738,12 @@ export function townRoofs(T) {
       if (garage && inRect(garage, x, z, -0.3)) return 1;
       if (!inRect(main, x, z, -0.3)) return 0;
       if (flatTop) return 1;
-      return chim && Math.hypot(x - chim.x, z - chim.z) <= CHIMNEY_PERCH ? 2 : 0;
+      if (chim && Math.hypot(x - chim.x, z - chim.z) <= CHIMNEY_PERCH) return 2;
+      // 0.26.2 (H605): nocken på ett flackt tak (inte 1,5-planshusens branta), takets övre halva
+      const dx = x - h.x, dz = z - h.z, lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      const across = sh.ridgeX ? Math.abs(lz) : Math.abs(lx), along = sh.ridgeX ? Math.abs(lx) : Math.abs(lz);
+      if (sh.hip && along > sh.len / 2 - sh.span / 4) return 0;
+      return ridgeBand(across, sh.span / 2, sh.rh);
     }, chimney: chim });
   }
   out.push(...(T.extraRoofs ?? []));

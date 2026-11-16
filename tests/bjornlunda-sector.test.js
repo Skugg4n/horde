@@ -276,9 +276,11 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // fjärdedel större) och dag 1 hp 7,25 (förut 8), ovanpå 0.23.3:s inkomst och svans. Grenen DEFEND LAXNE provas i tests/laxne-sector.test.js.
 // docs/balance-log.md Laxne 0.24.0.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
+// 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
+// takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': 'ca2c34e9', 'bjornlunda 2': 'ef11e85a' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '38c5f03f', 'bjornlunda 2': '8bd6a77d' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '049a2382', 'bjornlunda 2': 'aa6fd6c1' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '750139d4', 'bjornlunda 2': 'c43212a6' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen

@@ -21,10 +21,11 @@ const REASONS = {
   // placeringen (korta, de står vid pekaren)
   'gata': 'On the road',
   'hus': 'Inside a house',
-  'kant': 'No vantage point: flat roof, ridge by a chimney, or a tall building',
+  'kant': 'No vantage point here. Roofs: the ridge of a low roof, by a chimney, a shed or a flat roof',
   // 0.12.1: taket under pekaren har ingen utsiktspunkt (spöket stannar på taket och säger varför)
-  'brant': 'Roof too steep. Try a flat roof or the ridge by a chimney',
-  'brant-skorsten': 'Roof too steep, try the ridge by the chimney',
+  // 0.26.2 (H605): skälet säger var det går (flacka tak har nocken, bodar och garage är platta)
+  'brant': 'Roof too steep. Roofs: try a lower roof\'s ridge, a shed or a flat roof',
+  'brant-skorsten': 'Roof too steep. Roofs: try the ridge by the chimney',
   'nära': 'Too close to another gun',
   // 0.16.0 (textgenomgången): forskningen finns inte längre
   // 0.16.4 (Olas: taket ska vara en synlig regel): samma ord som förrådet och räknaren
@@ -784,5 +785,7 @@ export function dropNotes(root, prefix) {
   for (let i = noteQueue.length - 1; i >= 0; i--) if (noteQueue[i].key.startsWith(prefix)) noteQueue.splice(i, 1);
   for (const el of [...noteStack(root).querySelectorAll('.note')]) if (el._key?.startsWith(prefix)) { clearTimeout(el._t); dropNote(root, el); }
 }
+// 0.26.2 (H604): en stor röd banderoll står just nu (fiendekorten väntar tills den gått)
+export function bannerShowing(root) { return !!bigNote(noteStack(root)); }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

@@ -270,11 +270,13 @@ test('hoppet till Västerkärv (Quick jump) har truppen och forskningen balansen
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Västerkärv).
 // 0.26.0: första kvittot, hp 15,5 (12 efter DEFEND), basen 16, fart 1,4, EPA:n 2,6 m/s på vägarna.
 const pr = rs => vkPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
+// 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
+// takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vkSkilled och vkNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '9b813826' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: '5aca34a4' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '981b943d' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '51129cbc' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'b3d5345f' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: '616cab1d' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '7094b1e4' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '83d8ce11' });
 });
 
 void DAYS;
