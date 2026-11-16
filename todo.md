@@ -390,10 +390,10 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H435 | ux | Mölnbo dag 2: husen längs Stenbyvägen i stället för "tåget är skydd". (0.18.1)
 - [x] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6). (ej återskapad 2026-11-16: på Vikingavägen får ingen enhet gå in i husen i dagens bygge (garrison avstängt), så inget hus lyser; Mölnbo dag 2 provat huvudlöst utan felaktig grön ton)
 - [x] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7). GJORT 0.25.2: efter frågan om reserven säger knappen "Start anyway?" och lyser; nästa tryck startar.
-- [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
+- [x] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8). (ej återskapad 2026-11-16: inget tips med hård paus upprepas (repeat finns bara på notiser); Mölnbos lapp om överkörd pjäs är ett steg som markeras sett när det stängs)
 - [x] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10). GJORT 0.25.2: kortets rubrik utan dubbelt namn; tipset "Get 18 inside" säger plåtens tal. "To reserve" ej återskapat (knappen heter Fall back, "To reserve" är dess undertext).
-- [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
+- [x] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11). (ej återskapad 2026-11-16: Jump to Ishallen dag 2, Mölnbo dag 3 och Vikingavägen startar på basen med vägen och ingången i bild)
 - [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12). (0.19.1: kortet säger "3 in reserve" och varför, inte "All out"; själva insättningen kvar.)
 - [x] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
 
@@ -428,11 +428,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H484 | balans | Mölnbo dag 4 läckte vid Folkets hus från cirka 270 s. Läckan mätt (sista biten av Stenbyvägen, går att täcka), hp 38 till 36. (0.19.2)
 - [x] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7). GJORT 0.25.2: "Väg 57." fanns inte längre ("Down väg 57, from Järna."); "Väg 57 again." blev "Down väg 57 again, from Järna."
 - [x] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån. GJORT 0.25.2: namn som redan säger ett väderstreck får inget till ("Väg 57 north"); "No reports from the east, south or west" blev "Later waves: no reports yet."
-- [ ] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats.
+- [x] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats. (ej återskapad 2026-11-16: Mölnbo dag 3 startar på bron och basen; enhetspanelen för frivilliga i 1280x800 slutar 156 px ovanför kanten, inget klipps; kvarhängande hovringsrutor sågs inte)
 - [ ] H488 | balans | Varje dag slutar med $700 till $1 300 oanvänt (speltestet av 0.19.1). Något att köpa, eller mindre i kassan.
 - [x] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"? GJORT 0.25.2: "The train is away with the evacuees. Day won."
 - [ ] H490 | molnbo | Tåget (speltest 0.19.2): märkningen "Platform: they come out here" och pilarna pekar på perrongen, men det som lönar sig är foten av södra trappan och bara inom några sekunder. Peka dit det lönar sig, och ge längre tid (markeringen försvinner efter ~26 s speltid, 13 s i 2X).
-- [ ] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt.
+- [x] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt. (ej återskapad 2026-11-16: layoutprovet hittar inga överlapp i striden; Ishallen, Mölnbo och Vikingavägen provade huvudlöst)
 - [x] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad). GJORT 0.25.2: omvägsraden säger "Changed your mind? Click the barricade." i stället för en order. Den röda läckringen på Stenbyvägen ej återskapad.
 - [ ] H493 | kampanj | Olas kampanjbåge dag 0 till 21 (kampanjplan avsnitt 10) är nu bärande plan. Skriv ledningscentralens texter per dag (order, lägesrapport, radio/TV-inslag) och koppla varje dag till sin anledning.
 - [x] H494 | molnbo | Rätta Mölnbo-kartan efter satellitbilden: EN väg över spåret (bron, väg 57), vägnätet (Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen), Folkets hus läge. Ref horde-refs/molnbo/satellit-ola-2026-10-19.jpg.
