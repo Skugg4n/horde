@@ -700,7 +700,7 @@ function updateGhostTip() {
   ghostWhere.hidden = !where;
   if (where) {
     // 0.17.2 (H301): ett torn (trapptornen, missionskyrkans klocktorn) säger TOWER
-    const t = intoHouse ? 'INTO HOUSE' : !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : 'ROOF';
+    const t = intoHouse ? 'INTO HOUSE' : !spot.roof ? 'GROUND' : spot.perch === 3 ? 'TOWER' : spot.snapped && spot.perch === 2 ? 'ROOF · ridge by the chimney' : spot.perch === 4 ? 'ROOF · on the ridge' : 'ROOF';
     if (ghostWhere.textContent !== t) ghostWhere.textContent = t;
     ghostWhere.classList.toggle('roof', !!spot.roof);
     ghostWhere.style.left = pointer.x + 'px'; ghostWhere.style.top = pointer.y + 'px';

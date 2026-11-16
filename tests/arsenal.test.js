@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { free } from './free.js';
 import { createSim, startWave, step, build, spotAt, checkSpot, sightFor, onRoof } from '../src/sim/sim.js';
 import { weaponStats, launcherStats, weaponUnlocked } from '../src/sim/stats.js';
-import { placementFor, lineOfSight, lineOfSightH, sightFrom, roofSightFrom, distRect, KIND, PERCH_EYE, inCone, CONE } from '../src/sim/placement.js';
+import { placementFor, lineOfSight, lineOfSightH, sightFrom, roofSightFrom, distRect, KIND, PERCH_EYE, inCone, CONE, PERCH_RIDGE } from '../src/sim/placement.js';
 import { WEAPONS } from '../src/data/weapons.js';
 import { RESEARCH, researchNode } from '../src/data/research.js';
 import { SHOP } from '../src/data/shop.js';
@@ -118,17 +118,20 @@ test('Gnesta har utsiktspunkter att ligga på, bara på husen (0.12.0: platta ta
     assert.equal(gp.kind[k], KIND.house);
     assert.ok(gp.roof[k] > 2.5 && gp.roof[k] < 12, `höjd ${gp.roof[k]}`);
     assert.ok(gp.bldg[k] > 0);
-    assert.ok(gp.perch[k] === 1 || gp.perch[k] === 2);
+    assert.ok(gp.perch[k] === 1 || gp.perch[k] === 2 || gp.perch[k] === PERCH_RIDGE);
     kinds.add(gp.perchAt(gp.center(k).x, gp.center(k).z).roofKind + ':' + gp.perch[k]);
   }
   // garagen och förskolan (platta), nocken vid en villas skorsten, ishallen och sporthallen
-  for (const want of ['villa:1', 'villa:2', 'preschool:1', 'rink:1', 'annex:1', 'hall:1']) assert.ok(kinds.has(want), `${want} saknas: ${[...kinds]}`);
+  // 0.26.2 (H605): och nocken på flacka villatak (perch 4)
+  for (const want of ['villa:1', 'villa:2', `villa:${PERCH_RIDGE}`, 'preschool:1', 'rink:1', 'annex:1', 'hall:1']) assert.ok(kinds.has(want), `${want} saknas: ${[...kinds]}`);
+  // nocken på ett flackt tak ligger på takets övre halva, aldrig på ett 1,5-planshus (brant)
+  for (const k of roofKeys.filter(q => gp.perch[q] === PERCH_RIDGE)) { const c = gp.center(k), pa = gp.perchAt(c.x, c.z); assert.ok(pa.y > 3.5, `nocken ${pa.y}`); }
   // en nock vid skorstenen ligger nära skorstenen
   for (const k of roofKeys.filter(q => gp.perch[q] === 2)) {
     const c = gp.center(k), pa = gp.perchAt(c.x, c.z);
     assert.ok(pa.chimney && Math.hypot(pa.chimney[0] - c.x, pa.chimney[1] - c.z) < 3);
   }
-  // ett villatak utan skorsten är ingen utsiktspunkt
+  // takfoten (nedre halvan) och de branta taken utan skorsten är ingen utsiktspunkt
   const plain = [...Array(gp.n).keys()].filter(q => gp.kind[q] === KIND.house && !gp.roof[q] && gp.perchAt(gp.center(q).x, gp.center(q).z)?.roofKind === 'villa');
   assert.ok(plain.length > 300);
   // E4 har inga tak (ruinen är en ruin)

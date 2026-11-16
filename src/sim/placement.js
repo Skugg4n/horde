@@ -198,6 +198,26 @@ export function distRect(r, px, pz) {
   return Math.hypot(Math.max(0, Math.abs(lx) - r.hw), Math.max(0, Math.abs(lz) - r.hd));
 }
 // Takhöjden i rutan (0 = inget tak att ställa något på).
+// 0.26.2 (H605, helspeltestet: "nästan alla tak är för branta", Psg 90-köpen blev värdelösa): också nocken på ett
+// flackt sadeltak. Perch 4 = takets övre halva (närmast nocken) när lutningen är högst RIDGE_PITCH (radianer, ungefär
+// 31 grader); branta tak (1,5-planshusen) har bara nocken vid skorstenen (perch 2) som förut.
+export const RIDGE_PITCH = 0.55, PERCH_RIDGE = 4;
+// bodar, uthus och garage: låga platta tak (perch 1)
+export const SHED_PERCH = new Set(['shed', 'uthus', 'garage']);
+// across: avståndet från nocken, half: halva spännvidden, rise: nockens höjd över takfoten
+export const ridgeBand = (across, half, rise) => (half > 0 && rise > 0 && rise / half <= Math.tan(RIDGE_PITCH) && across <= half / 2 ? PERCH_RIDGE : 0);
+// Ett hus { x, z, ry, w, d, eave, ridge (höjd), ridgeX (nocken längs lokal x, standard) }: utsiktspunkten i en punkt
+// på nocken, eller null när taket är brant eller platt (de har egna regler).
+export function gablePerch(h, inset = 0.3) {
+  const ridgeX = h.ridgeX ?? true, half = (ridgeX ? h.d : h.w) / 2, rise = (h.ridge ?? 0) - (h.eave ?? 0);
+  if (!(rise > 0) || !ridgeBand(0, half, rise)) return null;
+  const body = rect(h.x, h.z, h.ry, h.w, h.d), c = Math.cos(h.ry), s = Math.sin(h.ry);
+  return (x, z) => {
+    if (!inRect(body, x, z, -inset)) return 0;
+    const dx = x - h.x, dz = z - h.z, lx = dx * c - dz * s, lz = dx * s + dz * c;
+    return ridgeBand(ridgeX ? Math.abs(lz) : Math.abs(lx), half, rise);
+  };
+}
 export const roofAt = (p, key) => (p.roof && p.valid(key) ? p.roof[key] : 0);
 
 // Sikten från ett tak. 0.12.0 (H107): med höjder ligger ögat PERCH_EYE över utsiktspunkten och husen

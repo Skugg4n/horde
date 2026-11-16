@@ -1525,3 +1525,22 @@ Kampanjplanen avsnitt 10 ("Dag 14 Västerkärv. Zombies har tagit sig via småv�
 Kanten är brant: en halv hp-enhet mer fäller den vanliga spelaren flera gånger, eftersom huset är litet (16) och alla vågor går till samma dörr. Kartläsaren är ute på 4,6 minuter (målet 4 till 5); den vanliga spelaren väntar tills alla civila är ute och kör sedan, och dagen blir 5,8 till 6 minuter. choiceMod.hp är ny i 0.26.0 (src/meta/operation.js dayFor); Björnlunda har ingen, så dess grenar är oförändrade.
 
 Fingeravtrycken: FALL BACK vkSkilled 9b813826, vkNormal 5aca34a4 (vkNear 274ffe6e); DEFEND vkSkilled 981b943d, vkNormal 51129cbc. Övriga banors fingeravtryck är oförändrade (deployAll räknar frontCount, samma tal där ingen enhet är platsens egen).
+
+## 0.26.2 (H605): takens utsiktspunkter för Psg 90
+
+Helspeltestet 2026-11-16: nästan alla tak sa "Roof too steep", Psg 90-köpen blev värdelösa. Nu får skytten också ligga på nocken (takets övre halva) av flacka sadeltak, lutning högst 0,55 rad (Gnestas villor utom 1,5-planshusen, OSM-banornas villor), och på bodar och uthus (platta). Mölnbo är oförändrat (hade redan sex bra platser). Dagarnas siffror är orörda.
+
+Takplatser per bana (`node scripts/roof-spots.mjs`; bra = byggnader med en takruta som ser minst 10 rutor av huvudvägarna inom 34 m), före och efter:
+
+    bana                    takrutor     byggnader   bra
+    gnesta                  256 -> 332   29 -> 33    16 -> 21
+    gnesta-norr             565 -> 708   62 -> 77    32 -> 42
+    molnbo                  143 -> 143    6 ->  6     6 ->  6
+    laxne                   285 -> 728    2 -> 64     2 -> 28
+    bjornlunda              459 -> 850   15 -> 75    11 -> 41
+    gnesta-vastra-rondell   324 -> 523   11 -> 38     1 -> 10
+    vasterkarv               63 -> 110    2 -> 14     1 ->  2
+
+Västerkärv når inte sex: gårdens hus står långt från hordens vägar (fälten), bara tre byggnader ser vägen alls.
+
+Balansens takplan hittar bättre platser, så fingeravtrycken för Björnlunda, Laxne, rondellen och Västerkärv är nya (proven i tests/*-sector.test.js), och ankomsttruppen till Björnlunda dag 2, rondellen och Västerkärv är omräknad (src/data/arrival.js; små skillnader i män, nivåer och vinster). Alla krav i proven (försök, tider, bas kvar) håller som förut.
