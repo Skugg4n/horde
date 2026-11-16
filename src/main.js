@@ -19,13 +19,13 @@ import { createRouteLines } from './render/route-lines.js';
 import { mountHud, waveText, comingBySpawn, waveCounts } from './ui/hud.js';
 import { rerouteStreet, streetAt } from './sim/streets.js';
 import { pressKind, releaseAction, dragAims, isDrag, BUTTON } from './ui/gesture.js';
-import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue } from './ui/panels.js';
+import { gunPanel, cellPanel, buildBar, reasonText, dayIntro, dayResultPanel, mainMenu, note, clearNoteQueue, dropNotes } from './ui/panels.js';
 import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 // 0.21.0: kartbordet mellan dagarna (src/ui/table.js); de gamla skyltarna ovan står kvar bakom inställningen hub: 'classic'
 import { tableSheet } from './ui/table.js';
 // 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
 import { choiceOverlay } from './ui/choice.js';
-import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, lostNext } from './meta/table.js';
 import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -1273,6 +1273,8 @@ function handleEvents() {
   view.consume(evs);
   audio.consume(evs, sim, toScreen);
   if (evs.some(e => e.t === 'breach')) onBreach(evs.filter(e => e.t === 'breach'));
+  // 0.25.2 (H275): när vågen är klarad (eller dagen vunnen) och ingen står kvar vid basen går banderollen bort
+  else if (evs.some(e => e.t === 'waveCleared' || e.t === 'won') && !sim.zombies.some(z => !z.dead)) dropNotes(uiRoot, 'Base under attack!');
   for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
@@ -1321,7 +1323,8 @@ function handleEvents() {
       scene.userData.molnbo?.depart();
       const t = sim.map.x60;
       if (t && rig) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
-      note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with everyone on board.', '', { prio: true, ms: 6000 });
+      // 0.25.2 (H489): "with everyone on board" med 30 zombier kvar; raden säger vilka och varför dagen är slut
+      note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with the evacuees. Day won.', '', { prio: true, ms: 6000 });
     }
     // 0.19.0 (H452): pendeltåget rullar in. Signalen och raden, en ping på perrongen, och kameran glider dit en stund
     // (spelaren väljer: flytta trupper mot perrongen eller hålla)
@@ -1371,6 +1374,7 @@ function go({ stack = false } = {}) {
     const left = sim.reserve?.filter(u => canDeploy(sim, u)).length ?? 0;
     if (deployPhase(sim) && left && sim.guns.length < frontage(sim) && !reserveWarned) {
       reserveWarned = true;
+      hud.confirm(true);
       // 0.16.0 (textgenomgången): reserven och frontbredden finns från North dag 3
       note(uiRoot, feat('frontage') ? 'Units left in reserve. Start anyway?' : 'Units not placed yet. Start anyway?', 'warn');
       return;
@@ -1954,7 +1958,8 @@ function updateRoutes() {
         const street = rerouteStreet(sim.map, k => sim.route.grid.center(k), before[i].cells, nowPaths[i].cells);
         // 0.17.1 (speltestet: "barriären går inte att ångra"): efter en egen spärr säger raden hur den rivs
         const own = Object.keys(sim.obstacles).length > 0 && sim.phase === 'build' && !isSeen(progress, 'tip.removeBlock');
-        if (!(routeFlash > 0)) note(uiRoot, (street ? `Horde rerouting via ${street}.` : 'Horde rerouted.') + (own ? ' Click a barricade to remove it.' : ''), 'warn', own ? { ms: 6000 } : undefined);
+        // 0.25.2 (H492): "... Click a barricade to remove it." lästes som en order och sa emot "Every road shut"; nu ett val
+        if (!(routeFlash > 0)) note(uiRoot, (street ? `Horde rerouting via ${street}.` : 'Horde rerouted.') + (own ? ' Changed your mind? Click the barricade.' : ''), 'warn', own ? { ms: 6000 } : undefined);
         if (own) { progress = markSeen(progress, 'tip.removeBlock'); save(); }
         routeFlash = 4;
       }
@@ -2907,6 +2912,11 @@ function finishDay() {
     wavesCleared: sim.waveIndex, waves: sim.dayCfg.waves.length, wave: waveCounts(sim).wave, lastDay: day >= map.days.length, losses,
     // 0.25.1 (H561): den sista byggda dagen är vunnen, kampanjen tar slut tills vidare (inget att fylla på eller köpa)
     final: won && !!campaignEnd(progress),
+    // 0.25.2 (H277): förnödenheterna följer inte med till nästa dag; resultatet säger vad som blev över
+    cashLeft: won && feat('supplies') ? Math.floor(sim.cash) : 0,
+    // 0.25.2 (H527, speltestet av 0.20.0: Mölnbo dag 2:s resultat sa inte att norra sidan är förlorad): marken som nästa
+    // dag har förlorat (dayCfg.lost) står i resultatet
+    groundLost: won ? lostNext(map, day) : null,
   };
   showResult();
   // 0.16.0 (designen avsnitt 3, "när det händer"): erfarenheten och förlusterna som tips första gången
@@ -3202,7 +3212,10 @@ function tick(now) {
     if (!victoryWait) { victoryWait = { t: 0, told: false }; if (placing) stopPlacing(); }
     if (!paused) victoryWait.t += frameDt * playSpeed();
     const trainBeat = !!sim.train?.gone, pause = trainBeat ? TRAIN_PAUSE : VICTORY_PAUSE, lineAt = trainBeat ? TRAIN_LINE_AT : VICTORY_LINE_AT;
-    if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : 'Sector quiet', pause - lineAt + 0.4); }
+    // 0.25.2 (H273): en evakueringsdag vinns när de sista är ute, fast zombier fortfarande går; då säger raden det
+    // och inte "Sector quiet"
+    const alive = sim.zombies.some(z => !z.dead);
+    if (!victoryWait.told && victoryWait.t >= lineAt) { victoryWait.told = true; hud.banner(trainBeat ? 'The train is through' : !alive ? 'Sector quiet' : sim.evac ? 'Evacuation over. Day won' : 'Day held', pause - lineAt + 0.4); }
     if (victoryWait.t >= pause) { victoryWait = null; finishDay(); }
   } else if (mode === 'play' && sim.phase === 'lost') finishDay();
   if (placing && (!canPlaceNow() || (placing.move ? !sim.guns.some(g => g.id === placing.move) : ['locked', 'absent', 'out'].includes(buyState(sim, placing.type).state)))) stopPlacing();

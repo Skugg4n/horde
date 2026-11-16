@@ -153,6 +153,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .cd { font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: 0.02em; text-transform: none; color: #f2d18a; }
 #go .cd[hidden] { display: none; }
 #go.counting { font-size: 18px; padding: 11px 22px 12px; }
+/* 0.25.2 (H437): efter frågan om reserven säger knappen "Start anyway?" och lyser */
+#go.confirm { box-shadow: 0 0 0 2px #e9dfc9 inset; }
 #wavebar kbd {
   font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: none;
   padding: 2px 6px; border: 1px solid rgba(233,223,201,0.45); border-radius: 2px; opacity: 0.85;
@@ -476,7 +478,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #buildbar .grp.open .gh kbd, #buildbar .grp.open .card kbd { background: var(--rust); border-color: var(--rust); color: var(--paper); }
 #buildbar .grp.armed .card { box-shadow: 0 0 0 1px rgba(181,83,42,0.7) inset; }
 /* H096: kort statistikrad som alltid syns, hela raden vid hovring */
-#buildbar .card .cs { font: 500 9px 'IBM Plex Mono', monospace; color: rgba(217,164,65,0.9); white-space: nowrap; overflow: hidden; margin-top: 1px; letter-spacing: -0.03em; line-height: 1.15; }
+/* 0.25.2 (H276): 9 px mono var för litet och mono-nollan med streck lästes som 6; kortens smala stil i 11 px */
+#buildbar .card .cs { font: 500 11px 'Oswald', sans-serif; font-variant-numeric: tabular-nums; color: rgba(217,164,65,0.95); white-space: nowrap; overflow: hidden; margin-top: 1px; letter-spacing: 0.01em; line-height: 1.2; }
 #buildbar .card .cs span { display: block; overflow: hidden; }
 /* Köpraden (0.6.0): ett kort per sak, snabbval, ikon, namn, pris. Gråat när det inte går. */
 /* 0.9.0: åtta kort (Hemvärnet), smalare så att raden ryms på en rad i 1440 px */
@@ -484,7 +487,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.10.2: 66 px, så att åtta kort ryms på en rad ned till 1024 px (speltestet av 0.10.1: Hemvärnet ensamt på rad två) */
 #buildbar .card { width: 64px; padding: 5px 5px 5px; text-align: left; display: block; color: var(--paper); position: relative; transition: opacity 0.15s, filter 0.15s; }
 #buildbar .card svg:not(.lock) { height: 17px; margin: 0 0 2px; width: 70%; }
-#buildbar .card .n { font-size: 10.5px; white-space: nowrap; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
+#buildbar .card .n { font-size: 11.5px; white-space: nowrap; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
 #buildbar .card .p { font-size: 12px; margin-top: 1px; white-space: nowrap; }
 /* 0.10.2: "Need $ 370" ryms i det smalare kortet med radens smala stil i stället för mono */
 #buildbar .card .p { font-family: inherit; font-weight: 600; letter-spacing: 0.01em; }
@@ -775,7 +778,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 /* 0.14.1: sektorns slut, VICTORY överst och berättelsen för sig under resultatet */
 .result.victory .h { color: #f2c46b; letter-spacing: 0.06em; text-transform: uppercase; font-size: 52px; }
 /* 0.14.1: "Volunteers" ryms på kortet */
-#buildbar .card .n.long { font-size: 9px; letter-spacing: -0.03em; }
+#buildbar .card .n.long { font-size: 10px; letter-spacing: -0.02em; }
 
 /* 0.14.2 (speltestet av 0.14.1): förrådets enhetsrader har fast höjd och fasta platser för knapparna, och
    varje kolumn rullar för sig (förut rullade alla tre tillsammans och den femte enheten låg under kanten).
@@ -909,7 +912,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .opmap .uic { display: inline-flex; align-items: center; gap: 2px; padding: 2px 5px; border: 1px solid var(--plate-edge); border-radius: 2px; }
 .opmap .uic svg { width: 44px; height: 14px; }
 .opmap .uic b { font: 600 11px 'IBM Plex Mono', monospace; color: #d9a441; }
-.opmap .uic i { display: none; }
+.opmap .uic i { font-style: normal; font-size: 12px; letter-spacing: 0.02em; color: var(--paper); margin-left: 3px; }
 .opmap .inbox { max-height: none; }
 
 /* förrådet: spelets rullister, fasta kort, lagret och garnisonen (Olas tillägg) */

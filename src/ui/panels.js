@@ -159,7 +159,8 @@ export function cardStats(type, research = []) {
   return `DMG ${Math.round(st.damage)}${w.squad ? ' ×' + squadSize(1, research, type) : ''} · RNG ${Math.round(st.range)} m · RATE ${num(st.rate)}/s`;
 }
 export function cardLines(it, research = []) {
-  const head = `${itemShort(it)} · ${it.role}`;
+  // 0.25.2 (H225, H407): "Volunteers · Volunteers · hunting rifles"; rollen som redan börjar med namnet står ensam
+  const head = it.role.startsWith(itemShort(it)) ? it.role : `${itemShort(it)} · ${it.role}`;
   if (it.kind === 'gun') return [head, cardStats(it.id, research)];
   const o = OBSTACLES[it.id];
   return [head, o.kind === 'block' ? 'Takes blows, then breaks' : `Slows by ${Math.round((1 - o.slow) * 100)} %, wears out`];
@@ -632,7 +633,7 @@ export function dayIntro(root, dayCfg, cash, onGo, { n = null, where = null } = 
 // ett uppslag ur Field manual som hör till dagen (designen avsnitt 5.3), en rad.
 // 0.25.1 (H561, speltestet av 0.25.0: segerkortet efter kampanjens sista dag sa "Refill at Requisition" och "RP to spend"
 // fast inget följer): final = den sista byggda dagen är vunnen. Då står förlusterna utan påfyllnad, och RP att lägga står inte.
-export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false }, { onRetry, onOpMap, onMenu, onManual }) {
+export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0, day, kills, wavesCleared, waves, wave = null, lastDay, outro = null, lostBy = null, evac = null, losses = [], showRp = true, depot = true, next = 'Operations map', manualHint = null, final = false, cashLeft = 0, groundLost = null }, { onRetry, onOpMap, onMenu, onManual }) {
   // 0.14.1 (speltestet av 0.14.0: "Day 3 held." direkt över "has fallen silent" lästes som en förlust): sista
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
@@ -662,6 +663,9 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   const waveFact = evac && won ? `<div><span>Civilians safe</span><b>${evac.safe} of ${evac.total}</b></div>`
     : wave != null ? `<div><span>Reached</span><b>${waveLabel({ wave, of: waves }, wavesCleared)}</b></div>`
     : `<div><span>Waves cleared</span><b>${wavesCleared} of ${waves}</b></div>`;
+  // 0.25.2 (H277): pengar som blev över försvann tyst; en rad säger det
+  const groundLine = won && groundLost ? `<p class="note-line">${groundLost}.</p>` : '';
+  const cashLine = won && cashLeft > 0 ? `<p class="note-line">${money(cashLeft)} unspent. Supplies do not carry over.</p>` : '';
   const main = won
     ? `<button type="button" class="act main" data-a="opmap"><span class="a">${next}</span><kbd>Enter</kbd></button>`
     : `<button type="button" class="act main" data-a="retry"><span class="a">Try again</span><kbd>Enter</kbd></button><button type="button" class="act" data-a="opmap"><span class="a">${next === 'Map table' ? 'Map table' : 'Operations map'}</span></button>`;
@@ -670,7 +674,9 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
     ${evacLine}
     ${done}
     ${rpTable}
+    ${groundLine}
     ${lossLine}
+    ${cashLine}
     ${sectorDone && !showRp ? '' : `<div class="facts">
       <div><span>Kills</span><b>${kills}</b></div>
       ${waveFact}
@@ -767,6 +773,11 @@ export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = f
   if (noteQueue.some(q => q.key === key)) return;
   if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
   showNote(root, text, cls, ms, top, rank, opts);
+}
+// 0.25.2 (H275, "Base under attack!" låg kvar efter vågen): raderna vars text börjar med prefix tas bort, också ur kön.
+export function dropNotes(root, prefix) {
+  for (let i = noteQueue.length - 1; i >= 0; i--) if (noteQueue[i].key.startsWith(prefix)) noteQueue.splice(i, 1);
+  for (const el of [...noteStack(root).querySelectorAll('.note')]) if (el._key?.startsWith(prefix)) { clearTimeout(el._t); dropNote(root, el); }
 }
 // Tömmer kön (skyltarna täcker skärmen, main.js setMode).
 export function clearNoteQueue() { noteQueue.length = 0; }

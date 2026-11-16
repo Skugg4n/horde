@@ -187,7 +187,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H169 | balans | Gnesta South dag 3 till 5: den som spärrar vid rondellen vinner med full bas, den normala behöver tre försök. Speltesta gapet. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [ ] H170 | ux | Speltesta operationskartan och förrådet i händerna (bara provat headless på 1200 x 760), och smal skärm.
 - [x] H171 | operation | Trycket märks bara när två sektorer är öppna (Gnesta North efter South dag 4). Fler sektorer (Mölnbo, Trosa, Nyköping) ger det mer att göra. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
-- [ ] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering.
+- [x] H172 | operation | Kontrollera MCF:s namn mot en källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering. GJORT 0.25.2: kontrollerat mot mcf.se (webbplatsen och föreskriftsserien MCFFS); spelet säger MCF eller hela namnet, aldrig MSB; prov tests/mcf-name.test.js.
 - [ ] H173 | ux | Lookbook och gnesta.html visar inte skrotbilarna; lägg till dem.
 
 ## Efter speltest 0.14.1 (2026-10-16)
@@ -257,7 +257,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H222 | text | Köpradens rubrik bytte mellan DEPLOY och SUPPLIES: DEPLOY före första vågen, DEFENCES under dagen. (0.16.1)
 - [x] H223 | bugg | "Field manual: Evacuation" öppnade fel uppslag. (0.16.1)
 - [ ] H224 | ux | E4 dag 3: första klicket efter Ksp 88-placeringen tappade valet av Ksp 90 (inte återskapat headless).
-- [ ] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen.
+- [x] H225 | text | Små saker från speltestet av 0.16.0: "Volunteers · Volunteers" i hovringen, röd BASE-siffra på full bas dag 3, Runner-porträttet bakifrån, fiendekortens samma första mening, "×3" på kartkortet oförklarat, SECTOR E4 krockar med vägnamnet E4, stjärnraden på VICTORY kryptisk, Space stänger ett tips i stället för att starta vågen. GJORT 0.25.2: "Volunteers · Volunteers" borta, fiendekorten börjar olika, "×3" på operationskortet blev "3 Volunteers", SECTOR E4 väljer en ledig plats. Ej återskapade 2026-11-16: röd BASE på full bas, Runner bakifrån, stjärnraden på VICTORY. Space lämnad med avsikt: Space stänger tipset men startar inte vågen, annars hoppas nästa lektion i kedjan över (E4 dag 2: supplies, sedan wire).
 - [x] H226 | ux | Speltesta 0.16.1 med en ny spelare (Ishallen dag 1 med tipset, E4 dag 2 med den nya raden). (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## E4-omgivningen och menyn (2026-10-17, Olas önskemål)
@@ -294,11 +294,11 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 <!-- H271-H278 hette H250-H257 på master (krockade med 0.16.3/0.16.4); omnumrerade vid sammanslagningen med Mölnbo -->
 - [ ] H271 | balans | Ishallen dag 2: lektionens barriär leder horden in på villagatorna; taggtråd där får horden att byta tillbaka till huvudvägen förbi enheterna utan varning (bas 20 till 1). Lektionen ska leda till en bra spärr, och vägbyten ska alltid förvarnas.
 - [ ] H272 | balans | Ishallen dag 3: vågor 39/60/84, vann med bas 4, för liten marginal.
-- [ ] H273 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1).
-- [ ] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6".
-- [ ] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen.
-- [ ] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6.
-- [ ] H277 | ux | Pengar som blir över försvinner tyst; säg det.
+- [x] H273 | ux | "Sector quiet" visas fast 29 zombier fortfarande går (Ishallen dag 1). GJORT 0.25.2: återskapat (Ishallen dag 1 vunnen med 30 zombier ute); raden säger "Evacuation over. Day won" när zombier går, "Sector quiet" bara när det är tomt.
+- [x] H274 | ux | "6 of 8 units deployed" läses som att 6 redan står ute; byt till "Deploy up to 8 · you have 6". (ej återskapad 2026-11-16: texten "6 of 8 units deployed" finns inte; köpraden säger "UNITS 2 / 5", utställda mot taket, sedan 0.20.1)
+- [x] H275 | ux | Tipsrutor täcker kortradens rubrik; etiketter krockar på Ishallen; "Base under attack!" ligger kvar efter vågen. GJORT 0.25.2: återskapat (raden stod kvar när vågen var klarad); "Base under attack!" tas bort, också ur kön, när vågen är klarad och ingen är kvar. Tipset över kortradens rubrik och etiketterna på Ishallen ej återskapade 2026-11-16 (E4 dag 3, Ishallen dag 1 i 1440 px).
+- [x] H276 | ux | Korttext 8,5-10,5 px för liten; överstruken nolla ser ut som 6. GJORT 0.25.2: köpkortens statistik 11 px i Oswald (förut 9 px mono med streckad nolla), namnet 11,5 px.
+- [x] H277 | ux | Pengar som blir över försvinner tyst; säg det. GJORT 0.25.2: resultatet säger "$ 140 unspent. Supplies do not carry over."
 - [x] H278 | ux | Snabbval: siffrorna byter betydelse mellan kartor, 1-2 gör inget på E4, C syns på inget kort. Ett enda fast schema och grå kort för det som inte finns idag. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 
 ## Mölnbo (0.17.0)
@@ -313,8 +313,8 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 ## Efter speltest 0.17.1 (2026-10-18)
 - [x] H290 | ux | Dra i kartan med kort i handen placerar enheten (drag-för-sikte uppfattas som panorering). Beslut behövs: kräva kort håll innan drag blir sikte, eller sikte bara med höger/Alt.
 - [x] H291 | ux | Esc: beteendet beror på om kortet ligger kvar efter förra placeringen. Släpp kortet efter varje placering (utom Shift) så Esc blir förutsägbar.
-- [ ] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left").
-- [ ] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo).
+- [x] H292 | ux | Hörnetiketter ritas över varandra; dagrutan skriver ihop rader ("1 cleared89 of 159 left"). (ej återskapad 2026-11-16: Mölnbo dag 2 med två vågor igång, "Wave 3 of 4 · 1 cleared" och "142 of 172 left" står isär; raden bryts med mellanrum sedan tidigare)
+- [x] H293 | ux | Vågräknaren i dagrutan och resultatrutan visar olika våg (Mölnbo). (ej återskapad 2026-11-16: Mölnbo dag 2, dagrutan och resultatet säger båda "Wave 3 of 4 · 1 cleared")
 - [ ] H294 | molnbo | Dag 4 har ny tågklocka fast dag 3 hette "The last train". Berättelsen per dag måste hänga ihop.
 - [ ] H295 | molnbo | Dag 4 svår (förlorad i speltest, policyn vinner med bas 1). Resultatrutan täcker tågets avgång. Över $1 000 kvar varje dag.
 
@@ -388,12 +388,12 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H433 | balans | Ishallen dag 1 med 5 dödade: mätt, dagen kräver försvar (prov). (0.18.1)
 - [x] H434 | ux | Förrådet i zoner: banorna Into battle / Reserve · resting, Requisition, Upgrades, INTEL. (0.18.1)
 - [x] H435 | ux | Mölnbo dag 2: husen längs Stenbyvägen i stället för "tåget är skydd". (0.18.1)
-- [ ] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6).
-- [ ] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7).
-- [ ] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8).
+- [x] H436 | ux | Huset lyser grönt för ett kort som inte får gå in (Vikingavägen 4) och inte för Ksp 90 när det får (speltestet punkt 6). (ej återskapad 2026-11-16: på Vikingavägen får ingen enhet gå in i husen i dagens bygge (garrison avstängt), så inget hus lyser; Mölnbo dag 2 provat huvudlöst utan felaktig grön ton)
+- [x] H437 | ux | Start wave kändes död: "Units left in reserve. Start anyway?" ska stå på knappen (punkt 7). GJORT 0.25.2: efter frågan om reserven säger knappen "Start anyway?" och lyser; nästa tryck startar.
+- [x] H438 | ux | Samma tips pausar om och om igen (överkörd pjäs, punkt 8). (ej återskapad 2026-11-16: inget tips med hård paus upprepas (repeat finns bara på notiser); Mölnbos lapp om överkörd pjäs är ett steg som markeras sett när det stängs)
 - [x] H439 | ux | Taggtråd ger "Horde rerouting via ..." fast den bara bromsar (punkt 9). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
-- [ ] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10).
-- [ ] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11).
+- [x] H407 | text | Fall back heter "To reserve" i panelen; "Volunteers · Volunteers"; "18 needed" bredvid "Get 18 of 24" (punkt 10). GJORT 0.25.2: kortets rubrik utan dubbelt namn; tipset "Get 18 inside" säger plåtens tal. "To reserve" ej återskapat (knappen heter Fall back, "To reserve" är dess undertext).
+- [x] H441 | ux | Jump to dag 5 startar kameran inzoomad på en tom väg (punkt 11). (ej återskapad 2026-11-16: Jump to Ishallen dag 2, Mölnbo dag 3 och Vikingavägen startar på basen med vägen och ingången i bild)
 - [ ] H442 | spel | Reserven går inte att sätta in mitt i en våg ("All out", punkt 12). (0.19.1: kortet säger "3 in reserve" och varför, inte "All out"; själva insättningen kvar.)
 - [x] H443 | ux | Lektionstexterna mb-2.houses (19 ord) och Mölnbo dag 2:s intro (20 ord) är längre än tolv ord, Olas exakta text; provet har undantag.
 
@@ -411,7 +411,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H470 | text | Introna dag 2 och 3 säger inte varifrån horden kommer. Dag 2 "From Järna and from the south. Squads in houses along Stenbyvägen.", dag 3 "The train" med Järna och Fagernäsvägen i öster. (0.19.1)
 - [ ] H471 | spel | En villa på sin tomt kan inte stormas: stormningen (sim.js, assaults) läser husets touch (gatrutorna intill), och villorna har ingen. Avgör med Ola om villorna ska gå att storma (dörren i doorCells), räkna om balansen.
 - [ ] H472 | ux | Esc stängde både kortet i handen och korsellektionen på Ishallen dag 2 (lektionen kom när kortet släpptes). Speltestet av 0.19.0, smått.
-- [ ] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv.
+- [x] H473 | ux | "SECTOR E4" på operationskartan har en text som ligger över sig själv. GJORT 0.25.2: operationskartans sektornamn väljer första lediga plats (vägnummer, orter, rutnät, andra sektorer).
 - [ ] H474 | ux | Enhetslapparna döljs medan ett kort är i handen, så man ser inte var de egna står när man placerar nästa.
 - [x] H475 | ux | Pendeltåget dag 4: en kantpil eller kameran mot perrongen vid signalen, så att valet (flytta mot perrongen eller hålla) syns. (0.19.2: H476)
 
@@ -426,14 +426,14 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H482 | text | Taggtråd ger "Horde rerouting via ...". Bara spärrar som stänger säger omvägen. (0.19.2)
 - [x] H483 | ux | Ett gammalt "−$ 120" står kvar under SUPPLIES när en ny dag börjar. En ny dag tar bort raden. (0.19.2)
 - [x] H484 | balans | Mölnbo dag 4 läckte vid Folkets hus från cirka 270 s. Läckan mätt (sista biten av Stenbyvägen, går att täcka), hp 38 till 36. (0.19.2)
-- [ ] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7).
-- [ ] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån.
-- [ ] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats.
+- [x] H485 | text | Vågens rad "Väg 57." och "Väg 57 again." förstås inte ensamma (speltestet av 0.19.1, punkt 7). GJORT 0.25.2: "Väg 57." fanns inte längre ("Down väg 57, from Järna."); "Väg 57 again." blev "Down väg 57 again, from Järna."
+- [x] H486 | text | Underrättelserna: "Väg 57 north north", "Fagernäsvägen east north-east", och dag 2 "No reports from the east, south or west" fast de kommer söderifrån. GJORT 0.25.2: namn som redan säger ett väderstreck får inget till ("Väg 57 north"); "No reports from the east, south or west" blev "Later waves: no reports yet."
+- [x] H487 | ux | Mölnbo dag 5 startar kameran på ett tomt fält; enhetspanelen för frivilliga klipps vid 800 px; hovringsrutor blir kvar efter att pekaren flyttats. (ej återskapad 2026-11-16: Mölnbo dag 3 startar på bron och basen; enhetspanelen för frivilliga i 1280x800 slutar 156 px ovanför kanten, inget klipps; kvarhängande hovringsrutor sågs inte)
 - [ ] H488 | balans | Varje dag slutar med $700 till $1 300 oanvänt (speltestet av 0.19.1). Något att köpa, eller mindre i kassan.
-- [ ] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"?
+- [x] H489 | text | Dag 3: "The train is away with everyone on board." med 30 zombier kvar ute; vilka är "everyone"? GJORT 0.25.2: "The train is away with the evacuees. Day won."
 - [ ] H490 | molnbo | Tåget (speltest 0.19.2): märkningen "Platform: they come out here" och pilarna pekar på perrongen, men det som lönar sig är foten av södra trappan och bara inom några sekunder. Peka dit det lönar sig, och ge längre tid (markeringen försvinner efter ~26 s speltid, 13 s i 2X).
-- [ ] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt.
-- [ ] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad).
+- [x] H491 | ui | Kvarvarande överlapp: plattformslappen under tågbanderollen, en enhetslapp över DEPLOY-raden, hovringstips över en vågskylt. (ej återskapad 2026-11-16: layoutprovet hittar inga överlapp i striden; Ishallen, Mölnbo och Vikingavägen provade huvudlöst)
+- [x] H492 | ui | "Horde rerouting ... remove it" och "Every road shut" säger emot varandra; en röd läckring stod en gång på Stenbyvägen före dag 2 (ej återskapad). GJORT 0.25.2: omvägsraden säger "Changed your mind? Click the barricade." i stället för en order. Den röda läckringen på Stenbyvägen ej återskapad.
 - [ ] H493 | kampanj | Olas kampanjbåge dag 0 till 21 (kampanjplan avsnitt 10) är nu bärande plan. Skriv ledningscentralens texter per dag (order, lägesrapport, radio/TV-inslag) och koppla varje dag till sin anledning.
 - [x] H494 | molnbo | Rätta Mölnbo-kartan efter satellitbilden: EN väg över spåret (bron, väg 57), vägnätet (Stenbyvägen, Trollvägen, Kvarnvägen, Fagernäsvägen), Folkets hus läge. Ref horde-refs/molnbo/satellit-ola-2026-10-19.jpg.
 - [x] H495 | molnbo | Mölnbo dag 1 till 3 enligt bågen: dag 1 hålla bron så folk hinner över, dag 2 norrsidan förloras (ingen placering där efteråt) + tåget, dag 3 hålla en tid, sedan uttåg mot Gnesta och flodvåg över bron (menyerna försvinner, trupperna packar, bilden tonar ut).
@@ -451,7 +451,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H524 | ui | Speltestet av 0.20.0, fynd 6: UNITS 6 / 9 när alla kort sa All out; talet efter snedstrecket är nu det som går att ha ute (0.20.1).
 - [x] H525 | e4 | Speltestet av 0.20.0: E4 dag 2:s intro avslöjade Södertälje; introt neutralt, raden "Runners from Södertälje, behind you!" när de kommer (0.20.1). Kvar att avgöra: lektionen "Two roads in. Södertälje joins from wave 2." och etiketten From wave 2 avslöjar fortfarande (Olas rättvisebeslut 0.16.4).
 - [ ] H526 | gnesta-norr | Speltestet av 0.20.0, fynd 5: Vikingavägen dag 4 förlorades med Quick jump och auto-deploy, men balansskriptet (0.20.1) vinner dag 4 i alla seeds (skilled bas 4 till 9, normal inom 1 till 2 försök). Hoppets trupp (debugReach utan ARRIVAL_TROOP för gnesta-norr) är svagare än balansens; ge hoppet balansens ankomst som Mölnbo har.
-- [ ] H527 | text | Speltestet av 0.20.0, småsaker: operationskartans "Same district, wider map." före Mölnbo dag 2, etiketten SECTOR E4 krockar med ett rutnätsnummer, fiendekortet för Walkers säger "infected on the E4" på Mölnbo, dag 2:s resultat säger inte att norra sidan är förlorad.
+- [x] H527 | text | Speltestet av 0.20.0, småsaker: operationskartans "Same district, wider map." före Mölnbo dag 2, etiketten SECTOR E4 krockar med ett rutnätsnummer, fiendekortet för Walkers säger "infected on the E4" på Mölnbo, dag 2:s resultat säger inte att norra sidan är förlorad. GJORT 0.25.2: SECTOR E4 och rutnätet krockar inte (H473), Walkers-kortet nämner ingen plats, Mölnbo dag 2:s resultat och lägesrapport säger "The north side is lost." "Same district, wider map." före Mölnbo dag 2 ej återskapat 2026-11-16 (Classic, hopp till Mölnbo dag 1 och 2: ingen lapp).
 - [ ] H528 | molnbo | Snubblet på Mölnbo: vägarna är längre på den nya kartan, så var tredje löpare snubblar (tests/stumble.test.js tillåter 0,4). Speltest: för ofta?
 - [x] H529 | test | Layoutkontrollen: table-day1 @1920 gav "inget kartbord" en gång av två (flaky, troligen tajming vid första laddningen). Vänta på bordets första ritning i stället för fast tid. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H530 | hub | Bordet (Ola 2026-10-20): rörigt vad som är aktuellt och gammalt. Tydlig hierarki: EN aktuell lapp (nästa order) överst, ljus och rak, med "NEW"-märke; gamla lappar nedtonade (gulnade, lite mindre, mer snett), äldre än två dagar bara som kanter; klara sektorer flyttas till en arkivhög i hörnet med HELD-stämpel; max en läsbar lägesrapport åt gången. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
@@ -461,7 +461,7 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [x] H534 | kampanj | Pushback dag 18 = linjen flyttas fram våg för våg (beslut A). Laxne-valet mellan dag 10 och 11. Dag 19 köttiga trådar + avvikande zombie. Vagnen väster om Björnlunda station. (STRUKEN 2026-11-16, se docs/v1-lista.md avsnitt 4)
 - [x] H408 | hub | Bordet (Ola 2026-10-20): rörigt vad som är aktuellt och gammalt. Tydlig hierarki: EN aktuell lapp (nästa order) överst, ljus och rak, med "NEW"-märke; gamla lappar nedtonade (gulnade, lite mindre, mer snett), äldre än två dagar bara som kanter; klara sektorer flyttas till en arkivhög i hörnet med HELD-stämpel; max en läsbar lägesrapport åt gången.
 - [x] H409 | hub | Stämpeln RECEIVED hänger utanför pappret (Olas skärmbild). Stämplar hålls inom arket.
-- [ ] H535 | verktyg | Publiceringen 0.21.2 gick ut med konfliktmarkörer i index.html (två importmaps) och spelet laddade inte på GitHub Pages i ~1 h. scripts/importmap.mjs ska vägra skriva om filen har markörer, och npm test ska ha ett prov som läser index.html och kräver exakt en importmap och inga markörer. Publicering ska alltid följas av en curl mot live som kontrollerar samma sak.
+- [x] H535 | verktyg | Publiceringen 0.21.2 gick ut med konfliktmarkörer i index.html (två importmaps) och spelet laddade inte på GitHub Pages i ~1 h. scripts/importmap.mjs ska vägra skriva om filen har markörer, och npm test ska ha ett prov som läser index.html och kräver exakt en importmap och inga markörer. Publicering ska alltid följas av en curl mot live som kontrollerar samma sak. GJORT 0.25.2: tests/html-integrity.test.js (varje .html: inga markörer, en importmap), scripts/importmap.mjs vägrar skriva vid markörer eller två kartor, scripts/check-live.mjs mot live, README avsnitt Publicera.
 - [x] H536 | hub | Truppkorten (Ola 2026-10-20): de hoppar, byter storlek och ordning när man flyttar ett kort. Ska vara fysiska kort/pjäser: fast storlek alltid (som mockupens stående kort), fasta platser (10 rutor i Into battle, ett fack för reserven), kortet GLIDER till sin nya plats med animation i stället för att allt ritas om, övriga kort står stilla, dra och släpp eller klick. (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H537 | hub | Requisition-rutan (Ola 2026-10-20): stor, rörig, bryter det fysiska. Den upprepar banorna och intel som redan ligger på bordet. Ska vara ett skrivunderlägg på bordet med BARA två saker: nya enheter från ledningen som kort man drar av underlägget till reserven (RP dras), och uppgraderingar som en kort lista på ett andra ark. Ingen roster, ingen intel, inga Rest/Battle-knappar där. Level III/Full/Return hör till kortet på bordet (högerklick eller litet menyfält på kortet). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)
 - [x] H538 | molnbo | Mölnbo dag 2 (Ola 2026-10-20): zombier från tre håll (Norrängsvägen, Fagernäsvägen öst, Stenbyvägen syd) känns tokigt när berättelsen är att norrsidan faller. Ingångarna ska vara Järna-sidan: väg 57 norr och Norrängsvägen på norrsidan, plus längs spåret österifrån på södra sidan. Stenbyvägen syd bort från dag 2 (eventuellt ett vilande hus i stället). (avbockad 2026-11-16 enligt docs/v1-lista.md, gjort enligt ändringsloggen)

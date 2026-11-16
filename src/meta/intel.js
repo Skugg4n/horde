@@ -56,11 +56,9 @@ export function intelFor(map, day, d = map.days?.[day - 1]) {
     const sp = map.spawns?.find(x => x.id === id);
     return { id, name: sp?.name ?? id, dir: compass(map, id), known: wave < seenWaves, wave: wave + 1 };
   });
-  // Hållen utan rapport: de fyra väderstrecken som ingen känd ingång ligger åt. Säger inget om vad som finns där
-  // (det vore en läcka), bara att ingen rapport kommit därifrån.
-  const knownDirs = new Set(entries.filter(e => e.known && e.dir).flatMap(e => e.dir.split('-')));
-  const quiet = ['north', 'east', 'south', 'west'].filter(x => !knownDirs.has(x));
-  const silent = quiet.length ? `No reports from the ${quiet.length > 1 ? quiet.slice(0, -1).join(', ') + ' or ' + quiet[quiet.length - 1] : quiet[0]}.` : '';
+  // 0.25.2 (H486, speltestet av 0.19.1: "No reports from the east, south or west" fast de sedan kom söderifrån): rutan
+  // räknar inte upp väderstreck utan rapport (de lästes som att inget kommer därifrån), bara att de senare vågorna är okända.
+  const silent = waves.length > seenWaves ? 'Later waves: no reports yet.' : '';
   const note = quality === 'unknown' ? `Unknown numbers and types. ${silent}`.trim() : quality === 'partial' ? silent : '';
   // Det okända visas bara som okänt (en grå rad), aldrig som en namngiven typ eller ingång: det vore en läcka
   return { quality, waves: waves.length, types: shown.filter(t => t.known), later: quality === 'partial', entries: entries.filter(e => e.known), note };

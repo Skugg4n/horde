@@ -1,5 +1,21 @@
 # Ändringslogg
 
+## 0.25.2 (UI-genomgången inför v1) (2026-11-16)
+
+Avsnitt 2 i docs/v1-lista.md, "UI" och "Verktyg och publicering". Varje punkt provades först huvudlöst; det som inte gick att återskapa är avbockat med "(ej återskapad 2026-11-16)".
+
+- **Segern med zombier kvar (H273, H489):** en evakueringsdag som vinns medan zombier går säger "Evacuation over. Day won", inte "Sector quiet". Tåget: "The train is away with the evacuees. Day won."
+- **Köpkorten (H276, H225, H407):** statistiken på korten är 11 px i spelets smala stil (förut 9 px mono, där den streckade nollan lästes som 6), namnet 11,5 px. Hovringen säger "Volunteers · hunting rifles" (förut "Volunteers · Volunteers · hunting rifles").
+- **Fiendekorten (H225, H527):** varje kort har en egen första mening, och vandrarnas nämner inte E4 (de kan först ses på Mölnbo).
+- **Operationskartan (H473, H527, H225):** sektornamnen väljer första lediga plats, så att SECTOR E4 inte ligger på Järna, vägnummer eller rutnätet, och Västra rondellen inte på Hagstumosse. "×3" bredvid ikonen blev "3 Volunteers".
+- **Pengar över (H277):** resultatet säger "$ 140 unspent. Supplies do not carry over."
+- **Mölnbo dag 2 (H527):** resultatet och lägesrapporten säger "The north side is lost."
+- **Texter (H407, H485, H486, H492):** tipset "Get 18 inside." säger plåtens tal; "Down väg 57 again, from Järna."; underrättelserna lägger inte till ett väderstreck på ett namn som redan har ett ("Väg 57 north north") och räknar inte upp håll utan rapport ("Later waves: no reports yet."); omvägsraden säger "Changed your mind? Click the barricade."
+- **Base under attack! (H275):** banderollen tas bort, också ur kön, när vågen är klarad och ingen står kvar.
+- **Start anyway? (H437):** efter frågan om reserven står frågan på knappen, som lyser; nästa tryck startar vågen.
+- **MCF (H172):** namnet kontrollerat mot mcf.se. Ett prov säger till om någon spelartext skriver MSB.
+- **Publiceringen (H535):** tests/html-integrity.test.js kräver att index.html och varje förhandsvisning har exakt en importmap och inga konfliktmarkörer. scripts/importmap.mjs vägrar skriva när en sida har markörer eller två kartor. scripts/check-live.mjs hämtar den publicerade sidan och jämför version.js med package.json. README har ett avsnitt Publicera.
+
 ## 0.25.1 (speltestet av 0.25.0) (2026-10-21)
 
 Speltestet av 0.25.0 (docs/playtests/2026-10-21-0.25.0.md) sa ja med reservationer; det här är friktionen det hittade.

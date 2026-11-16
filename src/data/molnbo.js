@@ -822,7 +822,8 @@ export const DAYS = [
     tail: { n: 8, after: 6, mul: 4 },
     arrival: { wave: 2, at: 35, warn: 12, doors: INBOUND.doors,
       groups: [{ type: 'walker', count: 34, interval: 0.12 }, { type: 'runner', count: 10, interval: 0.3, delay: 1.5 }, { type: 'crawler', count: 6, interval: 0.5, delay: 3 }] },
-    waves: [ say('Väg 57 again.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
+    // 0.25.2 (H485): "Väg 57 again." förstods inte ensam på vågens rad
+    waves: [ say('Down väg 57 again, from Järna.', { groups: [g('walker', 12, 0.7, 0, 's1', 14), g('runner', 4, 0.9, 5, 's1')] }),
              say('From the east along the tracks, Fagernäsvägen!', { groups: [g('walker', 30, 0.45, 0, 's2'), g('walker', 24, 0.45, 4, 's1'), tell('Armoured ones on väg 57! Small arms barely bite.', g('armored', 3, 2.4, 10, 's1'))] }),
              // 0.21.3: bjässarna i tredje vågen från väg 57 (sist från Norrängsvägen gick de sex minuter och drog ut dagen)
              say('Infected breaking out by Trollvägen!', { groups: [g('walker', 30, 0.35, 4, 's3'), tell('Brutes at the bridge!', g('brute', 3, 3, 0, 's1')), g('runner', 20, 0.35, 8, 's1'), g('crawler', 6, 1.2, 12, 's2')] }),

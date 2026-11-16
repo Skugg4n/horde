@@ -66,8 +66,27 @@ export function render(html, version = VERSION) {
     .replace(MODS, `$1 data-modules="${reachable(['src/main.js']) + 1}"`);
 }
 
+// 0.25.2 (H535): publiceringen 0.21.2 gick ut med konfliktmarkörer i index.html (två importmaps) och spelet laddade
+// inte på GitHub Pages i en timme. En fil med markörer eller med fler än en importmap skrivs aldrig om: skriptet
+// stannar och säger var, så att sammanslagningen rättas för hand först.
+export const MARKERS = /^(<{7}|={7}|>{7})( |$)/m;
+export function htmlProblems(html) {
+  const out = [];
+  const m = html.match(MARKERS);
+  if (m) out.push(`konfliktmarkör på rad ${html.slice(0, m.index).split('\n').length}`);
+  const maps = (html.match(/<script type="importmap">/g) ?? []).length;
+  if (maps > 1) out.push(`${maps} importmaps (ska vara en)`);
+  return out;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const file = join(ROOT, 'index.html');
+  const bad = ['index.html', ...PREVIEWS].map(p => [p, htmlProblems(readFileSync(join(ROOT, p), 'utf8'))]).filter(([, e]) => e.length);
+  if (bad.length) {
+    for (const [p, e] of bad) console.error(`${p}: ${e.join(', ')}`);
+    console.error('Inget skrevs. Rätta sammanslagningen först.');
+    process.exit(1);
+  }
   const before = readFileSync(file, 'utf8'), after = render(before);
   if (after !== before) writeFileSync(file, after);
   console.log(after === before ? 'index.html stämmer' : `index.html: ${moduleFiles().length} moduler med ?v=${VERSION}`);

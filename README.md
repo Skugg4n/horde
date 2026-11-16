@@ -36,6 +36,18 @@ npm run check:all -- layout    # bara de namngivna
 
 Kontrollerna kör spelet i Chromium utan fönster och startar det via `scripts/headless.mjs`: låg prioritet (macOS bakgrundsläge och nice 19, så att datorn går före), riktig GPU via Metal i stället för mjukvaruritning, ljudet av och scenen ritad högst två gånger per sekund medan kontrollen bara väntar. Med det tar slice1 omkring 50 CPU-sekunder i stället för 1 000, och datorn märker knappt körningen. Kör en kontroll i taget, aldrig flera parallellt. Reserv om GPU:n krånglar: `HORDE_GPU=0`; varje bildruta ritad: `HORDE_FPS=0`; vanlig prioritet: `HORDE_PRIO=normal`. Mer för agenter i docs/huvudlosa-kontroller.md.
 
+## Publicera
+
+GitHub Pages publicerar master (https://skugg4n.github.io/horde/). Före och efter varje publicering:
+
+```
+node scripts/importmap.mjs                 # import-kartan; vägrar skriva om en sida har konfliktmarkörer eller två kartor
+npm test                                   # bl.a. tests/html-integrity.test.js: varje .html har en importmap och inga markörer
+node scripts/check-live.mjs --wait 300     # efter push: live-sidans version.js = package.json, en importmap, inga markörer
+```
+
+Bakgrund: 0.21.2 gick ut med konfliktmarkörer i index.html och spelet laddade inte i en timme (H535).
+
 ## Filkarta
 
 | Sökväg | Innehåll |
