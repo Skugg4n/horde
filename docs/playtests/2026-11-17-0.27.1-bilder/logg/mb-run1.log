@@ -1,0 +1,61 @@
+stage hub
+stage hub ok
+stage jumped
+start {"day":2,"phase":"wave","cash":210,"guns":["m2","ksp58","ksp58","ksp58","psg90","psg90","psg90","inf","m249","m249"],"reserve":0}
+{"t":5,"phase":"wave","wave":"1/4","left":35,"cash":210,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 0 t=5 left=35 cash=210 hp=20 phase=wave
+hb 10 t=36 left=35 cash=210 hp=20 phase=wave
+{"t":56,"phase":"wave","wave":"1/4","left":34,"cash":211,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Enemies outside its arc. Click ↻R or press R to face them."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":65,"phase":"wave","wave":"1/4","left":31,"cash":214,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 20 t=65 left=31 cash=214 hp=20 phase=wave
+{"t":79,"phase":"wave","wave":"1/4","left":26,"cash":220,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Waves overlap here. Keep the line."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":88,"phase":"wave","wave":"1/4","left":25,"cash":221,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":91,"phase":"wave","wave":"2/4","left":77,"cash":221,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["From the east along the tracks, Fagernäsvägen!"],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":94,"phase":"wave","wave":"2/4","left":77,"cash":221,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["From the east along the tracks, Fagernäsvägen!","Ksp 58 sees none of them. Move it where it sees their road."],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+hb 30 t=94 left=77 cash=221 hp=20 phase=wave
+{"t":99,"phase":"wave","wave":"2/4","left":77,"cash":221,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Ksp 58 sees none of them. Move it where it sees their road."],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+{"t":102,"phase":"wave","wave":"2/4","left":77,"cash":221,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Armoured ones on väg 57! Small arms barely bite.","Ksp 58 sees none of them. Move it where it sees their road."],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+{"t":109,"phase":"wave","wave":"2/4","left":76,"cash":223,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+hb 40 t=115 left=73 cash=228 hp=20 phase=wave
+{"t":126,"phase":"wave","wave":"2/4","left":65,"cash":243,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 50 t=130 left=61 cash=250 hp=20 phase=wave
+hb 60 t=145 left=52 cash=266 hp=20 phase=wave
+hb 70 t=160 left=39 cash=289 hp=20 phase=wave
+{"t":168,"phase":"wave","wave":"2/4","left":30,"cash":305,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":1,"rings":0,"mode":"play","extract":null}
+{"t":170,"phase":"wave","wave":"2/4","left":27,"cash":310,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":176,"phase":"wave","wave":"3/4","left":134,"cash":314,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Infected breaking out by Trollvägen!","Brutes at the bridge!"],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 80 t=176 left=134 cash=314 hp=20 phase=wave
+{"t":180,"phase":"wave","wave":"3/4","left":133,"cash":315,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":188,"phase":"wave","wave":"3/4","left":130,"cash":321,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Supplies to spare. Click a unit."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 90 t=191 left=128 cash=324 hp=20 phase=wave
+{"t":193,"phase":"wave","wave":"3/4","left":127,"cash":326,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":198,"phase":"wave","wave":"3/4","left":127,"cash":326,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Train incoming. It's not empty. Move units to the platform, or hold the line.","Small arms barely bite. Ksp 88 and grenades do."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":201,"phase":"wave","wave":"3/4","left":126,"cash":328,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Train incoming. It's not empty. Move units to the platform, or hold the line."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 100 t=207 left=124 cash=331 hp=20 phase=wave
+{"t":212,"phase":"wave","wave":"3/4","left":121,"cash":337,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Train incoming. It's not empty. Move units to the platform, or hold the line."],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+{"t":215,"phase":"wave","wave":"3/4","left":119,"cash":340,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":2,"rings":0,"mode":"play","extract":null}
+{"t":217,"phase":"wave","wave":"3/4","left":116,"cash":346,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 110 t=222 left=110 cash=356 hp=20 phase=wave
+hb 120 t=237 left=105 cash=364 hp=20 phase=wave
+hb 130 t=252 left=87 cash=387 hp=20 phase=wave
+hb 140 t=267 left=75 cash=404 hp=20 phase=wave
+{"t":279,"phase":"wave","wave":"3/4","left":74,"cash":408,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["A unit is wavering. Thin the dead around it."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 150 t=282 left=73 cash=410 hp=20 phase=wave
+{"t":285,"phase":"wave","wave":"3/4","left":72,"cash":412,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":287,"phase":"wave","wave":"4/4","left":138,"cash":412,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Last wave. Spend your $ now. It does not carry over."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+LAST-WAVE-LINE seen t=287 cash=412
+{"t":294,"phase":"wave","wave":"4/4","left":134,"cash":420,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Ksp 90 crew breaks!","Ksp 90 crew ran. The gun is silent. Recrew $ 150: select it, press N."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+{"t":298,"phase":"wave","wave":"4/4","left":132,"cash":424,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["A unit broke and ran. It regroups in reserve."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 160 t=300 left=131 cash=426 hp=20 phase=wave
+{"t":303,"phase":"wave","wave":"4/4","left":129,"cash":429,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 170 t=315 left=116 cash=453 hp=20 phase=wave
+{"t":328,"phase":"wave","wave":"4/4","left":101,"cash":479,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["The gun is manned again."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 180 t=330 left=101 cash=479 hp=20 phase=wave
+{"t":333,"phase":"wave","wave":"4/4","left":98,"cash":484,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 190 t=345 left=83 cash=511 hp=20 phase=wave
+{"t":360,"phase":"wave","wave":"4/4","left":70,"cash":535,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Ksp 58 crew breaks!","Ksp 58 crew ran. The gun is silent. Recrew $ 150: select it, press N."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 200 t=360 left=70 cash=535 hp=20 phase=wave
+{"t":364,"phase":"wave","wave":"4/4","left":65,"cash":542,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":[],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+hb 210 t=375 left=48 cash=563 hp=20 phase=wave
+{"t":384,"phase":"wave","wave":"4/4","left":34,"cash":588,"baseHp":20,"hpText":"20","hpCls":"v hp","fallen":false,"notes":["Ksp 90 crew breaks!","Ksp 90 crew ran. The gun is silent. Recrew $ 150: select it, press N."],"brk":0,"noview":0,"rings":0,"mode":"play","extract":null}
+errs []
