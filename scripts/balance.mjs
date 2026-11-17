@@ -9,7 +9,7 @@
 // Policyerna för köpen i striden (greedyBuild, gnestaBuild, norrBuild) är 0.13:s; med kärntrupperna
 // köper de bara förnödenheter (hinder, granatlådor). Mål (Olas): en normal spelare klarar varje dag inom
 // 1 till 4 försök, en skicklig på 1, ingen dag kräver mer än cirka 6, och ribban ligger högt hela tiden.
-import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, canReposition, repositionGun, deployPhase, reserveCount, dayReport, buySupply, frontage, frontCount, extractState, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor } from '../src/sim/sim.js';
+import { wavesOnRoad, gunCount, squadCount, createSim, startWave, step, build, rotateGun, zombiePos, upgrade, placeObstacle, placeAcross, acrossCells, buyKit, callNextWave, hasNextWave, checkSpot, sell, moveGun, checkMove, canReposition, repositionGun, deployPhase, reserveCount, dayReport, buySupply, frontage, frontCount, extractState, canDeploy, allowed, setTarget, recrew, RECREW, housesFor, sightFor, supplyAll, supplyAllSpend, SUPPLY_BTN_MIN } from '../src/sim/sim.js';
 import { weaponUnlocked, obstacleUnlocked, upgradeCost, grenadeStats, maxGuns, inArsenal } from '../src/sim/stats.js';
 import { placementFor, lineOfSightH, KIND, MIN_SPACING, roofSightFrom, bestFacing, coneSight, CONE } from '../src/sim/placement.js';
 import { WEAPONS, GRENADE_KIT, SUPPLIES } from '../src/data/weapons.js';
@@ -44,7 +44,7 @@ const MAX_TICKS = 30 * 900;
 // rutnyckel. Deterministiskt. Returnerar rutnycklarna i ordning och varje rutas täckning.
 const coverCache = new Map();
 // 0.23.1: within { x, z, r }: bara platser inom r meter från punkten (Björnlundas spelare som står vid basen)
-export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheKey = null, within = null } = {}) {
+export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheKey = null, within = null, filter = null } = {}) {
   const key = cacheKey && JSON.stringify([map.id, cacheKey, range, count, decay]);
   if (key && coverCache.has(key)) return coverCache.get(key);
   const p = placementFor(map);
@@ -60,6 +60,7 @@ export function coveragePlan(map, route, { range, count = 8, decay = 0.5, cacheK
     if (p.kind[c] !== KIND.open) continue;
     const at = p.center(c), sees = [];
     if (within && Math.hypot(at.x - within.x, at.z - within.z) > within.r) continue;
+    if (filter && !filter(c, at)) continue;
     for (const t of targets) {
       const q = p.center(t);
       if (Math.hypot(q.x - at.x, q.z - at.z) <= reach && lineOfSightH(p, c, t)) sees.push(t);
@@ -870,7 +871,7 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   // mellan vågorna och vrider en sysslolös pjäs först efter 10 s.
   if (P.human) { plan = humanPlan(plan); sim._reaimIdle = 10; }
   // 0.26.5 (speltestet av 0.26.4): speltestarens egen uppställning (P.tester = radien), se testerPlan
-  if (P.tester) { plan = testerPlan(map, day, P.tester, !!P.testerAll); if (P.alt) plan = humanPlan(plan); sim._reaimIdle = P.reaim ?? 10; }
+  if (P.tester) { plan = testerPlan(map, day, P.tester, !!P.testerAll, P.testerLine ?? null); if (P.alt) plan = humanPlan(plan); sim._reaimIdle = P.reaim ?? 10; }
   const builder = !isTown ? () => greedyBuild(sim, plan.guns)
     : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
   // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) ställs ut när den kommit fram
@@ -878,10 +879,11 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const evacMap = P.evacMap && sim.dayCfg.evac;
   const think = () => {
     // casual: mitt i vågen bara EPA:n (ordern säger när) och sen ny besättning; inga köp
-    if (P.human && sim.phase === 'wave') { if (sim.extract) driveOut(sim, P); return; }
+    if (P.human && sim.phase === 'wave') { if (sim.extract) driveOut(sim, P); if (P.tester) testerActs(sim, P); return; }
+    if (P.human && P.tester) testerActs(sim, P);
     if (evacMap && deployPhase(sim)) evacDeploy(sim);
     if (evacMap) evacReposition(sim);
-    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); garrisonSquads(sim, P); deployAll(sim, plan, !!P.rest); }
+    if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); garrisonSquads(sim, P); if (P.spots?.[mapId]) placeSpots(sim, P.spots[mapId]); deployAll(sim, plan, !!P.rest); }
     else if (lateReady()) deployAll(sim, plan);
     depthVerbs(sim, P);
     builder();
@@ -896,6 +898,27 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   return { ...rest, plan, cashStart: cfg.cash };
 }
 
+// 0.26.6: en uppställning ur en skärmbild. spots: [[typ, x, z], ...] (meter); varje enhet på närmaste ruta (inom 6 m) där
+// den får stå. Resten av truppen ställs efter planen.
+function placeSpots(sim, spots) {
+  const p = sim.place;
+  for (const [type, x, z] of spots) {
+    if (!reserveCount(sim, type)) continue;
+    const k0 = p.keyAt(x, z), i0 = k0 % p.w, j0 = Math.floor(k0 / p.w), cands = [];
+    for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) { const k = (j0 + dj) * p.w + i0 + di; if (p.valid(k)) cands.push(k); }
+    cands.sort((a, b) => Math.hypot(p.center(a).x - x, p.center(a).z - z) - Math.hypot(p.center(b).x - x, p.center(b).z - z) || a - b);
+    for (const k of cands) if (checkSpot(sim, k, type).ok && build(sim, k, type).ok) break;
+  }
+}
+// 0.26.6 (speltestet av 0.26.5): det speltestaren gör mitt i dagen. Knappen för ammolådor och sandsäckar när en våg är
+// klarad (main.js visar den medan pengarna räcker; köpet lämnar pengar till en ny besättning), och ny besättning (N) på en
+// tyst pjäs när han ser den (han tittar var 6:e sekund) och pengarna räcker.
+const TESTER_LOOK = 6;
+function testerActs(sim, P) {
+  if (P.supplyBtn !== false && sim.wavesStarted > 0 && sim.cleared.length > (sim._suppliedAt ?? 0) && supplyAllSpend(sim) > 0 && sim.cash >= SUPPLY_BTN_MIN) { sim._suppliedAt = sim.cleared.length; supplyAll(sim); }
+  if (P.recrewMid === false) return;
+  for (const g of sim.guns) if (g.silent && !g.recrew && sim.time - (g.silentAt ?? sim.time) >= TESTER_LOOK && sim.cash >= RECREW.cost) recrew(sim, g.id);
+}
 // 0.26.4: en människa som ställer ut rimligt men inte bäst. Varannan plats i täckningsordningen först (den näst bästa,
 // den fjärde ...), sedan de andra; inga tak (pekaren sa "Roof too steep" och skytten hamnade på marken).
 export function humanPlan(plan) {
@@ -908,13 +931,22 @@ export function humanPlan(plan) {
 // vågens väg (banderollen "26 walkers · 9 runners Väg 57 north"); banderollerna "From wave 2" läser han inte in i
 // uppställningen. Psg 90 på ett tak i klungan (kyrktornet, ladan), ingen taggtråd eller spärr, köper bara mellan vågorna,
 // vrider en sysslolös pjäs först efter 10 s och flyttar inget mellan vågorna.
-export function testerPlan(map, day, r, all = false) {
+// 0.26.6 (speltestet av 0.26.5, Björnlunda 2 förlorad två gånger): line { d, lo } ställer pjäserna (inte grupperna) i en
+// rad längs vägen in mot basen, högst d meter från hordens väg (alla dagens ingångar) och minst lo meter från basen, som
+// speltestaren gjorde längs Stationsvägen (bilderna 07 och 09 i 2026-11-17-0.26.5-bilder).
+export function testerPlan(map, day, r, all = false, line = null) {
   const sim = createSim({ map, day, cash: 0, seed: 1 }), route = sim.route;
   const [bx, bz] = map.base.at, within = { x: bx, z: bz, r };
   const first = all ? daySpawns(map, day) : [...new Set(map.days[day - 1].waves[0].groups.map(g => g.spawn))];
   const cells = route.paths(first).flatMap(q => q.cells.map(c => [c, 1]));
   const p = placementFor(map);
-  const cp = coveragePlan(map, cells, { range: PLAN_RANGE, count: 12, decay: GN_DECAY, cacheKey: 'tester' + r + ':' + all + ':' + day, within });
+  let lineF = null;
+  if (line) {
+    const road = [...new Set(route.paths(daySpawns(map, day)).flatMap(q => q.cells))].map(k => p.center(k));
+    lineF = (c, at) => Math.hypot(at.x - bx, at.z - bz) >= line.lo && road.some(q => Math.hypot(q.x - at.x, q.z - at.z) <= line.d + 1e-9);
+  }
+  const lk = line ? `:L${line.d}/${line.lo}` : '';
+  const cp = coveragePlan(map, cells, { range: PLAN_RANGE, count: 12, decay: GN_DECAY, cacheKey: 'tester' + r + ':' + all + ':' + day + lk, within, filter: lineF });
   const sq = coveragePlan(map, cells, { range: WEAPONS.hv.range, count: 10, decay: GN_DECAY, cacheKey: 'testerSq' + r + ':' + all + ':' + day, within });
   const near = i => { const sh = p.buildings[i]?.[0]; return sh && Math.hypot(sh.x - bx, sh.z - bz) <= r + 10; };
   const roofs = roofPlan(map, cells, { count: 2, filter: near });
@@ -1298,6 +1330,23 @@ export const TESTER = { r: { molnbo: 60, vasterkarv: 25 }, all: { vasterkarv: tr
 const testerEnv = k => (typeof process !== 'undefined' && process.env?.[k] ? Number(process.env[k]) : null);
 FAMILIES.tester = Object.fromEntries(Object.entries(FAMILIES.normal).map(([k, v]) => [k, { ...(typeof v === 'string' ? POLICIES[v] : v), human: true,
   tester: testerEnv('TESTER_R') ?? TESTER.r[k] ?? 40, reaim: testerEnv('TESTER_REAIM') ?? TESTER.reaim, testerAll: !!TESTER.all[k], alt: (testerEnv('TESTER_ALT') ?? (TESTER.alt[k] ? 1 : 0)) === 1 }]));
+// 0.26.6: speltestarens andra uppställning (speltestet av 0.26.5, Björnlunda): pjäserna i en rad längs vägen in mot basen
+// (testerPlan line). TESTER_LINE=d,lo,r i balansarbetet.
+export const TESTER_LINE = { bjornlunda: { d: 2.5, lo: 12, r: 60 } };
+const lineEnv = typeof process !== 'undefined' && process.env?.TESTER_LINE ? process.env.TESTER_LINE.split(',').map(Number) : null;
+FAMILIES.testerLine = Object.fromEntries(Object.entries(FAMILIES.tester).map(([k, v]) => {
+  const L = lineEnv ? { d: lineEnv[0], lo: lineEnv[1], r: lineEnv[2] } : TESTER_LINE[k];
+  return [k, L ? { ...v, tester: L.r, testerLine: { d: L.d, lo: L.lo } } : v];
+}));
+// Speltestet av 0.26.5, Björnlunda 2 försök 2 (bild 09, punkterna projicerade på marken i spelets egen kamera): fyra pjäser
+// i en rad längs Stationsvägen väster om basen, infanteriet vid basen, Hemvärnet norr om Stationsvägen, Psg 90 på
+// hyreshuset, på tegelhuset och norrut.
+export const TESTER_SPOTS = {
+  bjornlunda: [['ksp58', 39, 114], ['ksp58', 51, 117], ['m249', 63, 117], ['ksp58', 71, 118], ['inf', 76, 124], ['hv', 42, 82], ['hv', 55, 80],
+    ['psg90', 7, 70], ['psg90', 41, 97], ['psg90', 63, 38]],
+};
+FAMILIES.testerBase = FAMILIES.tester;
+FAMILIES.tester = Object.fromEntries(Object.entries(FAMILIES.testerBase).map(([k, v]) => [k, { ...v, spots: TESTER_SPOTS }]));
 FAMILIES.casual = Object.fromEntries(Object.entries(FAMILIES.normal).map(([k, v]) => [k, { ...(typeof v === 'string' ? POLICIES[v] : v), human: true }]));
 const fullCache = new Map();
 export function fullCampaign(family = 'normal', { seedOffset = 0, choice = 'defend', maxAttempts = 6, onSecond = null, until = null } = {}) {

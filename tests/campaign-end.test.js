@@ -8,7 +8,7 @@ import { MAPS } from '../src/data/maps.js';
 import { CAMPAIGN_MAPS } from '../src/meta/campaign-day.js';
 import { newCampaign, debugReach, finishDay, lanes, unitsIn } from '../src/meta/operation.js';
 import { campaignEnd, lastBuiltMap, tableState, restedFirst, whereOf, nextBattle, cardZones } from '../src/meta/table.js';
-import { penSpots, sectorXY, dayLabelSpot } from '../src/ui/table.js';
+import { penSpots, sectorXY, dayLabelSpot, townSpots } from '../src/ui/table.js';
 import { SECTORS } from '../src/data/depot.js';
 
 const ID = 'gnesta-vastra-rondell', LAST = 'vasterkarv';
@@ -85,6 +85,8 @@ test('kartbladet efter rondellen: varje pennrad ligger närmast sin egen markör
   const spots = penSpots(tableState(q));
   const marks = [...spots.keys()].map(k => [k, sectorXY(k)]);
   for (const [k, sp] of spots) {
+    // 0.26.6: en rad längre ut har ett blyertsstreck till sin markör (lead) och får stå närmare en annan
+    if (sp.lead) continue;
     const b = sp.box, near = ([x, y]) => Math.hypot(Math.max(b.x0 - x, 0, x - b.x1), Math.max(b.y0 - y, 0, y - b.y1));
     const own = near(sectorXY(k));
     for (const [o, xy] of marks) if (o !== k && Math.hypot(xy[0] - sectorXY(k)[0], xy[1] - sectorXY(k)[1]) >= 16) assert.ok(near(xy) > own, `${k}: "${sp.text}" ligger närmare ${o}`);
@@ -94,6 +96,16 @@ test('kartbladet efter rondellen: varje pennrad ligger närmast sin egen markör
     const a = all[i].box, b = all[j].box;
     assert.ok(!(a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1), `${all[i].text} över ${all[j].text}`);
   }
+});
+
+// 0.26.6 (speltestet av 0.26.5: ortnamnen och pennraderna runt Gnesta trängdes på slutkartan)
+test('slutkartan: inga pennrader på ortnamnen, och inget ortnamn på en markör', () => {
+  const q = won(debugReach(newCampaign(), LAST, 1), LAST, 1), st = tableState(q);
+  const spots = [...penSpots(st).values()], towns = [...townSpots(st).entries()];
+  const hit = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  for (const sp of spots) for (const [k, t] of towns) assert.ok(!hit(sp.box, t.box), `"${sp.text}" på ${k}`);
+  for (const [k, t] of towns) for (const pl of st.piles) { const [x, y] = sectorXY(pl.sector); assert.ok(!hit(t.box, { x0: x - 8, y0: y - 8, x1: x + 8, y1: y + 8 }), `${k} på markören ${pl.sector}`); }
+  for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) assert.ok(!hit(spots[i].box, spots[j].box), `${spots[i].text} över ${spots[j].text}`);
 });
 
 test('DAY n hamnar bredvid det som ligger över kartan (klämbrädan), också Västerkärvs (H607)', () => {

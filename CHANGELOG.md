@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.26.6 (speltestet av 0.26.5) (2026-11-17)
+
+Speltestet av 0.26.5 (docs/playtests/2026-11-17-0.26.5.md) sa NEJ: Björnlunda dag 12 förlorades två gånger, pengaraden tömde kassan och stod kvar med fel belopp, och en Psg 90 på ett grönt tak sköt aldrig.
+
+- **Pjäserna längs vägen tystnade.** Orsaken: en pjäs en ruta från hordens väg får sitt lag slaget av varje zombie som går förbi, och pjäsen sköt på den som kommit längst i stället för på den som slog laget. Nu skjuter laget först på den som slår det. Pekaren säger "Right by their path. Walkers will hit the crew." när man ställer en pjäs där, och raden när en pjäs tystnar frågar "Too close to their path?". Björnlunda dag 2 hp 4 (4,5) i båda grenarna. Balansens speltestare (`tester`) har nu speltestarens uppställning från Björnlunda (fyra pjäser i rad längs Stationsvägen, projicerade ur skärmbilden) och köper ammolådor och sätter ny besättning som han gjorde. docs/balance-log.md 0.26.6.
+- **Ammolådor och sandsäckar är en knapp.** AMMO & SANDBAGS står bredvid SUPPLIES så länge det finns något att köpa och kassan är minst 300 $, med vad ett klick kostar just nu. Köpet lämnar 150 $ till en ny besättning ("keeps $ 150 for a recrew") och raden efter klicket säger vad som köptes och vad som är kvar. Den tidsbegränsade raden efter vågen är borta, och raderna om tråd och spärrar säger inget belopp som kan bli gammalt.
+- **Gröna tak ser vägen.** Med Psg 90 i handen lyser bara takplatser som ser någon del av hordens väg (samma sikt och skjutvinkel som skytten får där); pekaren säger "Sees none of their roads from here." på ett tak utan utsikt. En pjäs som inte sett en enda zombie på 40 s medan striden pågår får märket NO VIEW, och panelen säger att den ska flyttas.
+- **Deploy efter en förlust.** Tipsen ställs aldrig över Deploy eller frågan om RP, och ett klick på ett tips som ändå ligger över Deploy startar dagen.
+- **Västerkärv efter sista vågen.** Är horden borta vinns dagen så fort EPA:n kör mot ringen. Medan den kör säger rutan "The EPA is on its way. Press F to speed up."
+- **Småsaker.** R vänder alla med märket och säger hur många ("Turned 1 of 2. The other has nothing in sight now." när en tappat sina mål). Vågräknaren byter inte total när en äldre våg klaras mitt i en annan, och "· N cleared" står så snart en våg är klarad. Quick jump har Björnlunda 2, rondellen och Västerkärv i båda grenarna (F och D).
+- **Bordet.** Lägesrapporten och förlustlappen under ordern visar rubriken och en hel rad (förut en halv rad till under ordern). Ortnamnen flyttas från sektorernas markörer, och en pennrad som inte får plats nära sin markör står längre ut med ett streckat blyertsstreck dit. layout-check provar textrader som ordern skär av, namn på varandra eller på markörer, och tips över Deploy.
+
 ## 0.26.5 (speltestet av 0.26.4) (2026-11-17)
 
 Speltestet av 0.26.4 (docs/playtests/2026-11-17-0.26.4.md) sa NEJ: dag 9 och Västerkärv förlorades två gånger var med egen uppställning, LINE BREAKING pekade på basen och Esc öppnade pausen över fiendekortet.

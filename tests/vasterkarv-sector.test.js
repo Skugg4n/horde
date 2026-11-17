@@ -224,7 +224,7 @@ test('kopplingen: bordets markör och mottagare, sektorn, leveransen, lektionen,
   assert.ok(words(l.text) <= 12, l.text);
   assert.match(l.text, /^Move the EPA out/);
   assert.deepEqual(l.target, { world: 'gun:epa' });
-  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /\['vasterkarv', 1\]/);
+  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /\['vasterkarv', 1, 'fallback'\], \['vasterkarv', 1, 'defend'\]/);
   assert.match(readFileSync(new URL('../src/ui/debug.js', import.meta.url), 'utf8'), /vasterkarv: 'Västerk\.'/);
   const q = debugReach(newCampaign(), ID, 1);
   assert.equal(choiceOf(q, 'laxne'), 'fallback');
@@ -284,10 +284,10 @@ const pr = rs => vkPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vkSkilled och vkNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '671888e0' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'f500bc9a' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'a885c6b2' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: 'c6a5bdd9' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '5005dc6c' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'f5245970' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'fa6ba821' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '91d0ec14' });
 });
 
 void DAYS;

@@ -283,8 +283,8 @@ const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '07e18b2c', 'bjornlunda 2': '9cd972a9' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': '2eb92c7f', 'bjornlunda 2': '9bf27092' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '07e18b2c', 'bjornlunda 2': '31aa3939' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '54ada5e9', 'bjornlunda 2': 'c1aeca05' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen

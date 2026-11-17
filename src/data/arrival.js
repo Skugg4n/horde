@@ -78,7 +78,7 @@ export const ARRIVAL_TROOP = {
   'gnesta-vastra-rondell': {
     research: ['block.1', 'm2.1', 'grenade.1', 'ksp58.1', 'ak5.1', 'hvRifles.1', 'psg90.1', 'psg90.2', 'm249Rate.1', 'grenade.2', 'hvRifles.2', 'psg90.3'],
     // 0.26.2 (H605): omräknad efter takens nya utsiktspunkter (nocken på flacka villatak)
-    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 6], ['m249', 2, null, 6], ['ksp58', 3, null, 6], ['m2', 1, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['inf', 2, 5, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 4, 1], ['hv', 2, 3, 1], ['m249', 1, null, 1], ['m2', 1, null, 0]],
+    units: [['civ', 2, 4, 4], ['civ', 2, 4, 4], ['civ', 2, 4, 4], ['m249', 2, null, 6], ['m249', 2, null, 6], ['ksp58', 3, null, 6], ['m2', 1, null, 4], ['psg90', 2, null, 5], ['psg90', 2, null, 5], ['inf', 2, 5, 3], ['ksp58', 3, null, 4], ['ksp58', 3, null, 4], ['psg90', 2, null, 5], ['hv', 2, 5, 1], ['m249', 2, null, 2], ['inf', 2, 5, 2], ['civ', 2, 4, 0], ['civ', 2, 4, 0], ['hv', 2, 5, 1], ['hv', 2, 2, 1], ['m249', 1, null, 1], ['m2', 1, null, 0]],
   },
   // 0.26.0: Västerkärv (kampanjens dag 14). Truppen kartläsaren har efter västra rondellen i grenen FALL BACK, med gårdens
   // frivilliga och en Ksp 90 (leveransen vk-1): scripts/balance.mjs vasterkarvArrival, seed 0. Gårdens EPA är dagens egen

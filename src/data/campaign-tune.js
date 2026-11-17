@@ -22,7 +22,7 @@ export const TUNE = {
   'gnesta-norr': { 1: { hp: 2.8, budget: 1050 } },
   molnbo: { 1: { hp: 24, budget: 790 }, 2: { hp: 12, budget: 990 }, 3: { hp: 24 } },
   laxne: { 1: { hp: 8, budget: 1490 } },
-  bjornlunda: { 1: { hp: 8.5, hpBy: { fallback: 6.5 }, budget: 1320 }, 2: { hp: 4.5, hpBy: { fallback: 4.5 }, budget: 1630 } },
+  bjornlunda: { 1: { hp: 8.5, hpBy: { fallback: 6.5 }, budget: 1320 }, 2: { hp: 4, hpBy: { fallback: 4 }, budget: 1630 } },
   'gnesta-vastra-rondell': { 1: { hp: 14, budget: 1340 } },
   vasterkarv: { 1: { hp: 4, hpDefend: 4 } },
 };

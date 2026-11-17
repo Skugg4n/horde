@@ -1712,3 +1712,47 @@ Dag 9 och Västerkärv: speltestarens uppställning vinner nu på första förs�
 Pengarna: speltestaren lämnar 1 000 till 1 560 $ eftersom han inte köper något mitt i striden. 0.26.5 erbjuder efter varje klarad våg ammolådor och sandsäckar till alla med ett klick (src/sim/sim.js supplyAll; tio enheter kostar 1 000 till 1 400 $). Det räknas inte in i siffrorna ovan; tester köper det inte.
 
 Prov: tests/full-campaign.test.js (tester och casual inom två försök, två seeds, båda grenarna). Fingeravtrycken och Quick jump-truppen (src/data/arrival.js, Västerkärv nu från den vanliga spelarens hela kampanj med tröttheten) är omräknade.
+
+## 0.26.6: Björnlunda 2 med speltestarens rad längs Stationsvägen
+
+Speltestet av 0.26.5 (docs/playtests/2026-11-17-0.26.5.md) förlorade Björnlunda dag 12 två gånger. Pjäserna längs Stationsvägen tystnade en efter en ("Ksp 58 overrun") och kills stod still i en minut. Förra rundans `tester` (klungan inom 40 m från basen, mot första vågens väg) vann samma dag med basen 16 till 17, så uppställningen var en annan.
+
+**Rekonstruktion.** Bild 09 projicerades på marken i spelets egen kamera (huvudlöst, samma vy som bild 15, `groundAt` för varje skylt): Ksp 58, Ksp 58, Ksp 90 och Ksp 58 i en rad längs Stationsvägen 14 till 45 m väster om basen, en till två meter från hordens väg; infanteriet vid basen; Hemvärnet norr om Stationsvägen; Psg 90 på hyreshuset, på tegelhuset och norrut. `TESTER_SPOTS` i scripts/balance.mjs; `tester` använder den på Björnlunda, den gamla klungan heter nu `testerBase`. Ny också: `tester` trycker på ammoknappen efter en klarad våg och sätter ny besättning på en tyst pjäs 6 s efter att den tystnat om pengarna räcker (det speltestaren gjorde). Varianten `testerLine` (TESTER_LINE=d,lo,r) ställer pjäserna längs vägen efter täckning.
+
+**Varför pjäserna dör.** Med HORDE_OFF=overrun gick basen från 3 till 8 upp till 12 till 14 (Quick jump-truppen, tre seeds); sanity, rout och tröttheten ändrade nästan inget. En pjäs en ruta från hordens väg får sitt lag slaget av varje zombie som går förbi (overrun gäller från Mölnbo dag 3, så i FALL BACK möter spelaren det först här), och pjäsen sköt på den som kommit längst förbi, inte på den som slog laget. Ny besättning (150 $) gick inte att köpa efter att pengaraden tömt kassan. Psg 90 på hyreshuset såg ingenting: 53 av hyreshusets 58 takrutor ser ingen ruta av hordens väg (taket skymmer marken närmast), men alla lyste gröna.
+
+**Ändrat.** Laget skjuter först på den som slår det (src/sim/sim.js fireWeapons, SELF_DEFENCE); placeringen varnar ("Right by their path. Walkers will hit the crew."); ammoknappen lämnar 150 $; gröna tak bara där skytten ser vägen; Björnlunda dag 2 hp 4,5 till 4 i båda grenarna (src/data/campaign-tune.js).
+
+Mätt med `node scripts/balance-0265.mjs 5` (truppen den vanliga spelaren har fram till dagen, fem seeds, högst två försök; ja<bas>($ kvar), nej(v<våg>,b0)).
+
+**Före** (0.26.5-koden, raden längs Stationsvägen):
+
+    d12 Björnlunda 2 F  tester (raden, utan köp)        Quick jump-truppen: ja4 ja8 ja3
+                        tester (raden, köp och besättning) ja2 ja4 nej>ja2 ja5 ja8
+    d13 Björnlunda 2 D  tester (raden, köp och besättning) ja12 ja6 ja9 ja9 ja9
+    d12                 casual  ja10 ja5 ja8 ja12 ja9      normal ja18 ja18 ja20 ja20 ja20
+    d13                 casual  ja9 ja9 nej>ja6 ja9 nej>ja7  normal ja17 ja17 ja12 ja17 ja17
+
+**Prövat:** bara självförsvaret (hp 4,5): raden 5 till 9 i dag 12, men casual föll två gånger i en seed; hp 4 och 3,8 med självförsvaret: alla vinner på första försöket, 3,8 gör casual 12 till 15. Valt 4.
+
+**Efter:**
+
+    d12 Björnlunda 2 F  tester  ja11 ja8 ja7 ja11 ja10      (Quick jump-truppen: ja17 alla)
+                        testerBase ja18 ja17 ja17 ja17 ja17
+                        casual  ja12 ja13 ja9 ja12 ja10
+                        normal  ja19 ja18 ja20 ja17 ja20
+    d13 Björnlunda 2 D  tester  ja7 ja10 ja11 ja10 ja2
+                        testerBase ja17 alla fem
+                        casual  ja13 ja11 ja14 ja13 ja12
+                        normal  ja18 ja19 ja18 ja18 ja17
+    d9  Mölnbo 2        tester  ja11 ja12 ja16 ja8 ja15     (0.26.5: ja9 ja8 ja2 ja8 ja4; ammoknappen räknas nu)
+                        casual  ja13 ja13 ja14 ja14 ja15
+                        normal  ja12 ja15 ja1 ja11 ja7
+    d15 Västerkärv D    tester  ja15 ja0 ja15 ja0 ja0       (basen får falla när de civila gått)
+                        casual  ja12 ja10 ja12 ja13 ja14
+                        normal  ja0 ja18 ja0 ja17 ja17
+    d14 Västerkärv F    tester  nej>ja0 ja0 ja0 ja0 ja0
+                        casual  ja15 ja15 ja16 ja15 ja15
+                        normal  ja16 alla fem
+
+Raden längs Stationsvägen vinner nu på första försöket med basen 2 till 11 med kampanjens trupp; den är fortfarande den svåraste uppställningen. Dag 9 blev lättare för `tester` bara för att den nu köper ammolådor (modellen trycker direkt när knappen kommer; speltestaren vann dag 9 med basen 6). Mölnbo och Västerkärv har inte overrun förrän dag 10 respektive har den men pjäserna står inte vid vägen, så självförsvaret ändrar dem lite. Fingeravtrycken (Mölnbo, Björnlunda, Laxne, rondellen, Västerkärv) och Quick jump-truppen (rondellen) är omräknade.

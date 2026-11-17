@@ -369,9 +369,9 @@ const pr = (f, rs) => f([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, se
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (Laxne, och Björnlunda efter DEFEND LAXNE)', () => {
-  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '1084f15e' });
+  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '15462484' });
   // 0.24.1 (H558): bounty 0,78 (förut 0,9); kartläsaren oförändrad, den vanliga spelaren ny. docs/balance-log.md Laxne 0.24.1.
-  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': '2e8e6d20' });
-  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': '47073ea9', 'bjornlunda 2': '4cd1705f' });
-  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': 'd611b98f', 'bjornlunda 2': '838e420f' });
+  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': '261978b3' });
+  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': '373c3e4d', 'bjornlunda 2': '659f9b6d' });
+  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': '0a310200', 'bjornlunda 2': '8d2552a0' });
 });

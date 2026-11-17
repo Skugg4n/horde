@@ -237,7 +237,7 @@ test('kopplingen: bordets markör och mottagare, sektorn, leveransen, inlärning
   assert.deepEqual(STAGES[i].adds, []);
   assert.ok(!LESSONS['vr-1']);
   assert.deepEqual([...featuresFor(ID, 1)].sort(), [...featuresFor('bjornlunda', 2)].sort());
-  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /\['gnesta-vastra-rondell', 1\]/);
+  assert.match(readFileSync(new URL('../src/main.js', import.meta.url), 'utf8'), /\['gnesta-vastra-rondell', 1, 'fallback'\], \['gnesta-vastra-rondell', 1, 'defend'\]/);
   assert.match(readFileSync(new URL('../src/ui/debug.js', import.meta.url), 'utf8'), /'gnesta-vastra-rondell': 'Rondell'/);
   // hoppet till rondellen utan val: FALL BACK, och truppen balansen räknar med
   const q = debugReach(newCampaign(), ID, 1);
@@ -301,8 +301,8 @@ const pr = rs => vrPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vrSkilled och vrNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'f77b9c0a' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'fde25464' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'e396afdd' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: 'a9b3524a' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '6710deeb' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: '973a2f3b' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '406e13d4' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '518625d6' });
 });

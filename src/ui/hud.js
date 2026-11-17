@@ -5,7 +5,7 @@ import { campaignDayOf, shownDay } from '../meta/campaign-day.js';
 import { whereOf } from '../meta/table.js';
 import { money } from './format.js';
 import { ZOMBIES } from '../data/zombies.js';
-import { earlyBonus, hasNextWave, waveLeft, overlapGate } from '../sim/sim.js';
+import { earlyBonus, hasNextWave, waveLeft, overlapGate, supplyAllSpend, supplyKeep, SUPPLY_BTN_MIN, allowed } from '../sim/sim.js';
 import { declutter, rectOf } from './declutter.js';
 
 // Plural för vågens innehåll: "10 walkers, 6 runners, 1 brute".
@@ -47,12 +47,19 @@ export function waveCounts(sim) {
   const i = Math.min(started ? sim.wavesStarted - 1 : sim.waveIndex, waves.length - 1);
   const alive = sim.zombies.filter(z => !z.dead).length, queued = sim.spawnQueue.length;
   let total = size(i), left = total;
+  // 0.26.6 (speltestet av 0.26.5: "80 of 161 left" blev "48 of 109 left" när en äldre våg klarades): totalen räknar
+  // vågorna sedan fältet senast var tomt (sim._countFrom), så den sjunker inte när en äldre våg klaras mitt i en annan
   if (started) {
+    let first = sim.wavesStarted - 1;
+    for (let k = 0; k < sim.wavesStarted; k++) if (!sim.cleared[k]) { first = k; break; }
+    // ny räkning: första gången, eller när fältet var tomt (förra anropet) innan den här vågen startade
+    if (sim._countFrom == null || sim._countFrom > first || (sim._countEmpty && sim._countFrom < first)) sim._countFrom = first;
     total = 0;
-    for (let k = 0; k < sim.wavesStarted; k++) if (!sim.cleared[k]) total += size(k);
+    for (let k = sim._countFrom; k < sim.wavesStarted; k++) total += size(k);
     left = queued + alive;
     total = Math.max(total, left);
   }
+  sim._countEmpty = !(queued + alive);
   return { wave: i + 1, of: waves.length, total, left, alive, queued: started ? queued : left };
 }
 // 0.17.1 (speltestet av 0.17.0: HUD:en sa "Wave 4 of 5" och resultatet "1 of 5" klarade): EN rad för vågen, som
@@ -88,7 +95,7 @@ export function comingBySpawn(sim) {
 // De levande i vågorna före den senaste (de som måste ned innan nästa våg kommer av sig själv).
 const gateOlder = sim => { const last = sim.wavesStarted - 1; let n = 0; for (const z of sim.zombies) if (!z.dead && !z.atDoor && z.wave < last) n++; for (const q of sim.spawnQueue) if (q.wave < last) n++; return n; };
 
-export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
+export function mountHud(root, { onStart, onSpeed, onNext, onSupply } = {}) {
   root.insertAdjacentHTML('beforeend', `
   <div id="day" class="plate">
     <div class="lbl">DAY</div>
@@ -101,6 +108,7 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     <div class="cash-box"><div class="k">SUPPLIES</div><div class="v" data-k="cash">$ 0</div><div class="delta" data-k="delta"></div></div>
     <div><div class="k">BASE</div><div class="v hp" data-k="hp">0</div></div>
   </div>
+  <button type="button" id="supplyall" class="plate" hidden><span class="k">AMMO &amp; SANDBAGS</span><span class="v" data-k="supv">$ 0</span><span class="s" data-k="sups"></span></button>
   <div id="hint" class="plate" hidden><button type="button" class="fold" data-k="fold" aria-label="Fold the steps" title="Fold the steps">–</button><ol></ol></div>
   <button id="go" class="plate" type="button"><span data-k="go">Start wave</span><kbd data-k="key">Space</kbd><span class="cd" data-k="cd" hidden></span></button>
   <div id="wavebar" class="plate" hidden><span class="left"><b data-k="wleft">0</b> left</span><button type="button" class="next" data-k="next"><span data-k="nextlbl">Next wave</span><kbd data-k="nextkey">Space</kbd><span class="cd" data-k="nextcd"></span></button></div>
@@ -128,6 +136,13 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
   el.next.addEventListener('pointerleave', () => { nextHover = false; });
   const shift = on => { shiftDown = !!on; };
   const resPlate = root.querySelector('#res');
+  // 0.26.6 (speltestet av 0.26.5: raden "Click here: ammo and sandbags" stod några sekunder, aldrig dag 9, tömde kassan och
+  // stod kvar med fel belopp): en knapp bredvid SUPPLIES så länge det finns något att köpa och pengarna räcker. Den säger
+  // vad ett klick kostar nu och lämnar pengar till en ny besättning.
+  const supBtn = root.querySelector('#supplyall'), supV = $('supv'), supS = $('sups');
+  supBtn.addEventListener('pointerdown', e => e.preventDefault());
+  supBtn.addEventListener('click', () => onSupply && onSupply());
+  let supShownDay = null;
 
   // 0.16.0 (inlärningen, designen avsnitt 4): HUD:ens delar syns när de är upplåsta. supplies: mätaren,
   // speed: fartknappen, early: Next wave med bonus (före det går nedräkningen av sig själv).
@@ -220,7 +235,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(el.day, String(shownDay(sim.map.id, sim.day)).padStart(2, '0'));
     // 0.25.1 (H564): en endagsbana visar hela namnet och kampanjens dag (src/meta/table.js whereOf)
     set(el.where, cd != null ? whereOf(sim.map.id, sim.day) : '');
-    set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
+    // 0.26.6: "· N cleared" så snart en våg är klarad (förut bara medan vågorna överlappade, så raden hoppade)
+    set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.waveIndex > 0 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
     // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut
     // 0.26.5 (speltestet av 0.26.4: "0 of 0 left" efter sista vågen): ingen kvar säger att det är lugnt
@@ -231,6 +247,22 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     if (cash !== last.cash) { set(el.cash, money(cash)); last.cash = cash; }
     const cashBox = resPlate.querySelector('.cash-box');
     if (cashBox.hidden === feat.supplies) cashBox.hidden = !feat.supplies;
+    // knappen: efter första vågens start, medan det finns vågor kvar att möta
+    const spend = feat.supplies && allowed(sim, 'unitSupplies') && (sim.phase === 'wave' || (sim.phase === 'build' && sim.wavesStarted > 0)) && sim.cash >= SUPPLY_BTN_MIN ? supplyAllSpend(sim) : 0;
+    const supOn = spend > 0;
+    if (supBtn.hidden === supOn) {
+      supBtn.hidden = !supOn;
+      // första gången på dagen lyser den en stund
+      if (supOn && supShownDay !== sim) { supShownDay = sim; supBtn.classList.remove('fresh'); void supBtn.offsetWidth; supBtn.classList.add('fresh'); }
+    }
+    if (supOn) {
+      set(supV, money(spend));
+      const keep = supplyKeep(sim);
+      set(supS, keep ? `keeps ${money(keep)} for a recrew` : '');
+      supBtn.title = `Ammo crates for every unit and sandbags for the squads. Costs ${money(spend)} now${keep ? `, keeps ${money(keep)} for a recrew` : ''}.`;
+      const right = Math.round(innerWidth - resPlate.getBoundingClientRect().left + 8) + 'px';
+      if (supBtn.style.right !== right) supBtn.style.right = right;
+    }
 
     const hp = Math.max(0, sim.baseHp);
     if (hp !== last.hp) { set(el.hp, String(hp)); last.hp = hp; }

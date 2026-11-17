@@ -77,3 +77,27 @@ test('en källa för vågen: plåten och resultatet säger samma våg när vågo
   assert.equal(result.split(' · ')[0], plate.split(' · ')[0]);
   assert.match(result, new RegExp(`^Wave ${sim.wavesStarted} of 5`));
 });
+
+// 0.26.6 (speltestet av 0.26.5: "Wave 3 of 4 · 1 cleared, 80 of 161 left" blev "Wave 3 of 4, 48 of 109 left"): räknarens
+// total sjunker inte när en äldre våg klaras mitt i en annan, bara efter att fältet varit tomt; raden säger "N cleared"
+// så snart en våg är klarad
+test('räknaren hoppar inte när vågorna överlappar', async () => {
+  const { molnbo } = await import('../src/data/molnbo.js');
+  const { waveLabel } = await import('../src/ui/hud.js');
+  const { createSim: cs, startWave: sw, step: st } = await import('../src/sim/sim.js');
+  const g = (n, spawn) => ({ type: 'walker', count: n, interval: 0.2, delay: 0, spawn });
+  const day = { n: 1, startCash: 0, overlap: 2, waves: [1, 2, 3, 4].map(() => ({ groups: [g(6, 's2')] })) };
+  const sim = cs({ map: { ...molnbo, baseHp: 999, days: [day] }, day: 1, cash: 0 });
+  sw(sim);
+  let last = null, overlapped = false;
+  while (sim.phase === 'wave' && sim.time < 900) {
+    st(sim, 0.1);
+    if (sim.phase !== 'wave') break;
+    const c = waveCounts(sim);
+    if (sim.wavesStarted - sim.waveIndex > 1) overlapped = true;
+    if (last && last.left > 0) assert.ok(c.total >= last.total, `${last.total} till ${c.total} vid ${sim.time.toFixed(1)} s`);
+    if (sim.waveIndex > 0) assert.match(waveLabel(c, sim.waveIndex), /cleared/);
+    last = c;
+  }
+  assert.ok(overlapped);
+});

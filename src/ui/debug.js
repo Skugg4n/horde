@@ -48,7 +48,7 @@ export function mountDebug(root, api) {
         <div class="row"><label>Cash</label><input data-k="cash" type="number" step="100"><button data-a="cash-set">Set</button><button data-a="cash-add">Add</button></div>
         <div class="row"><label>Base hp</label><input data-k="hp" type="number" step="1" min="1"><button data-a="hp-set">Set</button><label class="ck"><input type="checkbox" data-k="god"> God mode</label></div>
         <div class="row"><label>Jump to</label>${sel('map', maps.map(x => [x.id, x.name]))}<input data-k="day" type="number" min="1" max="5" value="${api.day()}" title="Day"><input data-k="wave" type="number" min="1" value="1" title="Wave"><button data-a="jump">Go</button></div>
-        <div class="row wrap quick"><label>Quick jump</label>${(api.quick ?? []).map(([id, d]) => `<button data-a="quick" data-m="${id}" data-d="${d}">${QUICK_NAME[id] ?? id} ${d}</button>`).join('')}</div>
+        <div class="row wrap quick"><label>Quick jump</label>${(api.quick ?? []).map(([id, d, c]) => `<button data-a="quick" data-m="${id}" data-d="${d}"${c ? ` data-c="${c}" title="${c === 'defend' ? 'DEFEND LAXNE' : 'FALL BACK'}"` : ''}>${QUICK_NAME[id] ?? id} ${d}${c ? (c === 'defend' ? ' D' : ' F') : ''}</button>`).join('')}</div>
         <div class="row"><label></label><label class="ck"><input type="checkbox" data-k="autodeploy"> Auto-deploy (balance policy), starts the wave</label></div>
         <div class="row"><button data-a="unlock">Unlock all maps</button><button data-a="reset-save" class="warn">Reset save</button></div>
         <div class="row"><label>Lessons</label><button data-a="tips-reset">Reset tips</button><button data-a="tips-seen">Mark all seen</button></div>
@@ -104,7 +104,7 @@ export function mountDebug(root, api) {
     'cash-add': () => ok(api.setCash((api.sim()?.cash ?? 0) + num('cash')), 'Cash added'),
     'hp-set': () => ok(api.setBaseHp(num('hp')), 'Base hp set'),
     jump: () => { api.jump(val('map'), num('day'), num('wave')); close(); },
-    quick: b => { api.quickJump(b.dataset.m, Number(b.dataset.d)); close(); },
+    quick: b => { api.quickJump(b.dataset.m, Number(b.dataset.d), b.dataset.c ?? null); close(); },
     unlock: () => ok(api.unlockAll(), 'All maps unlocked'),
     'reset-save': () => {
       if (!confirm('Reset save? A backup is kept under horde.save.backup.')) return;

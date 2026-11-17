@@ -550,7 +550,7 @@ const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
   // 0.22.1: mbSmart nytt avsiktligt (dag 1 halva förnödenheterna per dödad, bounty 0,5); utfallen som förut
   assert.deepEqual(pr(smart), { 'molnbo 1': 'a7ed42c4', 'molnbo 2': 'ab563d6a', 'molnbo 3': '97cd7457' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'cf3ea245', 'molnbo 2': 'c9dd9aa9', 'molnbo 3': 'e26776bb' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'cf3ea245', 'molnbo 2': 'c9dd9aa9', 'molnbo 3': '4f6d7739' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

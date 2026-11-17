@@ -45,10 +45,53 @@ const DIR = { north: [0, -1], 'north-east': [0.7, -0.7], east: [1, 0], 'south-ea
 // 0.23.3 (H551, speltestet av 0.23.2: "held, 4 days" och "held, 3 days" stod ihop vid Gnesta): de klara sektorernas
 // pennrader ställs där de inte krockar med varandra, orternas namn eller markörerna. Under markören om det går, annars
 // till höger, till vänster eller ovanför; i värsta fall där den krockar minst. Svar: Map(sektor -> { x, y, anchor, text, box }).
-const PEN_W = 6.4, PEN_H = 14;
+// 0.26.6 (speltestet av 0.26.5: ortnamnen och pennraderna runt Gnesta trängdes på slutkartan): rutorna efter textens
+// verkliga bläck (uppmätt i bordet: pennraden 5,3 px per tecken, ortnamnen 7,1 och 8,7), med en luft runt
+const PEN_W = 5.6, PEN_UP = 11, PEN_DOWN = 4;
 export function penBox(x, y, text, anchor) {
   const w = text.length * PEN_W, x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
-  return { x0, y0: y - PEN_H + 3, x1: x0 + w, y1: y + 3 };
+  return { x0, y0: y - PEN_UP, x1: x0 + w, y1: y + PEN_DOWN };
+}
+const townBox = (n, big, x, y) => ({ x0: x, y0: y - (big ? 12 : 10.5), x1: x + n.length * (big ? 9 : 7.4), y1: y + 3 });
+// Sektorernas markörer på kartan (lägesbilden): de klara högarna, de förlorade och nästa strid
+function markerPoints(state) {
+  const pts = [];
+  // (en förlorad sektors blyertskryss är litet, och "lost" står till vänster nedanför; ortnamnet får stå kvar bredvid).
+  // Nästa strids markör ritas också före operationskartan (dag 1 till 3)
+  if (state.opmap) for (const pl of state.piles) { const xy = sectorXY(pl.sector); if (xy) pts.push(xy); }
+  const nxy = state.next && sectorXY(state.next.sector);
+  if (nxy) pts.push(nxy);
+  return pts;
+}
+// 0.26.6: ortnamnen flyttas från en markör som står på dem (BJÖRNLUNDA, GNESTA): först bandets egen plats, sedan under,
+// till höger, ovanför och till vänster om orten, den första som varken ligger på en markör eller ett annat namn.
+// Svar: Map(ortens nyckel -> { x, y, box }).
+export function townSpots(state) {
+  const marks = markerPoints(state), out = new Map(), placed = [];
+  // nästa strids DAY n och titeln under (samma ruta som penSpots räknar med)
+  const nxy = state.next && sectorXY(state.next.sector);
+  if (nxy) { const [ddx, ddy] = SECTOR_TABLE[state.next.sector]?.day ?? [24, -38]; placed.push({ x0: nxy[0] + ddx, y0: nxy[1] + ddy - 17, x1: nxy[0] + ddx + 150, y1: nxy[1] + ddy + 26 }); }
+  const hit = (a, b) => a.x0 < b.x1 + 2 && b.x0 < a.x1 + 2 && a.y0 < b.y1 + 1 && b.y0 < a.y1 + 1;
+  const onMark = b => marks.some(([mx, my]) => hit(b, { x0: mx - 9, y0: my - 9, x1: mx + 9, y1: my + 9 }));
+  // först de som står fria där de brukar (de flyttas inte), sedan de andra till närmaste fria plats
+  const movers = [];
+  for (const [n, k, big, dx, dy] of TOWNS) {
+    const px = gx(PLACES[k][0]), py = gy(PLACES[k][1]), b = townBox(n, big, px + dx, py + dy);
+    if (onMark(b)) { movers.push([n, k, big, dx, dy, px, py]); continue; }
+    out.set(k, { x: px + dx, y: py + dy, box: b }); placed.push(b);
+  }
+  for (const [n, k, big, dx, dy, px, py] of movers) {
+    const w = n.length * (big ? 9 : 7.4);
+    const cands = [[dx, dy + 6], [dx, dy + 10], [dx, dy - 8], [-w / 2, 24], [-w / 2, 30], [12, 5], [-w - 12, 5], [-w / 2, -14], [12, 16], [-w - 12, 16], [12, -8], [-w - 12, -8], [-w / 2, 38], [-w / 2, -22]];
+    let best = null;
+    for (const [cx, cy] of cands) {
+      const b = townBox(n, big, px + cx, py + cy);
+      if (!onMark(b) && !placed.some(q => hit(b, q))) { best = { x: px + cx, y: py + cy, box: b }; break; }
+    }
+    best ??= { x: px + dx, y: py + dy, box: townBox(n, big, px + dx, py + dy) };
+    out.set(k, best); placed.push(best.box);
+  }
+  return out;
 }
 // 0.25.1 (H563, speltestet av 0.25.0: dag 13:s "held, 1 day" stod direkt under BJÖRNLUNDA och lästes som Björnlundas,
 // "held, 3 days" låg på vägskölden 57): en pennrad måste ligga närmare sin egen markör än någon annan markör eller ort
@@ -62,16 +105,34 @@ const PEN_RING = (() => {
   }
   return out;
 })();
+const PEN_FAR = (() => {
+  const out = [];
+  for (const r of [78, 96, 116]) for (let k = 0; k < 16; k++) {
+    const a = Math.PI / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 8), dx = Math.cos(a) * r, dy = Math.sin(a) * r + 4;
+    out.push([Math.round(dx), Math.round(dy), Math.abs(dx) < 8 ? 'middle' : dx > 0 ? 'start' : 'end']);
+  }
+  return out;
+})();
+// blyertsstrecket: från radens närmaste kant till markören
+export const leadEnd = c => { const b = c.box; return [c.anchor === 'start' ? b.x0 - 2 : c.anchor === 'end' ? b.x1 + 2 : (b.x0 + b.x1) / 2, c.anchor === 'middle' ? (c.y < b.y1 ? b.y1 : b.y0) : (b.y0 + b.y1) / 2]; };
+const segBox = (x, y, c) => { const [ex, ey] = leadEnd(c); return [x, y, ex, ey]; };
+// går strecket (markören till raden) genom rutan t (eller en annan markör q)?
+function segHit(x, y, c, t) {
+  if (t.line || (x > t.x0 && x < t.x1 && y > t.y0 && y < t.y1)) return false;
+  const [x0, y0, x1, y1] = segBox(x, y, c);
+  for (let i = 1; i < 12; i++) { const u = i / 12, px = x0 + (x1 - x0) * u, py = y0 + (y1 - y0) * u; if (px > t.x0 && px < t.x1 && py > t.y0 && py < t.y1) return true; }
+  return false;
+}
+const segHitsBox = (x, y, c, q) => segHit(x, y, c, { x0: q[0] - 10, y0: q[1] - 10, x1: q[0] + 10, y1: q[1] + 10 });
 export function penSpots(state) {
   const out = new Map();
   if (!state.opmap) return out;
   const hit = (a, b) => a.x0 < b.x1 + 2 && b.x0 < a.x1 + 2 && a.y0 < b.y1 + 2 && b.y0 < a.y1 + 2;
   const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
-  const taken = [], points = [];
-  for (const [n, k, big, dx, dy] of TOWNS) {
-    const px = gx(PLACES[k][0]), py = gy(PLACES[k][1]), x = px + dx, y = py + dy;
-    taken.push({ x0: x, y0: y - (big ? 15 : 12.5), x1: x + n.length * (big ? 10 : 8.2), y1: y + 3 });
-    points.push([px, py]);
+  const taken = [], points = [], ts = townSpots(state);
+  for (const [, k] of TOWNS) {
+    taken.push(ts.get(k).box);
+    points.push([gx(PLACES[k][0]), gy(PLACES[k][1])]);
   }
   for (const r of ROADS) { const x = gx(r.at[0]), y = gy(r.at[1]); taken.push({ x0: x - 12, y0: y - 7, x1: x + 12, y1: y + 6 }); }
   // sjöarnas namn (som kartan skriver dem, mitt i sjön)
@@ -94,10 +155,16 @@ export function penSpots(state) {
       const own = near(xy);
       return points.every(q => Math.hypot(q[0] - x, q[1] - y) < 16 || near(q) > own + 6);
     };
-    const cost = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0) + (owner(c2.box) ? 0 : 5000);
-    const best = cands.find(c2 => !cost(c2)) ?? cands.reduce((b, c2) => (cost(c2) < cost(b) ? c2 : b));
+    const clash = c2 => taken.reduce((n, t) => n + (hit(c2.box, t) ? 1 + area(c2.box, t) : 0), 0);
+    const cost = c2 => clash(c2) + (owner(c2.box) ? 0 : 5000);
+    // 0.26.6 (speltestet av 0.26.5: pennraderna vid Gnesta låg på varandra och på ortnamnen): finns ingen fri plats nära
+    // som läses som markörens provas en ring längre ut, och raden får ett blyertsstreck till sin markör (lead)
+    const far = PEN_FAR.map(([dx, dy, a]) => ({ x: x + dx, y: y + dy, anchor: a, text, box: penBox(x + dx, y + dy, text, a), lead: true }))
+      .filter(c2 => !points.some(q => q !== xy && Math.hypot(q[0] - x, q[1] - y) >= 16 && segHitsBox(x, y, c2, q)));
+    const best = cands.find(c2 => !cost(c2)) ?? far.find(c2 => !clash(c2) && !taken.some(t => segHit(x, y, c2, t))) ?? cands.reduce((b, c2) => (cost(c2) < cost(b) ? c2 : b));
     out.set(pl.sector, best);
     taken.push(best.box);
+    if (best.lead) { const [ex, ey] = leadEnd(best); taken.push({ x0: Math.min(x, ex) - 1, y0: Math.min(y, ey) - 1, x1: Math.max(x, ex) + 1, y1: Math.max(y, ey) + 1, line: true }); }
   }
   return out;
 }
@@ -136,7 +203,8 @@ export function mapSvg(state, sel, avoid = []) {
   for (const r of RAILS) s += `<path d="${PL(r)}" class="rail1"/><path d="${PL(r)}" class="rail2"/>`;
   for (const r of ROADS) s += `<path d="${PL(r.pts)}" class="${r.e ? 'road e' : 'road'}"/>`;
   for (const r of ROADS) { const x = gx(r.at[0]), y = gy(r.at[1]); s += `<rect x="${x - 12}" y="${y - 7}" width="24" height="13" rx="2" class="${r.e ? 'shield e' : 'shield'}"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" class="rd${r.e ? ' e' : ''}">${r.n}</text>`; }
-  for (const [n, k, big, dx, dy] of TOWNS) { const x = gx(PLACES[k][0]), y = gy(PLACES[k][1]); s += big ? `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" class="tw"/>` : `<circle cx="${x}" cy="${y}" r="2.6" class="tw"/>`; s += `<text x="${x + dx}" y="${y + dy}" class="town${big ? ' big' : ''}">${n}</text>`; }
+  const tspots = townSpots(state);
+  for (const [n, k, big] of TOWNS) { const x = gx(PLACES[k][0]), y = gy(PLACES[k][1]), t = tspots.get(k); s += big ? `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" class="tw"/>` : `<circle cx="${x}" cy="${y}" r="2.6" class="tw"/>`; s += `<text x="${t.x.toFixed(1)}" y="${t.y.toFixed(1)}" class="town${big ? ' big' : ''}">${n}</text>`; }
   // ---------- lägesbilden ----------
   const pen = (x, y, t, a = 'start', cls = 'pen') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a}" class="${cls}">${esc(t)}</text>`;
   const nb = state.next, spots = penSpots(state);
@@ -148,6 +216,7 @@ export function mapSvg(state, sel, avoid = []) {
     if (pl.closed) {
       const blue = pl.status === 'held', sp = spots.get(pl.sector);
       s += `<g class="sec st-${pl.status}" data-sector="${pl.sector}"><circle cx="${x}" cy="${y}" r="18" class="hit"/><circle cx="${x}" cy="${y}" r="8.5" fill="${blue ? 'rgba(143,196,232,.30)' : 'rgba(138,128,112,.35)'}" stroke="${blue ? '#8fc4e8' : '#8a8070'}" stroke-width="1.5"/></g>`;
+      if (sp?.lead) { const [ex, ey] = leadEnd(sp), a = Math.atan2(ey - y, ex - x); s += `<path d="M${(x + Math.cos(a) * 11).toFixed(1)} ${(y + Math.sin(a) * 11).toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)}" class="penline thin"/>`; }
       if (sp) s += pen(sp.x, sp.y, sp.text, sp.anchor);
     } else {
       const thr = pl.status === 'threatened';
@@ -230,8 +299,11 @@ function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = nu
   const pos = `--x:${x};--y:${y};--r:${r};--z:${z}`, age = `${old ? ' old' : ''}${current ? ' cur' : ''}`;
   if (!full) return `<div class="tb-obj tb-paper tb-report tb-edge${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 224};--h:110"><div class="hd" data-read>${edgeHead(sh)}</div></div>`;
   if (sh.kind === 'order') return `<div class="tb-obj tb-paper tb-order${top ? '' : ' under'}${age}${stamp ? ' stamped' : ''}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 290}">${current ? '<span class="tb-newtab">NEW</span>' : ''}${orderHtml(sh, { deploy, stamp, top })}<div class="tb-clip" data-clip></div></div>`;
-  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:${h ?? 338}">${reportHtml(sh, top)}</div>`;
-  if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy, top)}</div>`;
+  // 0.26.6 (speltestet av 0.26.5: lägesrapporten natt 9 och förlustlappen dag 12 låg till hälften under ordern): ett blad
+  // under ordern visar rubriken och en rad (.under), resten när man breder ut högen
+  const und = top ? '' : ' under';
+  if (sh.kind === 'report') return `<div class="tb-obj tb-paper tb-lined${age}${und}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 304};--h:${h ?? 338}">${reportHtml(sh, top)}</div>`;
+  if (sh.kind === 'lost') return `<div class="tb-obj tb-paper tb-report tb-lost${age}${und}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 270};padding-bottom:${deploy ? 14 : 40}px">${lostHtml(sh, deploy, top)}</div>`;
   return `<div class="tb-obj tb-paper tb-report${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:40px">${closedHtml(sh)}</div>`;
 }
 // 0.25.1 (H561): kampanjens slutblad (src/meta/table.js campaignEnd), en knapp: To menu (Enter)

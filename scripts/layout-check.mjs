@@ -234,6 +234,20 @@ function auditTableExtra(scope) {
       if (hit && !cur.contains(hit) && !hit.closest('#debugbtn, #coach')) bad++;
     }
     if (bad) out.push(`${scope}: något ligger över den aktuella ordern (${bad} av 48 punkter)`);
+    // 0.26.6 (speltestet av 0.26.5: lägesrapporten natt 9 och förlustlappen dag 12 halvt under ordern): bladen i högen under
+    // ordern har ingen textrad som ordern skär av (en rad syns hel eller inte alls)
+    for (const sh of hub.querySelectorAll('.tb-pile.current [data-sheet]')) {
+      if (sh.contains(cur) || cur.contains(sh)) continue;
+      const w = document.createTreeWalker(sh, NodeFilter.SHOW_TEXT);
+      for (let t = w.nextNode(); t; t = w.nextNode()) {
+        if (!t.textContent.trim() || !t.parentElement?.getClientRects().length) continue;
+        const rg = document.createRange(); rg.selectNodeContents(t);
+        for (const q of rg.getClientRects()) {
+          if (q.width < 2 || q.right <= r.left + 1 || q.left >= r.right - 1) continue;
+          if (q.top < r.top - 1 && q.bottom > r.top + 2) { out.push(`${scope}: ${sh.dataset.sheet} ligger delvis under ordern ("${t.textContent.trim().slice(0, 24)}")`); break; }
+        }
+      }
+    }
   }
   if (!hub.querySelector('.tb-spread') && hub.querySelectorAll('.tb-lined .txt[data-read]').length > 1) out.push(`${scope}: mer än en läsbar lägesrapport`);
   // 0.26.4 (speltestet av 0.26.3): radmenyn (med Return) ligger inte över förrådets kort eller något annat föremål än rullan,
@@ -245,6 +259,21 @@ function auditTableExtra(scope) {
     const a = tab.getBoundingClientRect(), own = tab.closest('[data-sheet]');
     for (const t of hub.querySelectorAll('[data-read]')) if (!own?.contains(t) && t.getClientRects().length && ovl(a, t.getBoundingClientRect())) out.push(`${scope}: NEW-fliken ligger över "${t.textContent.trim().slice(0, 24)}"`);
   }
+  // 0.26.6 (speltestet av 0.26.5: ortnamnen runt Gnesta trängdes på slutkartan): kartbladets ortnamn och pennrader ligger
+  // inte på varandra eller på sektorernas markörer (textens synliga höjd, ungefär 70 % av rutan)
+  if (!hub.querySelector('.tb-spread')) {
+    const ink = t => { const r = t.getBoundingClientRect(), h = r.height * 0.7, c = (r.top + r.bottom) / 2 + r.height * 0.08; return { left: r.left, right: r.right, top: c - h / 2, bottom: c + h / 2, t: t.textContent }; };
+    const tight = (a, b) => a.left < b.right + 2 && b.left < a.right + 2 && a.top < b.bottom + 1 && b.top < a.bottom + 1;
+    const labels = [...hub.querySelectorAll('.tb-mapsvg text.town, .tb-mapsvg text.pen')].filter(t => t.getClientRects().length).map(ink);
+    const marks = [...hub.querySelectorAll('.tb-mapsvg .sec circle:not(.hit):not(.pulse)')].filter(c => c.getClientRects().length && Number(c.getAttribute('r')) <= 12).map(c => c.getBoundingClientRect());
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) if (tight(labels[i], labels[j])) out.push(`${scope}: "${labels[i].t}" och "${labels[j].t}" ligger på varandra på kartan`);
+      for (const m of marks) if (ovl(labels[i], { left: m.left + 2, right: m.right - 2, top: m.top + 2, bottom: m.bottom - 2 })) { out.push(`${scope}: "${labels[i].t}" ligger på en markör`); break; }
+    }
+  }
+  // 0.26.6 (speltestet av 0.26.5: första klicket på Deploy stängde bara ett tips): ingen lapp över Deploy
+  const cp = document.querySelector('#coach:not([hidden]) .cplate');
+  if (cp && cp.getClientRects().length) { const a = cp.getBoundingClientRect(); for (const g of hub.querySelectorAll('[data-a="go"]')) if (g.getClientRects().length && ovl(a, g.getBoundingClientRect())) out.push(`${scope}: tipset ligger över Deploy`); }
   // 0.21.7 (H542): inga rullister någonstans på bordet
   for (const n of hub.querySelectorAll('*')) {
     const cs = getComputedStyle(n);
@@ -389,6 +418,12 @@ async function tableChecks(page, label) {
   // en förlorad dag: bladet ligger överst i högen
   await show(reach('gnesta', 3, `p = { ...p, maps: { ...p.maps, gnesta: { ...p.maps.gnesta, losses: { 3: 1 } } } }; p = T.recordLoss(p, { mapId: 'gnesta', day: 3, kills: 120, cleared: 2, waves: 5 });`), 'table-lost');
   if (!/Day 6 lost\. Try again at dawn\./.test(await ev(`document.querySelector('#hub [data-sheet="lost:gnesta:3"]')?.textContent ?? ''`))) errors.push(`table-lost @${label}: inget blad för den förlorade dagen`);
+  // 0.26.6 (speltestet av 0.26.5): slutkartan efter Västerkärv (ortnamnen runt Gnesta)
+  await show(reach('vasterkarv', 1, `p = O.finishDay(p, { mapId: 'vasterkarv', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-end');
+  if (!(await ev(`!!document.querySelector('#hub [data-a="menu"]')`))) errors.push(`table-end @${label}: inget slutblad`);
+  // 0.26.6 (speltestet av 0.26.5): lägesrapporten natt 9 under ordern 10, och förlustlappen Björnlunda dag 12 under ordern
+  await show(reach('molnbo', 3), 'table-night9');
+  await show(reach('bjornlunda', 2, `p = T.recordLoss(p, { mapId: 'bjornlunda', day: 2, kills: 129, cleared: 1, waves: 4 });`), 'table-lost-12');
   // radion: bara natten efter en dag med sändning (efter E4 dag 3), inte dagen efter
   await show(reach('gnesta', 1), 'table-radio');
   if (!(await ev(`!!document.querySelector('#hub .tb-radio')`))) errors.push(`table-radio @${label}: ingen radio efter E4`);
@@ -809,14 +844,22 @@ async function run() {
     await checkHud('hud-molnbo-2-card');
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     if (await ev(`!!window.__horde.card || window.__horde.menuOpen()`)) errors.push(`hud-molnbo-2-card @${W}: Esc stängde inte kortet först (kort ${await ev('!!window.__horde.card')}, meny ${await ev('window.__horde.menuOpen()')})`);
-    // pengarna efter en klarad våg: raden erbjuder ammolådor och sandsäckar med ett klick
-    await ev(`(() => { const H = window.__horde; H.sim.cash = 700; H.debugEvents([{ t: 'waveCleared' }]); })()`);
+    // 0.26.6 (speltestet av 0.26.5): knappen AMMO & SANDBAGS bredvid SUPPLIES säger vad ett klick kostar nu, lämnar 150 $ till
+    // en ny besättning, och följer kassan (inget gammalt belopp)
+    await ev(`(() => { const H = window.__horde; H.sim.cash = 700; })()`);
     await page.waitForTimeout(400);
-    if (!(await ev(`[...document.querySelectorAll('#notes .note')].some(n => /ammo and sandbags/.test(n.textContent))`))) errors.push(`hud-molnbo-2-supply @${W}: ingen rad om ammolådor och sandsäckar`);
+    const sup = await ev(`(() => { const b = document.querySelector('#supplyall'); if (!b || b.hidden) return null; const r = b.getBoundingClientRect(), q = document.querySelector('#res').getBoundingClientRect(); return { v: b.querySelector('.v').textContent, s: b.querySelector('.s').textContent, gap: q.left - r.right, top: r.top, r: r.right }; })()`);
+    if (!sup) errors.push(`hud-molnbo-2-supply @${W}: ingen knapp för ammolådor och sandsäckar`);
+    else {
+      if (!/150/.test(sup.s)) errors.push(`hud-molnbo-2-supply @${W}: knappen säger inte vad den lämnar ("${sup.s}")`);
+      if (sup.gap < 0) errors.push(`hud-molnbo-2-supply @${W}: knappen ligger över SUPPLIES`);
+    }
     await checkHud('hud-molnbo-2-supply');
-    await ev(`(() => { const n = [...document.querySelectorAll('#notes .note.click')].find(x => /ammo and sandbags/.test(x.textContent)); n?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); })()`);
-    await page.waitForTimeout(300);
-    if (!(await ev(`window.__horde.sim.cash < 700 && window.__horde.sim.guns.some(g => g.weapon.ammo)`))) errors.push(`hud-molnbo-2-supply @${W}: klicket köpte inget`);
+    await ev(`document.querySelector('#supplyall')?.click()`);
+    await page.waitForTimeout(400);
+    if (!(await ev(`window.__horde.sim.cash < 700 && window.__horde.sim.cash >= 150 && window.__horde.sim.guns.some(g => g.weapon.ammo)`))) errors.push(`hud-molnbo-2-supply @${W}: klicket köpte inget eller tog pengarna till en ny besättning (${await ev('window.__horde.sim.cash')})`);
+    const after = await ev(`(() => { const b = document.querySelector('#supplyall'); return b && !b.hidden ? b.querySelector('.v').textContent : null; })()`);
+    if (after && sup && after === sup.v) errors.push(`hud-molnbo-2-supply @${W}: knappen står kvar med samma belopp efter köpet (${after})`);
     await ev(`(() => { const H = window.__horde, gs = H.sim.guns; for (const g of gs.slice(0, 3)) H.open({ kind: 'gun', id: g.id }); })()`);
     await page.waitForTimeout(600);
     if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-wave @${W}: panelen öppnades inte`);

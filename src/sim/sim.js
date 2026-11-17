@@ -204,6 +204,14 @@ export function extractState(sim) {
   const out = units.filter(inZone).length;
   return { units: units.length, out, done: units.length > 0 && out === units.length };
 }
+// Fordonen är säkra: inga fler vågor, ingen levande zombie och inga i kö, och varje fordon står i ringen eller kör dit
+// (en enhet på väg har redan målets x, z).
+export function extractSafe(sim) {
+  const x = sim.extract;
+  if (!x || sim.spawnQueue.length || sim.nextWaveIn != null || sim.wavesStarted < sim.dayCfg.waves.length || sim.zombies.some(z => !z.dead)) return false;
+  const units = sim.guns.filter(g => x.types.includes(g.weapon.type));
+  return units.length > 0 && units.every(g => Math.hypot(g.x - x.at[0], g.z - x.at[1]) <= x.r + 1e-9);
+}
 function runExtract(sim) {
   const x = sim.extract;
   if (!x) return;
@@ -307,7 +315,9 @@ function checkEvac(sim) {
   // 0.26.0 (Västerkärv): med dayCfg.extract är dagen vunnen först när de civila är ute OCH fordonet är ute
   if (o === 'won' && sim.extract) {
     if (!sim.evac.done) { sim.evac.done = true; sim.events.push({ t: 'evacDone', safe: sim.evac.safe }); }
-    if (!extractState(sim).done) return;
+    // 0.26.6 (speltestet av 0.26.5: efter sista vågen körde EPA:n cirka 70 s till ringen utan att något hände): är alla
+    // vågor slut och ingen zombie kvar räcker det att fordonet är på väg till ringen (extractSafe)
+    if (!extractState(sim).done && !extractSafe(sim)) return;
     sim.phase = 'won'; sim.events.push({ t: 'extracted' }); sim.events.push({ t: 'won' });
     return;
   }
@@ -807,7 +817,7 @@ function moveZombies(sim, dt) {
     }
     // Hemvärnet: en zombie i en ruta intill en soldats ruta (de åtta grannarna) stannar och slår
     // honom (bara soldaterna, pjäserna är som förut). Närmaste soldat, lika: först i listan.
-    z.foe = null;
+    z.foe = null; z.onCrew = null;
     if (troops.length) {
       const p = zombiePos(sim, z), pl = sim.place;
       const zi = Math.floor((p.x - pl.origin[0]) / pl.size), zj = Math.floor((p.z - pl.origin[1]) / pl.size);
@@ -846,7 +856,7 @@ function moveZombies(sim, dt) {
         const d = Math.hypot(c.g.x - p.x, c.g.z - p.z);
         if (d < fd) { fd = d; foe = c.g; }
       }
-      if (foe) { mul = 0; z.attacking = true; z.foe = [foe.x, foe.z]; hitCrew(sim, foe, def.hitDamage * dt, hurt); }
+      if (foe) { mul = 0; z.attacking = true; z.foe = [foe.x, foe.z]; z.onCrew = foe.id; hitCrew(sim, foe, def.hitDamage * dt, hurt); }
       else if (k >= 0) for (const g of held) {
         if (!g.house || !houseById(sim.map, pl, g.house.id)?.touch.has(k) || !assaults(sim, z)) continue;
         mul = 0; z.attacking = true; z.foe = [g.house.x, g.house.z];
@@ -1187,10 +1197,26 @@ function supplyWants(sim) {
   return out;
 }
 export function supplyAllCost(sim) { return supplyWants(sim).reduce((a, [, w]) => a + SUPPLIES[w].cost, 0); }
+// 0.26.6 (speltestet av 0.26.5: ett klick tog 580 av 583 $, och när pjäserna tystnade fanns inte 150 $ till ny besättning):
+// köpet lämnar pengar till en ny besättning (supplyKeep) där pjäslagen går att slå ner. supplyAllSpend: vad ett klick
+// köper för nu (0 när inget ryms ovanför reserven).
+// SUPPLY_BTN_MIN: knappen (main.js) syns först när kassan är minst så stor
+export const SUPPLY_BTN_MIN = 300;
+export const supplyKeep = sim => (allowed(sim, 'overrun') || allowed(sim, 'rout') ? RECREW.cost : 0);
+export function supplyAllSpend(sim) {
+  let left = sim.cash - supplyKeep(sim), cost = 0;
+  for (const [, w] of supplyWants(sim)) if (SUPPLIES[w].cost <= left + 1e-9) { left -= SUPPLIES[w].cost; cost += SUPPLIES[w].cost; }
+  return cost;
+}
 export function supplyAll(sim) {
+  const keep = supplyKeep(sim);
   let cost = 0, n = 0;
-  for (const [g, w] of supplyWants(sim)) { const r = buySupply(sim, g.id, w); if (r.ok) { cost += r.cost; n++; } }
-  return { ok: n > 0, cost, n, reason: n ? null : 'pengar' };
+  const units = new Set();
+  for (const [g, w] of supplyWants(sim)) {
+    if (sim.cash - SUPPLIES[w].cost < keep - 1e-9) continue;
+    const r = buySupply(sim, g.id, w); if (r.ok) { cost += r.cost; n++; units.add(g.id); }
+  }
+  return { ok: n > 0, cost, n, units: units.size, kept: keep, reason: n ? null : 'pengar' };
 }
 // 0.26.5 (speltestet av 0.26.4: ↻R på 3 till 5 pjäser i Mölnbo, och R vred ett steg i taget utan att man såg varifrån de
 // kom): hotet en pjäs har, levande zombier den ser (hela sikten, utan vinkeln) inom 1,5 gånger räckvidden. Mitten av
@@ -1806,25 +1832,37 @@ function zombieCells(sim) {
   return out;
 }
 export const IDLE_OUTSIDE = 3;
+export const BLIND_AFTER = 40;
+function seesAny(s, range, cells) {
+  const m = (s.fullSight ?? s.sight).mask;
+  for (const [z, { p, k }] of cells) if (!z.dead && k >= 0 && m[k] && Math.hypot(p.x - s.x, p.z - s.z) <= range) return true;
+  return false;
+}
 function outsideArc(s, range, cells) {
   const full = s.fullSight.mask;
   for (const [z, { p, k }] of cells) if (!z.dead && k >= 0 && full[k] && !s.sight.mask[k] && Math.hypot(p.x - s.x, p.z - s.z) <= range) return true;
   return false;
 }
+const SELF_DEFENCE = 1e9;
 function fireWeapons(sim, dt, cells) {
+  // blindheten räknas bara medan någon annan skjuter (förra steget): horden på väg i diset gör ingen blind
+  const fighting = sim.guns.some(g => g.weapon?.targetId != null || g.soldiers?.some(q => q.targetId != null));
+  sim._fighting = fighting;
   for (const s of sim.guns) {
     if (s.squad) { fireSquad(sim, dt, cells, s); continue; }
     const w = s.weapon, seen = s.sight.mask;
     // 0.12.0: en pjäs som flyttas skjuter inte. 0.13.0: inte heller medan den vrids (Rotate) eller svetsas ihop.
     // 0.18.0: inte heller när den tystnat (laget nere eller flytt), är på väg bakåt eller håller elden
-    if (s.move || s.turn || s.building > 0 || s.silent || s.retreat || (s.hold && !holdBroken(sim, s, cells))) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); s.idle = 0; s.idleOutside = false; continue; }
+    if (s.move || s.turn || s.building > 0 || s.silent || s.retreat || (s.hold && !holdBroken(sim, s, cells))) { w.targetId = null; w.cooldown = Math.max(0, w.cooldown - dt); s.idle = 0; s.idleOutside = false; s.blindT = 0; s.blind = false; continue; }
     const st = gunStats(sim, s), mode = targetMode(sim, s);
     let target = null, best = -Infinity;
     for (const [z, { p, k }] of cells) {
       if (z.dead || k < 0 || !seen[k]) continue;
       const d = Math.hypot(p.x - s.x, p.z - s.z);
       if (d > st.range) continue;
-      const sc = targetScore(mode, z, d, sim.route.progress(z));
+      // 0.26.6 (speltestet av 0.26.5: pjäserna längs Stationsvägen tystnade en efter en): laget skjuter först på den som
+      // slår det (z.onCrew), i stället för på den som kommit längst förbi
+      const sc = targetScore(mode, z, d, sim.route.progress(z)) + (z.onCrew === s.id ? SELF_DEFENCE : 0);
       if (sc > best) { best = sc; target = z; }
     }
     w.targetId = target ? target.id : null;
@@ -1833,6 +1871,10 @@ function fireWeapons(sim, dt, cells) {
     // räckvidd i hela sikten men utanför vinkeln. Vyn visar en flagga och panelen säger "Rotate (R)".
     s.idle = target ? 0 : (s.idle ?? 0) + dt;
     s.idleOutside = !target && s.fullSight && s.idle >= IDLE_OUTSIDE - 1e-9 ? outsideArc(s, st.range, cells) : false;
+    // 0.26.6 (speltestet av 0.26.5: Psg 90 på hyreshuset stod sysslolös hela dagen utan något märke): en pjäs som inte sett
+    // en enda zombie (hela sikten, 1,5 gånger räckvidden) på BLIND_AFTER s medan det finns levande på kartan blir blind
+    if (target || (s.idleOutside ?? false) || seesAny(s, st.range * 1.5, cells)) { s.blindT = 0; s.blind = false; }
+    else if (sim._fighting) { s.blindT = (s.blindT ?? 0) + dt; s.blind = s.blindT >= BLIND_AFTER - 1e-9; }
     if (!target) { w.cooldown = Math.max(w.cooldown, 0); continue; }
     const p = zombiePos(sim, target);
     // 0.13.0 (H132): pipan vrids mot målet i traverse rad/s och skjuter först när den pekar dit
@@ -2397,6 +2439,30 @@ export const RECREW = { cost: 150, time: 4, squadTime: 8, squadNear: 10, clear: 
 function initCrew(g) {
   const def = WEAPONS[g.weapon.type], n = def.move?.crew ?? def.crew ?? 1;
   g.crew = { hp: Math.max(1, n) * CREW_HP, max: Math.max(1, n) * CREW_HP };
+}
+// 0.26.6 (speltestet av 0.26.5: fyra pjäser i rad längs Stationsvägen tystnade en efter en): en pjäs vars lag zombierna når
+// när de går förbi, alltså en ruta intill hordens väg (samma regel som crewTargets och slaget i moveZombies). Placeringen
+// varnar för den.
+export function crewExposed(sim, key, type) {
+  if (!allowed(sim, 'overrun') || !type || isSquad(type) || !WEAPONS[type] || WEAPONS[type].vehicle) return false;
+  const p = sim.place;
+  if (!p.valid(key) || onRoof(sim, key, type) || p.kind[key] === KIND.house) return false;
+  const w = hordeWeight(sim), i0 = key % p.w, j0 = Math.floor(key / p.w);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const i = i0 + di, j = j0 + dj;
+    if (i < 0 || j < 0 || i >= p.w || j >= p.h) continue;
+    if (w[j * p.w + i] >= 2) return true;
+  }
+  return false;
+}
+// 0.26.6 (speltestet av 0.26.5: Psg 90 på hyreshuset i Björnlunda sköt aldrig, taket lyste grönt): ser en pjäs i rutan
+// någon ruta av hordens väg (sikten och skjutvinkeln den får där, sightFor). Räknas en gång per ruta och hinder.
+export function seesHorde(sim, key, type) {
+  const w = hordeWeight(sim), sig = Object.keys(sim.obstacles).join(',');
+  if (sim._seesSig !== sig) { sim._seesSig = sig; sim._sees = new Map(); }
+  const k = type + ':' + key;
+  if (!sim._sees.has(k)) { let n = 0; for (const t of sightFor(sim, key, type).keys) if (w[t] >= 2) n++; sim._sees.set(k, n > 0); }
+  return sim._sees.get(k);
 }
 // Pjäslagen zombierna kan slå (allow 'overrun'): stående pjäser på marken med ett lag, inte i hus eller på tak.
 function crewTargets(sim) {

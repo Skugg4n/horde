@@ -359,7 +359,7 @@ export function gunPanel(root, gunId, sim, actions) {
   let key = null, cur = sim, noRoom = false;
   const gunOf = s => s.guns.find(x => x.id === gunId);
   // 0.18.0: orderna (håll eld, mål-läget, fall back, recrew) och läget (tyst, på väg bakåt, i hus) byter knapparna
-  const keyOf = (s, g) => `o:${!!g.hold}:${g.tgt ?? ''}:${g.silent ?? ''}:${!!g.recrew}:${g.retreat?.kind ?? ''}:${g.house ? 'h' : ''}:` + (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '');
+  const keyOf = (s, g) => `o:${!!g.hold}:${g.tgt ?? ''}:${g.silent ?? ''}:${!!g.recrew}:${g.retreat?.kind ?? ''}:${g.house ? 'h' : ''}:` + (actions.canReposition?.() ? 'rp:' : '') + `w:${g.weapon.type}:${g.weapon.level}:${!!g.weapon.kit}:${!!g.weapon.ammo}:${!!g.weapon.sandbags}:${tierOf(s.research, 'grenade')}` + (g.squad ? ':' + g.soldiers.map(m => (m.down ? 'd' : 'u')).join('') : '') + (g.move ? ':mv' + movePhase(g) + Math.ceil(g.move.total - g.move.t) : '') + (g.building > 0 ? ':b' + Math.ceil(g.building) : '') + (g.turn ? ':turn' : '') + (g.idleOutside ? ':out' : '') + (g.blind ? ':blind' : '');
   const showRange = (g, r) => actions.range({ x: g.x, z: g.z, r, id: g.id });
 
   function render(s, g) {
@@ -377,7 +377,9 @@ export function gunPanel(root, gunId, sim, actions) {
     // 0.14.0: en kärntrupp uppgraderas i förrådet mellan dagarna och säljs inte; förnödenheterna köps här
     const core = w.uid != null;
     // 0.14.1 (granskningen av 0.14, Important 5): målen står utanför vinkeln (simuleringens idleOutside)
-    const outside = g.idleOutside ? '<p class="info outside">Enemies outside its arc. Press R to face them.</p>' : '';
+    // 0.26.6 (speltestet av 0.26.5): en pjäs som inte sett någon zombie på länge (simuleringens blind)
+    const outside = g.idleOutside ? '<p class="info outside">Enemies outside its arc. Press R to face them.</p>'
+      : g.blind ? '<p class="info outside">It sees none of them from here. Move it where it sees their road.</p>' : '';
     const minimal = core && !can('aim');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,
