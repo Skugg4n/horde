@@ -1756,3 +1756,14 @@ Mätt med `node scripts/balance-0265.mjs 5` (truppen den vanliga spelaren har fr
                         normal  ja16 alla fem
 
 Raden längs Stationsvägen vinner nu på första försöket med basen 2 till 11 med kampanjens trupp; den är fortfarande den svåraste uppställningen. Dag 9 blev lättare för `tester` bara för att den nu köper ammolådor (modellen trycker direkt när knappen kommer; speltestaren vann dag 9 med basen 6). Mölnbo och Västerkärv har inte overrun förrän dag 10 respektive har den men pjäserna står inte vid vägen, så självförsvaret ändrar dem lite. Fingeravtrycken (Mölnbo, Björnlunda, Laxne, rondellen, Västerkärv) och Quick jump-truppen (rondellen) är omräknade.
+
+## 0.27.1: dag 9 (Mölnbo 2) efter speltestet av 0.26.8 (H625)
+
+Speltestet av 0.26.8 (docs/playtests/2026-11-17-0.26.8.md): dag 9 förlorades en gång med passivt spel (ingen ammo före sista vågen, 800 $ kvar, inget flyttat) och vanns med basen 3 andra gången; i 0.26.6-testet vanns samma dag med basen 17. Frågan: gjorde 0.26.7 till 0.27.0 (blinda tak nekas, NO VIEW, jakttornet) dag 9 svårare?
+
+Mätt med `FRESH=1 node scripts/balance-0265.mjs 5 tester,casual,normal d9`, både i 0.26.6-koden (3c60aae, egen worktree) och i 0.27.1:
+
+    d9  Mölnbo 2   0.26.6   tester  ja11 ja12 ja16 ja8 ja15     casual ja13 ja13 ja14 ja14 ja15     normal ja12 ja15 ja1 ja11 ja7
+                   0.27.1   tester  ja11 ja12 ja16 ja8 ja15     casual ja13 ja13 ja14 ja14 ja15     normal ja12 ja15 ja1 ja11 ja7
+
+Exakt samma, också pengarna kvar. Mellan 0.26.6 och 0.27.0 är src/sim orört och i src/data har bara Västerkärv (jakttornet) och slutscenen ändrats; de blinda taken och NO VIEW är spelarens gränssnitt (placeringen och märket), inte simuleringen. Modellerna köper ammo och vrider pjäserna, vilket speltestaren inte gjorde i första försöket, så skillnaden 17 mot 3 är spelsättet, inte koden. Ett möjligt bidrag som modellerna inte ser: blinda tak går inte längre att välja, så en människa som förut ställde Psg 90 på ett blint tak hamnar nu någon annanstans (men en Psg 90 på ett blint tak sköt ändå aldrig). Inget ändrat i siffrorna; fingeravtrycken orörda. Bevaka dag 9 i nästa speltest.

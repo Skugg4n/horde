@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.27.1 (småfel från speltestet av 0.26.8) (2026-11-17)
+
+Fyra saker ur speltestet av 0.26.8 (docs/playtests/2026-11-17-0.26.8.md).
+
+- **H621. "Last wave" kommer i tid.** "Last wave. Spend your $ now. It does not carry over." väntar inte längre bakom de röda larmen ("Line breaking", "Base under attack!") utan står direkt som en extra rad när sista vågen startar. Förut kom den 45 s sent eller aldrig i Västerkärv.
+- **H622. Inga kvarlämnade larm.** LINE BREAKING-skylten, ringen och läckringarna går bort så fort ingen zombie står kvar eller väntar, och kommer inte tillbaka ur minnet av gamla läckor. NO VIEW visas bara medan det finns fiender på fältet, aldrig mellan vågorna.
+- **H623. När gården har fallit.** Basen går inte under 0. När gården i Västerkärv faller (tillåtet när de civila är ute) visar BASE "LOST" i lugn färg i stället för en röd nolla, "Base under attack!" tas bort ur raderna och kön och kommer inte igen, och raden säger "Farmhouse lost. Everyone got out. Get the EPA out." (utan EPA-delen om den redan är ute).
+- **H625. Dag 9 (Mölnbo 2) är inte svårare.** Balansmodellerna (tester, casual, normal, fem seeds) ger exakt samma resultat med 0.26.6-koden och nu; simuleringen för dag 9 är oförändrad sedan 0.26.6. Speltestarens förlust kom av passivt spel (ingen ammo, inget vridet). Inget ändrat i siffrorna, se docs/balance-log.md.
+- **Prov.** tests/vasterkarv-sector.test.js: basen stannar på 0 efter att gården fallit.
+
 ## 0.27.0 (v1:s slutscen) (2026-11-17)
 
 v1 tar slut efter Västerkärv (dag 14 efter FALL BACK, dag 15 efter DEFEND LAXNE). I stället för att bara sluta får slutet nu en kort scen på kartbordet som pekar framåt mot Björnlunda.

@@ -984,9 +984,14 @@ function updateExtractMark() {
 // 0.26.8 (speltestet av 0.26.6, fynd 3: "They got past on Traktorspåret." och "Base under attack!" stod kvar när fältet
 // var tomt): när ingen zombie står kvar eller väntar i kön går de röda raderna bort (två sekunder efter senaste träffen
 // på basen, så att den sista hinner synas)
+// 0.27.1 (H622, speltestet av 0.26.8: LINE BREAKING-skylten och ringen stod 10 till 15 s efter "0 left"): skyltarna och
+// ringarna där linjen brast går bort så fort ingen zombie står kvar eller väntar
 function clearStaleAlarms() {
-  if (mode !== 'play' || !sim || !sim.wavesStarted || (sim.phase !== 'wave' && sim.phase !== 'won')) return;
-  if (waveLeft(sim) > 0 || time - lastBreach < 2) return;
+  if (mode !== 'play' || !sim || !sim.wavesStarted || !['wave', 'won', 'build'].includes(sim.phase)) return;
+  if (waveLeft(sim) > 0) return;
+  if (breaks.size) clearBreaks();
+  if (leakRings.length) { for (const l of leakRings) marks?.clear(l.id); leakRings.length = 0; leakArrow.hidden = true; }
+  if (time - lastBreach < 2) return;
   dropNotes(uiRoot, 'Base under attack!');
   dropNotes(uiRoot, 'They got past');
 }
@@ -1253,9 +1258,10 @@ function updateArcFlags() {
   // (simuleringens blind) får märket NO VIEW; ett klick väljer den, och panelen säger vad man gör
   // 0.26.7 (speltestet av 0.26.6): inget märke på fordonen som ska ut (EPA:n, "Move it where it sees their road" var fel råd)
   // och inget NO VIEW på pjäser vid basen (sista linjen väntar där med flit, märket lockade till fel flytt)
+  // 0.27.1 (H622, speltestet av 0.26.8: NO VIEW på tornet och Ksp 58 när fältet var tomt): inget NO VIEW mellan vågorna
   const b = sim.route.base, nearBase = g => b && Math.hypot(g.x - b.x, g.z - b.z) < 30;
   const exitBound = g => g.own || sim.extract?.types?.includes(g.weapon?.type);
-  const want = mode === 'play' && !placing && feat('rotate') ? sim.guns.filter(g => !exitBound(g) && (g.idleOutside || (g.blind && sim.phase === 'wave' && !nearBase(g))) && rotating?.id !== g.id) : [];
+  const want = mode === 'play' && !placing && feat('rotate') ? sim.guns.filter(g => !exitBound(g) && (g.idleOutside || (g.blind && sim.phase === 'wave' && waveLeft(sim) > 0 && !nearBase(g))) && rotating?.id !== g.id) : [];
   const kindOf = g => (g.idleOutside ? 'arc' : 'blind');
   const ids = new Set(want.map(g => g.id + ':' + kindOf(g)));
   for (const [id, el] of arcFlags) if (!ids.has(id)) { el.remove(); arcFlags.delete(id); }
@@ -1436,7 +1442,8 @@ function handleEvents() {
   // sista vågen startar med pengar kvar säger en rad det, en gång per dag, medan de går att använda
   if (feat('supplies') && !lastWaveCashTold && sim.dayCfg.waves?.length > 1 && !hasNextWave(sim) && sim.cash >= LAST_WAVE_CASH && evs.some(e => e.t === 'waveStart')) {
     lastWaveCashTold = true;
-    note(uiRoot, 'Last wave. Spend your $ now. It does not carry over.', '', { ms: 8000 });
+    // 0.27.1 (H621): raden väntar inte bakom larmen, den står direkt (pengarna går åt medan den köar)
+    note(uiRoot, 'Last wave. Spend your $ now. It does not carry over.', '', { ms: 8000, now: true });
   }
   for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
@@ -1470,7 +1477,12 @@ function handleEvents() {
     else if (ev.t === 'civilianClimb' && !climbTold) { climbTold = true; note(uiRoot, 'No way round: civilians are climbing over your barricade.', 'warn'); }
     else if (ev.t === 'evacDone') note(uiRoot, sim.map.evacPlace ? `The civilians ${sim.map.evacPlace}.` : 'The civilians are inside the ice rink.');
     // 0.26.0 (Västerkärv): huset får falla när sista gruppen gått, och EPA:n ska ut
-    else if (ev.t === 'baseFallen') note(uiRoot, 'The farmhouse has fallen. Everyone left it in time.', 'warn');
+    // 0.27.1 (H623, speltestet av 0.26.8: "Base under attack!" kom efter att huset fallit): larmen om basen går bort, ur
+    // kön också, och raden säger vad som återstår
+    else if (ev.t === 'baseFallen') {
+      dropNotes(uiRoot, 'Base under attack!');
+      note(uiRoot, sim.extract && !extractState(sim).done ? 'Farmhouse lost. Everyone got out. Get the EPA out.' : 'Farmhouse lost. Everyone got out.', '', { ms: 7000, now: true });
+    }
     else if (ev.t === 'extractOut') note(uiRoot, 'The EPA is out.');
     // 0.20.0 (Mölnbo dag 3, H495): uttåget. Menyerna tonar ut, kameran ser mot bron där flodvågen kommer, och när den
     // går ut på bron tonar bilden till svart (src/ui/exodus.js)
@@ -1610,9 +1622,10 @@ let lastBaseToast = -Infinity, lastBreach = -Infinity, shakeT = 0, shakeLen = SH
 // och ett klick flyttar kameran dit. Platsen är där de tog sig förbi de sista försvararna (leakWatch), annars där de
 // senast var långt från basen; den får också en röd ring.
 function onBreach(evs = []) {
-  hud.baseHit();
   // 0.26.0 (Västerkärv): huset är övergivet och fick falla; inga larm om basen efter det
+  // 0.27.1 (H623): inte heller den röda blinken på BASE
   if (sim.baseFallen) return;
+  hud.baseHit();
   lastBreach = time;
   // 0.26.4: basen tar skada mitt i glidningen till perrongen: kameran går tillbaka (en sak i taget)
   if (platformTour && rig?.touring) { rig.abortTour(); platformTour = false; }
@@ -1905,7 +1918,8 @@ function updateLeaks(paused) {
   }
   const streetOf = (x, z) => (sim.route.kind === 'grid' ? streetAt(sim.map, x, z) : null);
   for (const l of leakWatch.update(sim, dt, { covered: underFire, ahead: aheadOf(sim, coversAt), base: baseCenter(), streetOf, isBaseStreet, time: sim.time })) leakSpot(l.x, l.z, l.street, { quiet: !l.passed });
-  for (const b of leakWatch.breaking(sim.time)) breakSpot(b);
+  // 0.27.1 (H622): läckorna i minnet (BREAK.window) tänder ingen skylt när fältet är tomt
+  if (waveLeft(sim) > 0) for (const b of leakWatch.breaking(sim.time)) breakSpot(b);
   updateBreakMarks();
   updateLeakArrow();
 }

@@ -784,7 +784,9 @@ function dropNote(root, el) {
 // 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå. 0.16.2: ms, hur länge raden står
 // 0.19.0 (speltestet av 0.18.1, fynd 5: "Volunteer squad breaks!" grå och halvt bakom den röda omvägsraden): top lägger
 // raden överst i kolumnen (en enhet som bryts går före en omväg)
-export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = false, rank = null, sub = null, onClick = null } = {}) {
+// 0.27.1 (H621, speltestet av 0.26.8: "Last wave. Spend your $ now" köades bakom två röda larm i 45 s eller för alltid):
+// now visar raden direkt, som en extra rad under larmen, i stället för att vänta i kön (bara för rader som är bråttom)
+export function note(root, text, cls = '', { prio = false, now = false, ms = NOTE_MS, top = false, rank = null, sub = null, onClick = null } = {}) {
   const st = noteStack(root), key = noteKey(text, sub), opts = { sub, onClick };
   rank ??= /\bwarn\b/.test(cls) ? 1 : 0;
   // 0.19.1: den som får gå är den med lägst rang (äldst vid lika), inte den översta (det var den stora banderollen)
@@ -795,7 +797,7 @@ export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = f
   const same = [...st.querySelectorAll('.note')].find(n => n._key === key);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
   if (noteQueue.some(q => q.key === key)) return;
-  if (st.querySelectorAll('.note').length >= capFor(st, rank)) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  if (!now && st.querySelectorAll('.note').length >= capFor(st, rank)) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
   showNote(root, text, cls, ms, top, rank, opts);
 }
 // 0.25.2 (H275, "Base under attack!" låg kvar efter vågen): raderna vars text börjar med prefix tas bort, också ur kön.

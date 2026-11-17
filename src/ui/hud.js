@@ -267,9 +267,11 @@ export function mountHud(root, { onStart, onSpeed, onNext, onSupply } = {}) {
       if (supBtn.style.right !== right) supBtn.style.right = right;
     }
 
-    const hp = Math.max(0, sim.baseHp);
-    if (hp !== last.hp) { set(el.hp, String(hp)); last.hp = hp; }
-    el.hp.classList.toggle('low', hp <= sim.map.baseHp / 4);
+    // 0.27.1 (H623): ett övergivet hus som fallit (Västerkärv) är LOST i lugn färg, inte en röd nolla
+    const hp = sim.baseFallen ? 'LOST' : String(Math.max(0, sim.baseHp));
+    if (hp !== last.hp) { set(el.hp, hp); last.hp = hp; }
+    el.hp.classList.toggle('low', !sim.baseFallen && sim.baseHp <= sim.map.baseHp / 4);
+    el.hp.classList.toggle('fallen', !!sim.baseFallen);
 
     const build = sim.phase === 'build', wave = sim.phase === 'wave';
     goBtn.hidden = !build;

@@ -999,7 +999,8 @@ export function stumbleOf(z) {
 }
 function breach(sim, z) {
   const def = ZOMBIES[z.type];
-  if (!sim.tweaks?.god) sim.baseHp -= def.baseDamage;
+  // 0.27.1 (H623): basen går inte under 0 (Västerkärvs gård visade -30)
+  if (!sim.tweaks?.god) sim.baseHp = Math.max(0, sim.baseHp - def.baseDamage);
   const p = zombiePos(sim, z);
   z.dead = true; z.breached = true; z.deadT = 99;
   sim.events.push({ t: 'breach', id: z.id, damage: def.baseDamage, x: p.x, z: p.z });

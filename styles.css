@@ -107,6 +107,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 #supplyall.fresh { animation: supFresh 1.2s ease-in-out 3; }
 @keyframes supFresh { 50% { box-shadow: 0 0 0 2px rgba(242,209,138,0.85), 0 6px 18px rgba(0,0,0,0.35); } }
 #res .v.hp.low { color: #e0603c; }
+/* 0.27.1 (H623): ett övergivet hus som fallit, lugn färg */
+#res .v.hp.fallen { color: var(--paper-dim); }
 #res .v.hp.hit { animation: hit 0.9s ease-out; }
 #res.hit { animation: plateHit 0.9s ease-out; }
 @keyframes plateHit { 0% { border-color: #e0603c; box-shadow: 0 0 0 2px rgba(224,96,60,0.7), 0 6px 18px rgba(0,0,0,0.35); } 100% { border-color: var(--plate-edge); } }

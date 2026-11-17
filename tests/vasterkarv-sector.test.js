@@ -164,6 +164,9 @@ test('huset får falla när sista gruppen gått; faller det före är dagen för
   b.baseHp = 0;
   run(b, 2, evs => { if (evs.some(ev => ev.t === 'baseFallen')) fell = true; });
   assert.ok(fell && b.phase !== 'lost', 'huset föll, dagen går vidare');
+  // 0.27.1 (H623): basen går inte under 0 när de fortsätter in i det fallna huset
+  run(b, 60);
+  assert.ok(b.baseHp >= 0, `basen ${b.baseHp}`);
   // EPA:n förstörd: dagen förlorad (lostBy 'extract'), och bordets blad säger det
   const c = createSim({ map: vk, day: 1, cash: 0, seed: 1, core: [], dayCfg: day });
   startWave(c);
