@@ -1,0 +1,56 @@
+day 1 reserve m2492,civ2,civ2,ksp583,ksp583,psg902 cash 500
+put PSG 90 455 232 "placed"
+put KSP 58 560 400 "placed"
+put KSP 58 640 330 "placed"
+put KSP 90 600 470 "placed"
+  spot nej WIRE 470 470 ingen gata
+  spot nej WIRE 490 470 ingen gata
+  spot nej WIRE 450 470 ingen gata
+  spot nej WIRE 470 490 ingen gata
+  spot nej WIRE 470 450 ingen gata
+  spot nej WIRE 510 490 ingen gata
+  spot nej WIRE 430 450 ingen gata
+  spot nej WIRE 510 450 ingen gata
+  spot nej WIRE 430 490 ingen gata
+  spot nej WIRE 530 470 ingen gata
+  spot nej WIRE 410 470 ingen gata
+could not put WIRE
+guns ["epa@0,-24","psg90@-66,-68R","ksp58@-42,-12","ksp58@-24,-36","m249@-34,12"] cash 500
+{"t":6,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":500,"notes":["Units left in reserve. Start anyway?","On Skogsvägen, out of the forest."],"ammoBtn":true,"lineBreakLabel":0,"shots":{},"evac":{"safe":0},"mode":"play"}
+ammo click AMMO & SANDBAGS $ 240 keeps $ 150 for a recrew
+{"t":9,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":260,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{},"evac":{"safe":0},"mode":"play"}
+{"t":22,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":260,"notes":["Enemies outside its arc. Click ↻R or press R to face them."],"ammoBtn":false,"lineBreakLabel":0,"shots":{},"evac":{"safe":0},"mode":"play"}
+pressed R -> Enemies outside its arc. Click ↻R or press R to face them.
+{"t":32,"phase":"wave","wave":"1/4","kills":14,"left":6,"base":20,"cash":302,"notes":["Waves overlap here. Keep the line."],"ammoBtn":true,"lineBreakLabel":0,"shots":{"psg90@-66,-68":7},"evac":{"safe":0},"mode":"play"}
+ammo click AMMO & SANDBAGS $ 120 keeps $ 150 for a recrew
+{"t":43,"phase":"build","wave":"1/4","kills":20,"left":0,"base":20,"cash":203,"notes":["Next wave: they also come from Traktorspåret."],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":10},"evac":{"safe":0},"mode":"play"}
+{"t":52,"phase":"wave","wave":"2/4","kills":20,"left":30,"base":20,"cash":203,"notes":["Across the field on Traktorspåret!","Next wave: they also come from Traktorspåret."],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":10},"evac":{"safe":0},"mode":"play"}
+{"t":61,"phase":"wave","wave":"2/4","kills":20,"left":30,"base":20,"cash":203,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":10},"evac":{"safe":0},"mode":"play"}
+{"t":70,"phase":"wave","wave":"2/4","kills":20,"left":30,"base":20,"cash":203,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":10},"evac":{"safe":0},"mode":"play"}
+{"t":105,"phase":"wave","wave":"3/4","kills":32,"left":60,"base":18,"cash":239,"notes":["They got past on Traktorspåret.","Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":15,"m249@-34,12":100,"epa@0,-24":3},"evac":{"safe":0},"mode":"play"}
+{"t":114,"phase":"wave","wave":"3/4","kills":32,"left":60,"base":18,"cash":239,"notes":["Base under attack! From Traktorspåret","Base hit. At zero the day is lost."],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":15,"m249@-34,12":110,"epa@0,-24":3},"evac":{"safe":0},"mode":"play"}
+{"t":124,"phase":"wave","wave":"3/4","kills":35,"left":57,"base":18,"cash":250,"notes":["Armoured ones on Skogsvägen!","Base hit. At zero the day is lost."],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":15,"m249@-34,12":215,"epa@0,-24":3},"evac":{"safe":4},"mode":"play"}
+{"t":129,"phase":"wave","wave":"3/4","kills":38,"left":54,"base":18,"cash":260,"notes":["Runners over the field!","The first civilians got out on the east road."],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":17,"m249@-34,12":275,"epa@0,-24":3},"evac":{"safe":4},"mode":"play"}
+{"t":138,"phase":"wave","wave":"3/4","kills":54,"left":37,"base":17,"cash":316,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","Ksp 58 sees none of them. Move it where it sees their road."],"ammoBtn":true,"lineBreakLabel":2,"shots":{"psg90@-66,-68":25,"m249@-34,12":338,"epa@0,-24":17},"evac":{"safe":4},"mode":"play"}
+ammo click AMMO & SANDBAGS $ 120 keeps $ 150 for a recrew
+{"t":149,"phase":"wave","wave":"3/4","kills":59,"left":29,"base":14,"cash":207,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":2,"shots":{"psg90@-66,-68":34,"m249@-34,12":453,"epa@0,-24":33},"evac":{"safe":4},"mode":"play"}
+{"t":158,"phase":"wave","wave":"4/4","kills":60,"left":74,"base":11,"cash":216,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":2,"shots":{"psg90@-66,-68":41,"m249@-34,12":471,"epa@0,-24":41},"evac":{"safe":4},"mode":"play"}
+{"t":185,"phase":"wave","wave":"4/4","kills":76,"left":49,"base":2,"cash":258,"notes":["Brutes on Traktorspåret!","Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":47,"m249@-34,12":707,"epa@0,-24":41},"evac":{"safe":8},"mode":"play"}
+{"t":194,"phase":"wave","wave":"4/4","kills":91,"left":32,"base":0,"cash":310,"notes":["The farmhouse has fallen. Everyone left it in time.","Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":720,"epa@0,-24":50},"evac":{"safe":8},"mode":"play"}
+{"t":203,"phase":"wave","wave":"4/4","kills":92,"left":28,"base":-3,"cash":319,"notes":["Base under attack! From Traktorspåret"],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":720,"epa@0,-24":55,"ksp58@-24,-36":91},"evac":{"safe":8},"mode":"play"}
+{"t":205,"phase":"wave","wave":"4/4","kills":92,"left":27,"base":-4,"cash":319,"notes":[],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":720,"epa@0,-24":55,"ksp58@-24,-36":91},"evac":{"safe":8},"mode":"play"}
+{"t":232,"phase":"wave","wave":"4/4","kills":97,"left":18,"base":-8,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":902,"epa@0,-24":55,"ksp58@-24,-36":91},"evac":{"safe":8},"mode":"play"}
+{"t":240,"phase":"wave","wave":"4/4","kills":97,"left":18,"base":-8,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":1016,"epa@0,-24":55,"ksp58@-24,-36":91},"evac":{"safe":8},"mode":"play"}
+{"t":276,"phase":"wave","wave":"4/4","kills":97,"left":7,"base":-19,"cash":336,"notes":["The civilians got out on the east road."],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":1336,"epa@0,-24":94,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":285,"phase":"wave","wave":"4/4","kills":97,"left":4,"base":-22,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1458,"epa@0,-24":94,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":294,"phase":"wave","wave":"4/4","kills":97,"left":1,"base":-25,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":303,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+ALLDOWN {"t":315,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":1,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+EPA: click ring
+notes 
+{"t":320,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":332,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":356,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":380,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":404,"phase":"wave","wave":"4/4","kills":97,"left":0,"base":-26,"cash":336,"notes":[],"ammoBtn":false,"lineBreakLabel":0,"shots":{"psg90@-66,-68":54,"m249@-34,12":1469,"epa@0,-24":97,"ksp58@-24,-36":91},"evac":{"done":true,"safe":12},"mode":"play"}
+errs []

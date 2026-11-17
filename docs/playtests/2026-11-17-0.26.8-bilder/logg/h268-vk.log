@@ -1,0 +1,36 @@
+put PSG 90 455 232 "placed"
+put KSP 58 560 400 "placed"
+put KSP 58 640 330 "placed"
+put KSP 90 600 470 "placed"
+guns ["epa@0,-24","psg90@-66,-68R","ksp58@-42,-12","ksp58@-24,-36","m249@-34,12"] cash 500
+gunkeys id,x,z,y,roof,cell,sight,sanity,tgt,facing,weapon,fullSight,crew
+phase wave
+{"t":6,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":500,"notes":["Units left in reserve. Start anyway?","On Skogsvägen, out of the forest."],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":8,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":500,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":24,"phase":"wave","wave":"1/4","kills":0,"left":20,"base":20,"cash":500,"notes":["Enemies outside its arc. Click ↻R or press R to face them."],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":34,"phase":"wave","wave":"1/4","kills":2,"left":18,"base":20,"cash":504,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":44,"phase":"wave","wave":"1/4","kills":5,"left":15,"base":20,"cash":511,"notes":["Waves overlap here. Keep the line."],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":54,"phase":"wave","wave":"2/4","kills":11,"left":39,"base":20,"cash":532,"notes":["Across the field on Traktorspåret!"],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":65,"phase":"wave","wave":"2/4","kills":17,"left":33,"base":20,"cash":553,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":75,"phase":"wave","wave":"2/4","kills":20,"left":30,"base":20,"cash":563,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":105,"phase":"wave","wave":"3/4","kills":25,"left":68,"base":19,"cash":574,"notes":["They got past on Traktorspåret.","Base under attack! From Traktorspåret"],"ammoBtn":true,"psg":{},"evac":{"safe":0},"mode":"play"}
+{"t":121,"phase":"wave","wave":"3/4","kills":34,"left":59,"base":19,"cash":605,"notes":["Base hit. At zero the day is lost.","Ksp 58 sees none of them. Move it where it sees their road."],"ammoBtn":true,"psg":{},"evac":{"safe":4},"mode":"play"}
+{"t":132,"phase":"wave","wave":"3/4","kills":36,"left":57,"base":19,"cash":612,"notes":["Armoured ones on Skogsvägen!","Ksp 58 sees none of them. Move it where it sees their road."],"ammoBtn":true,"psg":{},"evac":{"safe":4},"mode":"play"}
+{"t":142,"phase":"wave","wave":"3/4","kills":37,"left":55,"base":18,"cash":616,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","The first civilians got out on the east road."],"ammoBtn":true,"psg":{},"evac":{"safe":4},"mode":"play"}
+{"t":152,"phase":"wave","wave":"3/4","kills":40,"left":48,"base":14,"cash":622,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","Base under attack! From Traktorspåret"],"ammoBtn":true,"psg":{},"evac":{"safe":4},"mode":"play"}
+{"t":163,"phase":"wave","wave":"4/4","kills":49,"left":85,"base":11,"cash":652,"notes":["Line breaking on Traktorspåret! Send a unit there, or block it.","Base under attack! From Traktorspåret"],"ammoBtn":true,"psg":{},"evac":{"safe":4},"mode":"play"}
+{"t":183,"phase":"wave","wave":"4/4","kills":62,"left":66,"base":5,"cash":697,"notes":["Brutes on Traktorspåret!","Base under attack! From Traktorspåret"],"ammoBtn":true,"psg":{},"evac":{"safe":8},"mode":"play"}
+{"t":194,"phase":"wave","wave":"4/4","kills":63,"left":62,"base":2,"cash":700,"notes":["Base under attack! From Traktorspåret","Small arms barely bite. Ksp 88 and grenades do."],"ammoBtn":true,"psg":{},"evac":{"safe":8},"mode":"play"}
+{"t":204,"phase":"wave","wave":"4/4","kills":70,"left":51,"base":-2,"cash":722,"notes":["The farmhouse has fallen. Everyone left it in time.","Base under attack! From Traktorspåret"],"ammoBtn":true,"psg":{},"evac":{"safe":8},"mode":"play"}
+{"t":212,"phase":"wave","wave":"4/4","kills":77,"left":42,"base":-4,"cash":741,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":8},"mode":"play"}
+{"t":232,"phase":"wave","wave":"4/4","kills":92,"left":21,"base":-10,"cash":794,"notes":[],"ammoBtn":true,"psg":{},"evac":{"safe":8},"mode":"play"}
+{"t":274,"phase":"wave","wave":"4/4","kills":94,"left":9,"base":-20,"cash":801,"notes":["The civilians got out on the east road."],"ammoBtn":true,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":285,"phase":"wave","wave":"4/4","kills":94,"left":6,"base":-23,"cash":801,"notes":[],"ammoBtn":true,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":305,"phase":"wave","wave":"4/4","kills":94,"left":0,"base":-29,"cash":801,"notes":[],"ammoBtn":false,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+EPA: M + click ring
+epa after click [{"x":-0.5,"z":-24}]
+{"t":323,"phase":"wave","wave":"4/4","kills":94,"left":0,"base":-29,"cash":801,"notes":[],"ammoBtn":false,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":406,"phase":"wave","wave":"4/4","kills":94,"left":0,"base":-29,"cash":801,"notes":[],"ammoBtn":false,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":489,"phase":"wave","wave":"4/4","kills":94,"left":0,"base":-29,"cash":801,"notes":[],"ammoBtn":false,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+{"t":571,"phase":"wave","wave":"4/4","kills":94,"left":0,"base":-29,"cash":801,"notes":[],"ammoBtn":false,"psg":{},"evac":{"done":true,"safe":12},"mode":"play"}
+errs []
