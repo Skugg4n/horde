@@ -1236,7 +1236,11 @@ let blindTold = false;
 function updateArcFlags() {
   // 0.26.6 (speltestet av 0.26.5: Psg 90 på hyreshuset sköt aldrig, utan märke): en pjäs som inte sett någon på länge
   // (simuleringens blind) får märket NO VIEW; ett klick väljer den, och panelen säger vad man gör
-  const want = mode === 'play' && !placing && feat('rotate') ? sim.guns.filter(g => (g.idleOutside || (g.blind && sim.phase === 'wave')) && rotating?.id !== g.id) : [];
+  // 0.26.7 (speltestet av 0.26.6): inget märke på fordonen som ska ut (EPA:n, "Move it where it sees their road" var fel råd)
+  // och inget NO VIEW på pjäser vid basen (sista linjen väntar där med flit, märket lockade till fel flytt)
+  const b = sim.route.base, nearBase = g => b && Math.hypot(g.x - b.x, g.z - b.z) < 30;
+  const exitBound = g => g.own || sim.extract?.types?.includes(g.weapon?.type);
+  const want = mode === 'play' && !placing && feat('rotate') ? sim.guns.filter(g => !exitBound(g) && (g.idleOutside || (g.blind && sim.phase === 'wave' && !nearBase(g))) && rotating?.id !== g.id) : [];
   const kindOf = g => (g.idleOutside ? 'arc' : 'blind');
   const ids = new Set(want.map(g => g.id + ':' + kindOf(g)));
   for (const [id, el] of arcFlags) if (!ids.has(id)) { el.remove(); arcFlags.delete(id); }

@@ -1,5 +1,12 @@
 # Ändringslogg
 
+## 0.26.7 (speltestet av 0.26.6) (2026-11-17)
+
+Speltestet av 0.26.6 (docs/playtests/2026-11-17-0.26.6.md) sa JA: alla dagar vunna på första försöket med egen uppställning. Det enda rådet som ledde fel är rättat:
+
+- **Inga märken på EPA:n.** NO VIEW och vridmärket sattes på Västerkärvs EPA med rådet "Move it where it sees their road". Fordonen som ska ut får inga sådana märken.
+- **Inget NO VIEW vid basen.** Pjäser inom 30 m från basen väntar där med flit och får inte längre märket.
+
 ## 0.26.6 (speltestet av 0.26.5) (2026-11-17)
 
 Speltestet av 0.26.5 (docs/playtests/2026-11-17-0.26.5.md) sa NEJ: Björnlunda dag 12 förlorades två gånger, pengaraden tömde kassan och stod kvar med fel belopp, och en Psg 90 på ett grönt tak sköt aldrig.
