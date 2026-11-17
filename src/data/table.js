@@ -115,5 +115,5 @@ export const ENEMY_SHEET = {
 export const ROLE = {
   m249: 'Light MG', m2: 'Heavy MG', ksp58: 'General MG', ak5: 'Grenadier',
   psg90: 'Sniper', hv: 'Rifle squad', inf: 'Rifle squad', civ: 'Hunters',
-  epa: 'Pillbox', atractor: 'Carrier',
+  epa: 'EPA', atractor: 'Carrier',
 };

@@ -98,6 +98,7 @@ const STANDING = V.BUILDINGS.filter(b => !b.far && inCrisp(b.x, b.z));
 const NO_GARRISON = new Set(['shed']);
 // Prickskyttelägen: ladans och maskinhallens låga tak (ser gårdsplanen och åkern)
 export const PERCH_IDS = new Set(['b867826784', 'b867826770']);
+const FLAT_PERCH = new Set(['ladugard', 'farm']);
 export const LOTS = { plots: STANDING.filter(b => !NO_GARRISON.has(b.kind)).map(b => ({ id: b.id, house: b, extras: [] })), edges: [], blocks: [] };
 const HOUSE_PAD = 1;
 function buildingShapes() {
@@ -116,7 +117,9 @@ function buildingShapes() {
       height = (x, z) => (inRect(body, x, z) ? top : 0);
     }
     // 0.26.2 (H605): också nocken på villornas flacka sadeltak (perch 4) och bodarnas låga platta tak
-    const perch = PERCH_IDS.has(h.id) ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null ?? (h.kind === 'villa' && h.ridge ? gablePerch(h) : SHED_PERCH.has(h.kind) ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null);
+    // 0.26.4 (speltestet av 0.26.3: "Roof too steep" nästan överallt): också grannens ladugård och gårdarnas låga uthus
+    const flat = PERCH_IDS.has(h.id) || FLAT_PERCH.has(h.kind) || SHED_PERCH.has(h.kind);
+    const perch = flat ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : h.kind === 'villa' && h.ridge ? gablePerch(h) : null;
     return { id: h.id, kind: h.kind, rects: [body], eave: h.eave ?? (h.h ?? 5) * 0.8, pad: h.kind === 'shed' ? 0.4 : HOUSE_PAD, height, perch, box: [h.x, h.z, Math.hypot(h.w, h.d) / 2 + HOUSE_PAD + 1] };
   });
 }
@@ -255,7 +258,9 @@ export const vasterkarvPlay = {
   // Kampanjbågen: gården är tom, alla kom ut. Nästa är västra rondellen igen (dag 15, inte byggd): kampanjens slutblad
   // (src/meta/table.js campaignEnd) tar vid av sig själv.
   outro: { text: 'The farm is empty. Everyone got out. The EPA is on its way to Gnesta. To be continued.',
-    summary: 'Västerkärv is empty. Everyone got out. To be continued.', end: 'To be continued.' },
+    summary: 'Västerkärv is empty. Everyone got out. To be continued.', end: 'To be continued.',
+    // 0.26.4 (speltestet av 0.26.3: slutbladet stämplade gården HELD med huset fallet): en dag som går ut på att lämna
+    stamp: 'EVACUATED', pen: 'evacuated', status: 'Everyone got out.' },
   evacPlace: 'got out on the east road',
   baseLabel: 'Boningshuset · Base',
   entryAt: 1000,

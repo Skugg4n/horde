@@ -41,7 +41,7 @@ export const WEAPONS = {
   // 0.13.0 (H135): improviserad pillbox. En EPA-traktor med svetsade plåtar och en Ksp 58 i luckan.
   // hp per nivå (zombierna slår på den), build = sekunder innan den skjuter, kryper i en fjärdedel av
   // infanteriets fart på vägar och gräs.
-  epa:   { id: 'epa', dmg: 'small', name: 'EPA pillbox', short: 'Pillbox', desc: 'An old A-tractor with welded plates and a Ksp 58 in the hatch. Tough: the dead have to tear it open. Short build, crawls to a new spot.',
+  epa:   { id: 'epa', dmg: 'small', name: 'EPA', short: 'EPA', desc: 'An old A-tractor with welded plates and a Ksp 58 in the hatch. Tough: the dead have to tear it open. Short build, crawls to a new spot.',
            cost: 550, range: 18, rate: 6, damage: 9, accuracy: 0.72, upgradeCost: [350, 500], cone: 90, traverse: 1.2, vehicle: true, hp: [700, 900, 1100], build: 6,
            move: { pack: 1, setup: 1, speed: 1.125, crew: 0 } },
 };

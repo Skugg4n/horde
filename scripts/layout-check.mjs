@@ -85,7 +85,9 @@ function auditHud(scope) {
   const OWNERS = ['#day', '#res', '#train', '#evac', '#buildbar', '#go', '#wavebar', '#speedcd', '#minimap', '#banner', '.entry', '#coach .cplate', '#coach .paused', '#notes .note', '.panel', '#routekey', '#hint',
     '.platlabel', '.bounty.shove', '#leakarrow', '#tailarrow', '#basearrow', '.sqtag', '.ustat',
     // 0.23.1 (speltestet av 0.23.0, Björnlunda): evakueringens lappar och basens skylt
-    '.evacmark', '.baselabel'];
+    '.evacmark', '.baselabel',
+    // 0.26.4: den brustna linjens skylt
+    '.breakmark'];
   const vis = n => { if (n.closest('[hidden]')) return false; for (let a = n; a; a = a.parentElement) { const s = getComputedStyle(a); if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) < 0.05) return false; } return true; };
   const owners = [];
   for (const sel of OWNERS) for (const n of document.querySelectorAll(sel)) if (vis(n) && !owners.some(o => o.el.contains(n))) { const r = n.getBoundingClientRect(); if (r.width && r.height) owners.push({ sel, el: n, r }); }
@@ -125,6 +127,13 @@ function auditHud(scope) {
   // 0.19.2 (speltestet av 0.19.1, fynd 6: lektionsrutan över DEPLOY-raden): lektionsplåten får inte ligga på köpraden,
   // knappen eller vågens rad, inte ens på en kant utan text
   const plate = owners.find(o => o.sel === '#coach .cplate');
+  // 0.26.4 (speltestet av 0.26.3: dag 7:s skrotbilsruta låg under START WAVE): lektionens markerade ruta i världen ligger
+  // inte under köpraden, knappen eller vågens rad
+  const hole = document.querySelector('#coach:not([hidden]) .hole:not([hidden])'), hr = hole && vis(hole) ? hole.getBoundingClientRect() : null;
+  // (ett mål i gränssnittet omsluter knappen eller ligger i köpraden: bara en markering som delvis går in under räknas)
+  const inside = (a, b) => a.left >= b.left - 2 && a.right <= b.right + 2 && a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
+  // (bara ett mål på en plats: en markering över halva skärmen, som Mölnbo dag 1:s farozoner, räknas inte)
+  if (hr?.width && hr.height < innerHeight * 0.4 && hr.width < innerWidth * 0.4) for (const o of owners) if (['#buildbar', '#go', '#wavebar'].includes(o.sel) && hit(hr, o.r) && !inside(hr, o.r) && !inside(o.r, hr)) out.push(`${scope}: lektionens markering ligger under ${o.sel}`);
   for (const o of owners) if (plate && ['#buildbar', '#go', '#wavebar', '#day', '#res'].includes(o.sel) && hit(plate.r, o.r)) out.push(`${scope}: lektionsplåten ligger på ${o.sel}`);
   // köpradens kort: texten inne i kortet
   for (const c of document.querySelectorAll('#buildbar .card')) {
@@ -227,6 +236,15 @@ function auditTableExtra(scope) {
     if (bad) out.push(`${scope}: något ligger över den aktuella ordern (${bad} av 48 punkter)`);
   }
   if (!hub.querySelector('.tb-spread') && hub.querySelectorAll('.tb-lined .txt[data-read]').length > 1) out.push(`${scope}: mer än en läsbar lägesrapport`);
+  // 0.26.4 (speltestet av 0.26.3): radmenyn (med Return) ligger inte över förrådets kort eller något annat föremål än rullan,
+  // och NEW-fliken inte över ett annat blads text
+  const ovl = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+  const cm = hub.querySelector('.tb-cmenu');
+  if (cm) { const a = cm.getBoundingClientRect(); for (const o of hub.querySelectorAll('.tb-stores, .tb-enemies, .tb-radio, [data-sheet]')) if (o.getClientRects().length && ovl(a, o.getBoundingClientRect())) out.push(`${scope}: radmenyn ligger över ${String(o.className).split(' ').slice(0, 2).join('.')}`); }
+  if (!hub.querySelector('.tb-spread')) for (const tab of hub.querySelectorAll('.tb-newtab')) {
+    const a = tab.getBoundingClientRect(), own = tab.closest('[data-sheet]');
+    for (const t of hub.querySelectorAll('[data-read]')) if (!own?.contains(t) && t.getClientRects().length && ovl(a, t.getBoundingClientRect())) out.push(`${scope}: NEW-fliken ligger över "${t.textContent.trim().slice(0, 24)}"`);
+  }
   // 0.21.7 (H542): inga rullister någonstans på bordet
   for (const n of hub.querySelectorAll('*')) {
     const cs = getComputedStyle(n);
@@ -775,6 +793,12 @@ async function run() {
     await clearLessons();
     if (await ev('window.__horde.sim.phase') !== 'wave') errors.push(`hud-molnbo-2-wave @${W}: vågen startade inte`);
     await checkHud('hud-molnbo-2-wave');
+    // 0.26.4: linjen brister (skylten LINE BREAKING och banderollen) mitt i vågen
+    await ev(`(() => { const H = window.__horde, g = H.sim.guns[0]; H.breakSpot({ key: 'prov', x: g.x + 6, z: g.z + 6, street: 'Trollvägen', weight: 4 }); })()`);
+    await page.waitForTimeout(400);
+    if (!(await ev(`!!document.querySelector('.breakmark') && [...document.querySelectorAll('#notes .note')].some(n => /Line breaking on Trollvägen/.test(n.textContent))`))) errors.push(`hud-molnbo-2-break @${W}: ingen skylt eller banderoll när linjen brister`);
+    await checkHud('hud-molnbo-2-break');
+    await ev(`window.__horde.clearBreaks()`);
     await ev(`(() => { const H = window.__horde, gs = H.sim.guns; for (const g of gs.slice(0, 3)) H.open({ kind: 'gun', id: g.id }); })()`);
     await page.waitForTimeout(600);
     if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-wave @${W}: panelen öppnades inte`);

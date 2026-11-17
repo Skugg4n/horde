@@ -299,8 +299,8 @@ const pr = rs => vrPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vrSkilled och vrNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '41460ffc' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'c35dbe64' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'ff055c17' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '6d429a18' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'b7883089' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'ef1531e8' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '592ec122' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '61656bd6' });
 });

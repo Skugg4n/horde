@@ -44,3 +44,22 @@ test('H605: kassan räcker men hopar sig inte (den vanliga spelaren, dag 5 och f
   const c = fullCurve(fullCampaign('normal', { seedOffset: 0, choice: 'defend' }).log);
   for (const d of c.filter(x => x.day >= 5)) assert.ok(d.cash < 700, `dag ${d.day}: ${d.cash} $ kvar`);
 });
+
+// 0.26.4 (speltestet av 0.26.3: dag 9, 13 och 14 förlorade två gånger med egen uppställning): den mänskliga spelaren
+// (casual: näst bästa platserna, inga tak, köper bara mellan vågorna) vinner de dagarna på första eller andra försöket,
+// med truppen den vanliga spelaren har fram till dagen. docs/balance-log.md 0.26.4.
+test('0.26.4: den mänskliga spelaren klarar Mölnbo dag 2, Björnlunda dag 2 och Västerkärv inom två försök (två seeds, båda grenarna)', async () => {
+  const { FAMILIES, playOpDay } = await import('../scripts/balance.mjs');
+  const { nightAfter } = await import('../src/meta/operation.js');
+  for (const [mapId, day, choices] of [['molnbo', 2, ['defend']], ['bjornlunda', 2, ['defend', 'fallback']], ['vasterkarv', 1, ['defend', 'fallback']]]) {
+    for (const choice of choices) for (const s of SEEDS.slice(0, 2)) {
+      let p = fullCampaign('normal', { seedOffset: s, choice, until: { mapId, day } }).progress, won = 0;
+      for (let t = 1; t <= 2 && !won; t++) {
+        const r = playOpDay(p, mapId, day, FAMILIES.casual[mapId], { seedOffset: s });
+        if (r.won) won = t;
+        else p = nightAfter(p, { mapId, day, won: false, intelEarned: r.intelEarned, report: r.report, evac: r.evac }).progress;
+      }
+      assert.ok(won, `${mapId} dag ${day} (${choice}) seed ${s}: förlorade två gånger`);
+    }
+  }
+});

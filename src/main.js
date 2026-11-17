@@ -1324,6 +1324,12 @@ function handleEvents() {
   if (evs.some(e => e.t === 'breach')) onBreach(evs.filter(e => e.t === 'breach'));
   // 0.25.2 (H275): när vågen är klarad (eller dagen vunnen) och ingen står kvar vid basen går banderollen bort
   else if (evs.some(e => e.t === 'waveCleared' || e.t === 'won') && !sim.zombies.some(z => !z.dead)) dropNotes(uiRoot, 'Base under attack!');
+  // 0.26.4 (speltestet av 0.26.3: 650 till 1 050 $ oanvända när dagen slutade): när en våg är klarad, en gång per dag, med
+  // mycket pengar kvar och fler vågor att möta, en rad om vad de räcker till
+  if (!cashTold && feat('supplies') && sim.phase !== 'won' && sim.wavesStarted < (sim.dayCfg.waves?.length ?? 0) && sim.cash >= CASH_NUDGE && evs.some(e => e.t === 'waveCleared')) {
+    cashTold = true;
+    note(uiRoot, `${money(Math.floor(sim.cash))} to spend. Lay wire and barriers before the next wave.`, '', { ms: 7000 });
+  }
   for (const e of evs) if (e.t === 'shot' && e.soldier != null) shotAt.set(e.gunId, time);
   // 0.10.2 (speltestet av 0.10.1: "Next wave in 22s" med 40 kvar förklarades inte): första gången
   // nästa våg räknas ned medan den här fortfarande går, på en bana med överlapp, en rad om det.
@@ -1375,7 +1381,7 @@ function handleEvents() {
       scene.userData.molnbo?.depart();
       const t = sim.map.x60;
       // 0.26.2 (H604): inte medan basen tar skada
-      if (t && rig && baseQuiet()) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
+      if (t && rig && calm()) { if (placing) stopPlacing(); closePanel(); rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: t.x + Math.cos(t.ry) * 14, z: t.z - Math.sin(t.ry) * 14, view: 50 }, 1.8); }
       // 0.25.2 (H489): "with everyone on board" med 30 zombier kvar; raden säger vilka och varför dagen är slut
       note(uiRoot, ev.last ? 'The last train is away. Mölnbo held.' : 'The train is away with the evacuees. Day won.', '', { prio: true, ms: 6000 });
     }
@@ -1385,9 +1391,9 @@ function handleEvents() {
     // och säger det, pilar från de närmaste enheterna, banderollen säger valet och flyttar kameran dit (trainWarned)
     else if (ev.t === 'trainWarn') trainWarned(ev);
     else if (ev.t === 'trainDoors') { for (const [x, z] of ev.doors) view.fx.puff(x, z, 4); }
-    else if (ev.t === 'vehicleDown') { note(uiRoot, 'The pillbox is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
+    else if (ev.t === 'vehicleDown') { note(uiRoot, 'The EPA is torn open!', 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
     else if (ev.t === 'crewLost') { note(uiRoot, `${WEAPONS[ev.type]?.short ?? WEAPONS[ev.type]?.name} team lost on the move!`, 'warn'); alerts.push({ x: ev.x, z: ev.z, until: time + 6, kind: 'barricade' }); }
-    else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'Pillbox welded. It fires now.'); }
+    else if (ev.t === 'built' && !builtTold) { builtTold = true; note(uiRoot, 'EPA welded. It fires now.'); }
     // 0.18.0 (skiva 1): pansaret, sanity, flykten, husen och de tysta pjäserna
     else if (ev.t === 'hit' && ev.armor) tip('tip.armor');
     else if (ev.t === 'waver') { tip('tip.waver', [ev.x, ev.z]); unitFlash.set(ev.gunId, { kind: 'waver', until: time + 2 }); }
@@ -1500,6 +1506,8 @@ function onBreach(evs = []) {
   // 0.26.0 (Västerkärv): huset är övergivet och fick falla; inga larm om basen efter det
   if (sim.baseFallen) return;
   lastBreach = time;
+  // 0.26.4: basen tar skada mitt i glidningen till perrongen: kameran går tillbaka (en sak i taget)
+  if (platformTour && rig?.touring) { rig.abortTour(); platformTour = false; }
   shake(SHAKE_TIME, SHAKE_AMP);
   const from = evs.map(e => leakWatch.where(e.id)).find(Boolean) ?? null;
   const street = from && sim.route.kind === 'grid' ? streetAt(sim.map, from.x, from.z) : null;
@@ -1650,6 +1658,10 @@ uiRoot.appendChild(platLabel);
 const BASE_QUIET = 5;
 let pendingPan = null;         // { until } (sim-tid): perrongens glidning som väntar på att basen ska få lugn
 const baseQuiet = () => time - lastBreach >= BASE_QUIET;
+// 0.26.4 (speltestet av 0.26.3, dag 9: tåget drog kameran till perrongen när zombier redan tagit sig förbi linjen och basen
+// började ta skada): lugnt = basen har haft lugn OCH ingen har tagit sig förbi de sista försvararna nyss
+const calm = () => baseQuiet() && !leakRings.length && !breaks.size;
+let platformTour = false;
 function trainWarned(ev) {
   const tm = sim.map.trainMark;
   note(uiRoot, "Train incoming. It's not empty.", 'warn', { prio: true, ms: 11000, rank: 3, sub: 'Move units to the platform, or hold the line.', onClick: tm ? () => goToPlatform() : null });
@@ -1672,11 +1684,12 @@ function panToPlatform() {
   if (!pendingPan) return;
   const tm = sim.map.trainMark;
   if (!tm || mode !== 'play' || sim.time > pendingPan.until || sim.phase === 'won' || sim.phase === 'lost') { pendingPan = null; return; }
-  if (!rig?.canPan || !baseQuiet() || rig.touring) return;
+  if (!rig?.canPan || !calm() || rig.touring) return;
   pendingPan = null;
   if (placing) stopPlacing();
   const f = rig.fit(tm.viewPts ?? tm.pts, 10);
-  rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: f.x, z: f.z, view: Math.max(rig.view, f.view) }, 1.4);
+  platformTour = true;
+  rig.tour({ x: rig.target.x, z: rig.target.z, view: rig.view }, { x: f.x, z: f.z, view: Math.max(rig.view, f.view) }, 1.4, () => { platformTour = false; });
 }
 function endPlatform() {
   platform = null; platLabel.hidden = true; pendingPan = null;
@@ -1758,7 +1771,7 @@ function coversAt(x, z) {
 }
 function updateLeaks(paused) {
   for (let i = leakRings.length - 1; i >= 0; i--) if (leakRings[i].until < time || mode !== 'play') { marks?.clear(leakRings[i].id); leakRings.splice(i, 1); }
-  if (mode !== 'play' || !sim || sim.phase !== 'wave' || paused) { leakSimT = sim?.time ?? 0; updateLeakArrow(); return; }
+  if (mode !== 'play' || !sim || sim.phase !== 'wave' || paused) { leakSimT = sim?.time ?? 0; updateBreakMarks(); updateLeakArrow(); return; }
   const dt = Math.max(0, sim.time - leakSimT); leakSimT = sim.time;
   fireList = [];
   for (const g of sim.guns) {
@@ -1768,8 +1781,51 @@ function updateLeaks(paused) {
   }
   const streetOf = (x, z) => (sim.route.kind === 'grid' ? streetAt(sim.map, x, z) : null);
   for (const l of leakWatch.update(sim, dt, { covered: underFire, ahead: aheadOf(sim, coversAt), base: baseCenter(), streetOf, time: sim.time })) leakSpot(l.x, l.z, l.street, { quiet: !l.passed });
+  for (const b of leakWatch.breaking(sim.time)) breakSpot(b);
+  updateBreakMarks();
   updateLeakArrow();
 }
+// 0.26.4 (speltestet av 0.26.3: "basen går från full till 0 på 60 till 100 s, man hinner inte se var linjen brister"):
+// när flera tagit sig förbi på samma gata inom kort tid (src/ui/leaks.js breaking) märks platsen innan de når basen: en
+// skylt LINE BREAKING på kartan som står kvar så länge det läcker där, en större ring, och en banderoll en gång per gata
+// och våg. Klick på banderollen eller pilen flyttar kameran dit.
+const BREAK_SHOW = 6;
+const breaks = new Map();       // key -> { x, z, street, until, el }
+const breakTold = new Set();
+function breakSpot(b) {
+  let k = breaks.get(b.key);
+  if (!k) {
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'breakmark'; el.innerHTML = '<span>Line breaking</span>';
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const q = breaks.get(b.key); if (q) lookAt(q.x, q.z); });
+    pips.appendChild(el);
+    k = { el }; breaks.set(b.key, k);
+    marks?.set('break:' + b.key, { kind: 'ring', x: b.x, z: b.z, r: 11, y: 0.35 + (map.groundY ? map.groundY(b.x, b.z) : 0), color: '#ff5a1f' }, time);
+  }
+  Object.assign(k, { x: b.x, z: b.z, street: b.street, until: time + BREAK_SHOW });
+  const once = `${sim.wavesStarted}:${b.key}`;
+  if (!breakTold.has(once)) {
+    breakTold.add(once);
+    note(uiRoot, b.street ? `Line breaking on ${b.street}!` : 'Line breaking!', 'warn', { prio: true, rank: 2, ms: 8000, sub: 'Send a unit there, or block it.', onClick: () => lookAt(b.x, b.z) });
+  }
+}
+function updateBreakMarks() {
+  for (const [key, k] of breaks) {
+    if (k.until < time || mode !== 'play') { k.el.remove(); marks?.clear('break:' + key); breaks.delete(key); continue; }
+    const p = toScreen(k.x, k.z);
+    k.el.style.left = p.sx + 'px'; k.el.style.top = p.sy + 'px'; k.el.style.marginTop = '0px';
+    // en enhets lapp (VOL 3, INF 5) där skylten hamnar: skylten lyfts ovanför den
+    const tags = [...pips.querySelectorAll('.sqtag, .ustat')].map(t => t.getBoundingClientRect()).filter(q => q.width);
+    let lift = 0;
+    for (let i = 0; i < 6; i++) {
+      const r0 = k.el.getBoundingClientRect(), r = { left: r0.left - 2, right: r0.right + 2, top: r0.top - 2, bottom: r0.bottom + 2 };
+      const hit = tags.filter(q => q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom);
+      if (!hit.length) break;
+      lift += Math.max(...hit.map(q => r.bottom - q.top)) + 2;
+      k.el.style.marginTop = -lift + 'px';
+    }
+  }
+}
+function clearBreaks() { for (const [key, k] of breaks) { k.el.remove(); marks?.clear('break:' + key); } breaks.clear(); dropNotes(uiRoot, 'Line breaking'); }
 function updateLeakArrow() {
   const l = mode === 'play' && !menu.isOpen() ? leakRings[leakRings.length - 1] : null;
   const s = l && onScreen(l.x, l.z, 40);
@@ -1781,13 +1837,16 @@ function updateLeakArrow() {
   leakArrow.hidden = false;
   leakArrow.style.left = (cx + dx * k) + 'px'; leakArrow.style.top = Math.max(150, Math.min(bottom - 30, cy + dy * k)) + 'px';
   leakArrow.querySelector('.chev').style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-  const txt = leakArrow.querySelector('.txt'), str = l.street ? `Got through: ${l.street}` : 'They got through';
+  const br = [...breaks.values()].some(b => Math.hypot(b.x - l.x, b.z - l.z) < 25);
+  const txt = leakArrow.querySelector('.txt'), str = br ? (l.street ? `Line breaking: ${l.street}` : 'Line breaking') : l.street ? `Got through: ${l.street}` : 'They got through';
   if (txt.textContent !== str) txt.textContent = str;
 }
 function resetMarks() {
   endPlatform(); leakWatch.reset(); leakTold.clear(); leakSimT = 0; slowUntil = -Infinity;
   for (const l of leakRings) marks?.clear(l.id);
   leakRings.length = 0; leakArrow.hidden = true;
+  for (const [key, k] of breaks) { k.el.remove(); marks?.clear('break:' + key); }
+  breaks.clear(); breakTold.clear(); nudgedTargets = new WeakSet();
 }
 
 // ---------- horden på väg in ----------
@@ -2140,7 +2199,7 @@ addEventListener('keydown', e => {
     if (mode === 'opmap' && sheet?.escape && !menu.isOpen()) { if (!e.repeat && !sheet.escape()) menu.show(); return; }
     const what = escapeAction({ menuOpen: menu.isOpen(), mode, placing: !!placing || !!rotating, panel: !!panel, selected: !!selected, repeat: e.repeat,
       category: chord.open != null, justPlaced: performance.now() - placedAt < JUST_PLACED_MS,
-      lesson: !!lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption') });
+      lesson: !!lesson && !menu.isOpen() && (lesson.pause || lesson.step.kind === 'caption' || mode === 'play') });
     if (what === 'close-category') chord.escape();
     else if (what === 'menu-back') menu.back();
     else if (what === 'close-research') sheetAction('done');
@@ -2324,7 +2383,7 @@ function uiRect(sel) {
 // 0.16.1: det lektionsplåten inte ska täcka (etiketterna, gränssnittet, kortets utfällda ruta, ledningens rad)
 // 0.17.1 (speltestet av 0.17.0: lektionsraden över DAY-rutan och över "UNITS 2/6"): tågets ruta och köpradens rubrik
 const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not([hidden])', '#buildbar', '#go', '#wavebar', '#res', '#day', '#minimap:not(.off)', '.panel', '#banner:not([hidden])',
-  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark',
+  '.civlost', '#buildbar .card:hover .more', '.opmap .inbox', '.opmap .sector', '#basearrow:not([hidden])', '#notes .note', '.sqtag', '.evacmark', '.breakmark', '#hub .tb-postit',
   // 0.23.1 (speltestet av 0.23.0: förrådets lappar låg över tillstånd och priser): personalrullan på bordet, så att lappen
   // ställs bredvid klämbrädan och inte över raderna
   // 0.24.1 (H558, speltestet av 0.24.0: "Spend RP...", "Bars compare..." och "Upgrades improve..." låg över förrådet)
@@ -2332,7 +2391,7 @@ const COACH_AVOID = ['.entry:not([hidden])', '#evac:not([hidden])', '#train:not(
 // 0.19.2: det lektionsplåten aldrig får täcka, inte ens när ingen fri plats finns (köpraden med enheternas kort, plåtarna
 // uppe och banderollerna)
 // 0.23.3 (H548): på bordet fiendekortet överst och klämbrädans knappar och flikar; lappen ställs bredvid
-const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note', '#hub .tb-enemy.top', '#hub .tb-roster .tb-btn', '#hub .tb-roster .tb-tab'];
+const COACH_HARD = ['#buildbar', '#go', '#wavebar', '#day', '#res', '#notes .note', '#hub .tb-enemy.top', '#hub .tb-postit', '#hub .tb-roster .tb-btn', '#hub .tb-roster .tb-tab'];
 function coachHard() {
   const out = [];
   for (const sel of COACH_HARD) for (const n of uiRoot.querySelectorAll(sel)) { if (n.hidden) continue; const r = n.getBoundingClientRect(); if (r.width && r.height) out.push({ x0: r.left - 4, y0: r.top - 4, x1: r.right + 4, y1: r.bottom + 4 }); }
@@ -2397,6 +2456,7 @@ function lessonWorldPts(t) {
   else if (w.startsWith('gun')) { const type = w.split(':')[1]; const g = sim.guns.find(x => (type ? x.weapon.type === type : !x.preset)) ?? sim.guns[0]; if (g) pts.push([g.x, g.z]); }
   return pts;
 }
+let nudgedTargets = new WeakSet();
 // Målet på skärmen: { rect } för något som syns, { off: { x, y, angle } } vid kanten för något utanför bild.
 function lessonTarget(t) {
   if (!t) return null;
@@ -2416,6 +2476,25 @@ function lessonTarget(t) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const q of inside) { x0 = Math.min(x0, q.sx); x1 = Math.max(x1, q.sx); y0 = Math.min(y0, q.sy); y1 = Math.max(y1, q.sy); }
   const pad = 22, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = Math.max(30, (x1 - x0) / 2 + pad), hh = Math.max(30, (y1 - y0) / 2 + pad);
+  // 0.26.4 (speltestet av 0.26.3: dag 7:s skrotbilsruta låg under START WAVE): ett mål under köpraden, knappen eller vågens
+  // rad flyttar kameran dit en gång, så att rutan hamnar fri
+  // (bara så långt att rutan går fri, så att resten av bilden står kvar)
+  const bars = ['#buildbar', '#go', '#wavebar'].map(uiRect).filter(Boolean), under = bars.filter(b => cx + hw > b.x0 && cx - hw < b.x1 && cy + hh > b.y0 && cy - hh < b.y1);
+  if (under.length && !nudgedTargets.has(t) && rig?.canPan) {
+    nudgedTargets.add(t);
+    const mx = pts.reduce((a, q) => a + q[0], 0) / pts.length, mz = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+    const top = Math.min(...under.map(b => b.y0)), want = top - hh - 24, my = innerHeight / 2;
+    const f = cy > my + 1 ? Math.max(0, Math.min(1, (cy - want) / (cy - my))) : 1;
+    // dagens utsikt (dayCfg.view: basen och ingångarna, Vikingavägen) ska stå kvar i bild: annars lite utzoomat, eller inte alls
+    const from = { x: rig.target.x, z: rig.target.z, view: rig.view }, keep = sim.dayCfg.view?.pts ?? [];
+    const ok = () => { camera.updateMatrixWorld(); return keep.every(([x, z]) => { const q = toScreen(x, z); return q.sx >= 0 && q.sy >= 0 && q.sx <= innerWidth && q.sy <= innerHeight; }); };
+    let done = false;
+    for (const zoom of [1, 1.15, 1.3, 1.5, 1.75]) {
+      rig.focus(from.x + (mx - from.x) * f, from.z + (mz - from.z) * f, from.view * zoom);
+      if (ok()) { done = true; break; }
+    }
+    if (!done) rig.focus(from.x, from.z, from.view);
+  }
   return { rect: { x0: Math.max(8, cx - hw), y0: Math.max(8, cy - hh), x1: Math.min(innerWidth - 8, cx + hw), y1: Math.min(innerHeight - 8, cy + hh) } };
 }
 // Högst två hårda pauser per våg och minst 20 s mellan dem (designen avsnitt 2.3); bygget före första vågen räknas inte.
@@ -3128,7 +3207,7 @@ if (TEST && !DEBUG) window.__horde = { advance: advanceSim, get sim() { return s
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(lessonApi));
 if (TEST && !DEBUG) Object.defineProperties(window.__horde, Object.getOwnPropertyDescriptors(renderApi));
 // Felsökning och prestandamätning i konsolen, bara med ?debug i adressen.
-if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, get playSpeed() { return playSpeed(); }, get platform() { return platform; }, get leakRings() { return leakRings; }, get marks() { return marks; }, lookAt, goToPlatform, trainWarned, debugEvents: evs => { sim.events.push(...evs); handleEvents(); }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
+if (DEBUG) window.__horde = { startRotate, startMove, get rotating() { return rotating; }, commitRotate, guideMove, get aim() { return aim; }, groundAt, moveRoute, get chord() { return chord; }, get worlds() { return worlds; }, get speed() { return speed; }, get playSpeed() { return playSpeed(); }, get platform() { return platform; }, get leakRings() { return leakRings; }, breakSpot, clearBreaks, get marks() { return marks; }, lookAt, goToPlatform, trainWarned, debugEvents: evs => { sim.events.push(...evs); handleEvents(); }, setSpeed, get routeLines() { return routeLines; }, get placing() { return placing; }, get spot() { return spot; }, startPlacing, stopPlacing, placeHere, get sim() { return sim; }, get progress() { return progress; }, get mode() { return mode; }, get selected() { return selected; }, get hovered() { return hovered; }, set hovered(v) { hovered = v; }, get view() { return view; }, audio, get rig() { return rig; }, get scene() { return scene; }, get camera() { return camera; }, renderer, actions, go, startDay, setMode, loadMap, toggleSpeed, sheetAction,
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), quickJump: (m, d) => quickJump(m, d), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,

@@ -1,5 +1,20 @@
 # Ändringslogg
 
+## 0.26.4 (speltestet av 0.26.3) (2026-11-16)
+
+Speltestet av 0.26.3 (docs/playtests/2026-11-16-0.26.3-helhet.md) sa NEJ: dag 9, 13 och 14 förlorades två gånger var med egen uppställning, och bara balansens policy vann dem.
+
+- **Var linjen brister.** När flera tagit sig förbi på samma gata inom 20 s (en bjässe räknas som tre) märks platsen innan de når basen: en röd skylt LINE BREAKING på kartan som står kvar så länge det läcker där, en större ring, och en banderoll "Line breaking on Trollvägen!" med "Send a unit there, or block it." (en gång per gata och våg; klick flyttar kameran dit). Pilen vid kanten säger "Line breaking: ..." (src/ui/leaks.js breaking).
+- **Den mänskliga spelaren i balansen (casual).** Ställer ut på näst bästa platserna, inga tak, köper bara mellan vågorna och vrider en sysslolös pjäs först efter 10 s. Den förlorade som speltestaren (Mölnbo dag 2 tre seeds av fem två gånger, Björnlunda dag 2 alla, och 750 till 1 200 $ kvar). Nu: Mölnbo dag 2 hp 14 (15), Björnlunda dag 2 hp 4 i båda grenarna (6,3 och 8), Västerkärv hp 6,5 (8,5). Den mänskliga spelaren vinner dagarna på första eller andra försöket; dag 1 till 7 är orörda. docs/balance-log.md 0.26.4.
+- **Dag 14 slutar som en evakuering.** Kortet säger "Day 14. Everyone got out." (inte VICTORY och "Day 14 held"), slutbladet stämplar Västerkärv EVACUATED, kartan skriver "evacuated, 1 day" och sektorkortet "Everyone got out."
+- **EPA heter EPA överallt** (kartans etikett, panelen, rullan, köpraden och raderna; förut Pillbox och EPA pillbox).
+- **Rullan natt 7:** raden räknar radernas egna skäl ("8 moved: 4 in, 4 out for fresher units"), inte "moved by fatigue".
+- **Saker på varandra:** lappen "What we face" ligger under nyaste fiendekortet (förut på dess siffror), NEW-fliken sitter på orderns vänsterkant (förut över lägesrapportens text), radmenyn med Return öppnar på rullan (förut över förrådets kort), och ett lektionsmål under köpraden eller START WAVE flyttar kameran dit en gång (dag 7:s skrotbilsruta). Tipsen ställs inte på lappen. Layoutprovet läser nu fiendekortets siffror och provar radmenyn, NEW-fliken och den brustna linjens skylt.
+- **En sak i taget (dag 9).** Tåget drar inte kameran medan någon tagit sig förbi linjen, och tar basen skada mitt i glidningen går kameran tillbaka. Medan tågets banderoll står väntar de vanliga raderna i kön.
+- **Pengarna.** När en våg är klarad med minst 400 $ kvar och fler vågor att möta: "$ 650 to spend. Lay wire and barriers before the next wave." Tråd utanför vägen: "Only on a road. Aim at the asphalt, red lines show their way"; zombier i vägen: "Lay it ahead of them".
+- **Psg 90 på taken i Mölnbo och Västerkärv.** Mölnbo: nocken på flacka sadeltak (villorna utom 1,5-planshusen, radhusen, caféet), takplatser på 6 till 33 byggnader. Västerkärv: grannens ladugård och gårdarnas låga hus, 14 till 20 byggnader (de som ser hordens väg är fortfarande ladan och de två uthusen).
+- **Deploy och Esc.** Deploy på bordet går på första klicket även när bordet ritas om mellan tryck och släpp (tipset som går). Esc stänger först det öppna, också ett tips mitt i striden; pausmenyn bara när inget är öppet.
+
 ## 0.26.3 (kampanjen som helhet) (2026-11-16)
 
 Helspeltestet av kampanjen dag 1 till 14 (docs/playtests/2026-11-16-kampanjen-hela.md) och speltestet av dag 14 (docs/playtests/2026-11-16-0.26.0-vasterkarv.md), båda NEJ. Ovanpå 0.26.2 (minne, kamera, tak).

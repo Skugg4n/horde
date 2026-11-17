@@ -140,7 +140,7 @@ function sectorCard(p, id, meta) {
   else if (st === 'locked' && Array.isArray(map.unlock.choice)) lines.push(`Opens if you choose to defend it after day ${shownDay(map.unlock.map, map.unlock.day)}.`);
   else if (st === 'locked') lines.push(`Opens when day ${shownDay(map.unlock.map, map.unlock.day)} is held.`);
   else if (st === 'silent') lines.push('Secure. The army holds the roadblock.');
-  else if (st === 'held') lines.push('Every day here is held.');
+  else if (st === 'held') lines.push(map.outro?.status ?? 'Every day here is held.');
   else {
     lines.push(`${esc(map.name)}, day ${day} of ${map.days.length}: ${esc(map.days[day - 1].intro.title.split(':').slice(1).join(':').trim())}.`);
     if (reassignActive(p)) lines.push(pr ? `Pressure: ${Math.round(pr * PRESSURE_HP * 100)} % tougher here.` : 'No pressure.');

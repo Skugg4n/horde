@@ -250,7 +250,7 @@ export const MANUAL = [
   { id: 'target', group: 'Units', title: 'Target priority', text: 'First in line shoots whoever is closest to the base. Nearest, Strongest and Weakest pick by distance or toughness. Select a unit and cycle.', keys: ['T'] },
   { id: 'garrison', group: 'Units', title: 'Squads in houses', text: 'Click a house by the street with a squad, Ksp 90 or Ksp 58 card. They fire from the windows and take cover. If the dead break the door, losses are heavy.' },
   { id: 'holdFire', group: 'Units', title: 'Hold fire', text: 'The unit waits until you release it or the dead come close. The first volley hits twice as hard. Then a pause before it can wait again.', keys: ['H'] },
-  { id: 'overrun', group: 'Units', title: 'Overrun guns', text: 'The dead can reach a gun crew. A silent gun stays where it stood. A squad close by mans it again, or Recrew sends a new crew for supplies. The pillbox stands its ground.', keys: ['N'] },
+  { id: 'overrun', group: 'Units', title: 'Overrun guns', text: 'The dead can reach a gun crew. A silent gun stays where it stood. A squad close by mans it again, or Recrew sends a new crew for supplies. The EPA stands its ground.', keys: ['N'] },
   { id: 'fatigue', group: 'Operation', title: 'Fatigue', text: 'Rested, Tired, Exhausted. A won day at the front tires a unit; a day in reserve rests it. Tired units shoot and hold a little worse. A lost attempt does not count.' },
   { id: 'numbers', group: 'Units', title: 'Weapon numbers', table: 'weapons', text: 'The exact numbers behind the bars, at level 1.' },
 ];

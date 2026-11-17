@@ -27,7 +27,7 @@ export const BUY_MENU = [
     { id: 'inf', kind: 'gun', role: 'Army squad · Ak 5' },
     { id: 'm249', kind: 'gun', role: 'Light MG · 5.56' },
     { id: 'm2', kind: 'gun', role: 'Heavy MG · 12.7' },
-    { id: 'epa', kind: 'gun', role: 'Welded pillbox · 7.62' },
+    { id: 'epa', kind: 'gun', role: 'Welded EPA · 7.62' },
     { id: 'ksp58', kind: 'gun', role: 'General MG · 7.62' },
     { id: 'ak5', kind: 'gun', role: 'Rifle, grenade launcher' },
     { id: 'psg90', kind: 'gun', role: 'Rooftop sniper rifle' },

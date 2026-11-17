@@ -85,7 +85,7 @@ export function penSpots(state) {
     if (!pl.closed || !xy || pl.sector === nb?.sector) continue;
     const c = closedSheet(null, SECTORS.find(q => q.id === pl.sector)), [x, y] = xy;
     // 0.24.1 (H558, speltestet av 0.24.0: "held, 1 days" vid Laxne)
-    const text = `${pl.status === 'silent' ? 'secure' : 'held'}, ${c.days} ${c.days === 1 ? 'day' : 'days'}`;
+    const text = `${pl.status === 'silent' ? 'secure' : c.pen}, ${c.days} ${c.days === 1 ? 'day' : 'days'}`;
     const cands = [...PEN_NEAR, ...PEN_RING].map(([dx, dy, a]) => ({ x: x + dx, y: y + dy, anchor: a, text, box: penBox(x + dx, y + dy, text, a) }));
     // radens närmaste punkt (inte mitten: en lång rad läses från änden som står vid markören). Orten som markören står i
     // (inom 16 px, Gnesta för två sektorer i Gnesta) räknas inte som en annan plats
@@ -218,7 +218,7 @@ const closedHtml = c => `
   <div class="tb-stamp olive" style="right:12px;bottom:10px;transform:rotate(-3deg)">${esc(c.stamp)}</div>`;
 // Bara rubrikraden syns (ett blad under ett annat)
 const edgeHead = sh => sh.kind === 'order' ? `<span>ORDER ${two(sh.n)}</span>`
-  : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span>` : sh.kind === 'lost' ? `<span>DAY ${sh.n} · LOST</span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')} · HELD</span>`;
+  : sh.kind === 'report' ? `<span>SITUATION · NIGHT ${sh.n}</span>` : sh.kind === 'lost' ? `<span>DAY ${sh.n} · LOST</span>` : `<span>${esc(sh.name?.toUpperCase() ?? '')} · ${esc(sh.stamp ?? 'HELD')}</span>`;
 // 0.21.1 (speltestet, fynd 5): en förlorad dag
 const lostHtml = (l, deploy, top = true) => `
   <div class="hd"><span>DAY ${l.n}</span><span>LOST</span></div>
@@ -318,15 +318,23 @@ function enemyHtml(pile, order, intel, place, fr) {
     if (!top) return `<div class="tb-obj tb-paper tb-enemy${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:${[6, 0, 8, 2][k % 4]};--y:${k * STEP};--w:236;--h:${H};--r:${[0.6, -0.5, 0.4, -0.6][k % 4]};--z:${k + 1}">${tab}</div>`;
     return `<div class="tb-obj tb-paper tb-enemy top${grey ? ' grey' : ''}" data-enemy="${e.id}" style="--x:4;--y:${k * STEP + 2};--w:236;--h:${H};--r:0.8;--z:${k + 1}">${tab}
       <div class="body"><div class="t" data-read>${esc(e.text)}</div><span class="fig">${FOE_ICONS[e.type] ?? FOE_ICONS.unknown}</span></div>
-      <div class="stats"${intel ? '' : ' data-read'}>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
+      <div class="stats" data-read>${e.stats.map(([k2, v]) => `<span>${k2}<b>${esc(v)}</b></span>`).join('')}</div></div>`;
   }).join('');
   const topY = (n - 1) * STEP + 2 + H;
   // lappen ligger på fiendebladets nedre del; räcker inte höjden (litet fönster, många fiender) läggs den på bordet
   // ovanför korten, till vänster om klämbrädan, så att klämbrädans rubrik syns
-  const low = fr && place.y + topY - 58 + 150 > fr.clipY + 36;
-  const nx = low ? Math.round(fr.clipX - 226 - place.x) : 30, ny = low ? Math.round(fr.zoneY - 158 - place.y) : topY - 58;
+  // 0.26.4 (speltestet av 0.26.3: lappen täckte nyaste kortets siffror): lappen ligger under kortet, inte på det; förrådets
+  // blad flyttas ned under lappen (render, noteBottom)
+  void fr;
+  const nx = 30, ny = topY + 6;
   const note = intel ? `<div class="tb-obj tb-postit" data-intel style="--x:${nx};--y:${ny};--w:206;--r:-3;--z:${n + 2}"><div class="h">${esc(intel.head)}</div><div class="txt" data-read>${esc(intel.text)}</div></div>` : '';
   return `<div class="tb-pile tb-enemies" data-obj="enemies" style="--x:${place.x};--y:${place.y};--z:14">${html}${note}</div>`;
+}
+// Var lappen "What we face" slutar (bordets y), ungefär: rubriken och raderna (cirka 26 tecken per rad i 206 px)
+export function noteBottom(pile, intel, place) {
+  if (!intel) return 0;
+  const n = pile.sheets.length, topY = (n - 1) * 30 + 2 + 196;
+  return place.y + topY + 6 + 42 + 19.2 * Math.ceil(String(intel.text ?? '').length / 26);
 }
 
 // ---------- personalrullan (0.21.7, Ola: korten blev rörigt, H544, mockup docs/mockups/kontrollrum-4b) ----------
@@ -415,7 +423,12 @@ function storesHtml(ups, rp, fr, sheet) {
 function movedNote(z) {
   const m = [...z.battle, ...z.rest].filter(c => c.moved);
   // 0.23.2: en kort rad (förut alla namnen, som klipptes); skälet per enhet står på raden
-  return m.length ? `✎ ${m.length} moved by fatigue. Hover a row for why.` : '';
+  // 0.26.4 (speltestet av 0.26.3: "8 moved by fatigue" när alla rader sa Rested): raden räknar radernas egna skäl
+  if (!m.length) return '';
+  const n = re => m.filter(c => re.test(c.movedWhy ?? '')).length;
+  const inN = n(/^battle:/), tired = n(/^rest:(tired|exhausted)$/), fresher = n(/^rest:fresher$/);
+  const parts = [inN && `${inN} in`, tired && `${tired} out tired`, fresher && `${fresher} out for fresher units`].filter(Boolean);
+  return `✎ ${m.length} moved${parts.length ? ': ' + parts.join(', ') : ''}. Hover a row for why.`;
 }
 const WEAPONS_NAME = type => unitName({ type });
 // Liten meny på ett kort (⋯): nästa nivå, påfyllnad och tillbaka, med pris
@@ -489,7 +502,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     // 0.21.7: personalrullan på klämbrädan och förrådets blad (H544, H542)
     if (rosterOn) html += rosterHtml(state, place('clipboard'), fr, { page, note: laneNote?.text ?? movedNote(state.zones), nudge });
     const ups = rosterOn ? storeList(p) : [];
-    if (ups.length) html += storesHtml(ups, p.rp, fr, storeSheet);
+    // 0.26.4: förrådets blad börjar under lappen "What we face" (förut låg lappen på fiendekortets siffror)
+    const nb2 = state.enemies && !tableOf(p).layout.enemies ? noteBottom(state.enemies, state.intel, place('enemies')) + 10 : 0;
+    const sy = Math.max(fr.storesY, nb2), sfr = sy > fr.storesY && fr.H - sy - 24 >= 150 ? { ...fr, storesY: sy, storesH: fr.H - sy - 24 } : fr;
+    if (ups.length) html += storesHtml(ups, p.rp, sfr, storeSheet);
     const moved = Object.keys(tableOf(p).layout).length > 0;
     html += `<div class="tb-ring" style="left:1060px;top:60px;width:92px;height:92px;opacity:.7"></div>`;
     html += rosterOn ? `<div class="tb-pencil" style="left:${Math.round(fr.clipX - 60)}px;top:${Math.round(fr.H - 120)}px;width:150px;transform:rotate(-58deg)"><i></i></div>`
@@ -508,11 +524,13 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     // kortets meny (⋯) intill kortet
     const mc = cmenu != null && view.querySelector(`.tb-row[data-uid="${cmenu}"] .tb-pm`);
     if (mc) {
-      const r = mc.getBoundingClientRect(), [cx, cy] = toTable(r.right, r.top), [lx] = toTable(r.left, r.top);
+      // 0.26.4 (speltestet av 0.26.3: menyn med "Return +55 RP" öppnade över förrådets kort): menyn ligger på rullan,
+      // till vänster om märket och under raden; bara om rullan inte har plats till vänster åt höger
+      const r = mc.getBoundingClientRect(), [cx, cy] = toTable(r.right, r.bottom), [lx] = toTable(r.left, r.top);
       const m = document.createElement('div');
       m.className = 'tb-cmenu'; m.innerHTML = cardMenuHtml(p, cmenu) + (confirmReturn === cmenu ? '<p class="ask" data-read>Return it? Click Return again.</p>' : '');
-      const right = cx + 8 + 230 < fr.W;
-      m.style.left = `${Math.round(right ? cx + 8 : lx - 238)}px`; m.style.top = `${Math.round(Math.max(8, Math.min(cy, fr.H - 170)))}px`;
+      const right = lx - 238 < 0 && cx + 8 + 230 < fr.W;
+      m.style.left = `${Math.round(right ? cx + 8 : lx - 238)}px`; m.style.top = `${Math.round(Math.max(8, Math.min(cy + 2, fr.H - 170)))}px`;
       view.appendChild(m);
     } else cmenu = null;
     wire();
@@ -608,6 +626,16 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
     view.querySelector('.tb-spread')?.addEventListener('click', () => { spread = null; render(); });
   }
+  // 0.26.4 (speltestet av 0.26.3: Deploy svarade inte på första klicket efter att ett tips stängts, Enter gick): ritas bordet
+  // om mellan pekarens tryck och släpp (tipset som går) blir det inget click på den nya knappen. Ett tryck och ett släpp på
+  // Deploy räknas då ändå.
+  let goDown = null;
+  view.addEventListener('pointerdown', e => { goDown = e.button === 0 ? e.target.closest?.('[data-a="go"]') ?? null : null; }, true);
+  view.addEventListener('pointerup', e => {
+    const d = goDown; goDown = null;
+    if (!d || d.isConnected || !e.target.closest?.('[data-a="go"]')) return;
+    e.stopPropagation(); go();
+  }, true);
   let drag = null;
   view.addEventListener('pointerdown', e => {
     if (backdrop || e.button !== 0 || e.target.closest('button, .tb-spread')) return;

@@ -20,7 +20,7 @@
 // Kartan är ritad i järnvägens ram: u längs spåret (österut, mot Järna) och v tvärs över det (söderut). Spåret
 // ligger 21 grader mot öster-nordost i världen. x = öster, z = söder som på de andra banorna.
 import { makeRng } from '../sim/rng.js';
-import { buildPlace, rect, inRect, distRect, KIND } from '../sim/placement.js';
+import { buildPlace, rect, inRect, distRect, KIND, gablePerch } from '../sim/placement.js';
 import { smooth, distPolyline, inPoly, roadNear } from './gnesta.js';
 import { timed } from '../meta/load-timing.js';
 import { lazy } from './lazy.js';
@@ -554,7 +554,9 @@ function buildingShapes() {
   for (const h of BUILDINGS) {
     const half = (h.ridgeX ?? true) ? h.d / 2 : h.w / 2;
     const roofH = gable(h, h.eave, h.ridge - h.eave, half, h.ridgeX ?? true), body = rect(h.x, h.z, h.ry, h.w, h.d);
-    let height = roofH, perch = h.perch ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : null;
+    // 0.26.4 (speltestet av 0.26.3: "Roof too steep" på nästan varje hus i Mölnbo): också nocken på flacka sadeltak (perch 4,
+    // som Gnesta och OSM-banorna sedan 0.26.2): villorna utom 1,5-planshusen, radhusen och caféet
+    let height = roofH, perch = h.perch ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : h.kind === 'x60' ? null : gablePerch(h);
     if (h.tower) {
       // 0.17.2 (H301): tornet: höjden är tornets i dess ruta, och bara tornet är en utsiktspunkt (perch 3 = torn)
       const t = h.tower, c = Math.cos(h.ry), sn = Math.sin(h.ry);

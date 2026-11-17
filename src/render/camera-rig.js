@@ -178,6 +178,8 @@ export function createRig({ camera, map, fill, dom, holding = () => false }) {
     tour(from, to, dur, done) { tour = { from, to, t: 0, dur, done }; target.set(from.x, 0, from.z); view = from.view; apply(); },
     get touring() { return !!tour; },
     skipTour: endTour,
+    // 0.26.4: tillbaka dit svepet började (basen tar skada mitt i glidningen till perrongen)
+    abortTour() { if (!tour) return; const t = tour; tour = null; target.set(t.from.x, 0, t.from.z); view = t.from.view; apply(); },
   };
 }
 

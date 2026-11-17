@@ -25,6 +25,8 @@ export function advance(st, frameDt, { playing, paused, mul = 1, dt, maxPerSpeed
 // spelet. 1 det man håller (kortet, flytten, Rotate) läggs tillbaka, också när en kategori är utfälld eller en
 // lektionsrad står, 2 en utfälld kategori, en panel eller en markering stängs, 3 lektionsraden hoppas över
 // (lesson), 4 strax efter ett köp ingenting (justPlaced), 5 pausmenyn öppnas.
+// 0.26.4 (speltestet av 0.26.3: Esc öppnade pausmenyn mitt i striden): Esc stänger först det som är öppet, i striden också ett
+// tips som inte pausar (main.js skickar lesson); pausmenyn bara när inget är öppet
 export function escapeAction({ menuOpen, mode, placing, panel, selected = false, repeat = false, category = false, justPlaced = false, lesson = false }) {
   if (repeat) return 'none';
   if (menuOpen) return 'menu-back';

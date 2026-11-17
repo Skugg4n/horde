@@ -126,7 +126,7 @@ export const RELEASES = [
   // resten av uppgraderingarna). Leveranserna gn-4, gn-5 och gnn-2 till gnn-5 finns inte längre; en gammal sparfil
   // som redan fått dem behåller det den fick (src/meta/save.js).
   { id: 'gnn-1', map: 'gnesta-norr', day: 1, from: 'FM',
-    text: 'Larger groups gather west, south and north of the ice rink. A Ksp 58, a Ksp 88 and a pillbox.',
+    text: 'Larger groups gather west, south and north of the ice rink. A Ksp 58, a Ksp 88 and an EPA.',
     grant: [{ type: 'ksp58' }, { type: 'm2' }, { type: 'epa' }], unlock: NORTH_ALL, tiers: ['ksp58.1', 'm2.1', 'ak5.1'],
     stock: { ksp58: 1, m249: 2, ak5: 1, hv: 1 },
     ups: { grenade: 2, ksp58: 2, m2: 2, budget: 1, m249Rate: 2, block: 2, hvSquad: 1 } },

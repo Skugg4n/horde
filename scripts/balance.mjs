@@ -217,7 +217,7 @@ function reaim(sim) {
     if (g.squad || !g.fullSight || g.move || g.turn || g.building > 0) continue;
     if (g.weapon.targetId != null) { g._idleSince = sim.time; continue; }
     g._idleSince ??= sim.time;
-    if (sim.time - g._idleSince < REAIM_IDLE) continue;
+    if (sim.time - g._idleSince < (sim._reaimIdle ?? REAIM_IDLE)) continue;
     const range = WEAPONS[g.weapon.type].range * 1.2;
     let sx = 0, sz = 0, n = 0;
     for (const z of sim.zombies) {
@@ -866,12 +866,17 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
     const own = gnestaPlan(map, daySpawns(map, day), [], { ...T.planOpts(day, 'naive'), blocks: [] });
     plan = { ...own, lines: plan.lines, wire: plan.wire };
   }
+  // 0.26.4 (speltestet av 0.26.3): den mänskliga spelaren (casual). Näst bästa platserna först, inga tak, köper bara
+  // mellan vågorna och vrider en sysslolös pjäs först efter 10 s.
+  if (P.human) { plan = humanPlan(plan); sim._reaimIdle = 10; }
   const builder = !isTown ? () => greedyBuild(sim, plan.guns)
     : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
   // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) ställs ut när den kommit fram
   const lateReady = () => sim.reserve?.some(u => u.arrive && canDeploy(sim, u));
   const evacMap = P.evacMap && sim.dayCfg.evac;
   const think = () => {
+    // casual: mitt i vågen bara EPA:n (ordern säger när) och sen ny besättning; inga köp
+    if (P.human && sim.phase === 'wave') { if (sim.extract) driveOut(sim, P); return; }
     if (evacMap && deployPhase(sim)) evacDeploy(sim);
     if (evacMap) evacReposition(sim);
     if (deployPhase(sim)) { lay(sim, plan.lines ?? [], 'block'); garrisonSquads(sim, P); deployAll(sim, plan, !!P.rest); }
@@ -887,6 +892,13 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   const { sim: _s, ...rest } = r;
   void _s;
   return { ...rest, plan, cashStart: cfg.cash };
+}
+
+// 0.26.4: en människa som ställer ut rimligt men inte bäst. Varannan plats i täckningsordningen först (den näst bästa,
+// den fjärde ...), sedan de andra; inga tak (pekaren sa "Roof too steep" och skytten hamnade på marken).
+export function humanPlan(plan) {
+  const alt = a => [...a.filter((_, i) => i % 2 === 1), ...a.filter((_, i) => i % 2 === 0)];
+  return { ...plan, guns: alt(plan.guns), squads: alt(plan.squads), roofs: [], roofFacing: [] };
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
@@ -1256,6 +1268,9 @@ export const FAMILIES = {
   near: { molnbo: { ...POLICIES.normal, evacMap: true, blocks: false, nearBase: 40, nearDays: [2, 3] }, laxne: { ...POLICIES.blNear, rest: true, depth: 'recrew' }, bjornlunda: { ...POLICIES.blNear, rest: true, depth: 'recrew' },
     'gnesta-vastra-rondell': { ...POLICIES.blNear, rest: true, depth: 'recrew' }, vasterkarv: { ...POLICIES.vkNear, rest: true, depth: 'recrew' }, default: 'normal' },
 };
+// 0.26.4 (speltestet av 0.26.3): casual, en människa (humanPlan, köper bara mellan vågorna, reagerar långsamt), annars
+// som normal
+FAMILIES.casual = Object.fromEntries(Object.entries(FAMILIES.normal).map(([k, v]) => [k, { ...(typeof v === 'string' ? POLICIES[v] : v), human: true }]));
 const fullCache = new Map();
 export function fullCampaign(family = 'normal', { seedOffset = 0, choice = 'defend', maxAttempts = 6, onSecond = null, until = null } = {}) {
   const key = [family, seedOffset, choice, maxAttempts].join(':');

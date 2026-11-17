@@ -277,10 +277,10 @@ const pr = rs => vkPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, 
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vkSkilled och vkNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '0011dc91' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: '705715a4' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '221d4881' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: 'deae946e' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '6c2780f6' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: '8d410dde' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '46f46869' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '7a3f49c3' });
 });
 
 void DAYS;

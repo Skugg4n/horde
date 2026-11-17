@@ -184,7 +184,8 @@ export function closedSheet(p, s) {
   const o = MAPS[last]?.outro;
   const text = o?.summary ?? (o?.text ? o.text.split(/(?<=\.)\s/)[0] : `${s.name} holds.`);
   const days = maps.reduce((a, m) => a + MAPS[m].days.length, 0);
-  return { id: `closed:${s.id}`, kind: 'closed', sector: s.id, name: s.short ?? s.name, text, days, stamp: 'HELD' };
+  // 0.26.4: en sektor man lämnade (Västerkärv) stämplas efter sin outro (EVACUATED), inte HELD
+  return { id: `closed:${s.id}`, kind: 'closed', sector: s.id, name: s.short ?? s.name, text, days, stamp: o?.stamp ?? 'HELD', pen: o?.pen ?? 'held' };
 }
 
 // ---------- kampanjens slut (0.25.1, H561) ----------
@@ -371,7 +372,7 @@ export function unitCard(p, u, nth = 0, many = false, fatigueOn = false) {
     fatigue: fatigueOn ? f : null, state: fatigueOn ? FATIGUE.names[f] : (u.men === 0 ? 'No men' : 'Ready'),
     // 0.21.2: spelet flyttade enheten efter en vunnen dag (src/meta/operation.js finishDay)
     reinf: reinforcementOf(p, u),
-    moved: MOVED[u.moved] ?? null,
+    moved: MOVED[u.moved] ?? null, movedWhy: MOVED[u.moved] ? u.moved : null,
   };
 }
 // Korten i sektorn: förrådets banor (lanes) som de är, ett kort per enhet.

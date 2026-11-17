@@ -47,8 +47,9 @@ const REASONS = {
   'upptagen': 'Tile already taken.',
   'okänd': 'Can\'t do that.',
   'redan': 'This position already has a kit.',
-  'zombier': 'Zombies in the way',
-  'ingen gata': 'Only on the road',
+  'zombier': 'Zombies in the way. Lay it ahead of them',
+  // 0.26.4 (speltestet av 0.26.3: tråd mitt i vågen gav "Only on the road" utan att säga var): var det går
+  'ingen gata': 'Only on a road. Aim at the asphalt, red lines show their way',
   'basnära': 'Too close to the base. A bit further out.',
   // Hemvärnet (0.9.0)
   'trångt': 'No room for the squad here',
@@ -646,7 +647,8 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   // dagen i en sektor får rubriken VICTORY, och sektorns berättelse står för sig under resultatet.
   const sectorDone = won && lastDay && outro;
   // 0.26.1 (H607): en dag som går ut på att lämna (dayCfg.extract) hölls inte, alla kom ut
-  const head = sectorDone ? 'Victory' : won && exitDay ? `Day ${day}. Everyone got out.` : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : lostBy === 'extract' ? 'The EPA was lost.' : 'The line broke.';
+  // 0.26.4 (speltestet av 0.26.3): Västerkärv är en endagssektor; där sa kortet VICTORY och "Day 14 held" med huset fallet
+  const head = sectorDone && !exitDay ? 'Victory' : won && exitDay ? `Day ${day}. Everyone got out.` : won ? `Day ${day} held.` : lostBy === 'civilians' ? 'Too many civilians fell.' : lostBy === 'extract' ? 'The EPA was lost.' : 'The line broke.';
   const evacLine = evac ? `<p class="lead strong">${evac.safe} of ${evac.total} civilians ${evac.place ?? 'reached the ice rink'}${evac.lost ? `, ${evac.lost} fell` : ''}.</p>` : '';
   const rows = [];
   if (rp) {
@@ -664,7 +666,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
   // 0.14.2 (speltestet av 0.14.1: "VICTORY" följt av "The roadblock at E4 has fallen silent" lästes fortfarande
   // som en förlust): rubriken står ensam, sedan siffrorna, och sist sektorns berättelse som ett radiomeddelande
   // från ledningen i en egen ruta, tydligt skild från resultatet.
-  const done = sectorDone ? `<p class="lead strong">Day ${day} held. ${outro.name ?? 'The sector'} is done.</p>` : '';
+  const done = sectorDone && !exitDay ? `<p class="lead strong">Day ${day} held. ${outro.name ?? 'The sector'} is done.</p>` : '';
   const story = sectorDone ? `<div class="radio"><div class="rh"><i></i>Radio · ${outro.from ?? 'Försvarsmakten'} to all units</div>
       <p>${outro.text}</p><div class="rf">Out.</div></div>` : '';
   // 0.14.2 (speltestet: "Waves cleared 1 of 3" på Gnesta trots "Day 1 held"): en evakueringsdag tar slut när
@@ -761,10 +763,13 @@ function showNote(root, text, cls, ms = NOTE_MS, top = false, rank = 0, { sub = 
   if (top) st.prepend(el); else st.appendChild(el);
   el._t = setTimeout(() => dropNote(root, el), ms);
 }
+// 0.26.4 (speltestet av 0.26.3, dag 9: tåget, basen, genombrottet och horden på en gång): medan tågets banderoll (rank 3)
+// står väntar de andra raderna i kön; en sak i taget
+const capFor = (st, rank = 0) => { const big = bigNote(st); return big && big._rank >= 3 && rank < 2 ? 1 : NOTE_MAX; };
 function dropNote(root, el) {
   el.remove();
   const st = noteStack(root);
-  while (noteQueue.length && st.querySelectorAll('.note').length < NOTE_MAX) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms, false, q.rank, q.opts); }
+  while (noteQueue.length && st.querySelectorAll('.note').length < capFor(st, noteQueue[0].rank)) { const q = noteQueue.shift(); showNote(root, q.text, q.cls, q.ms, false, q.rank, q.opts); }
 }
 // 0.16.1: prio (en ny ingång) tar plats direkt, den äldsta raden får gå. 0.16.2: ms, hur länge raden står
 // 0.19.0 (speltestet av 0.18.1, fynd 5: "Volunteer squad breaks!" grå och halvt bakom den röda omvägsraden): top lägger
@@ -780,7 +785,7 @@ export function note(root, text, cls = '', { prio = false, ms = NOTE_MS, top = f
   const same = [...st.querySelectorAll('.note')].find(n => n._key === key);
   if (same) { clearTimeout(same._t); same._t = setTimeout(() => dropNote(root, same), ms); return; }
   if (noteQueue.some(q => q.key === key)) return;
-  if (st.querySelectorAll('.note').length >= NOTE_MAX) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
+  if (st.querySelectorAll('.note').length >= capFor(st, rank)) { noteQueue.push({ text, key, cls, ms, rank, opts }); if (noteQueue.length > 6) noteQueue.shift(); return; }
   showNote(root, text, cls, ms, top, rank, opts);
 }
 // 0.25.2 (H275, "Base under attack!" låg kvar efter vågen): raderna vars text börjar med prefix tas bort, också ur kön.

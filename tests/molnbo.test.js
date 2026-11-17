@@ -491,8 +491,9 @@ test('balans: den som aldrig spärrar klarar Mölnbo inom fyra försök per dag,
   // 0.22.0 (H539): snittet högst 13 (förut 12). Med den mindre truppen från kampanjbågen är dag 3 ett stup: hp 26 ger 11,6
   // för den som aldrig spärrar men då förlorar Quick jump-truppen utan handpåläggning klockan (scripts/slice1-check.mjs
   // molnbo); hp 25 ger 12,6. docs/balance-log.md 0.22.0.
-  assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 13, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
-  assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 14, `snitt bas ${won(2).map(x => x.baseHp)}`);
+  // 0.26.4: Psg 90 får ligga på villornas och radhusens nock (speltestet av 0.26.3); dag 3 gav 15 i snitt, gränsen 16
+  assert.ok(won(3).reduce((s, x) => s + x.baseHp, 0) / won(3).length <= 16, `dag 3 snitt bas ${won(3).map(x => x.baseHp)}`);
+  assert.ok([...won(2), ...won(3)].reduce((s, x) => s + x.baseHp, 0) / (won(2).length + won(3).length) <= 16, `snitt bas ${won(2).map(x => x.baseHp)}`);
 });
 
 // 0.20.1 (speltestet av 0.20.0: dag 2 tog tolv minuter i 1x): sex till sju minuter för den som läser kartan (0.21.3: högst
@@ -546,8 +547,8 @@ test('hoppet till Mölnbo dag 2 och 3 har kartläsarens trupp den dagen', () => 
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
   // 0.22.1: mbSmart nytt avsiktligt (dag 1 halva förnödenheterna per dödad, bounty 0,5); utfallen som förut
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'db3d7cc9', 'molnbo 2': 'bbb92c63', 'molnbo 3': '112e6c02' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'b820767f', 'molnbo 2': '98cbd6ff', 'molnbo 3': 'b7fe0446' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'a7ed42c4', 'molnbo 2': '07c0c793', 'molnbo 3': 'b0f94922' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'cf3ea245', 'molnbo 2': '2580c15b', 'molnbo 3': 'c5fe8cc5' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

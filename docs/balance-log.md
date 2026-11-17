@@ -1616,3 +1616,39 @@ Kanterna är branta: en halv till en hp-enhet mer fällde den vanliga spelaren f
 Kvar att göra: spelaren vid basen är mycket starkare än den som sprider sig längs vägarna från Mölnbo dag 2 (hp som fäller den vanliga spelaren lämnar honom med 17 till 20); hp kan inte ställa båda, det är en fråga om banorna och ordern. Mölnbo dag 1 och 2 och Laxne är fortfarande lättare än dagarna runt. Den vanliga spelaren köper så länge pengarna räcker, så kvar-kolumnen ligger ofta under 200 $; en människa som köper som han har budgetens 350 $ över.
 
 Fingeravtrycken och Quick jump-truppen (src/data/arrival.js, `node scripts/arrival-regen.mjs`) är omräknade; banornas egna prov från kartläsarens ankomst står kvar som fingeravtryck, och kurvan ovan är den som gäller.
+
+## 0.26.4: den mänskliga spelaren (casual) och dag 9, 13 och 14
+
+Speltestet av 0.26.3 (docs/playtests/2026-11-16-0.26.3-helhet.md): Mölnbo dag 2 (dag 9), Björnlunda dag 2 (dag 13) och Västerkärv (dag 14) förlorades två gånger var med en uppställning som såg rimlig ut, medan balansens policy vann. Policyn `normal` ställer pjäserna där täckningen är störst, köper varje sekund mitt i vågen och vrider sysslolösa pjäser efter 3 s; en människa gör inte så.
+
+**Ny spelare: casual** (`FAMILIES.casual` i scripts/balance.mjs, `humanPlan`). Som `normal`, men: varannan plats i täckningsordningen först (den näst bästa, den fjärde ...), inga tak (speltestaren fick "Roof too steep" och ställde skytten på marken), köper bara mellan vågorna (mitt i vågen bara EPA:n), och vrider en sysslolös pjäs först efter 10 s. Den förlorar som speltestaren: basen 20 till 0 i sista eller näst sista vågen, och 750 till 1 200 $ kvar (speltestet: 650 till 1 050 $).
+
+Mätt med truppen den vanliga spelaren har fram till dagen (`fullCampaign('normal', { until })`), fem seeds, högst två eller tre försök. Svar per seed: ja<bas> eller nej, försöken med `>`.
+
+**Före** (hp som i 0.26.3):
+
+    Mölnbo 2      hp 15          casual: 2 av 5 vinner på första, 3 förlorar båda (basen 14 till 0 i våg 3)
+    Björnlunda 2  hp 6,3 DEFEND  casual: 5 av 5 förlorar båda (basen 12 till 0 i våg 3)
+    Björnlunda 2  hp 8 FALL BACK casual: 5 av 5 förlorar båda
+    Västerkärv    hp 8,5 DEFEND  casual: 3 första, 1 andra, 1 förlorar båda
+    Västerkärv    hp 8,5 FALL BACK casual: 5 av 5 förlorar båda (huset faller i våg 3)
+
+**Prövat:** Mölnbo 2 hp 13 och 14 (alla första), 11 och 9 (för lätt, basen 15 till 20). Björnlunda 2 hp 5 (DEFEND: alla förlorar; FALL BACK: 2 av 5), 4,5 (före takändringen 4 av 5 första, efter den förlorade 3 av 5 tre gånger: truppen in i dag 13 blev en annan), 4, 3,5 och 3. Västerkärv 7,5, 7 och 6,5 (en seed förlorar två gånger på 7 och 7,5).
+
+**Valt:** Mölnbo dag 2 hp 14, Björnlunda dag 2 hp 4 i båda grenarna, Västerkärv hp 6,5 i båda grenarna (src/data/campaign-tune.js). Dag 1 till 7 är orörda.
+
+**Efter** (samma truppen, med Mölnbos och Västerkärvs nya tak):
+
+    casual  Mölnbo 2            ja5 ja10 ja13 ja13 ja13                     alla första, 790 till 805 $ kvar
+    casual  Björnlunda 2 DEFEND ja9 ja14 ja5 ja9 ja8                        alla första
+    casual  Björnlunda 2 FB     nej>ja10 ja13 ja10 ja9 ja9                  4 första, 1 andra
+    casual  Västerkärv DEFEND   nej>ja ja ja ja ja                          4 första, 1 andra
+    casual  Västerkärv FB       ja ja ja nej>ja nej>ja                      3 första, 2 andra
+    normal  Mölnbo 2            nej>ja5 ja5 nej>ja2 nej>ja4 nej>ja4         1 första, 4 andra (se nedan)
+    normal  Björnlunda 2 DEFEND ja17 ja18 ja17 ja17 ja17
+    normal  Björnlunda 2 FB     ja12 ja18 ja16 ja10 ja9
+    normal  Västerkärv DEFEND   alla första
+
+Den vanliga spelaren (`normal`) förlorar nu Mölnbo dag 2 på första försöket i fyra seeds av fem, fast hp sänktes. Skälet är taken: Psg 90 får ligga på nocken av villorna och radhusen (H8 i speltestet, 6 till 33 byggnader med takplats), och balansens takplan väljer dem före de gamla platserna. Den vinner på andra försöket och provet (högst tre försök) håller. Mölnbo dag 3 blev lättare för den som aldrig spärrar av samma skäl (basen 15 i snitt, förut högst 13; provets gräns 16).
+
+Björnlunda dag 2 är nu lätt för den vanliga spelaren (basen 9 till 18). Kanten för den mänskliga spelaren är brant (hp 5 förlorar alla), så den mänskliga spelaren gick före. Prov: tests/full-campaign.test.js (casual inom två försök, två seeds, båda grenarna). Fingeravtrycken för Mölnbo, Laxne, Björnlunda, rondellen och Västerkärv och Quick jump-truppen (src/data/arrival.js) är omräknade.

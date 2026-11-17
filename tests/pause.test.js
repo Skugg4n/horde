@@ -118,3 +118,11 @@ test('Esc: det man håller, sedan panelen, sedan menyn, alltid i den ordningen',
   assert.equal(escapeAction({ mode: 'play', placing: true, lesson: true }), 'cancel-placing');
   assert.equal(escapeAction({ mode: 'play', panel: true, lesson: true }), 'close-panel');
 });
+
+// 0.26.4 (speltestet av 0.26.3: Esc öppnade pausmenyn mitt i striden): det öppna först (också ett tips), menyn sist
+test('Esc: det öppna först, pausmenyn bara när inget är öppet', () => {
+  const base = { menuOpen: false, mode: 'play', placing: false, panel: false };
+  assert.equal(escapeAction({ ...base, lesson: true }), 'skip-lesson');
+  assert.equal(escapeAction({ ...base, panel: true, lesson: true }), 'close-panel');
+  assert.equal(escapeAction(base), 'open-menu');
+});
