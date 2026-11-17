@@ -11,17 +11,20 @@
 // Varje ändring och kurvan före och efter: docs/balance-log.md, 0.26.1.
 // 0.26.4 (speltestet av 0.26.3: dag 9, 13 och 14 förlorade två gånger med egen uppställning): Mölnbo dag 2, Björnlunda dag 2
 // och Västerkärv efter den mänskliga spelaren (casual, scripts/balance.mjs); docs/balance-log.md 0.26.4.
+// 0.26.5 (speltestet av 0.26.4: dag 9 och Västerkärv förlorade två gånger var, Björnlunda lätt): efter speltestarens egen
+// uppställning (FAMILIES.tester, scripts/balance.mjs testerPlan): Mölnbo dag 2 hp 14 till 12, Björnlunda dag 2 4 till 4,5,
+// Västerkärv 6,5 till 4 (och basen 16 till 20, src/data/vasterkarv-play.js); docs/balance-log.md 0.26.5.
 export const RAMP_MAX = 1.6;
 export const TUNE = {
   // Ishallen dag 1 (kampanjens dag 4): evakueringen är klar i våg 2; en större första våg dödade de civila vid dörrarna
   riksvagen: { 2: { hp: 3.6 } },
   gnesta: { 1: { cap: true }, 2: { hp: 2.3, budget: 740 }, 3: { budget: 1076 } },
   'gnesta-norr': { 1: { hp: 2.8, budget: 1050 } },
-  molnbo: { 1: { hp: 24, budget: 790 }, 2: { hp: 14, budget: 990 }, 3: { hp: 24 } },
+  molnbo: { 1: { hp: 24, budget: 790 }, 2: { hp: 12, budget: 990 }, 3: { hp: 24 } },
   laxne: { 1: { hp: 8, budget: 1490 } },
-  bjornlunda: { 1: { hp: 8.5, hpBy: { fallback: 6.5 }, budget: 1320 }, 2: { hp: 4, hpBy: { fallback: 4 }, budget: 1630 } },
+  bjornlunda: { 1: { hp: 8.5, hpBy: { fallback: 6.5 }, budget: 1320 }, 2: { hp: 4.5, hpBy: { fallback: 4.5 }, budget: 1630 } },
   'gnesta-vastra-rondell': { 1: { hp: 14, budget: 1340 } },
-  vasterkarv: { 1: { hp: 6.5, hpDefend: 6.5 } },
+  vasterkarv: { 1: { hp: 4, hpDefend: 4 } },
 };
 
 // Vågornas antal jämnas ut bakifrån: varje våg minst nästa delat med r, sedan skalas allt så att summan står kvar (avrundat

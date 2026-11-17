@@ -2,13 +2,16 @@
 // Mölnbo, Mölnbo dag 2 och 3, Björnlunda, Björnlunda dag 2, Laxne, rondellen, Västerkärv. Proven i tests/*-sector.test.js
 // och tests/molnbo.test.js jämför samma funktioner. node scripts/arrival-regen.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
-import { molnboArrival, molnboDayTroop, bjornlundaArrival, bjornlundaDayTroop, laxneArrival, vastraRondellArrival, vasterkarvArrival } from './balance.mjs';
+import { molnboArrival, molnboDayTroop, bjornlundaArrival, bjornlundaDayTroop, laxneArrival, vastraRondellArrival, vasterkarvTroop } from './balance.mjs';
 import { unitsIn } from '../src/meta/operation.js';
 const row = u => [u.type, u.level, u.men ?? null, u.wins ?? 0];
-const m = molnboArrival(0), m2 = molnboDayTroop(2), m3 = molnboDayTroop(3), b = bjornlundaArrival(0), b2 = bjornlundaDayTroop(2), l = laxneArrival(0), r = vastraRondellArrival(0), v = vasterkarvArrival(0);
+// 0.26.5 (speltestet av 0.26.4: Quick jump till Västerkärv gav frivilliga på nivå 1 och ingen Ksp 88): Västerkärv får truppen
+// den vanliga spelaren har efter hela kampanjen (FALL BACK, seed 0), med tröttheten, så att rullan väljer som hans
+const rowF = u => [...row(u), ...(u.fatigue ? [u.fatigue] : [])];
+const m = molnboArrival(0), m2 = molnboDayTroop(2), m3 = molnboDayTroop(3), b = bjornlundaArrival(0), b2 = bjornlundaDayTroop(2), l = laxneArrival(0), r = vastraRondellArrival(0), v = vasterkarvTroop(0);
 const seq = [[m.research, m.op.units.map(row)], [m2.research, unitsIn(m2, 'molnbo').map(row)], [m3.research, unitsIn(m3, 'molnbo').map(row)],
   [b.research, b.op.units.map(row)], [b2.research, unitsIn(b2, 'bjornlunda').map(row)], [l.research, unitsIn(l, 'laxne').map(row)],
-  [r.research, unitsIn(r, 'gnesta-vastra-rondell').map(row)], [v.research, unitsIn(v, 'vasterkarv').map(row)]];
+  [r.research, unitsIn(r, 'gnesta-vastra-rondell').map(row)], [v.research, unitsIn(v, 'vasterkarv').map(rowF)]];
 const file = new URL('../src/data/arrival.js', import.meta.url);
 const js = x => JSON.stringify(x).replace(/"/g, "'").replace(/,/g, ', ');
 // research: och units: kan gå över flera rader: allt fram till hakparentesen som stänger ersätts

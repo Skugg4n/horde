@@ -1,5 +1,18 @@
 # Ändringslogg
 
+## 0.26.5 (speltestet av 0.26.4) (2026-11-17)
+
+Speltestet av 0.26.4 (docs/playtests/2026-11-17-0.26.4.md) sa NEJ: dag 9 och Västerkärv förlorades två gånger var med egen uppställning, LINE BREAKING pekade på basen och Esc öppnade pausen över fiendekortet.
+
+- **Balansen efter speltestarens egen uppställning.** Ny spelare i balansen (`tester`, scripts/balance.mjs testerPlan) byggd ur skärmbilderna: allt i en klunga nära basen vänt mot första vågens väg (Mölnbo vid kyrkkorsningen, Västerkärv tätt runt boningshuset), som vrider en sysslolös pjäs först efter 25 s. Med 0.26.4:s siffror förlorade den dag 9 och Västerkärv två gånger i alla fem seeds och vann Björnlunda med basen 16 till 17, som speltestaren. Nu: Mölnbo dag 2 hp 12 (14), Björnlunda dag 2 hp 4,5 (4), Västerkärv hp 4 (6,5) och basen 20 (16). Speltestarens uppställning vinner dag 9 och Västerkärv på första eller andra försöket. docs/balance-log.md 0.26.5, `node scripts/balance-0265.mjs`.
+- **LINE BREAKING och "Base under attack" namnger gatan.** Basens egen gårdsväg (Folkets hus) och allt inom 34 m från basen namnger aldrig en läcka; den får gatan zombien senast gick på utanför (Trollvägen för kolonnen från Fagernäsvägen), och skylten och ringen står där.
+- **Västerkärvs bas.** Skylten "Boningshuset · Base" står på basrutan vid gaveln och grinden, där horden slår, med en gul ring på marken (förut över husets tak, cirka 20 m norrut). Basen börjar på 20 som alla dagar. Quick jump ger truppen den vanliga spelaren har efter hela kampanjen, med tröttheten (Ksp 90 nivå II, två Ksp 58 i stället för två Psg 90).
+- **Esc och fiendekortet.** Kortet öppnas inte under pausmenyn (det var så det hamnade under den), menyn öppnas inte medan kortet eller Field manual står, och ett klick i menyn strax efter att den öppnats gör inget.
+- **Vrida pjäser.** Ett klick på ↻R-märket eller R vänder pjäsen direkt mot fienderna den ser. R utan pjäs under pekaren vänder alla med märket. Medan man vrider för hand visar en röd ring var närmaste fiender i sikte står, och R igen vänder dit.
+- **Taken.** Med Psg 90 i handen lyser varje takplats där den får stå som små gröna rutor på taken ("Green squares: roofs it can use").
+- **Pengarna.** Efter en klarad våg med minst 400 $ och enheter utan ammolåda eller sandsäckar: "$ 650 to spend. Click here: ammo and sandbags for your units." Ett klick köper ammolådor till alla och sandsäckar till grupperna så långt pengarna räcker (annars raden om tråd och spärrar som förut). Budgeten per dag är orörd.
+- **Småsaker.** Hålla och dra en enhet mitt i striden flyttar den (Move) eller säger varför inte; efter sista vågen står "All down" i stället för "0 of 0 left"; tipsen på bordet ställs inte på dagens order, förlustlappen, fiendekorten eller kartans text; finns ingen fri plats runt målet tas närmaste fria plats på bordet, med ledlinjen dit.
+
 ## 0.26.4 (speltestet av 0.26.3) (2026-11-16)
 
 Speltestet av 0.26.3 (docs/playtests/2026-11-16-0.26.3-helhet.md) sa NEJ: dag 9, 13 och 14 förlorades två gånger var med egen uppställning, och bara balansens policy vann dem.

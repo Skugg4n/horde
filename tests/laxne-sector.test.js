@@ -363,13 +363,15 @@ test('hoppet till Laxne (Quick jump) har truppen och forskningen balansen räkna
 
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Laxne).
 // 0.24.0 (H552, efter sammanslagningen med 0.23.3: bounty 0,75/0,7, bjässarnas svans, dag 1 hp 7,25): första kvittot, Laxne hp 7, fart 2,2; Björnlunda i grenen DEFEND LAXNE med Laxnes Hemvärn och en Ksp 90 (bl-lx).
+// 0.26.5 (speltestet av 0.26.4): nya fingeravtryck, avsiktligt: Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5, Västerkärv hp 4 och
+// basen 20, och truppen in i varje senare bana blir en annan. docs/balance-log.md 0.26.5.
 const pr = (f, rs) => f([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (Laxne, och Björnlunda efter DEFEND LAXNE)', () => {
-  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': 'c06aea20' });
+  assert.deepEqual(pr(lxPrints, lxSkilled), { 'laxne 1': '1084f15e' });
   // 0.24.1 (H558): bounty 0,78 (förut 0,9); kartläsaren oförändrad, den vanliga spelaren ny. docs/balance-log.md Laxne 0.24.1.
-  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': 'ceb6ad6a' });
-  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': 'c9186e30', 'bjornlunda 2': '87e9a45b' });
-  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': 'e241a74f', 'bjornlunda 2': '014918f3' });
+  assert.deepEqual(pr(lxPrints, lxNormal), { 'laxne 1': '2e8e6d20' });
+  assert.deepEqual(pr(blPrints, blDefSkilled), { 'bjornlunda 1': '47073ea9', 'bjornlunda 2': '4cd1705f' });
+  assert.deepEqual(pr(blPrints, blDefNormal), { 'bjornlunda 1': 'd611b98f', 'bjornlunda 2': '838e420f' });
 });

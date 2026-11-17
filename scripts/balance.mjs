@@ -869,6 +869,8 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
   // 0.26.4 (speltestet av 0.26.3): den mänskliga spelaren (casual). Näst bästa platserna först, inga tak, köper bara
   // mellan vågorna och vrider en sysslolös pjäs först efter 10 s.
   if (P.human) { plan = humanPlan(plan); sim._reaimIdle = 10; }
+  // 0.26.5 (speltestet av 0.26.4): speltestarens egen uppställning (P.tester = radien), se testerPlan
+  if (P.tester) { plan = testerPlan(map, day, P.tester, !!P.testerAll); if (P.alt) plan = humanPlan(plan); sim._reaimIdle = P.reaim ?? 10; }
   const builder = !isTown ? () => greedyBuild(sim, plan.guns)
     : () => (T.build ?? gnestaBuild)(sim, plan, T.kits[day], T.roofsDay[day]);
   // 0.16.0: en sen enhet (E4 dag 1:s andra Ksp 90) ställs ut när den kommit fram
@@ -899,6 +901,24 @@ export function playOpDay(progress, mapId, day, policy = 'skilled', { seedOffset
 export function humanPlan(plan) {
   const alt = a => [...a.filter((_, i) => i % 2 === 1), ...a.filter((_, i) => i % 2 === 0)];
   return { ...plan, guns: alt(plan.guns), squads: alt(plan.squads), roofs: [], roofFacing: [] };
+}
+
+// 0.26.5 (speltestet av 0.26.4: dag 9 och Västerkärv förlorade två gånger var): speltestarens uppställning ur skärmbilderna
+// (docs/playtests/2026-11-17-0.26.4-bilder 05, 10 och 16). Allt står i en klunga inom r meter från basen, vänt mot första
+// vågens väg (banderollen "26 walkers · 9 runners Väg 57 north"); banderollerna "From wave 2" läser han inte in i
+// uppställningen. Psg 90 på ett tak i klungan (kyrktornet, ladan), ingen taggtråd eller spärr, köper bara mellan vågorna,
+// vrider en sysslolös pjäs först efter 10 s och flyttar inget mellan vågorna.
+export function testerPlan(map, day, r, all = false) {
+  const sim = createSim({ map, day, cash: 0, seed: 1 }), route = sim.route;
+  const [bx, bz] = map.base.at, within = { x: bx, z: bz, r };
+  const first = all ? daySpawns(map, day) : [...new Set(map.days[day - 1].waves[0].groups.map(g => g.spawn))];
+  const cells = route.paths(first).flatMap(q => q.cells.map(c => [c, 1]));
+  const p = placementFor(map);
+  const cp = coveragePlan(map, cells, { range: PLAN_RANGE, count: 12, decay: GN_DECAY, cacheKey: 'tester' + r + ':' + all + ':' + day, within });
+  const sq = coveragePlan(map, cells, { range: WEAPONS.hv.range, count: 10, decay: GN_DECAY, cacheKey: 'testerSq' + r + ':' + all + ':' + day, within });
+  const near = i => { const sh = p.buildings[i]?.[0]; return sh && Math.hypot(sh.x - bx, sh.z - bz) <= r + 10; };
+  const roofs = roofPlan(map, cells, { count: 2, filter: near });
+  return { lines: [], wire: [], guns: cp.spots, squads: sq.spots, roofs: roofs.spots, roofFacing: roofs.facings };
 }
 
 // Quick jump: policyn per bana (0.23.0: Björnlunda blSkilled)
@@ -1245,6 +1265,8 @@ export function vasterkarvArrival(seedOffset = 0, choice = 'fallback') {
   if (!vkArrivalMap.has(key)) vkArrivalMap.set(key, vastraRondellCampaign('vrSkilled', { seedOffset, maxAttempts: 6, choice }).progress);
   return vkArrivalMap.get(key);
 }
+// 0.26.5: truppen den vanliga spelaren går in i Västerkärv med efter hela kampanjen (Quick jump, src/data/arrival.js)
+export const vasterkarvTroop = (seedOffset = 0, choice = 'fallback') => fullCampaign('normal', { seedOffset, choice, until: { mapId: 'vasterkarv', day: 1 } }).progress;
 export function vasterkarvCampaign(policy = 'vkSkilled', { seedOffset = 0, maxAttempts = 6, onSecond = null, choice = 'fallback' } = {}) {
   return opCampaign(policy, { seedOffset, maxAttempts, sectors: ['vasterkarv'], start: vasterkarvArrival(seedOffset, choice), onSecond });
 }
@@ -1270,6 +1292,12 @@ export const FAMILIES = {
 };
 // 0.26.4 (speltestet av 0.26.3): casual, en människa (humanPlan, köper bara mellan vågorna, reagerar långsamt), annars
 // som normal
+// 0.26.5: speltestarens uppställning (testerPlan). Radien ur skärmbilderna: Mölnbo vid kyrkkorsningen (60 m från Folkets
+// hus), Västerkärv tätt runt boningshuset mot båda vägarna (båda slutar vid grinden); övriga banor 40 m.
+export const TESTER = { r: { molnbo: 60, vasterkarv: 25 }, all: { vasterkarv: true }, alt: { vasterkarv: true }, reaim: 25 };
+const testerEnv = k => (typeof process !== 'undefined' && process.env?.[k] ? Number(process.env[k]) : null);
+FAMILIES.tester = Object.fromEntries(Object.entries(FAMILIES.normal).map(([k, v]) => [k, { ...(typeof v === 'string' ? POLICIES[v] : v), human: true,
+  tester: testerEnv('TESTER_R') ?? TESTER.r[k] ?? 40, reaim: testerEnv('TESTER_REAIM') ?? TESTER.reaim, testerAll: !!TESTER.all[k], alt: (testerEnv('TESTER_ALT') ?? (TESTER.alt[k] ? 1 : 0)) === 1 }]));
 FAMILIES.casual = Object.fromEntries(Object.entries(FAMILIES.normal).map(([k, v]) => [k, { ...(typeof v === 'string' ? POLICIES[v] : v), human: true }]));
 const fullCache = new Map();
 export function fullCampaign(family = 'normal', { seedOffset = 0, choice = 'defend', maxAttempts = 6, onSecond = null, until = null } = {}) {

@@ -1652,3 +1652,63 @@ Mätt med truppen den vanliga spelaren har fram till dagen (`fullCampaign('norma
 Den vanliga spelaren (`normal`) förlorar nu Mölnbo dag 2 på första försöket i fyra seeds av fem, fast hp sänktes. Skälet är taken: Psg 90 får ligga på nocken av villorna och radhusen (H8 i speltestet, 6 till 33 byggnader med takplats), och balansens takplan väljer dem före de gamla platserna. Den vinner på andra försöket och provet (högst tre försök) håller. Mölnbo dag 3 blev lättare för den som aldrig spärrar av samma skäl (basen 15 i snitt, förut högst 13; provets gräns 16).
 
 Björnlunda dag 2 är nu lätt för den vanliga spelaren (basen 9 till 18). Kanten för den mänskliga spelaren är brant (hp 5 förlorar alla), så den mänskliga spelaren gick före. Prov: tests/full-campaign.test.js (casual inom två försök, två seeds, båda grenarna). Fingeravtrycken för Mölnbo, Laxne, Björnlunda, rondellen och Västerkärv och Quick jump-truppen (src/data/arrival.js) är omräknade.
+
+## 0.26.5: speltestarens uppställning (tester) och dag 9, 12/13 och 14/15
+
+Speltestet av 0.26.4 (docs/playtests/2026-11-17-0.26.4.md): dag 9 och Västerkärv förlorades två gånger var med egen uppställning, Björnlunda vanns lätt (basen 16 till 17, 840 till 1 310 $ kvar). `casual` från 0.26.4 vann dag 9 och Västerkärv, så den liknade inte speltestaren.
+
+**Ny spelare: tester** (`FAMILIES.tester`, `testerPlan` i scripts/balance.mjs), byggd ur speltestets skärmbilder (05, 10 och 16):
+
+- Mölnbo: allt i en klunga inom 60 m från Folkets hus (kyrkkorsningen), vänt mot första vågens väg (Väg 57 north); banderollerna "From wave 2/3" läser han inte in i uppställningen. Psg 90 på ett tak i klungan (kyrktornet).
+- Västerkärv: tätt runt boningshuset (25 m), mot båda vägarna (båda slutar vid grinden), andra-bästa platserna och ingen användbar takplats (Psg 90 på ladan långt österut i speltestet).
+- Ingen tråd eller spärr, köper bara mellan vågorna, flyttar inget, och vrider en sysslolös pjäs först efter 25 s (speltestet: "R vrider ett steg i taget", "fler klick än skjutande").
+
+Prövat innan modellen sattes: vridning efter 10 och 15 s vann dag 9 (basen 3 till 9); bara första vågens väg på Västerkärv förlorade i våg 2 med allt norr om huset; Quick jump-truppen i stället för kampanjens var starkare (två Psg 90), så speltestarens förluster beror inte på truppen.
+
+Mätt med `node scripts/balance-0265.mjs 5` (truppen den vanliga spelaren har fram till dagen, fem seeds, högst två försök; ja<bas>($ kvar), nej(v<våg>,b0)).
+
+**Före** (0.26.4: Mölnbo 2 hp 14, Björnlunda 2 hp 4, Västerkärv hp 6,5 och basen 16):
+
+    d9  Mölnbo 2       tester  nej>nej på alla fem (basen 0 i våg 3)
+                       casual  ja5 ja10 ja13 ja13 ja13 (790-805 $)
+                       normal  nej>ja5 ja5 nej>ja2 nej>ja4 nej>ja4
+    d13 Björnlunda 2 D tester  ja17 alla fem (1 560 $)
+                       casual  ja9 ja14 ja5 ja9 ja8
+                       normal  ja17 ja18 ja17 ja17 ja17
+    d12 Björnlunda 2 F tester  ja16 ja17 ja16 ja16 ja16 (1 536-1 560 $)
+                       casual  nej>ja10 ja13 ja10 ja9 ja9
+                       normal  ja12 ja18 ja16 ja10 ja9
+    d15 Västerkärv D   tester  nej>nej på alla fem (huset faller i våg 2)
+                       casual  nej>ja ja ja ja ja
+                       normal  ja alla fem (basen 0 när de civila gått)
+    d14 Västerkärv F   tester  nej>nej på alla fem
+                       casual  ja ja ja nej>ja nej>ja
+                       normal  ja alla fem
+
+**Prövat:** Mölnbo 2 hp 12 (tester alla första, basen 2 till 9), 11 (basen 10 till 15), 10 (16 till 17, för lätt). Västerkärv hp 5 och 4 med basen 16 (tester förlorar alla: allt norr om huset), med basen 20 hp 5 (2 av 3 förlorar två gånger), 4 och 3,5. Björnlunda 2 hp 4,5, 5 och 5,5, och 15 % fler i vågorna 2 till 4: speltestarens klunga vid basen rör sig knappt (basen 13 till 17 ända till 5,5) medan casual faller helt vid 5.
+
+**Valt** (src/data/campaign-tune.js): Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5 i båda grenarna, Västerkärv hp 4 i båda grenarna och basen 20 (src/data/vasterkarv-play.js; förut 16 utan förklaring).
+
+**Efter** (samma mätning, truppen omräknad med de nya siffrorna):
+
+    d9  Mölnbo 2       tester  ja9 ja8 ja2 ja8 ja4 (1 040-1 055 $)
+                       casual  ja13 ja13 ja14 ja14 ja15
+                       normal  ja12 ja15 ja1 ja11 ja7
+    d13 Björnlunda 2 D tester  ja17 ja17 ja16 ja17 ja17 (1 536-1 560 $)
+                       casual  ja9 ja9 nej>ja6 ja9 nej>ja7
+                       normal  ja17 ja17 ja12 ja17 ja17
+    d12 Björnlunda 2 F tester  ja17 ja16 ja16 ja17 ja17
+                       casual  ja10 ja5 ja8 ja12 ja9
+                       normal  ja18 ja18 ja20 ja20 ja20
+    d15 Västerkärv D   tester  ja13 ja0 ja14 ja0 ja0 (764-938 $)
+                       casual  ja12 ja12 ja12 ja13 ja14
+                       normal  ja0 ja18 ja11 ja17 ja17
+    d14 Västerkärv F   tester  nej>ja0 ja0 ja0 ja0 ja0
+                       casual  ja15 ja15 ja16 ja15 ja15
+                       normal  ja16 alla fem
+
+Dag 9 och Västerkärv: speltestarens uppställning vinner nu på första försöket (en seed av tio på Västerkärv på andra); dag 9 är fortfarande tät för den (basen 2 till 9), den vanliga spelaren vinner med 1 till 15. Västerkärv är lättare för den vanliga spelaren (basen 11 till 18, förut 0 när huset fick falla). Björnlunda är bara lite stramare (casual 5 till 12 i stället för 5 till 14); för speltestarens klunga vid basen hjälper inte hp utan att casual faller, så den står kvar vid 16 till 17. Normal FALL BACK blev lättare (18 till 20) eftersom truppen in i dag 12 blev en annan när dag 9 lättade.
+
+Pengarna: speltestaren lämnar 1 000 till 1 560 $ eftersom han inte köper något mitt i striden. 0.26.5 erbjuder efter varje klarad våg ammolådor och sandsäckar till alla med ett klick (src/sim/sim.js supplyAll; tio enheter kostar 1 000 till 1 400 $). Det räknas inte in i siffrorna ovan; tester köper det inte.
+
+Prov: tests/full-campaign.test.js (tester och casual inom två försök, två seeds, båda grenarna). Fingeravtrycken och Quick jump-truppen (src/data/arrival.js, Västerkärv nu från den vanliga spelarens hela kampanj med tröttheten) är omräknade.

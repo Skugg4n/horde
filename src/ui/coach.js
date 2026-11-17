@@ -73,7 +73,7 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
   }
   const PAD = 8;
   // Varje bildruta: målets ruta (rect), eller off: { x, y, angle } vid kanten när målet är utanför bild.
-  function place(rect, { off = null, avoid = null, hard = [] } = {}) {
+  function place(rect, { off = null, avoid = null, hard = [], roam = false } = {}) {
     if (!cur) return;
     const vw = innerWidth, vh = innerHeight;
     const r = rect ? { x0: rect.x0 - PAD, y0: rect.y0 - PAD, x1: rect.x1 + PAD, y1: rect.y1 + PAD } : null;
@@ -115,7 +115,8 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     const others = [...given, { x0: vw / 2 - 60, y0: low - 30, x1: vw / 2 + 60, y1: low }];
     const fits = c => c.x >= 8 && c.y >= 8 && c.x + pw <= vw - 8 && c.y + ph <= vh - 36;
     const hits = (c, a) => a && c.x < a.x1 && a.x0 < c.x + pw && c.y < a.y1 && a.y0 < c.y + ph;
-    const clear = c => !(r && hits(c, r)) && !others.some(a => a !== box && hits(c, a)) && !(box && hits(c, box));
+    // 0.26.5: på bordet (roam) räknas också det som aldrig får täckas (hard), annars knuffades plåten därifrån rakt in i förrådet
+    const clear = c => !(r && hits(c, r)) && !others.some(a => a !== box && hits(c, a)) && !(box && hits(c, box)) && !(roam && hard.some(a => hits(c, a)));
     // 0.17.1 (speltestet av 0.17.0: raden vid pekaren skrevs över DAY-rutan): ryms ingen fri plats tas den som
     // täcker minst av gränssnittet, inte den första
     const covered = c => others.reduce((n, a) => n + Math.max(0, Math.min(c.x + pw, a.x1) - Math.max(c.x, a.x0)) * Math.max(0, Math.min(c.y + ph, a.y1) - Math.max(c.y, a.y0)), 0);
@@ -123,8 +124,20 @@ export function createCoach(root, { onRelease, onClick, onFewer }) {
     // ett stort mål (en väg över halva skärmen): plåten uppe i mitten, inne i hålet, utan ledlinje
     const big = r && (r.x1 - r.x0) * (r.y1 - r.y0) > vw * vh * 0.35;
     const bigAt = big && [90, Math.max(r.y0 + 70, 90), 150, 220].map(y => ({ x: clampX(vw / 2 - pw / 2), y, side: 'none' })).find(c => fits(c) && !others.some(a => hits(c, a)));
+    // 0.26.5 (speltestet av 0.26.4: "Upgrades improve..." över orderns text på bordet): på bordet (roam), när ingen av
+    // platserna runt målet är fri, en fri plats någonstans på skärmen, närmast målet, med ledlinjen dit
+    const roamSpot = () => {
+      const out = [];
+      for (let y = 12; y + ph <= vh - 36; y += 24) for (let x = 12; x + pw <= vw - 12; x += 24) {
+        const side = x >= t0.x1 ? 'r' : x + pw <= t0.x0 ? 'l' : y >= t0.y1 ? 'b' : 't';
+        const c = { x, y, side };
+        if (clear(c)) out.push(c);
+      }
+      const d = c => Math.hypot(c.x + pw / 2 - cx, c.y + ph / 2 - cy);
+      return out.sort((a, b) => d(a) - d(b))[0] ?? null;
+    };
     const best = bigAt || (big ? { x: clampX(vw / 2 - pw / 2), y: Math.max(r.y0 + 70, 90), side: 'none' } : null)
-      || cands.find(c => fits(c) && clear(c)) || leastCovering(cands.filter(c => fits(c) && !(r && hits(c, r)))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
+      || cands.find(c => fits(c) && clear(c)) || (roam && roamSpot()) || leastCovering(cands.filter(c => fits(c) && !(r && hits(c, r)))) || cands.find(fits) || { x: clampX(cx - pw / 2), y: clampY(cy + 40), side: 'b' };
     // 0.19.2 (speltestet av 0.19.1, fynd 6: lektionsrutan täckte DEPLOY-raden på Mölnbo dag 2 och 4, målet låg bakom
     // köpraden): rutorna i hard (köpraden, knappen och vågens rad nere, plåtarna uppe) täcks aldrig. Hamnar plåten ändå
     // på en av dem flyttas den ovanför den nedre eller under den övre.

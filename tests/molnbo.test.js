@@ -544,11 +544,13 @@ test('hoppet till Mölnbo dag 2 och 3 har kartläsarens trupp den dagen', () => 
 // 0.22.0 (H539, kampanjbågen): alla dagar nya, avsiktligt: ankomsten kommer från fyra dagar på Hagstumosse (förut tio),
 // 15 enheter med få veteraner; ledningens förstärkning dag 1 (två Psg 90, två Ksp 58 på nivå III, infanteriet, Psg 90 II
 // med flera), dag 2 hp 20 till 15 och dag 3 27 till 25. docs/balance-log.md 0.22.0.
+// 0.26.5 (speltestet av 0.26.4): nya fingeravtryck, avsiktligt: Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5, Västerkärv hp 4 och
+// basen 20, och truppen in i varje senare bana blir en annan. docs/balance-log.md 0.26.5.
 const pr = rs => mbPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 test('balans: fingeravtrycket per dag (mbSmart och mbNaive)', () => {
   // 0.22.1: mbSmart nytt avsiktligt (dag 1 halva förnödenheterna per dödad, bounty 0,5); utfallen som förut
-  assert.deepEqual(pr(smart), { 'molnbo 1': 'a7ed42c4', 'molnbo 2': '07c0c793', 'molnbo 3': 'b0f94922' });
-  assert.deepEqual(pr(naive), { 'molnbo 1': 'cf3ea245', 'molnbo 2': '2580c15b', 'molnbo 3': 'c5fe8cc5' });
+  assert.deepEqual(pr(smart), { 'molnbo 1': 'a7ed42c4', 'molnbo 2': 'ab563d6a', 'molnbo 3': '97cd7457' });
+  assert.deepEqual(pr(naive), { 'molnbo 1': 'cf3ea245', 'molnbo 2': 'c9dd9aa9', 'molnbo 3': 'e26776bb' });
 });
 
 // 0.19.0 (H457): ett hus med garnison ingår aldrig i flödets kostnader (bara hindren), så ett hus kan inte stänga en väg.

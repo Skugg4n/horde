@@ -295,12 +295,14 @@ test('hoppet till rondellen (Quick jump) har truppen och forskningen balansen r�
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Västra rondellen).
 // 0.25.0 (H559): första kvittot, hp 16, fart 1,3, ankomsten efter Björnlunda med kartläsaren (blSkilled) och Ksp 88 (vr-1).
 // 0.25.1 (H562): hp 17, bounty 0,65 (speltestet av 0.25.0: för lätt, pengarna över).
+// 0.26.5 (speltestet av 0.26.4): nya fingeravtryck, avsiktligt: Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5, Västerkärv hp 4 och
+// basen 20, och truppen in i varje senare bana blir en annan. docs/balance-log.md 0.26.5.
 const pr = rs => vrPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vrSkilled och vrNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'b7883089' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'ef1531e8' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '592ec122' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '61656bd6' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: 'f77b9c0a' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'fde25464' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'e396afdd' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: 'a9b3524a' });
 });

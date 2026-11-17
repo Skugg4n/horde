@@ -263,6 +263,9 @@ export const vasterkarvPlay = {
     stamp: 'EVACUATED', pen: 'evacuated', status: 'Everyone got out.' },
   evacPlace: 'got out on the east road',
   baseLabel: 'Boningshuset · Base',
+  // 0.26.5 (speltestet av 0.26.4: skylten satt cirka 20 m norr om gården som tog skadan, och en Ksp 90 21 m bort nådde
+  // inte): skylten står på basrutan vid gaveln och grinden, där horden slår, och en gul ring markerar platsen
+  baseLabelAt: BASE.at,
   entryAt: 1000,
   // kameran i söder, norr upp och väster till vänster (src/render/camera-eye.js setCameraYaw), som rondellen
   camera: { target: [-20, -10], view: 80, zoom: [22, 150], yaw: 0, pan: { x0: CRISP.x0 + 6, x1: CRISP.x1 - 6, z0: CRISP.z0 + 6, z1: CRISP.z1 - 6 }, intro: 4 },
@@ -273,7 +276,8 @@ export const vasterkarvPlay = {
   surroundings: SURROUNDINGS, lots: LOTS, spawns: SPAWNS, base: BASE, exits: EXITS,
   iceRink: FARMHOUSE, baseModel: 'rink', hall: HOUSE,
   // Basen är ett litet hus: färre i bas än ishallen, dörren släpper in en i taget
-  guns: 5, frontage: 5, baseHp: 16, days: DAYS,
+  // 0.26.5 (speltestet av 0.26.4: "börjar med BASE 16 utan förklaring"): 20 som alla andra dagar
+  guns: 5, frontage: 5, baseHp: 20, days: DAYS,
   door: { gap: 3.2 },
   // småvägarna är smala och slingrar: horden går som i Björnlunda
   pace: 1.4,

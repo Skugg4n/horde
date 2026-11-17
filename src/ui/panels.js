@@ -377,7 +377,7 @@ export function gunPanel(root, gunId, sim, actions) {
     // 0.14.0: en kärntrupp uppgraderas i förrådet mellan dagarna och säljs inte; förnödenheterna köps här
     const core = w.uid != null;
     // 0.14.1 (granskningen av 0.14, Important 5): målen står utanför vinkeln (simuleringens idleOutside)
-    const outside = g.idleOutside ? '<p class="info outside">Target outside arc. Press R to rotate.</p>' : '';
+    const outside = g.idleOutside ? '<p class="info outside">Enemies outside its arc. Press R to face them.</p>' : '';
     const minimal = core && !can('aim');
     const acts = [
       core ? '' : `<button type="button" class="act" data-a="up"><span class="a">Upgrade</span><span class="p" data-p></span><kbd>U</kbd></button>`,

@@ -160,7 +160,7 @@ export const LESSONS = {
 export const TIPS = [
   { id: 'tip.base', on: 'breach', kind: 'tip', text: 'Base hit. At zero the day is lost.', manual: 'base' },
   { id: 'tip.civ', on: 'civilianDown', kind: 'show', text: 'Civilian down. Too many lost and the day fails.', target: { world: 'civdown' }, manual: 'evac', needs: 'evac' },
-  { id: 'tip.arc', on: 'idleOutside', kind: 'tip', text: 'Target outside arc. Press R to rotate.', repeat: true, needs: 'rotate' },
+  { id: 'tip.arc', on: 'idleOutside', kind: 'tip', text: 'Enemies outside its arc. Click ↻R or press R to face them.', repeat: true, needs: 'rotate' },
   { id: 'tip.spare', on: 'spare', kind: 'tip', text: 'Supplies to spare. Click a unit.', repeat: true, needs: 'unitSupplies' },
   { id: 'tip.shut', on: 'allShut', kind: 'tip', text: 'Every road shut: they smash a barricade.', repeat: true, needs: 'block' },
   { id: 'tip.roof', on: 'placing:psg90', kind: 'tip', text: 'Snipers go on towers, flat roofs, ridges and tall buildings.', manual: 'roofs', needs: 'move' },

@@ -223,7 +223,8 @@ export function mountHud(root, { onStart, onSpeed, onNext } = {}) {
     set(el.wave, waveLabel(c, sim.phase === 'wave' && sim.wavesStarted - sim.waveIndex > 1 ? sim.waveIndex : null));
     // Efter en förlust säger räknaren inget säkert (en del gick in i basen), så den döljs.
     // 0.16.2: dagen vunnen mitt i en våg (evakueringen): de som går kvar räknas, och plåten säger varför dagen är slut
-    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : sim.phase === 'won' && sim.evac && c.left ? 'Civilians safe' : `${c.left} of ${c.total} left`);
+    // 0.26.5 (speltestet av 0.26.4: "0 of 0 left" efter sista vågen): ingen kvar säger att det är lugnt
+    set(el.left, sim.phase === 'lost' ? '' : sim.phase === 'build' ? `${c.total} coming` : sim.phase === 'won' && sim.evac && c.left ? 'Civilians safe' : !c.left ? (sim.phase === 'won' ? 'All down' : c.total ? 'All down' : 'Quiet') : `${c.left} of ${c.total} left`);
     el.bar.style.width = (c.total ? (c.left / c.total) * 100 : 0) + '%';
 
     const cash = Math.round(sim.cash);

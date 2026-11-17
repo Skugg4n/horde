@@ -758,7 +758,11 @@ async function run() {
     await ev(`window.__horde.startPlacing('psg90')`);
     await page.mouse.move(Math.round(W * 0.2), 190);
     await checkHud('hud-molnbo-1-psg90');
+    // 0.26.5 (speltestet av 0.26.4: takplatserna hittades pixel för pixel): med Psg 90 i handen lyser takplatserna
+    if (!(await ev(`window.__horde.marks.has('roofs')`))) errors.push(`hud-molnbo-1-psg90 @${W}: inga takplatser markerade med Psg 90 i handen`);
     await ev(`window.__horde.stopPlacing()`);
+    await page.waitForTimeout(200);
+    if (await ev(`window.__horde.marks.has('roofs')`)) errors.push(`hud-molnbo-1-psg90 @${W}: takplatserna står kvar när Psg 90 lagts ned`);
     // 0.19.2 (speltestet av 0.19.1, fynd 6): lektionerna dag 2 och 3 (0.20.0, förut 2 och 4) står inte på köpraden
     for (const d of [2, 3]) {
       await ev(`window.__horde.setProgress({ ...window.__horde.progress, lessons: undefined })`);
@@ -799,6 +803,20 @@ async function run() {
     if (!(await ev(`!!document.querySelector('.breakmark') && [...document.querySelectorAll('#notes .note')].some(n => /Line breaking on Trollvägen/.test(n.textContent))`))) errors.push(`hud-molnbo-2-break @${W}: ingen skylt eller banderoll när linjen brister`);
     await checkHud('hud-molnbo-2-break');
     await ev(`window.__horde.clearBreaks()`);
+    // 0.26.5 (speltestet av 0.26.4: Esc med fiendekortet uppe öppnade pausmenyn över kortet): Esc stänger kortet först
+    await ev(`window.__horde.openCard('brute')`);
+    await page.waitForTimeout(300);
+    await checkHud('hud-molnbo-2-card');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    if (await ev(`!!window.__horde.card || window.__horde.menuOpen()`)) errors.push(`hud-molnbo-2-card @${W}: Esc stängde inte kortet först (kort ${await ev('!!window.__horde.card')}, meny ${await ev('window.__horde.menuOpen()')})`);
+    // pengarna efter en klarad våg: raden erbjuder ammolådor och sandsäckar med ett klick
+    await ev(`(() => { const H = window.__horde; H.sim.cash = 700; H.debugEvents([{ t: 'waveCleared' }]); })()`);
+    await page.waitForTimeout(400);
+    if (!(await ev(`[...document.querySelectorAll('#notes .note')].some(n => /ammo and sandbags/.test(n.textContent))`))) errors.push(`hud-molnbo-2-supply @${W}: ingen rad om ammolådor och sandsäckar`);
+    await checkHud('hud-molnbo-2-supply');
+    await ev(`(() => { const n = [...document.querySelectorAll('#notes .note.click')].find(x => /ammo and sandbags/.test(x.textContent)); n?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); })()`);
+    await page.waitForTimeout(300);
+    if (!(await ev(`window.__horde.sim.cash < 700 && window.__horde.sim.guns.some(g => g.weapon.ammo)`))) errors.push(`hud-molnbo-2-supply @${W}: klicket köpte inget`);
     await ev(`(() => { const H = window.__horde, gs = H.sim.guns; for (const g of gs.slice(0, 3)) H.open({ kind: 'gun', id: g.id }); })()`);
     await page.waitForTimeout(600);
     if (!(await ev(`!!document.querySelector('.panel')`))) errors.push(`hud-molnbo-2-panel-wave @${W}: panelen öppnades inte`);
@@ -897,6 +915,11 @@ async function run() {
     await clearLessons();
     await ev(`window.__horde.rig?.skipTour?.()`);
     await checkHud('hud-vasterkarv-1-build');
+    // 0.26.5 (speltestet av 0.26.4: skylten satt cirka 20 m norr om gården som tog skadan): basskylten står vid basrutan
+    // (grinden, där horden slår) och den gula ringen markerar den; BASE 20 som alla dagar
+    const vkLab = await ev(`(() => { const H = window.__horde, el = document.querySelector('.baselabel'), at = H.sim.map.base.at, v = H.camera.position.clone().set(at[0], 0, at[1]).project(H.camera);
+      if (!el || el.hidden) return null; const r = el.getBoundingClientRect(); return { dx: Math.abs((r.left + r.right) / 2 - (v.x + 1) / 2 * innerWidth), dy: (1 - v.y) / 2 * innerHeight - r.bottom, ring: H.marks.has('basespot'), hp: H.sim.baseHp }; })()`);
+    if (!vkLab || vkLab.dx > 40 || vkLab.dy < -10 || vkLab.dy > 140 || !vkLab.ring || vkLab.hp !== 20) errors.push(`hud-vasterkarv-1-build @${W}: basskylten inte vid basrutan eller ringen saknas (${JSON.stringify(vkLab)})`);
     await ev(`(async () => { const B = await import('/scripts/balance.mjs'); B.autoDeploy(window.__horde.sim); })()`);
     for (let i = 0; i < 4 && await ev('window.__horde.sim.phase') !== 'wave'; i++) { await clearLessons(); await ev('window.__horde.go()'); await page.waitForTimeout(300); }
     await ev(`window.__horde.advance(60)`);

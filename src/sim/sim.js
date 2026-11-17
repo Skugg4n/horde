@@ -1176,6 +1176,43 @@ export function buySupply(sim, id, what) {
   g.weapon[what] = true;
   return { ok: true, cost: sp.cost };
 }
+// 0.26.5 (speltestet av 0.26.4: 650 till 1 310 $ kvar och inget vettigt att köpa när alla enheter stod ute): ammolådan
+// till varje pjäs och grupp och sandsäckarna till varje grupp som saknar dem, i den ordningen, så långt pengarna räcker.
+// supplyAllCost säger vad allt skulle kosta (0 när alla har sitt).
+function supplyWants(sim) {
+  const out = [];
+  if (!allowed(sim, 'unitSupplies')) return out;
+  for (const g of sim.guns) if (!g.weapon.ammo && !WEAPONS[g.weapon.type]?.vehicle) out.push([g, 'ammo']);
+  for (const g of sim.guns) if (g.squad && !g.weapon.sandbags) out.push([g, 'sandbags']);
+  return out;
+}
+export function supplyAllCost(sim) { return supplyWants(sim).reduce((a, [, w]) => a + SUPPLIES[w].cost, 0); }
+export function supplyAll(sim) {
+  let cost = 0, n = 0;
+  for (const [g, w] of supplyWants(sim)) { const r = buySupply(sim, g.id, w); if (r.ok) { cost += r.cost; n++; } }
+  return { ok: n > 0, cost, n, reason: n ? null : 'pengar' };
+}
+// 0.26.5 (speltestet av 0.26.4: ↻R på 3 till 5 pjäser i Mölnbo, och R vred ett steg i taget utan att man såg varifrån de
+// kom): hotet en pjäs har, levande zombier den ser (hela sikten, utan vinkeln) inom 1,5 gånger räckvidden. Mitten av
+// gruppen kring den närmaste, eller null. threatFacing ger riktningen dit från pjäsen.
+export function threatOf(sim, g) {
+  if (!g?.fullSight?.mask) return null;
+  const range = gunStats(sim, g).range * 1.5, seen = [];
+  for (const z of sim.zombies) {
+    if (z.dead) continue;
+    const p = zombiePos(sim, z), k = sim.place.keyAt(p.x, p.z);
+    if (k < 0 || !g.fullSight.mask[k]) continue;
+    const d = Math.hypot(p.x - g.x, p.z - g.z);
+    if (d <= range) seen.push({ x: p.x, z: p.z, d, inArc: !!g.sight?.mask[k] });
+  }
+  if (!seen.length) return null;
+  const pool = seen.some(q => !q.inArc) ? seen.filter(q => !q.inArc) : seen;
+  const near = pool.reduce((a, b) => (b.d < a.d ? b : a));
+  const group = pool.filter(q => Math.hypot(q.x - near.x, q.z - near.z) <= 8);
+  const x = group.reduce((a, q) => a + q.x, 0) / group.length, z = group.reduce((a, q) => a + q.z, 0) / group.length;
+  return { x, z, n: group.length, facing: Math.atan2(z - g.z, x - g.x) };
+}
+export function threatFacing(sim, id) { const t = threatOf(sim, gunOf(sim, id)); return t ? t.facing : null; }
 // Vad som blev kvar av kärntrupperna (src/meta/operation.js finishDay): per utställd enhet hur många som
 // står (grupperna) eller om den gick förlorad, förlusterna, och underlaget för bonusarna. null utan core.
 export function dayReport(sim) {

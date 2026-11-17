@@ -33,6 +33,7 @@ export const MENU_ITEMS = [
 ];
 
 const pct = v => Math.round(v * 100);
+export const OPEN_QUIET_MS = 300;
 
 export function mountMenu(root, ctx, items = MENU_ITEMS) {
   const btn = document.createElement('button');
@@ -62,11 +63,11 @@ export function mountMenu(root, ctx, items = MENU_ITEMS) {
       row.dataset.item = i.id;
       if (i.type === 'button') {
         row.innerHTML = `<button type="button" class="act${i.main ? ' main' : ''}${enabled(i) ? '' : ' off'}"><span class="a">${label}</span>${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</button>`;
-        row.querySelector('button').addEventListener('click', () => { if (enabled(i)) choose(i); });
+        row.querySelector('button').addEventListener('click', () => { if (enabled(i) && !fresh()) choose(i); });
       } else if (i.type === 'choice') {
         row.innerHTML = `<span class="lab">${label}${i.kbd ? `<kbd>${i.kbd}</kbd>` : ''}</span><span class="seg">${i.options.map((o, k) => `<button type="button" data-o="${k}">${i.format(o)}</button>`).join('')}</span>`;
         const mark = () => { for (const b of row.querySelectorAll('[data-o]')) b.classList.toggle('on', i.options[Number(b.dataset.o)] === i.value(ctx)); };
-        for (const b of row.querySelectorAll('[data-o]')) b.addEventListener('click', () => { if (enabled(i)) { i.set(ctx, i.options[Number(b.dataset.o)]); mark(); } });
+        for (const b of row.querySelectorAll('[data-o]')) b.addEventListener('click', () => { if (enabled(i) && !fresh()) { i.set(ctx, i.options[Number(b.dataset.o)]); mark(); } });
         mark();
       } else if (i.type === 'volume') {
         const s = ctx.settings();
@@ -100,7 +101,11 @@ export function mountMenu(root, ctx, items = MENU_ITEMS) {
     close();
     i.run(ctx);
   }
-  function show() { if (open) return; open = true; asking = null; render(); overlay.hidden = false; ctx.onOpen(); }
+  // 0.26.5 (speltestet av 0.26.4: pausmenyn öppnades över fiendekortet och nästa klick landade på Reset tips): menyn
+  // öppnas inte medan en ruta som pausar står (ctx.blocked), och ett klick strax efter att den öppnats gör inget
+  let openedAt = -Infinity;
+  const fresh = () => performance.now() - openedAt < OPEN_QUIET_MS;
+  function show() { if (open || ctx.blocked?.()) return; open = true; asking = null; openedAt = performance.now(); render(); overlay.hidden = false; ctx.onOpen(); }
   function close() { if (!open) return; open = false; asking = null; overlay.hidden = true; overlay.innerHTML = ''; ctx.onClose(); }
   // Esc: ur en fråga tillbaka till listan, annars stäng menyn.
   function back() { if (asking) { asking = null; render(); } else close(); }

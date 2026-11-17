@@ -11,6 +11,10 @@ export const LEAK = { sample: 0.25, hold: 1.2, near: 34, gap: 8 };
 // brast): en gata där så många tagit sig förbi på kort tid (en bjässe räknas som tre) att linjen håller på att brista.
 // breaking() säger det innan de når basen.
 export const BREAK = { window: 20, weight: 4 };
+// 0.26.5 (speltestet av 0.26.4: "Line breaking on Folkets hus!" när östra kolonnen kom in på Fagernäsvägen): basens egen
+// gårdsväg och allt inom BASE_ZONE m från basen namnger aldrig en läcka. Läckan får gatan zombien senast gick på utanför
+// den (där den tog sig förbi), och platsen flyttas dit om den sista elden var vid basen.
+export const BASE_ZONE = 34;
 
 export function createLeakWatch() {
   const st = new Map();          // zombiens id -> { ever, last, out, told, leak, far }
@@ -22,12 +26,21 @@ export function createLeakWatch() {
   // eller null när vägen inte är känd); base: { x, z }; streetOf(x, z): gatans namn eller null.
   // Returnerar de nya läckorna: [{ x, z, street, n, passed }]. 0.26.1 (H607): passed = någon tog sig förbi en enhet (bara
   // då säger spelet "They got past"; en tom väg nära basen märks bara med ringen).
-  function update(s, dt, { covered, ahead = null, base, streetOf, time = 0 }) {
-    if (s !== sim) { reset(); sim = s; }
+  // isBaseStreet(name): är gatan basens egen (t.ex. Folkets hus gårdsväg); den namnger ingen läcka.
+  const cellStreet = new Map();
+  function update(s, dt, { covered, ahead = null, base, streetOf, time = 0, isBaseStreet = () => false }) {
+    if (s !== sim) { reset(); cellStreet.clear(); sim = s; }
     acc += dt;
     if (acc < LEAK.sample) return [];
     const step = acc; acc = 0;
     const dBase = p => Math.hypot(p.x - base.x, p.z - base.z);
+    // läckans plats och gata: gatan vid platsen, utom basens egen; vid basen den senaste gatan utanför zonen och platsen där
+    const spotOf = (at, q) => {
+      const here = dBase(at) > BASE_ZONE ? streetOf(at.x, at.z) : null;
+      if (here && !isBaseStreet(here)) return { x: at.x, z: at.z, street: here };
+      if (q.st) return dBase(at) > BASE_ZONE ? { x: at.x, z: at.z, street: q.st.street } : { ...q.st };
+      return { x: at.x, z: at.z, street: null };
+    };
     const fresh = [];
     const alive = new Set();
     for (const z of s.zombies) {
@@ -35,22 +48,29 @@ export function createLeakWatch() {
       alive.add(z.id);
       const p = s.route.place(z);
       let q = st.get(z.id);
-      if (!q) { q = { ever: false, last: null, out: 0, told: false, far: null }; st.set(z.id, q); }
+      if (!q) { q = { ever: false, last: null, out: 0, told: false, far: null, st: null }; st.set(z.id, q); }
       const d = dBase(p);
       if (d > LEAK.near) q.far = { x: p.x, z: p.z };
+      // gatan zombien går på utanför basens zon (per ruta, en gång)
+      if (d > BASE_ZONE) {
+        const ck = z.cell ?? `${Math.round(p.x)},${Math.round(p.z)}`;
+        let name = cellStreet.get(ck);
+        if (name === undefined) { name = streetOf(p.x, p.z); if (name && isBaseStreet(name)) name = null; cellStreet.set(ck, name); }
+        if (name) q.st = { street: name, x: p.x, z: p.z };
+      }
       if (q.told) continue;
       if (covered(z, p)) { q.ever = true; q.last = { x: p.x, z: p.z }; q.out = 0; continue; }
       if (q.ever) {
         q.out += step;
-        if (q.out >= LEAK.hold && d < dBase(q.last) - 2 && ahead?.(z) !== true) { q.told = true; q.leak = q.last; fresh.push({ ...q.last, passed: true, w: z.type === 'brute' ? 3 : 1 }); }
-      } else if (d < LEAK.near) { q.told = true; q.leak = { x: p.x, z: p.z }; fresh.push({ ...q.leak, passed: false, w: z.type === 'brute' ? 3 : 1 }); }
+        if (q.out >= LEAK.hold && d < dBase(q.last) - 2 && ahead?.(z) !== true) { q.told = true; q.leak = spotOf(q.last, q); fresh.push({ ...q.leak, passed: true, w: z.type === 'brute' ? 3 : 1 }); }
+      } else if (d < LEAK.near) { q.told = true; q.leak = spotOf({ x: p.x, z: p.z }, q); fresh.push({ ...q.leak, passed: false, w: z.type === 'brute' ? 3 : 1 }); }
     }
     // de som dött eller nått basen sedan förra provet (where läses i handleEvents, före nästa prov)
     for (const id of [...st.keys()]) if (!alive.has(id)) st.delete(id);
     // en rad per gata och stund
     const out = [];
     for (const p of fresh) {
-      const street = streetOf(p.x, p.z);
+      const street = p.street;
       const key = street ?? `${Math.round(p.x / 20)},${Math.round(p.z / 20)}`;
       hist.push({ key, x: p.x, z: p.z, street, t: time, w: p.w ?? 1 });
       const same = out.find(o => o.key === key);
@@ -62,7 +82,14 @@ export function createLeakWatch() {
     return out;
   }
   // Varifrån zombien kom: läckans plats om den läckte, annars den sista platsen långt från basen.
-  function where(id) { const q = st.get(id); return q ? q.leak ?? q.far : null; }
+  // 0.26.5: med gatan (where(id).street), aldrig basens egen
+  function where(id) {
+    const q = st.get(id);
+    if (!q) return null;
+    if (q.leak) return q.leak;
+    const at = q.st ?? q.far;
+    return at ? { x: at.x, z: at.z, street: q.st?.street ?? null } : null;
+  }
   // 0.26.4: gatorna där linjen brister just nu: summan av läckornas vikt inom BREAK.window s når BREAK.weight. Platsen är den
   // senaste läckan där. [{ key, x, z, street, weight }], tyngst först.
   function breaking(time) {

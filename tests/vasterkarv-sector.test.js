@@ -21,7 +21,7 @@ import { newCampaign, debugReach, unitsIn, finishDay, sectorStatus, makeChoice, 
 import { mapUnlocked, choiceOf } from '../src/meta/progress.js';
 import { nextBattle, orderSheet, lostSheet, recordLoss } from '../src/meta/table.js';
 import { ARRIVAL_TROOP } from '../src/data/arrival.js';
-import { vasterkarvCampaign, vasterkarvArrival, vkAttempts, vkPrints, extractKeys } from '../scripts/balance.mjs';
+import { vasterkarvCampaign, vasterkarvArrival, vasterkarvTroop, vkAttempts, vkPrints, extractKeys } from '../scripts/balance.mjs';
 
 const ID = 'vasterkarv';
 const day = vk.days[0];
@@ -262,25 +262,32 @@ test('balans: dagen fyra till fem minuter för kartläsaren, alla civila ute, f�
   for (const x of all.filter(q => q.won)) assert.equal(x.evac.safe, 12);
   for (const x of all.filter(q => !q.won)) assert.ok(!x.lostBy && x.evac.safe < 12, JSON.stringify(x.evac));
   for (const x of all) assert.ok(x.peakWaves <= 2 && x.peak <= 110, `${x.peakWaves} vågor, ${x.peak} levande`);
-  assert.ok(all.some(x => !x.won), 'någon förlorar ibland');
+  // 0.26.5: hp 4 och basen 20 (speltestet av 0.26.4): kartläsarens trupp förlorar inte längre; speltestarens uppställning
+  // gör det ibland (tests/full-campaign.test.js, docs/balance-log.md 0.26.5)
 });
 
+// 0.26.5 (speltestet av 0.26.4: hoppet gav frivilliga och ingen Ksp 88): truppen den vanliga spelaren har efter hela
+// kampanjen (FALL BACK, seed 0), med tröttheten, och samma stridsbana som hans rulla
 test('hoppet till Västerkärv (Quick jump) har truppen och forskningen balansen räknar med', () => {
-  const a = vasterkarvArrival(0);
-  assert.deepEqual(ARRIVAL_TROOP[ID].units, unitsIn(a, ID).map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0]), 'kör om balansen och skriv in truppen i src/data/arrival.js');
+  const a = vasterkarvTroop(0);
+  assert.deepEqual(ARRIVAL_TROOP[ID].units, unitsIn(a, ID).map(u => [u.type, u.level, u.men ?? null, u.wins ?? 0, ...(u.fatigue ? [u.fatigue] : [])]), 'kör node scripts/arrival-regen.mjs');
+  const jump = lanes(debugReach(newCampaign(), ID, 1), ID).battle.map(u => u.type + u.level).sort();
+  assert.deepEqual(jump, lanes(a, ID).battle.map(u => u.type + u.level).sort());
   assert.deepEqual(ARRIVAL_TROOP[ID].research, a.research);
 });
 
 // Kvittot. Ett ändrat steg ska vara avsiktligt och förklarat i docs/balance-log.md (Västerkärv).
 // 0.26.0: första kvittot, hp 15,5 (12 efter DEFEND), basen 16, fart 1,4, EPA:n 2,6 m/s på vägarna.
+// 0.26.5 (speltestet av 0.26.4): nya fingeravtryck, avsiktligt: Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5, Västerkärv hp 4 och
+// basen 20, och truppen in i varje senare bana blir en annan. docs/balance-log.md 0.26.5.
 const pr = rs => vkPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket (vkSkilled och vkNormal, båda grenarna)', () => {
-  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '6c2780f6' });
-  assert.deepEqual(pr(normal), { [`${ID} 1`]: '8d410dde' });
-  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: '46f46869' });
-  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: '7a3f49c3' });
+  assert.deepEqual(pr(skilled), { [`${ID} 1`]: '671888e0' });
+  assert.deepEqual(pr(normal), { [`${ID} 1`]: 'f500bc9a' });
+  assert.deepEqual(pr(dSkilled), { [`${ID} 1`]: 'a885c6b2' });
+  assert.deepEqual(pr(dNormal), { [`${ID} 1`]: 'c6a5bdd9' });
 });
 
 void DAYS;

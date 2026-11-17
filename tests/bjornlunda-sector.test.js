@@ -277,12 +277,14 @@ test('hoppet till Björnlunda (Quick jump) har truppen och forskningen balansen 
 // 0.24.0 (H552): alla nya, avsiktligt: ankomsten är grenen FALL BACK (valets kostnad 150 RP, första vågen dag 11 en
 // fjärdedel större) och dag 1 hp 7,25 (förut 8), ovanpå 0.23.3:s inkomst och svans. Grenen DEFEND LAXNE provas i tests/laxne-sector.test.js.
 // docs/balance-log.md Laxne 0.24.0.
+// 0.26.5 (speltestet av 0.26.4): nya fingeravtryck, avsiktligt: Mölnbo dag 2 hp 12, Björnlunda dag 2 hp 4,5, Västerkärv hp 4 och
+// basen 20, och truppen in i varje senare bana blir en annan. docs/balance-log.md 0.26.5.
 const pr = rs => blPrints([].concat(...rs.map((r, i) => r.log.map(x => ({ ...x, seed: i })))));
 // 0.26.2 (H605): nya fingeravtryck, avsiktligt: Psg 90 får ligga på nocken av flacka villatak och på bodar (balansens
 // takplan hittar bättre platser). docs/balance-log.md 0.26.2.
 test('balans: fingeravtrycket per dag (blSkilled och blNormal)', () => {
-  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '087954c2', 'bjornlunda 2': '55e2e1f5' });
-  assert.deepEqual(pr(normal), { 'bjornlunda 1': 'c0c72472', 'bjornlunda 2': 'cd165b44' });
+  assert.deepEqual(pr(skilled), { 'bjornlunda 1': '07e18b2c', 'bjornlunda 2': '9cd972a9' });
+  assert.deepEqual(pr(normal), { 'bjornlunda 1': '2eb92c7f', 'bjornlunda 2': '9bf27092' });
 });
 
 // 0.23.1 (speltestet av 0.23.0: "from the west" kom uppifrån höger): kameran i söder, väster till vänster på skärmen
