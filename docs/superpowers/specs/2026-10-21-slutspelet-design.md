@@ -105,3 +105,11 @@ Vi kontrollerar större delen av staden (placering tillåten på två tredjedela
 2. Dag 18: granatkastare m/84, Ksp 88 och pansarskott. Räcker det som "riktiga hjälpmedel", eller vill du ha något mer (stridsfordon 90 som rörlig pjäs?)
 3. Dag 17: ska brandstationen vara hubbens vagnhall man sett på bordet hela spelet, så att man försvarar "sitt eget" rum?
 4. Dag 20 till 21: monstret växer i rutor och bränns bort med granatkastare. Är det bilden du har, eller ser du det mer som en varelse med kropp och svaga punkter?
+
+## Olas svar 2026-11-17
+
+1. **Dag 15:** vinst, men tydligt en reträtt. Resultatet heter inte Victory: kortet säger att vi drog oss ur (t.ex. "WITHDRAWN. 7 of 10 units made it out."), stämpeln på bordet är en reträtt, inte "HELD". Känslan: vi ligger under och måste backa.
+2. **Dag 18:** Strf 90 med, men begränsad och verklighetsnära. Bestyckning: 40 mm automatkanon (Bofors) och koaxial Ksp 58. Den kommer fraktad på trailer (bandvagnstransport, dragbil) eftersom försörjningslinjerna är opålitliga, och har bränsle för en enda förflyttning; därefter står den som fast pjäs. Utöver det granatkastare m/84, Ksp 88 och pansarskott.
+3. **Dag 17:** ja, brandstationen är vagnhallen där kartbordet står.
+4. **Dag 20 till 21:** A, monstret som växande zon som granatkastaren bränner bort.
+5. **v1:** kapas troligen vid dag 14 (Västerkärv). Dag 15 till 21 blir senare.
