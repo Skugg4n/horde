@@ -1,5 +1,17 @@
 # Ändringslogg
 
+## 0.26.8 (resterna från speltestet av 0.26.6, eftertexter, sparprov) (2026-11-17)
+
+Det som stod kvar i speltestet av 0.26.6 (docs/playtests/2026-11-17-0.26.6.md), ett jakttorn i Västerkärv, eftertexterna och ett prov på sparfilen över hela bågen.
+
+- **Gamla larm går bort.** "They got past on …" och "Base under attack!" försvinner när ingen zombie står kvar eller väntar (två sekunder efter senaste träffen på basen, så att den hinner synas).
+- **AMMO & SANDBAGS bara när det finns något att slåss mot.** Knappen döljs efter "All down" när ingen våg är kvar.
+- **Pengarna innan de går förlorade.** När sista vågen startar med minst 250 $ i kassan säger en rad "Last wave. Spend your $ now. It does not carry over." (en gång per dag). Dagarnas budget är orörd.
+- **Inga blinda tak.** Ett tak som inte ser någon av hordens vägar nekas nu som andra platser som inte går, med samma röda rad vid pekaren ("Sees none of their roads from here."). Förut gick klicket igenom trots varningen.
+- **Jakttornet i Västerkärv (H620).** Ett jakttorn i skogskanten norr om Skogsvägen, där vägen kommer ut ur skogen. Psg 90 kan gå upp i det (TOWER, tornets längre räckvidd). scripts/roof-spots.mjs: tre bra platser i Västerkärv (förut två).
+- **Eftertexter (NEW-13).** Credits i huvudmenyn och på kampanjens slutblad: Ola Belin, Made with Claude, kartdata © OpenStreetMap contributors under ODbL med länk till openstreetmap.org/copyright, Three.js (MIT) och typsnitten (SIL OFL). Ett pappersblad som ordern på bordet, fyra sidor att bläddra (pilarna, Enter, Esc stänger), ingen rullning. layout-check provar bladet från menyn och slutbladet.
+- **Sparfilen över hela bågen (NEW-16).** tests/save-arc.test.js spelar kampanjen dag för dag i båda Laxne-grenarna (15 och 14 dagar), sparar och läser efter varje dag, och läser sparfiler skrivna av v0.25.1 (tests/fixtures/saves-0.25.1.json): inget räknas som trasigt, kopiorna skrivs aldrig över, och en fil från 0.25.1:s slut fortsätter till Västerkärv.
+
 ## 0.26.7 (speltestet av 0.26.6) (2026-11-17)
 
 Speltestet av 0.26.6 (docs/playtests/2026-11-17-0.26.6.md) sa JA: alla dagar vunna på första försöket med egen uppställning. Det enda rådet som ledde fel är rättat:

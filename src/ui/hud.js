@@ -248,7 +248,10 @@ export function mountHud(root, { onStart, onSpeed, onNext, onSupply } = {}) {
     const cashBox = resPlate.querySelector('.cash-box');
     if (cashBox.hidden === feat.supplies) cashBox.hidden = !feat.supplies;
     // knappen: efter första vågens start, medan det finns vågor kvar att möta
-    const spend = feat.supplies && allowed(sim, 'unitSupplies') && (sim.phase === 'wave' || (sim.phase === 'build' && sim.wavesStarted > 0)) && sim.cash >= SUPPLY_BTN_MIN ? supplyAllSpend(sim) : 0;
+    // 0.26.8 (speltestet av 0.26.6, fynd 4: knappen stod kvar efter "All down"): bara medan något är kvar att slåss mot,
+    // en levande zombie, en i kön eller en våg som inte startat
+    const fightLeft = hasNextWave(sim) || waveLeft(sim) > 0;
+    const spend = feat.supplies && allowed(sim, 'unitSupplies') && fightLeft && (sim.phase === 'wave' || (sim.phase === 'build' && sim.wavesStarted > 0)) && sim.cash >= SUPPLY_BTN_MIN ? supplyAllSpend(sim) : 0;
     const supOn = spend > 0;
     if (supBtn.hidden === supOn) {
       supBtn.hidden = !supOn;

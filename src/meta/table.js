@@ -583,7 +583,8 @@ export function defaultPlace(state, id, fr = F0) {
   if (id === 'clipboard') return { x: Math.round(fr.clipX), y: Math.round(fr.clipY), r: 0.6 };
   // 0.25.1 (H561): kampanjens slutblad (det finns ingen nästa strid och ingen klämbräda)
   // under kartbladet, så att kartan (och Gnesta) syns; i låga fönster så långt ned det går
-  if (id === 'end') return { x: Math.round(fr.mapX + 230 * fr.mapS), y: Math.round(Math.max(fr.mapY + 300 * fr.mapS, Math.min(fr.mapY + 590 * fr.mapS, fr.H - 290))), r: -0.8 };
+  // 0.26.8: 50 px högre upp, bladet har Credits under To menu
+  if (id === 'end') return { x: Math.round(fr.mapX + 230 * fr.mapS), y: Math.round(Math.max(fr.mapY + 300 * fr.mapS, Math.min(fr.mapY + 590 * fr.mapS, fr.H - 340))), r: -0.8 };
   if (id.startsWith('pile:')) {
     const pl = state.piles.find(x => x.id === id), s = pl?.sector;
     const row = SECTOR_TABLE[s];

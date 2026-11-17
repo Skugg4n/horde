@@ -307,11 +307,13 @@ function sheetHtml(sh, { x, y, r, z, full, deploy = false, stamp = false, w = nu
   return `<div class="tb-obj tb-paper tb-report${age}" data-sheet="${sh.id}" style="${pos};--w:${w ?? 232};padding-bottom:40px">${closedHtml(sh)}</div>`;
 }
 // 0.25.1 (H561): kampanjens slutblad (src/meta/table.js campaignEnd), en knapp: To menu (Enter)
+// 0.26.8 (NEW-13): och Credits under den
 const endHtml = (e, place) => `<div class="tb-obj tb-paper tb-order tb-end" data-obj="end" data-sheet="end" style="--x:${place.x};--y:${place.y};--w:400;--r:${place.r};--z:60">
   <div class="hd"><span>${esc(e.head.toUpperCase())}</span><span>${e.days ? `DAY ${two(e.days)}` : ''}</span></div>
   <div class="txt" data-read>${esc(e.text)}</div>
   <button type="button" class="tb-btn main" data-a="menu" data-read><span class="one">${esc(e.button)}</span><kbd>Enter</kbd></button>
-  <div class="tb-stamp" style="right:18px;bottom:96px;transform:rotate(-4deg)">TO BE CONTINUED</div></div>`;
+  <button type="button" class="tb-btn tb-credits" data-a="credits" data-read><span class="one">Credits</span></button>
+  <div class="tb-stamp" style="right:18px;bottom:136px;transform:rotate(-4deg)">TO BE CONTINUED</div></div>`;
 const BESIDE_H = 168, BESIDE_GAP = 14;
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
@@ -694,6 +696,8 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     });
     for (const b of view.querySelectorAll('[data-a="go"]')) b.addEventListener('click', e => { e.stopPropagation(); go(); });
     view.querySelector('[data-a="menu"]')?.addEventListener('click', e => { e.stopPropagation(); handlers.onMenu?.(); });
+    // 0.26.8 (NEW-13): eftertexterna från kampanjens slutblad
+    view.querySelector('[data-a="credits"]')?.addEventListener('click', e => { e.stopPropagation(); handlers.onCredits?.(); });
     view.querySelector('[data-a="spend"]')?.addEventListener('click', e => { e.stopPropagation(); nudge = null; page = 0; laneNote = { lane: 'rest', text: 'Train units with ✎, or buy in Stores.' }; render(); });
     view.querySelector('[data-a="tidy"]')?.addEventListener('click', e => { e.stopPropagation(); doTidy(); });
     view.querySelector('.tb-spread')?.addEventListener('click', () => { spread = null; render(); });

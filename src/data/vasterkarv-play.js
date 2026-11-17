@@ -94,8 +94,13 @@ export function vasterkarvGrid() {
 // ---------- husen ----------
 // Allt som står på den skarpa ytan. Bodar går inte att besätta. Boningshuset, ladan och uthuset är husen de civila går
 // ut ur (dagens evac.groups), så de går inte att besätta i dag (src/sim/sim.js 'hus evak').
-const STANDING = V.BUILDINGS.filter(b => !b.far && inCrisp(b.x, b.z));
-const NO_GARRISON = new Set(['shed']);
+// 0.26.8 (H620: gårdens hus står långt från hordens vägar, bara två bra Psg 90-platser): ett jakttorn i skogskanten norr
+// om Skogsvägen, där vägen kommer ut ur skogen och går över åkern mot grusvägen. Inte ur OSM (spelets tillägg, därför här
+// och inte i den genererade filen). Plattformen är ett torn (perch 3, TOWER) som bara prickskytten kan gå upp i.
+export const JAKTTORN = { id: 'jakttorn', kind: 'jakttorn', name: 'Jakttornet', x: -66, z: -69, ry: 0.1, w: 3, d: 3, h: 4.6, seed: 620, added: true };
+export const BUILDINGS = [...V.BUILDINGS, JAKTTORN];
+const STANDING = BUILDINGS.filter(b => !b.far && inCrisp(b.x, b.z));
+const NO_GARRISON = new Set(['shed', 'jakttorn']);
 // Prickskyttelägen: ladans och maskinhallens låga tak (ser gårdsplanen och åkern)
 export const PERCH_IDS = new Set(['b867826784', 'b867826770']);
 const FLAT_PERCH = new Set(['ladugard', 'farm']);
@@ -119,7 +124,8 @@ function buildingShapes() {
     // 0.26.2 (H605): också nocken på villornas flacka sadeltak (perch 4) och bodarnas låga platta tak
     // 0.26.4 (speltestet av 0.26.3: "Roof too steep" nästan överallt): också grannens ladugård och gårdarnas låga uthus
     const flat = PERCH_IDS.has(h.id) || FLAT_PERCH.has(h.kind) || SHED_PERCH.has(h.kind);
-    const perch = flat ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : h.kind === 'villa' && h.ridge ? gablePerch(h) : null;
+    const perch = h.kind === 'jakttorn' ? (x, z) => (inRect(body, x, z, -0.3) ? 3 : 0)
+      : flat ? (x, z) => (inRect(body, x, z, -0.3) ? 1 : 0) : h.kind === 'villa' && h.ridge ? gablePerch(h) : null;
     return { id: h.id, kind: h.kind, rects: [body], eave: h.eave ?? (h.h ?? 5) * 0.8, pad: h.kind === 'shed' ? 0.4 : HOUSE_PAD, height, perch, box: [h.x, h.z, Math.hypot(h.w, h.d) / 2 + HOUSE_PAD + 1] };
   });
 }
@@ -272,7 +278,7 @@ export const vasterkarvPlay = {
   shadowBounds: { x0: CRISP.x0 - 6, x1: CRISP.x1 + 6, z0: CRISP.z0 - 6, z1: CRISP.z1 + 6 },
   roads: ROADS, joins: V.JOINS, streams: V.STREAMS, rail: null,
   ground: { ...GROUND, bounds: { x0: CRISP.x0 - 24, x1: CRISP.x1 + 24, z0: CRISP.z0 - 24, z1: CRISP.z1 + 24 }, ppm: 8 },
-  buildings: V.BUILDINGS, parts: V.PARTS, streets: V.STREETS, gardens: V.GARDENS, props: V.PROPS, labels: V.LABELS, pois: V.POIS,
+  buildings: BUILDINGS, parts: V.PARTS, streets: V.STREETS, gardens: V.GARDENS, props: V.PROPS, labels: V.LABELS, pois: V.POIS,
   surroundings: SURROUNDINGS, lots: LOTS, spawns: SPAWNS, base: BASE, exits: EXITS,
   iceRink: FARMHOUSE, baseModel: 'rink', hall: HOUSE,
   // Basen är ett litet hus: färre i bas än ishallen, dörren släpper in en i taget

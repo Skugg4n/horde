@@ -95,6 +95,28 @@ export function maskinhall(b, M, o) {
   tractor(b, frame(M, W * 0.12, PL, D * 0.1, -Math.PI / 2));
 }
 
+// 0.26.8 (H620): jakttornet i skogskanten vid Skogsvägen. Fyra grova stolpar som lutar inåt, stag, en stege mot vägen
+// (+z), plattformen på o.h meter med brädräcke och ett lågt pulpettak. Prickskytten står på plattformen.
+export function jakttorn(b, M, o) {
+  const W = o.w ?? 3, D = o.d ?? 3, H = o.h ?? 4.6, wood = '#6b5a44', dark = '#4d4032', plank = '#8a7457';
+  const lean = 0.06;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(M, sx * (W / 2 - 0.25), H / 2, sz * (D / 2 - 0.25), 0.2, H + 0.1, 0.2, wood, 'matte', 0, sz * lean, -sx * lean);
+  for (const y of [1.4, 3.0]) for (const s of [-1, 1]) {
+    b.box(M, s * (W / 2 - 0.2), y, 0, 0.1, 0.12, D - 0.3, dark, 'matte');
+    b.box(M, 0, y, s * (D / 2 - 0.2), W - 0.3, 0.12, 0.1, dark, 'matte');
+  }
+  b.box(M, 0, H, 0, W + 0.2, 0.16, D + 0.2, plank, 'matte');                           // plattformen
+  for (const s of [-1, 1]) {
+    b.box(M, s * (W / 2 + 0.05), H + 0.5, 0, 0.08, 0.9, D + 0.2, plank, 'matte');       // räcket
+    b.box(M, 0, H + 0.5, -s * (D / 2 + 0.05), W + 0.2, 0.9, 0.08, plank, 'matte');
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box(M, sx * (W / 2), H + 1.1, sz * (D / 2), 0.12, 2.2, 0.12, wood, 'matte');
+  b.box(M, 0, H + 2.25, -0.15, W + 0.6, 0.12, D + 0.7, VK.roofDark, 'matte', 0, 0.12);  // taket
+  // stegen mot vägen
+  for (const s of [-1, 1]) b.box(M, s * 0.3, H / 2, D / 2 + 0.7, 0.08, H + 0.4, 0.08, wood, 'matte', 0, -0.2);
+  for (let y = 0.4; y < H; y += 0.45) b.box(M, 0, y, D / 2 + 0.7 - (y - H / 2) * 0.2, 0.6, 0.06, 0.06, dark, 'matte');
+}
+
 // ---------- fria saker ----------
 // Traktor: gammal, grön, +x är framåt. Stora bakhjul, små framhjul, motorhuv, hytt med glas och avgasrör.
 export function tractor(b, M) {

@@ -292,8 +292,39 @@ function auditTableExtra(scope) {
   }
   return out;
 }
+// 0.26.8 (NEW-13): eftertexterna. Varje sida provas som en skylt (audit), bladet ryms i fönstret och rullar inte (inga
+// rullister, sidor i stället), kartdatans rad och länk och Three.js finns, pilarna bläddrar, och Esc går tillbaka till back.
+async function creditsAudit(page, scope, back) {
+  const errors = [];
+  const ev = s => page.evaluate(s);
+  await page.waitForTimeout(500);
+  if (await ev('window.__horde.mode') !== 'credits') return [`${scope}: eftertexterna öppnades inte (${await ev('window.__horde.mode')})`];
+  const n = await ev(`window.__horde.sheet?.pages ?? 0`);
+  if (n < 2) errors.push(`${scope}: ${n} sidor`);
+  let all = '';
+  for (let i = 0; i < n; i++) {
+    await page.waitForTimeout(250);
+    const r = await page.evaluate(audit, `${scope} sida ${i + 1}`);
+    errors.push(...r.errors);
+    const f = await ev(`(() => { const s = document.querySelector('.sheet.credits'), pg = s?.querySelector('.cr-page'); if (!s) return null; const b = s.getBoundingClientRect();
+      return { text: s.textContent, href: [...s.querySelectorAll('a')].map(a => a.href), in: b.left >= 0 && b.top >= 0 && b.right <= innerWidth + 1 && b.bottom <= innerHeight + 1,
+        scroll: s.scrollHeight > s.clientHeight + 1 || pg.scrollHeight > pg.clientHeight + 1, page: window.__horde.sheet.page() }; })()`);
+    if (!f) { errors.push(`${scope}: inget blad`); break; }
+    if (f.page !== i) errors.push(`${scope}: sidan är ${f.page + 1}, väntade ${i + 1}`);
+    if (!f.in) errors.push(`${scope} sida ${i + 1}: bladet ryms inte i fönstret`);
+    if (f.scroll) errors.push(`${scope} sida ${i + 1}: texten ryms inte på sidan (skulle behöva rullas)`);
+    all += f.text + ' ' + f.href.join(' ') + ' ';
+    if (i < n - 1) await page.keyboard.press('ArrowRight');
+  }
+  for (const want of ['Ola Belin', 'Made with Claude', 'OpenStreetMap contributors', 'ODbL', 'https://www.openstreetmap.org/copyright', 'Three.js', 'MIT']) if (!all.includes(want)) errors.push(`${scope}: "${want}" saknas`);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+  if (await ev('window.__horde.mode') !== back) errors.push(`${scope}: Esc gick till ${await ev('window.__horde.mode')}, inte ${back}`);
+  return errors;
+}
+
 async function tableChecks(page, label) {
   const errors = [];
+  const creditsCheck = async (scope, back) => errors.push(...await creditsAudit(page, scope, back));
   const ev = s => page.evaluate(s);
   const W = page.viewportSize().width;
   await ev(`window.__horde.setHub('table')`);
@@ -399,10 +430,15 @@ async function tableChecks(page, label) {
     if (!e) errors.push(`${sc}: inget slutblad`);
     else {
       if (e.txt !== 'Campaign continues in a later version. Thank you for holding Gnesta.') errors.push(`${sc}: slutbladet säger "${e.txt}"`);
-      if (e.btns.length !== 1 || !/^To menu/i.test(e.btns[0])) errors.push(`${sc}: knapparna är ${JSON.stringify(e.btns)}`);
+      // 0.26.8 (NEW-13): To menu och Credits under den
+      if (e.btns.length !== 2 || !/^To menu/i.test(e.btns[0]) || !/^Credits$/i.test(e.btns[1])) errors.push(`${sc}: knapparna är ${JSON.stringify(e.btns)}`);
       if (e.all) errors.push(`${sc}: en Deploy-knapp ligger kvar`);
       if (!e.in) errors.push(`${sc}: slutbladet ryms inte i fönstret`);
     }
+    // 0.26.8 (NEW-13): eftertexterna från slutbladet, varje sida, och Esc tillbaka till bordet med slutbladet
+    await ev(`document.querySelector('#hub .tb-end [data-a="credits"]')?.click()`);
+    await creditsCheck(`credits-end @${label}`, 'opmap');
+    if (!(await ev(`!!document.querySelector('#hub .tb-end')`))) errors.push(`credits-end @${label}: Esc gav inte slutbladet igen`);
     await page.waitForTimeout(400);
     await page.keyboard.press('Enter'); await page.waitForTimeout(400);
     if (await ev('window.__horde.mode') !== 'menu') errors.push(`${sc}: Enter gick inte till menyn (${await ev('window.__horde.mode')})`);
@@ -654,6 +690,9 @@ async function run() {
     // 0.21.0: de gamla skyltarna provas med inställningen Classic; kartbordet sist
     await ev(`window.__horde.setHub('classic')`);
     await check('menu');
+    // 0.26.8 (NEW-13): Credits i menyn
+    await ev(`document.querySelector('.sheet.menu [data-a="credits"]')?.click()`);
+    errors = errors.concat(await creditsAudit(page, `credits-menu @${W}`, 'menu')); checked++;
     await ev(`(async () => { const H = window.__horde; await H.jump('gnesta', 1); H.startDay(1); })()`);
     await check('intro');
     // pausmenyn mitt i dagen

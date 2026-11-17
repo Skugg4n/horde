@@ -88,7 +88,7 @@ Om beläggen: "CHANGELOG" betyder att changeloggen säger att det är gjort. Det
 - H170: speltesta operationskartan och förrådet i händerna på dator.
 - NEW-11: bordet för dag 14 till 21: markörer, lappar, rapporter, Laxne-krysset som minne, nya sektorer på kartbladet.
 - NEW-12: det riktiga slutet i stället för slutbladet "Campaign continues in a later version" (H561): slutrapport, trådarna slocknar en i taget på bordets karta, "The source is gone. The herd has no head. We hold."
-- NEW-13: eftertexter: tack, Ola och medverkande, och kartdata (c) OpenStreetMap contributors under ODbL med länk till openstreetmap.org/copyright. I dag står ODbL bara som kodkommentar (src/render/osm-world.js, src/data/*.js), ingen text syns för spelaren. Nåbar från menyn och efter slutet.
+- [x] NEW-13 (GJORT 0.26.8: src/ui/credits.js, från menyn och slutbladet): eftertexter: tack, Ola och medverkande, och kartdata (c) OpenStreetMap contributors under ODbL med länk till openstreetmap.org/copyright. I dag står ODbL bara som kodkommentar (src/render/osm-world.js, src/data/*.js), ingen text syns för spelaren. Nåbar från menyn och efter slutet.
 
 ### UI
 - H225: smårester: "Volunteers · Volunteers", röd BASE-siffra på full bas, Runner-porträttet bakifrån, "×3" oförklarat, SECTOR E4 krockar med vägnamnet, stjärnraden på VICTORY, Space stänger tips i stället för att starta vågen. Kolla vilka som redan åtgärdats.
@@ -128,7 +128,7 @@ Om beläggen: "CHANGELOG" betyder att changeloggen säger att det är gjort. Det
 ### Verktyg och publicering
 - H172: kontrollera MCF:s namn mot källa (Myndigheten för civilt försvar, ersatte MSB 2026-01-01) innan publicering.
 - H535: prov som läser index.html och kräver exakt en importmap och inga konfliktmarkörer, plus curl mot live efter varje publicering. Finns inte: tests/importmap.test.js jämför bara mot render(), kontrollerar inte markörer, och inget script kör curl.
-- NEW-16: sparfilen över hela bågen: ett prov som spelar dag 1 till 21, sparar efter varje dag och läser tillbaka; migrering från 0.25.x-filer när dag 14 till 21 tillkommer (src/meta/save.js, progress.clampDays, kampanjens slut följer datan via campaignEnd i src/meta/table.js, och försvinner av sig självt när dag 14 byggs).
+- [x] NEW-16 (GJORT 0.26.8 så långt bågen är byggd, dag 15 och 14: tests/save-arc.test.js och tests/fixtures/saves-0.25.1.json; provet följer datan och tar med nya dagar av sig självt): sparfilen över hela bågen: ett prov som spelar dag 1 till 21, sparar efter varje dag och läser tillbaka; migrering från 0.25.x-filer när dag 14 till 21 tillkommer (src/meta/save.js, progress.clampDays, kampanjens slut följer datan via campaignEnd i src/meta/table.js, och försvinner av sig självt när dag 14 byggs).
 - NEW-17: versionen 1.0.0, ändringslogg, README och en publiceringskontroll (npm run check:all grönt, curl mot live) före lansering.
 
 ## 3. Efter v1 (38)

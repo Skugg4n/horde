@@ -27,6 +27,8 @@ const REASONS = {
   'brant': 'Roof too steep. Roofs: try a lower roof\'s ridge, a shed or a flat roof',
   'brant-skorsten': 'Roof too steep. Roofs: try the ridge by the chimney',
   'nära': 'Too close to another gun',
+  // 0.26.8 (speltestet av 0.26.6, fynd 7): ett tak som inte ser någon av deras vägar går inte att ställa ut på
+  'blint': 'Sees none of their roads from here.',
   // 0.16.0 (textgenomgången): forskningen finns inte längre
   // 0.16.4 (Olas: taket ska vara en synlig regel): samma ord som förrådet och räknaren
   'fullt': 'Sector full: every place to fight is taken.',
@@ -709,7 +711,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
 // 0.16.3 (Olas "trångt och konstigt"): luftig skylt, knappen på en rad ("Continue"), statusraden under den
 // (var operationen står: plats, dag och RP), New operation som en riktig sekundär knapp, versionen i hörnet.
 // status: { place, day } eller null.
-export function mainMenu(root, { started, rp, status, onContinue, onNew, version }) {
+export function mainMenu(root, { started, rp, status, onContinue, onNew, onCredits, version }) {
   // 0.25.1 (H564, speltestet av 0.25.0: "· 1 132 RP" lästes som dag 1 och 132 RP): tusental med komma, "1,132 RP"
   const rpText = `${String(Math.round(rp)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} RP`;
   const where = status?.place ? status.place + (status.day ? `, day ${status.day}` : '') : null;
@@ -722,7 +724,10 @@ export function mainMenu(root, { started, rp, status, onContinue, onNew, version
       ${started ? `<p class="menu-status">${line}</p>` : ''}
     </div>
     ${started ? '<button type="button" class="act menu-new" data-a="new"><span class="a">New operation</span></button>' : ''}
+    ${onCredits ? '<button type="button" class="link menu-credits" data-a="credits">Credits</button>' : ''}
     <div class="v">v${version}</div>`);
+  // 0.26.8 (NEW-13): eftertexterna (src/ui/credits.js)
+  on(p.el, '[data-a="credits"]', () => onCredits?.());
   on(p.el, '[data-a="continue"]', onContinue);
   on(p.el, '[data-a="new"]', () => { if (confirm('Start a new operation? Your current one is kept as a backup copy.')) onNew(); });
   return p;
