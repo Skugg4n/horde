@@ -23,6 +23,7 @@ import { metaFeatures } from '../meta/unlocks.js';
 import { ROMAN } from '../data/research.js';
 import { intelFor, compass } from '../meta/intel.js';
 import { FOE_ICONS } from './icons.js';
+import { ENDING_TEXT, ENDING_TIME, ENDING_TARGET, THREADS } from '../data/ending.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const two = n => String(n).padStart(2, '0');
@@ -260,9 +261,52 @@ export function mapSvg(state, sel, avoid = []) {
       s += `<g class="dayl">${pen(lx, ly, `DAY ${nb.n}`, 'start', 'pen big')}${nb.title ? pen(lx + 2, ly + 22, nb.title.toLowerCase()) : ''}</g>`;
     }
   }
+  // 0.27.0: v1:s slut, trådarna från väster mot spåret vid Björnlunda (slutscenen ritar dem, sedan ligger de kvar)
+  if (state.end) s += fleshSvg();
   // 0.21.3: ögonblicket står en gång, på remsan överst på kartbladet (.tb-moment)
   const sub = 'SHEET 1 · SÖDERMANLAND';
   return `<svg viewBox="0 0 ${MAP_W} ${MAP_H}" class="tb-mapsvg"><defs><filter id="tbrf"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="4"/><feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.38  0 0 0 0 0.28  0 0 0 0.35 -0.08"/></filter><pattern id="tbrelief" width="${MAP_W}" height="${MAP_H}" patternUnits="userSpaceOnUse"><rect width="${MAP_W}" height="${MAP_H}" filter="url(#tbrf)"/></pattern></defs>${s}<text x="26" y="44" class="ttl">Operation Södermanland</text><text x="27" y="60" class="sub">${sub}</text></svg>`;
+}
+// ---------- v1:s slut (0.27.0): köttiga trådar över kartan ----------
+// Öppen kurva genom punkterna (Catmull-Rom), i kartans bildpunkter
+const CURVE = q => {
+  let d = `M${q[0][0].toFixed(1)} ${q[0][1].toFixed(1)}`;
+  for (let i = 0; i < q.length - 1; i++) {
+    const p0 = q[Math.max(0, i - 1)], p1 = q[i], p2 = q[i + 1], p3 = q[Math.min(q.length - 1, i + 2)];
+    d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+};
+// Stämpeln på kartan i två rader (sista ordet på en egen rad), så att den ryms mellan väg 223 och E4
+const stampLines = t => { const w = String(t).trim().split(/\s+/); return w.length > 1 ? `${esc(w.slice(0, -1).join(' '))}<br>${esc(w.at(-1))}` : esc(t); };
+// Trådarna (src/data/ending.js THREADS) och massan vid målet. Varje del har --d, när den börjar ritas i scenen (s);
+// utan scenen står allt färdigt och pulserar svagt (CSS: .tb-flesh).
+export function fleshSvg() {
+  const T = [gx(ENDING_TARGET[0]), gy(ENDING_TARGET[1])];
+  let s = '<g class="tb-flesh">';
+  THREADS.forEach((t, k) => {
+    const q = [...t.pts.map(([lo, la]) => [gx(lo), gy(la)]), T];
+    const d = ENDING_TIME.threads + t.d, dur = 6.5 - t.d * 0.6;
+    // tre lager: en mörk svullnad, själva tråden och en ljusare åder i mitten
+    const c = CURVE(q), st = `--d:${d.toFixed(2)};--dur:${dur.toFixed(2)}`;
+    s += `<path d="${c}" pathLength="1" class="fl halo" style="${st};stroke-width:${(t.w * 2.6).toFixed(2)}"/>`;
+    s += `<path d="${c}" pathLength="1" class="fl" style="${st};stroke-width:${(t.w * 1.5).toFixed(2)}"/>`;
+    s += `<path d="${c}" pathLength="1" class="fl core" style="${st};stroke-width:${(t.w * 0.45).toFixed(2)}"/>`;
+    // korta utskott från trådens punkter, åt omväxlande håll
+    q.slice(1, -2).forEach(([x, y], i) => {
+      const [nx, ny] = q[i + 2], ang = Math.atan2(ny - y, nx - x) + ((i + k) % 2 ? 1 : -1) * (0.9 + 0.25 * ((i * 7 + k * 3) % 3));
+      const len = 14 + ((i * 5 + k * 11) % 4) * 5, ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len;
+      const mx = (x + ex) / 2 + Math.sin(ang) * 3, my = (y + ey) / 2 - Math.cos(ang) * 3;
+      const bd = d + dur * (i + 1.5) / (q.length - 1);
+      s += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" pathLength="1" class="fl twig" style="--d:${bd.toFixed(2)};--dur:1.4;stroke-width:${Math.max(1.2, t.w * 0.7).toFixed(2)}"/>`;
+    });
+  });
+  // massan: några klumpar som växer fram och andas
+  const m = ENDING_TIME.mass;
+  for (const [dx, dy, rx, ry, i] of [[0, 0, 12, 8.5, 0], [-8, 4, 8, 6, 1], [7, -4, 7, 5.5, 2], [-3, -7, 5.5, 4, 3], [11, 4, 5, 3.6, 4], [-13, -2, 4, 3, 5]]) {
+    s += `<ellipse cx="${(T[0] + dx).toFixed(1)}" cy="${(T[1] + dy).toFixed(1)}" rx="${rx}" ry="${ry}" class="lump" style="--d:${(m + i * 0.35).toFixed(2)}"/>`;
+  }
+  return s + '</g>';
 }
 // Gnesta-inzoomningen (ritfilm, mockupens .sheet.overlay) byggs senare. Kroken: returnera ett ark här när det finns
 // (src/data/table.js INSET), så läggs det på kartan som föremålet 'inset'.
@@ -312,8 +356,8 @@ const endHtml = (e, place) => `<div class="tb-obj tb-paper tb-order tb-end" data
   <div class="hd"><span>${esc(e.head.toUpperCase())}</span><span>${e.days ? `DAY ${two(e.days)}` : ''}</span></div>
   <div class="txt" data-read>${esc(e.text)}</div>
   <button type="button" class="tb-btn main" data-a="menu" data-read><span class="one">${esc(e.button)}</span><kbd>Enter</kbd></button>
-  <button type="button" class="tb-btn tb-credits" data-a="credits" data-read><span class="one">Credits</span></button>
-  <div class="tb-stamp" style="right:18px;bottom:136px;transform:rotate(-4deg)">TO BE CONTINUED</div></div>`;
+  <button type="button" class="tb-btn tb-credits" data-a="credits" data-read><span class="one">Credits</span></button></div>`;
+// 0.27.0 (H624: stämpeln låg över To menu): TO BE CONTINUED står på kartan, uppe mellan väg 223 och E4, inte på bladet
 const BESIDE_H = 168, BESIDE_GAP = 14;
 // En hupplagd hög: det översta bladet helt; på nästa strids hög sticker gårdagens rapport fram under ordern;
 // äldre blad syns som kanter.
@@ -520,7 +564,10 @@ function cardMenuHtml(p, uid) {
 
 // handlers: { onGo(sectorId), onRequisition(sectorId), act(kind, ...args) -> { ok, reason, progress }, save(progress) }
 // opts.selected: sektorn som är vald från början. opts.backdrop: bara bild (bakom Requisition-klämbrädan).
-export function tableSheet(root, progress, handlers = {}, { selected = null, backdrop = false } = {}) {
+// 0.27.0: opts.ending: v1:s slutscen spelas först (src/data/ending.js ENDING_TIME). handlers.onStamp() när stämpeln
+// landar (ljudet), handlers.onEndingDone() när scenen är slut eller hoppad över (klick, Esc, Enter). Med
+// prefers-reduced-motion visas slutläget direkt.
+export function tableSheet(root, progress, handlers = {}, { selected = null, backdrop = false, ending = false } = {}) {
   const el = document.createElement('div');
   el.id = backdrop ? 'hubback' : 'hub';
   el.className = 'opmap hub' + (backdrop ? ' backdrop' : '');
@@ -530,6 +577,28 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   let p = progress, sel = selected, spread = null, laneNote = null, enemyOrder = null, radioOrder = null, zTop = 20, page = 0, storeSheet = 0, cmenu = null, confirmReturn = null;
   // 0.22.1: påminnelsen om osparade RP (en gång per gång bordet visas)
   let nudge = null, nudged = false;
+  // ---------- slutscenen (0.27.0) ----------
+  // endT0: när scenen började (performance.now), null = ingen scen. Varje ritning sätter --el (sekunder sedan början) så
+  // att CSS-animationerna fortsätter där de var om bordet ritas om (fönstret ändras).
+  const reduced = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } })();
+  let endT0 = ending && !backdrop && !reduced ? performance.now() : null, endTimers = [], stamped = false;
+  const endPlaying = () => endT0 != null;
+  function endStamp() { if (stamped) return; stamped = true; handlers.onStamp?.(); }
+  function endFinish() {
+    if (!endPlaying()) return;
+    for (const t of endTimers) clearTimeout(t);
+    endTimers = []; endT0 = null;
+    endStamp();
+    render();
+    handlers.onEndingDone?.();
+  }
+  function endSchedule() {
+    for (const t of endTimers) clearTimeout(t);
+    const el0 = (performance.now() - endT0) / 1000;
+    endTimers = [];
+    if (el0 < ENDING_TIME.stamp) endTimers.push(setTimeout(endStamp, (ENDING_TIME.stamp - el0) * 1000)); else endStamp();
+    endTimers.push(setTimeout(endFinish, Math.max(0, ENDING_TIME.done - el0) * 1000));
+  }
   const zOf = {};
   // ---------- skalan: designrummet till fönstret ----------
   // 0.21.1: bordets yta följer fönstret (src/meta/table.js frameFor): skalan minst MIN_SCALE, ytan W x H
@@ -563,7 +632,7 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
       ${mapSvg(state, sel, avoid)}<div class="crease v"></div><div class="crease h"></div>
       <div class="marg l">LANTMÄTERIET · 1:250 000 · SÖDERMANLAND</div><div class="marg r">${state.next && state.next.n > 1 ? `CORRECTED NIGHT ${state.next.n - 1}` : 'FIRST ISSUE'}</div>
       ${state.next ? `<div class="tb-moment" data-read>${state.next.n > 1 ? `Night ${state.next.n - 1} → Day ${state.next.n}` : `Day ${state.next.n}`}</div>` : ''}
-      ${pinMarks(state)}</div>${insetSheet()}`;
+      ${pinMarks(state)}${state.end ? `<div class="tb-stamp tb-endstamp">${stampLines(ENDING_TEXT.stamp)}</div>` : ''}</div>${insetSheet()}`;
     for (const pl of state.piles) {
       if (pl.closed) continue;
       const pp = place(pl.id);
@@ -587,7 +656,10 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
     if (moved) html += `<button type="button" class="tb-tidy" data-a="tidy">Tidy the table <kbd>T</kbd></button>`;
     if (spread) { const pl = spread === 'archive' ? state.archive : state.piles.find(x => x.id === spread); if (pl) html += spreadHtml(pl, fr); else spread = null; }
     html += '<svg class="tb-strings"></svg>';
+    if (endPlaying() && state.end) html += `<div class="tb-skip" data-read>${esc(ENDING_TEXT.skip)}</div>`;
     view.innerHTML = html;
+    view.classList.toggle('ending-play', endPlaying() && !!state.end);
+    view.style.setProperty('--el', endPlaying() ? ((performance.now() - endT0) / 1000).toFixed(2) : '0');
     view.dataset.objects = state.objects.join(' ');
     view.classList.toggle('briefing', state.briefing);
     // rullan ligger på bordet: roten får .roster (förrådets lektioner pekar också på .hub.roster [data-a="lvl"], [data-req], [data-up], [data-fat])
@@ -705,6 +777,9 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   // 0.26.4 (speltestet av 0.26.3: Deploy svarade inte på första klicket efter att ett tips stängts, Enter gick): ritas bordet
   // om mellan pekarens tryck och släpp (tipset som går) blir det inget click på den nya knappen. Ett tryck och ett släpp på
   // Deploy räknas då ändå.
+  // 0.27.0: ett klick hoppar över slutscenen (och gör inget annat)
+  el.addEventListener('pointerdown', e => { if (!endPlaying()) return; e.stopPropagation(); e.preventDefault(); endFinish(); }, true);
+  el.addEventListener('click', e => { if (endPlaying()) { e.stopPropagation(); e.preventDefault(); } }, true);
   let goDown = null;
   view.addEventListener('pointerdown', e => { goDown = e.button === 0 ? e.target.closest?.('[data-a="go"]') ?? null : null; }, true);
   view.addEventListener('pointerup', e => {
@@ -761,15 +836,21 @@ export function tableSheet(root, progress, handlers = {}, { selected = null, bac
   addEventListener('resize', onResize);
   fit(true);
   render();
+  if (endPlaying()) endSchedule();
+  else if (ending && !backdrop) { stamped = true; handlers.onEndingDone?.(); }
   // typsnitten kan komma efter första ritningen: snöret ritas om
   document.fonts?.ready?.then(() => drawStrings());
   return {
     el,
-    close: () => { clearTimeout(resizeT); removeEventListener('resize', onResize); el.remove(); },
+    close: () => { clearTimeout(resizeT); for (const t of endTimers) clearTimeout(t); endTimers = []; removeEventListener('resize', onResize); el.remove(); },
+    // 0.27.0: slutscenen. playing(): scenen går. skipEnding(): hoppa till slutläget. seekEnding(s): (prov) hoppa till s sekunder in.
+    playing: endPlaying,
+    skipEnding: () => endFinish(),
+    seekEnding: sec => { if (!endPlaying()) return false; endT0 = performance.now() - sec * 1000; render(); endSchedule(); return true; },
     selected: () => sel,
     progress: () => p,
     // Esc: en utbredd hög läggs ihop; annars false (spelmenyn öppnas)
-    escape: () => { if (nudge) { nudge = null; render(); return true; } if (cmenu != null) { cmenu = null; render(); return true; } if (page) { page = 0; laneNote = null; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
+    escape: () => { if (endPlaying()) { endFinish(); return true; } if (nudge) { nudge = null; render(); return true; } if (cmenu != null) { cmenu = null; render(); return true; } if (page) { page = 0; laneNote = null; render(); return true; } if (spread) { spread = null; render(); return true; } return false; },
     // förrådets lektioner (main.js lessonCond 'depot'): rullan ligger på bordet
     lifted: () => el.classList.contains('roster'),
     page: () => page,

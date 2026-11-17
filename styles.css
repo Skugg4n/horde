@@ -79,7 +79,8 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 
 #ver { position:fixed; left:8px; bottom:6px; font:11px 'IBM Plex Mono'; opacity:.45 }
 /* Menyn visar versionen själv; hörnet behöver inte upprepa den. */
-#ui[data-mode="menu"] + #ver { display: none; }
+/* 0.27.0 (H624): ~, inte + (laddningsstapelns skript står mellan #ui och #ver, versionen syntes två gånger i menyn) */
+#ui[data-mode="menu"] ~ #ver { display: none; }
 
 /* ---------- spelets gränssnitt ---------- */
 #ui { position: fixed; inset: 0; pointer-events: none; }
@@ -389,6 +390,9 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .sheet.menu .act.menu-new:hover .a { color: var(--paper); }
 .sheet.menu .v { position: absolute; right: 12px; bottom: 9px; margin: 0; font-size: 10px; opacity: 0.4; }
 .sheet.menu .link.menu-credits { margin-top: 18px; }
+/* 0.27.0: Replay ending och Credits på en rad under menyn */
+.sheet.menu .menu-links { display: flex; justify-content: center; gap: 22px; margin-top: 18px; }
+.sheet.menu .menu-links .link { margin-top: 0; }
 /* 0.26.8 (NEW-13): eftertexterna, ett pappersblad som ordern på kartbordet (src/ui/credits.js). Fast höjd, sidor i stället
    för rullning. */
 .sheet.credits { width: min(460px, calc(100vw - 32px)); height: min(440px, calc(100vh - 32px)); overflow: hidden; pointer-events: auto;
@@ -995,7 +999,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .act { max-width: 100%; box-sizing: border-box; }
 .act .a { overflow-wrap: anywhere; }
 .depot .acts .act.deploy { flex: 0 1 320px; }
-#ui[data-manual="on"] + #ver { left: 66px; }
+#ui[data-manual="on"] ~ #ver { left: 66px; }
 
 /* 0.16.1 (H190): basen tar skada utanför bild: pil vid skärmkanten med basens hälsa, B går dit */
 #basearrow {
@@ -1307,7 +1311,7 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
 .hub .tb-order .hd { display: flex; justify-content: space-between; gap: 10px; font-size: 13.75px; letter-spacing: .14em; font-weight: 600; border-bottom: 1.5px solid #221d16; padding-bottom: 6px; }
 .hub .tb-order .meta { font-size: 13.75px; line-height: 1.55; margin: 9px 0 10px; color: #3a3226; }
 .hub .tb-order .txt { font-size: 16px; font-weight: 600; line-height: 1.38; }
-.hub .tb-end .txt { margin: 14px 0 64px; font-size: 18px; }
+.hub .tb-end .txt { margin: 14px 0 22px; font-size: 18px; }
 .hub .tb-end .tb-btn { position: relative; }
 #ui .hub .tb-end .tb-btn.tb-credits { margin-top: 8px; font-size: 14px; padding: 7px 8px 6px; background: rgba(34,29,22,.72); }
 .hub .tb-order .sig { font-size: 13.75px; margin-top: 12px; color: #4a4030; letter-spacing: .04em; line-height: 1.45; }
@@ -1599,3 +1603,42 @@ body { font-family: 'Oswald', sans-serif; color: var(--paper); user-select: none
   border: 1.5px solid #221d16; padding: 7px 12px; cursor: pointer; }
 #ui .tb-choice .ch-sign:hover:not([disabled]) { background: #221d16; color: #e4dac2; }
 #ui .tb-choice .ch-sign[disabled] { opacity: .45; cursor: default; }
+
+/* ---------- v1:s slut (0.27.0): trådarna, stämpeln på kartan och slutscenen ---------- */
+/* stämpeln på kartbladet (H624: förut på slutbladet, över To menu), uppe mellan väg 223 och E4 */
+.hub .tb-map .tb-endstamp { left: 462px; top: 76px; font-size: 30px; line-height: 1.02; padding: 6px 14px 3px; border: 4px double rgba(206,66,44,.9); color: rgba(214,72,50,.92);
+  mix-blend-mode: normal; transform: rotate(-7deg); letter-spacing: .1em; white-space: nowrap; z-index: 2; text-shadow: 0 0 1px rgba(0,0,0,.4); }
+.hub .tb-mapsvg .tb-flesh .fl { fill: none; stroke: rgba(122,22,24,.95); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 0;
+  animation: fleshBreath 3.2s ease-in-out infinite alternate; }
+.hub .tb-mapsvg .tb-flesh .fl.halo { stroke: rgba(64,8,10,.5); }
+.hub .tb-mapsvg .tb-flesh .fl.core { stroke: rgba(214,96,84,.6); }
+.hub .tb-mapsvg .tb-flesh .fl.twig { stroke: rgba(122,22,24,.85); }
+.hub .tb-mapsvg .tb-flesh .lump { fill: rgba(122,22,24,.95); stroke: rgba(214,96,84,.7); stroke-width: 1; transform-box: fill-box; transform-origin: center;
+  animation: fleshLump 2.4s ease-in-out infinite alternate; }
+@keyframes fleshBreath { from { stroke-opacity: .72; } to { stroke-opacity: 1; } }
+@keyframes fleshLump { from { transform: scale(.92); } to { transform: scale(1.1); } }
+/* scenen: --el = sekunder sedan början (src/ui/table.js), --d = när delen börjar */
+.hub .tb-view.ending-play .tb-flesh .fl { stroke-dashoffset: 1;
+  animation: fleshDraw calc(var(--dur) * 1s) cubic-bezier(.45,.05,.55,.95) calc(var(--d) * 1s - var(--el) * 1s) 1 both, fleshBreath 3.2s ease-in-out infinite alternate; }
+.hub .tb-view.ending-play .tb-flesh .lump { animation: fleshGrow 2.2s ease-out calc(var(--d) * 1s - var(--el) * 1s) 1 both, fleshLump 2.4s ease-in-out calc(var(--d) * 1s - var(--el) * 1s + 2.2s) infinite alternate; }
+@keyframes fleshDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes fleshGrow { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* det som hölls och det som gick förlorat blinkar en gång i början */
+.hub .tb-view.ending-play .tb-mapsvg .sec, .hub .tb-view.ending-play .tb-mapsvg .pen { animation: endMark 2.2s ease-in-out calc(.3s - var(--el) * 1s) 1 both; }
+@keyframes endMark { 0%, 100% { opacity: 1; } 30% { opacity: .25; } 60% { opacity: 1; } 75% { opacity: .5; } }
+/* allt utom kartan ligger i skugga medan scenen går */
+.hub .tb-view.ending-play > :not(.tb-map):not(.tb-radio):not(.tb-end):not(.tb-skip):not(.tb-strings) { animation: endDim 19.6s ease-in-out calc(0s - var(--el) * 1s) 1 both; }
+@keyframes endDim { 0% { opacity: 1; } 5%, 92% { opacity: .28; } 100% { opacity: 1; } }
+.hub .tb-view.ending-play .tb-radio { animation: endStrip 1s cubic-bezier(.2,.8,.3,1) calc(12.5s - var(--el) * 1s) 1 both; }
+@keyframes endStrip { 0% { visibility: hidden; opacity: 0; transform: translate(-60px, -14px) rotate(-6deg); } 1% { visibility: visible; } 100% { visibility: visible; opacity: 1; transform: none; } }
+.hub .tb-view.ending-play .tb-endstamp { animation: endStampLand .42s cubic-bezier(.3,1.5,.5,1) calc(16.5s - var(--el) * 1s) 1 both; }
+@keyframes endStampLand { 0% { visibility: hidden; opacity: 0; transform: rotate(-11deg) scale(2.3); } 1% { visibility: visible; } 70% { opacity: 1; } 100% { visibility: visible; opacity: 1; transform: rotate(-7deg) scale(1); } }
+.hub .tb-view.ending-play .tb-end { pointer-events: none; animation: endSheet 1s ease-out calc(18.3s - var(--el) * 1s) 1 both; }
+@keyframes endSheet { 0% { visibility: hidden; opacity: 0; translate: 0 40px; } 1% { visibility: visible; } 100% { visibility: visible; opacity: 1; translate: 0 0; } }
+.hub .tb-skip { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 97; font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: .12em;
+  color: rgba(233,223,201,.62); text-transform: uppercase; white-space: nowrap; cursor: default; animation: endSkip 1s ease 1.2s both; }
+@keyframes endSkip { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .hub .tb-mapsvg .tb-flesh .fl, .hub .tb-mapsvg .tb-flesh .lump, .hub .tb-skip { animation: none !important; }
+  .hub .tb-view.ending-play * { animation: none !important; }
+}

@@ -21,6 +21,7 @@ import { ZOMBIES } from '../data/zombies.js';
 import { WEAPONS } from '../data/weapons.js';
 import { SECTOR_TABLE, SPARE_SLOTS, RADIO, SENDERS, ADDRESSEE, ENEMY_SHEET, ROLE, TABLE_W, TABLE_H } from '../data/table.js';
 import { mapState, mapUnlocked, choiceOf, choicePending } from './progress.js';
+import { ENDING_TEXT } from '../data/ending.js';
 import { CHOICES, choiceOption } from '../data/choices.js';
 import { STAGES, stageIndex, stageReached, furthestPlayed, metaFeatures } from './unlocks.js';
 import { suggestRoster, dayFor, openSectors, currentMap, sectorStatus, sectorClosed, lanes, setLane, unitsIn, maxMen, vetOf, unitName, unitOf, unitWorth, requisition, canRequisition, stockTypes, stockOf, upgradeList, levelUp } from './operation.js';
@@ -196,9 +197,37 @@ export const lastBuiltMap = () => [...CAMPAIGN_MAPS].reverse().find(id => MAPS[i
 export function campaignEnd(p) {
   const last = lastBuiltMap();
   if (!last || !sectorClosed(p, last) || nextBattle(p)) return null;
-  return { id: 'end', head: 'Operation Södermanland', text: 'Campaign continues in a later version. Thank you for holding Gnesta.', button: 'To menu',
-    days: campaignDay(last, MAPS[last].days.length, p) };
+  // 0.27.0: texterna i src/data/ending.js (platshållare för Olas text)
+  const t = ENDING_TEXT.sheet;
+  return { id: 'end', head: t.head, text: t.text, button: t.button, days: campaignDay(last, MAPS[last].days.length, p) };
 }
+// ---------- v1:s slut (0.27.0) ----------
+// Sparfilen: progress.ending = { finished: true, day, seen }. finished: kampanjen spelades till slutet (dag 14 eller 15),
+// skrivs en gång när sista dagen vunnits och tas aldrig bort (inget annat i filen rörs). seen: slutscenen på bordet har
+// visats (eller hoppats över). Fältet är valfritt; en fil utan det (0.26.8, som slutade på samma dag) får scenen en gång.
+export function endingOf(p) {
+  const e = p?.ending;
+  if (!isObj(e) || e.finished !== true) return null;
+  return { finished: true, day: num(e.day) ?? null, seen: e.seen === true };
+}
+// Kampanjen är slut: skriv det i filen (en gång). Svar: framsteget (samma objekt om inget behövde skrivas).
+export function finishCampaign(p) {
+  const end = campaignEnd(p);
+  if (!end || endingOf(p)) return p;
+  return { ...p, ending: { finished: true, day: end.days, seen: false } };
+}
+// Scenen är visad (eller hoppad över)
+export function markEndingSeen(p) {
+  const e = endingOf(finishCampaign(p));
+  if (!e || e.seen) return finishCampaign(p);
+  return { ...p, ending: { ...e, seen: true } };
+}
+// Ska scenen spelas när bordet visas nästa gång (kampanjen slut och scenen inte sedd)?
+export const endingPending = p => !!campaignEnd(p) && !endingOf(p)?.seen;
+// Kan scenen spelas igen från menyn (kampanjen slut, nu eller någon gång)?
+export const endingReplayable = p => !!campaignEnd(p) || !!endingOf(p);
+// Radioremsan som ligger på bordet efter slutet
+export const endingStrip = () => ({ id: 'radio:ending', at: ENDING_TEXT.radio.at, from: ENDING_TEXT.radio.from, text: ENDING_TEXT.radio.text });
 
 // ---------- uppdragshögarna ----------
 // En hög per sektor som nåtts, bladen i tidsordning (sist = överst).
@@ -541,10 +570,12 @@ export function tableState(p, { sector = null } = {}) {
   const meta = metaFeatures(p), nb = nextBattle(p, sector);
   const piles = missionPiles(p).map(pl => ({ ...pl, current: !pl.closed && nb?.sector === pl.sector }));
   const enemies = enemyPile(p, nb);
-  const radio = radioStrips(p, nb);
+  const end = campaignEnd(p);
+  // 0.27.0: efter slutet ligger slutscenens radioremsa på bordet
+  const radio = end ? [endingStrip()] : radioStrips(p, nb);
   const depot = meta.has('depot');
   const state = {
-    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p), end: campaignEnd(p),
+    next: nb, opmap: meta.has('opmap'), piles, enemies, radio, lost: lostSectors(p), end,
     intel: enemies && meta.has('opmap') ? intelNote(p, nb) : null,
     zones: depot && nb ? cardZones(p, nb.sector) : null,
     clipboard: depot ? { rp: meta.has('rp') ? p.rp : null, next: nb } : null,
@@ -577,6 +608,8 @@ const F0 = frameFor();
 export function defaultPlace(state, id, fr = F0) {
   const onMap = ([x, y]) => [Math.round(fr.mapX + (x - 300) * fr.mapS), Math.round(fr.mapY + (y - 30) * fr.mapS)];
   if (id === 'map') return { x: fr.mapX, y: fr.mapY, r: -0.5 };
+  // 0.27.0: efter slutet ligger slutscenens remsa under fiendehögen (arkivhögen har vänsterkanten)
+  if (id === 'radio' && state.end) return { x: Math.round(fr.enemyX + 18), y: Math.round(state.enemies ? 28 + (state.enemies.sheets.length - 1) * 30 + 2 + 196 + 30 : 40), r: 1.2 };
   if (id === 'radio') return { x: 22, y: 40, r: -2 };
   if (id === 'archive') return { x: 20, y: Math.round(Math.min(330, fr.zoneY - 190)), r: 0 };
   if (id === 'enemies') return { x: Math.round(fr.enemyX), y: 28, r: 0 };   // spelmenyns knapp står i hörnet uppe till höger

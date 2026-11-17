@@ -199,7 +199,7 @@ function auditTable(scope) {
 // Utöver täckningen: texten minst 11 px (utom kartbladet), kortens namn klipps inte, klämbrädan ryms i fönstret och
 // Deploy står på en rad, inga operationskartans steg över bordet, samma dagnummer som banan, ett blad för en förlorad
 // dag, radion bara när dagen har en sändning, och 16 enheter läsbara.
-const TABLE_SCOPES = 30;
+const TABLE_SCOPES = 33;
 function auditTableExtra(scope) {
   const out = [];
   const hub = document.querySelector('#hub');
@@ -457,6 +457,56 @@ async function tableChecks(page, label) {
   // 0.26.6 (speltestet av 0.26.5): slutkartan efter Västerkärv (ortnamnen runt Gnesta)
   await show(reach('vasterkarv', 1, `p = O.finishDay(p, { mapId: 'vasterkarv', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress;`), 'table-end');
   if (!(await ev(`!!document.querySelector('#hub [data-a="menu"]')`))) errors.push(`table-end @${label}: inget slutblad`);
+  // 0.27.0: v1:s slutscen (src/data/ending.js). Mitt i (trådarna ritas, slutbladet och stämpeln inte än), efter
+  // stämpeln och slutläget efter Esc. Stämpeln ligger inte över To menu (H624), radioremsan ligger kvar, scenen räknas
+  // som sedd och menyn har Replay ending, som spelar den igen.
+  {
+    const sc = `table-ending @${label}`;
+    await ev(reach('vasterkarv', 1, `p = O.finishDay(p, { mapId: 'vasterkarv', day: 1, won: true, intelEarned: 10, report: { units: [] } }).progress; p = T.finishCampaign(p);`));
+    await ev(seen);
+    await ev(`window.__horde.showEnding()`); await page.mouse.move(2, 200);
+    await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {});
+    if (!(await ev('window.__horde.endingPlaying()'))) errors.push(`${sc}: scenen spelas inte`);
+    await ev('window.__horde.endingSeek(6.5)'); await page.waitForTimeout(400);
+    const mid = await ev(`(() => { const v = s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).visibility !== 'hidden'; }; const offs = [...document.querySelectorAll('#hub .tb-flesh .fl:not(.twig)')].map(e => parseFloat(getComputedStyle(e).strokeDashoffset)); return { threads: offs.length, off: offs.some(o => o > 0.01 && o < 0.99) ? 0.5 : offs.join(','), sheet: v('#hub .tb-end'), stamp: v('#hub .tb-endstamp'), skip: v('#hub .tb-skip') }; })()`);
+    if (!mid.threads || mid.sheet || mid.stamp || !mid.skip || !(mid.off > 0 && mid.off < 1)) errors.push(`${sc}: mitt i scenen ${JSON.stringify(mid)}`);
+    await ev('window.__horde.endingSeek(6.5)');
+    await run('table-ending-mid');
+    await ev('window.__horde.endingSeek(6.5)');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+    if (await ev('window.__horde.endingPlaying()')) errors.push(`${sc}: Esc hoppade inte över scenen`);
+    if (await ev('window.__horde.mode') !== 'opmap') errors.push(`${sc}: Esc öppnade ${await ev('window.__horde.mode')}`);
+    await run('table-ending-final');
+    const fin = await ev(`(() => { const st = document.querySelector('#hub .tb-endstamp')?.getBoundingClientRect(), btns = [...document.querySelectorAll('#hub .tb-end button')].map(b => b.getBoundingClientRect());
+      const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return { stamp: !!st, over: st ? btns.some(b => hit(st, b)) : null, radio: document.querySelector('#hub .tb-radio')?.textContent ?? '', seen: window.__horde.progress.ending?.seen ?? null, sheet: !!document.querySelector('#hub .tb-end'), skip: !!document.querySelector('#hub .tb-skip') }; })()`);
+    if (!fin.stamp || fin.over !== false) errors.push(`${sc}: stämpeln saknas eller ligger över knapparna (${JSON.stringify(fin)})`);
+    if (!/Björnlunda/.test(fin.radio)) errors.push(`${sc}: radioremsan ligger inte kvar`);
+    if (fin.seen !== true) errors.push(`${sc}: scenen räknas inte som sedd`);
+    if (!fin.sheet || fin.skip) errors.push(`${sc}: slutläget utan slutblad eller med skip-raden`);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(500);
+    if (await ev('window.__horde.mode') !== 'menu') errors.push(`${sc}: Enter gick inte till menyn`);
+    const vers = await ev(`[document.querySelector('#ver'), document.querySelector('.sheet.menu .v')].filter(e => e && e.offsetParent !== null && getComputedStyle(e).display !== 'none').length`);
+    if (vers !== 1) errors.push(`${sc}: versionen syns ${vers} gånger i menyn (H624)`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/menu-ended-${label}.png` });
+    if (!(await ev(`!!document.querySelector('.sheet.menu [data-a="ending"]')`))) errors.push(`${sc}: menyn har inget Replay ending`);
+    await ev(`document.querySelector('.sheet.menu [data-a="ending"]')?.click()`); await page.waitForTimeout(700);
+    if (!(await ev('window.__horde.endingPlaying()'))) errors.push(`${sc}: Replay ending spelar inte scenen`);
+    await page.mouse.click(Math.round(W / 2), 300); await page.waitForTimeout(400);
+    if (await ev('window.__horde.endingPlaying()')) errors.push(`${sc}: ett klick hoppade inte över scenen`);
+    if (await ev('window.__horde.mode') !== 'opmap') errors.push(`${sc}: klicket gjorde något annat (${await ev('window.__horde.mode')})`);
+    // efter stämpeln, före slutbladet (scenen spelas en gång till och får sluta av sig själv)
+    await ev(`window.__horde.showEnding()`); await page.mouse.move(2, 200);
+    await page.waitForFunction(() => !!document.querySelector('#hub .tb-map'), null, { timeout: 15000 }).catch(() => {});
+    await ev('window.__horde.endingSeek(17.3)'); await page.waitForTimeout(400);
+    const st = await ev(`(() => { const v = s => { const e = document.querySelector(s); return !!e && getComputedStyle(e).visibility !== 'hidden'; }; return { stamp: v('#hub .tb-endstamp'), radio: v('#hub .tb-radio .tb-strip'), sheet: v('#hub .tb-end') }; })()`);
+    if (!st.stamp || !st.radio || st.sheet) errors.push(`${sc}: efter stämpeln ${JSON.stringify(st)}`);
+    await ev('window.__horde.endingSeek(17.3)');
+    await run('table-ending-stamp');
+    await page.waitForFunction(() => !window.__horde.endingPlaying(), null, { timeout: 8000 }).catch(() => {});
+    if (await ev('window.__horde.endingPlaying()')) errors.push(`${sc}: scenen tog inte slut av sig själv`);
+    if (!(await ev(`!!document.querySelector('#hub .tb-end') && getComputedStyle(document.querySelector('#hub .tb-end')).visibility !== 'hidden'`))) errors.push(`${sc}: inget slutblad när scenen tagit slut`);
+  }
   // 0.26.6 (speltestet av 0.26.5): lägesrapporten natt 9 under ordern 10, och förlustlappen Björnlunda dag 12 under ordern
   await show(reach('molnbo', 3), 'table-night9');
   await show(reach('bjornlunda', 2, `p = T.recordLoss(p, { mapId: 'bjornlunda', day: 2, kills: 129, cleared: 1, waves: 4 });`), 'table-lost-12');

@@ -82,6 +82,13 @@ ORDER:
 RAPPORT:
 RADIO:
 
+## SLUTET (v1:s slutscen efter Västerkärv, dag 14 eller 15)
+Spelet tar slut tills vidare här. Scenen på kartbordet: kartan, köttiga trådar från väster mot spåret väster om Björnlunda station, sist en radioremsa, stämpeln och slutbladet. Texterna står i src/data/ending.js (ENDING_TEXT) och är platshållare tills du fyllt i här.
+RADIO (högst 30 ord; tid och avsändare, i dag 06:40, Västerkärv):
+  i dag: "Västerkärv is clear. Everyone is out. A rail patrol reports something on the line west of Björnlunda station. It is not moving. It is growing."
+STÄMPELN (högst 18 tecken; i dag TO BE CONTINUED):
+SLUTBLADET (rubrik och högst 20 ord; i dag "Operation Södermanland" och "Campaign continues in a later version. Thank you for holding Gnesta."):
+
 ## Dag 15, Västra rondellen (överkörda)
 ORDER:
 RAPPORT:

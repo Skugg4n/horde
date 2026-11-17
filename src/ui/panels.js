@@ -7,6 +7,7 @@ import { OBSTACLES } from '../data/obstacles.js';
 import { weaponStats, upgradeCost, MAX_LEVEL, weaponRefund, lineRefund, grenadeStats, tierOf } from '../sim/stats.js';
 import { researchNode } from '../data/research.js';
 import { ICONS } from './icons.js';
+import { ENDING_TEXT } from '../data/ending.js';
 import { SHOP, BUY_MENU, shopItem, hotkeyOf, dayMenu, usesChords } from '../data/shop.js';
 import { inArsenal } from '../sim/stats.js';
 import { buyState, inBar } from '../sim/buy.js';
@@ -711,7 +712,7 @@ export function dayResultPanel(root, { won, rp = null, attempt = 1, totalRp = 0,
 // 0.16.3 (Olas "trångt och konstigt"): luftig skylt, knappen på en rad ("Continue"), statusraden under den
 // (var operationen står: plats, dag och RP), New operation som en riktig sekundär knapp, versionen i hörnet.
 // status: { place, day } eller null.
-export function mainMenu(root, { started, rp, status, onContinue, onNew, onCredits, version }) {
+export function mainMenu(root, { started, rp, status, onContinue, onNew, onCredits, onEnding = null, version }) {
   // 0.25.1 (H564, speltestet av 0.25.0: "· 1 132 RP" lästes som dag 1 och 132 RP): tusental med komma, "1,132 RP"
   const rpText = `${String(Math.round(rp)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} RP`;
   const where = status?.place ? status.place + (status.day ? `, day ${status.day}` : '') : null;
@@ -724,10 +725,12 @@ export function mainMenu(root, { started, rp, status, onContinue, onNew, onCredi
       ${started ? `<p class="menu-status">${line}</p>` : ''}
     </div>
     ${started ? '<button type="button" class="act menu-new" data-a="new"><span class="a">New operation</span></button>' : ''}
-    ${onCredits ? '<button type="button" class="link menu-credits" data-a="credits">Credits</button>' : ''}
+    ${onCredits || onEnding ? `<div class="menu-links">${onEnding ? `<button type="button" class="link menu-ending" data-a="ending">${ENDING_TEXT.replay}</button>` : ''}${onCredits ? '<button type="button" class="link menu-credits" data-a="credits">Credits</button>' : ''}</div>` : ''}
     <div class="v">v${version}</div>`);
   // 0.26.8 (NEW-13): eftertexterna (src/ui/credits.js)
   on(p.el, '[data-a="credits"]', () => onCredits?.());
+  // 0.27.0: slutscenen igen, när kampanjen är slut
+  on(p.el, '[data-a="ending"]', () => onEnding?.());
   on(p.el, '[data-a="continue"]', onContinue);
   on(p.el, '[data-a="new"]', () => { if (confirm('Start a new operation? Your current one is kept as a backup copy.')) onNew(); });
   return p;

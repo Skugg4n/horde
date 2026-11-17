@@ -366,6 +366,11 @@ const ui = { group: 'ui', dur: 0.22, play(A, t, o, out) {
     const lp = filt(A.ctx, 'lowpass', 1100), gg = A.ctx.createGain(); gg.gain.value = 0.35; chain(lp, gg, g);
     thump(A, t, lp, { type: 'square', f: 240, f2: 230, peak: 0.22, d: 0.07 });
     thump(A, t, lp, { type: 'square', f: 170, f2: 160, peak: 0.22, d: 0.1, delay: 0.08 });
+  } else if (k === 'stamp') {
+    // 0.27.0: slutscenens stämpel, en låg duns och papperets smäll
+    const lp = filt(A.ctx, 'lowpass', 420, 1.2), gg = A.ctx.createGain(); gg.gain.value = 1.4; chain(lp, gg, g);
+    thump(A, t, lp, { f: 72, f2: 38, glide: 0.25, peak: 1, d: 0.45 });
+    burst(A, t, g, { buf: 'brown', type: 'lowpass', f: 900, peak: 0.5, d: 0.12 });
   } else if (k === 'place') {
     thump(A, t, g, { f: 230, f2: 110, glide: 0.05, peak: 0.45, d: 0.08 });
     burst(A, t, g, { type: 'bandpass', f: 1600, q: 1.5, peak: 0.25, d: 0.03 });

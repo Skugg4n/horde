@@ -526,5 +526,5 @@ Format: `- [ ] id | område | sak`. Bocka av med [x] när det är gjort.
 - [ ] H621 | ui | Västerkärv: "Last wave. Spend your $ now" köas bakom röda larm (45 s sent eller aldrig); ska gå före (speltest 0.26.8)
 - [ ] H622 | ui | LINE BREAKING-skylten och ringen står kvar 10-15 s efter "0 left"; NO VIEW kvar på tornet/Ksp 58 när fältet är tomt och mellan vågorna (speltest 0.26.8)
 - [ ] H623 | ui | Västerkärv: BASE 0 i rött och "Base under attack!" fortsätter efter att huset fallit (hp går till -30) (speltest 0.26.8)
-- [ ] H624 | ui | Slutbladet: TO BE CONTINUED-stämpeln över TO MENU-knappen; versionsnumret två gånger i huvudmenyn (speltest 0.26.8)
+- [x] H624 | ui | Slutbladet: TO BE CONTINUED-stämpeln över TO MENU-knappen; versionsnumret två gånger i huvudmenyn (speltest 0.26.8) GJORT 0.27.0: stämpeln står på kartan (slutscenen), versionen en gång (CSS-väljaren missade #ver bakom laddningsskriptet); layout-check provar båda.
 - [ ] H625 | balans | Dag 9 Mölnbo 2: passivt spel förlorar, vinst med bas 3 (0.26.6-testet: bas 17); bevaka i nästa speltest (speltest 0.26.8)

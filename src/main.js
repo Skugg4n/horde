@@ -26,7 +26,7 @@ import { opMapSheet, depotSheet, nextDay } from './ui/operation.js';
 import { tableSheet } from './ui/table.js';
 // 0.24.0 (H552): Laxne-valet, ordern med två rutor över bordet
 import { choiceOverlay } from './ui/choice.js';
-import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, rosterSlots, lostNext } from './meta/table.js';
+import { recordDay, recordLoss, swapCards, campaignDay, whereOf, nextBattle as tableNext, moveCardTo, clickCard, buyCard, choiceSheet as tableChoice, campaignEnd, restedFirst, rosterSlots, lostNext, finishCampaign, markEndingSeen, endingPending, endingReplayable } from './meta/table.js';
 import { campaignDayOf, shownDay, setChoices } from './meta/campaign-day.js';
 import { shopItem, dayMenu, BUY_MENU } from './data/shop.js';
 import { WEAPONS } from './data/weapons.js';
@@ -2369,6 +2369,8 @@ addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') { e.preventDefault(); sheet?.prev(); return; }
     if (e.key === 'Enter') { e.preventDefault(); if (performance.now() >= enterQuietUntil) { settleEnter(); sheet?.enter(); } return; }
   }
+  // 0.27.0: Enter hoppar över slutscenen (nästa Enter: To menu)
+  if (e.key === 'Enter' && mode === 'opmap' && sheet?.playing?.() && !menu.isOpen()) { e.preventDefault(); if (!e.repeat) { settleEnter(); sheet.skipEnding(); } return; }
   if (e.key === 'Enter' && !e.repeat) {
     // 0.14.1: förrådet som steg (Deploy), och på förlustskylten är Try again det markerade valet
     // 0.25.1 (H561): på kampanjens slutblad är To menu det enda valet
@@ -3033,9 +3035,12 @@ function showMenu() {
     version: VERSION, started, rp: progress.rp, status,
     // 0.16.0: före operationskartan (efter E4 dag 3) går Continue direkt till dagen
     // 0.21.0: med kartbordet börjar varje dag vid bordet (dag 1: kartan och en lapp)
-    onContinue: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
+    // 0.27.0: en kampanj som tagit slut men inte sett slutscenen (en fil från 0.26.8) får den en gång
+    onContinue: () => (hubTable() ? (endingPending(progress) ? showEnding() : showTable()) : meta('opmap') ? showOpMap() : deploySector(progress.mapId)),
     onNew: () => { resetSave(newCampaign()); progress = loadProgress(); setChoices(progress.choices); if (hubTable()) showTable(); else loadMap(progress.mapId).then(() => deploySector(progress.mapId)); },
     onCredits: () => showCredits(showMenu),
+    // 0.27.0: efter slutet går scenen att se igen
+    onEnding: endingReplayable(progress) && campaignEnd(progress) ? () => showEnding() : null,
   }));
 }
 // 0.26.8 (NEW-13): eftertexterna (src/ui/credits.js), från menyn och från kampanjens slutblad; Close går tillbaka dit
@@ -3082,8 +3087,12 @@ function withChoiceSheet(s, again) {
   });
   return { ...s, close: () => { ov.close(); s.close(); }, choice: sh.choice };
 }
-function showTable() {
+// 0.27.0: v1:s slutscen på bordet (src/ui/table.js, texterna i src/data/ending.js); sedan slutbladet som förut
+function showEnding() { showTable({ ending: true }); }
+function showTable({ ending = false } = {}) {
   setMode('opmap', () => withChoiceSheet(tableSheet(uiRoot, progress, {
+    onStamp: () => audio.ui('stamp'),
+    onEndingDone: () => { progress = markEndingSeen(progress); save(); },
     onGo: id => tableGo(id),
     // 0.25.1 (H561): kampanjens slutblad har en knapp, To menu
     onMenu: () => showMenu(),
@@ -3094,7 +3103,7 @@ function showTable() {
       return r;
     },
     save: p => { progress = p; save(); },
-  }), showTable));
+  }, { ending: ending && !!campaignEnd(progress) }), showTable));
   // inkorgen räknas som läst (bordet visar ledningens rader som order)
   progress = markRead(progress); save();
 }
@@ -3253,6 +3262,8 @@ function finishDay() {
     progress = recordDay(progress, { mapId: map.id, day, kills: sim.kills, waves: sim.dayCfg.waves.length, lost, saved: sim.evac?.safe ?? null, total: sim.evac?.total ?? null });
     // 0.25.1 (H563), 0.26.1 (H603): rullan är omföreslagen (nightAfter); korten som bytte bana får sina platser
     progress = rosterSlots(progress, tableNext(progress)?.sector);
+    // 0.27.0: den sista byggda dagen är vunnen, kampanjen står som slutförd i sparfilen (inget annat rörs)
+    progress = finishCampaign(progress);
   } else progress = recordLoss(progress, { mapId: map.id, day, kills: sim.kills, cleared: sim.waveIndex, waves: sim.dayCfg.waves.length, lostBy: sim.lostBy ?? null });
   save();
   // förlusterna per enhet (bara intressanta vid vinst; vid förlust står styrkan kvar)
@@ -3287,7 +3298,8 @@ function showResult() {
     manualHint: entry && manualUnlocked(progress).includes(entry.id) ? { id: entry.id, title: entry.title } : null }, {
     // 0.14.1: Try again går genom förrådet (RP:n från förlusten), Deploy startar dagen igen
     onRetry: () => (hubTable() ? showTable() : meta('depot') ? showDepot(map.id, 'result', { day }) : startDay(day)),
-    onOpMap: () => (hubTable() ? showTable() : meta('opmap') ? showOpMap() : deploySector(map.id)),
+    // 0.27.0: efter kampanjens sista dag går Map table till slutscenen
+    onOpMap: () => (hubTable() ? (lastResult?.final ? showEnding() : showTable()) : meta('opmap') ? showOpMap() : deploySector(map.id)),
     onMenu: showMenu,
     onManual: id => openManual(id),
   }));
@@ -3393,7 +3405,7 @@ if (DEBUG) window.__horde = { openCard, get card() { return card; }, menuOpen: (
   // 0.12.0: byt bana som menyn gör (prov och skärmbilder)
   pickMap: id => { progress = selectMap(progress, id); return loadMap(id); },
   open, jump: (...a) => debugJump(...a), quickJump: (m, d, c) => quickJump(m, d, c), get pointer() { return pointer; }, get minimap() { return minimap; }, placeLog,
-  showDepot: (...a) => showDepot(...a), showResult: () => showResult(), setProgress: v => { progress = v; save(); },
+  showDepot: (...a) => showDepot(...a), showResult: () => showResult(), showEnding: () => showEnding(), endingSeek: s => sheet?.seekEnding?.(s) ?? false, endingPlaying: () => !!sheet?.playing?.(), setProgress: v => { progress = v; save(); },
   // 0.21.0: kartbordet (prov och skärmbilder)
   showTable: () => showTable(), get nowPaths() { return nowPaths; }, get hub() { return settings.hub; }, setHub: v => { settings = normalizeSettings({ ...settings, hub: v }); saveSettings(settings); }, get sheet() { return sheet; },
   // simuleringen framåt utan att vänta (prov och skärmbilder); vyn ritas i nästa bildruta

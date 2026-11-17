@@ -1,5 +1,15 @@
 # Ändringslogg
 
+## 0.27.0 (v1:s slutscen) (2026-11-17)
+
+v1 tar slut efter Västerkärv (dag 14 efter FALL BACK, dag 15 efter DEFEND LAXNE). I stället för att bara sluta får slutet nu en kort scen på kartbordet som pekar framåt mot Björnlunda.
+
+- **Slutscenen på kartbordet.** Efter Västerkärvs seger går Map table till en scen på cirka 20 sekunder: kartan med det som hölls och det som gick förlorat, sedan ritar mörkröda köttiga trådar sig långsamt över kartan från väster och möts vid järnvägen strax väster om Björnlunda station, där en klump växer och andas. Sist kommer en radioremsa ("… something on the line west of Björnlunda station. It is not moving. It is growing."), stämpeln TO BE CONTINUED landar på kartan med en låg duns, och slutbladet med To menu och Credits glider fram. Ett klick, Esc eller Enter hoppar till slutläget. Med "minska rörelse" i systemet visas slutläget direkt. Trådarna och remsan ligger kvar på bordet efteråt.
+- **Texterna på ett ställe.** Scenens texter (radion, stämpeln, slutbladet) står i src/data/ending.js och är platshållare för Olas egna. Avsnittet SLUTET i docs/ola/texter-mall.md är till för att fylla i.
+- **Slutet går att se igen.** Huvudmenyn har Replay ending bredvid Credits när kampanjen är slut. Sparfilen skriver att kampanjen är slutförd (`ending`: dag och om scenen är sedd) utan att något annat ändras. En sparfil från 0.26.8:s slut får scenen en gång när man trycker Continue.
+- **H624.** TO BE CONTINUED låg över To menu på slutbladet: stämpeln står nu på kartan. Versionsnumret syntes två gånger i huvudmenyn (regeln som döljer hörnets nummer missade det bakom laddningsskriptet): nu en gång.
+- **Prov.** tests/ending.test.js: båda Laxne-grenarna når slutet (dag 15 och 14), fältet följer med genom sparning utan att något annat ändras, scenen en gång, texternas mått och tidslinjen. layout-check: scenen mitt i, efter stämpeln och slutläget i tre bredder, stämpeln inte över knapparna, versionen en gång i menyn, Replay ending och klick som hoppar över.
+
 ## 0.26.8 (resterna från speltestet av 0.26.6, eftertexter, sparprov) (2026-11-17)
 
 Det som stod kvar i speltestet av 0.26.6 (docs/playtests/2026-11-17-0.26.6.md), ett jakttorn i Västerkärv, eftertexterna och ett prov på sparfilen över hela bågen.
